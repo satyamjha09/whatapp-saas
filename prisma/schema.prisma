@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CompanyRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum WhatsAppAccountStatus {
+  PENDING
+  CONNECTED
+  DISCONNECTED
+  ERROR
+}
+
+enum TemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+enum TemplateStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  PAUSED
+}
+
+enum MessageStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
+}
+
+model User {
+  id          String @id @default(cuid())
+  clerkUserId String @unique
+  email       String @unique
+  name        String?
+  imageUrl    String?
+
+  companies CompanyUser[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Company {
+  id   String @id @default(cuid())
+  name String
+
+  users                CompanyUser[]
+  whatsAppAccounts     WhatsAppAccount[]
+  whatsAppPhoneNumbers WhatsAppPhoneNumber[]
+  templates            Template[]
+  contacts             Contact[]
+  messages             Message[]
+  messageEvents        MessageEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CompanyUser {
+  id String @id @default(cuid())
+
+  userId    String
+  companyId String
+  role      CompanyRole @default(MEMBER)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, companyId])
+}
+
+model WhatsAppAccount {
+  id        String @id @default(cuid())
+  companyId String
+
+  wabaId       String? @unique
+  businessName String?
+  accessToken  String?
+  status       WhatsAppAccountStatus @default(PENDING)
+
+  company      Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  phoneNumbers WhatsAppPhoneNumber[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model WhatsAppPhoneNumber {
+  id                String @id @default(cuid())
+  companyId         String
+  whatsAppAccountId String
+
+  phoneNumberId      String? @unique
+  displayPhoneNumber String?
+  verifiedName       String?
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  whatsAppAccount WhatsAppAccount @relation(fields: [whatsAppAccountId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([whatsAppAccountId])
+}
+
+model Template {
+  id        String @id @default(cuid())
+  companyId String
+
+  name     String
+  language String
+  category TemplateCategory
+  status   TemplateStatus @default(DRAFT)
+
+  body      String
+  variables String[]
+
+  metaTemplateId String?
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, name, language])
+  @@index([companyId])
+}
+
+model Contact {
+  id        String @id @default(cuid())
+  companyId String
+
+  name        String?
+  phoneNumber String
+  countryCode String @default("91")
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, phoneNumber])
+  @@index([companyId])
+}
+
+model Message {
+  id        String @id @default(cuid())
+  companyId String
+
+  contactId  String
+  templateId String?
+
+  direction MessageDirection @default(OUTBOUND)
+  status    MessageStatus    @default(QUEUED)
+
+  toPhoneNumber String
+  body          String
+  variables     String[]
+
+  metaMessageId String?
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact  Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  template Template? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  events MessageEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([templateId])
+  @@index([metaMessageId])
+}
+
+model MessageEvent {
+  id        String @id @default(cuid())
+  companyId String
+  messageId String
+
+  status MessageStatus
+  raw    Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([messageId])
+}
