@@ -1,0 +1,123 @@
+import { prisma } from "@/lib/prisma";
+import { UpdateMemberRoleInput } from "@/server/validators/team.validator";
+
+type UpdateCompanyMemberRoleInput = {
+  companyId: string;
+  companyUserId: string;
+  currentUserId: string;
+  input: UpdateMemberRoleInput;
+};
+
+type RemoveCompanyMemberInput = {
+  companyId: string;
+  companyUserId: string;
+  currentUserId: string;
+};
+
+export async function getCompanyMembers(companyId: string) {
+  return prisma.companyUser.findMany({
+    where: {
+      companyId,
+    },
+    include: {
+      user: true,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+}
+
+export async function updateCompanyMemberRole({
+  companyId,
+  companyUserId,
+  currentUserId,
+  input,
+}: UpdateCompanyMemberRoleInput) {
+  const member = await prisma.companyUser.findFirst({
+    where: {
+      id: companyUserId,
+      companyId,
+    },
+  });
+
+  if (!member) {
+    throw new Error("Team member not found");
+  }
+
+  if (member.userId === currentUserId) {
+    throw new Error("You cannot change your own role");
+  }
+
+  if (member.role === "OWNER" && input.role !== "OWNER") {
+    const ownerCount = await prisma.companyUser.count({
+      where: {
+        companyId,
+        role: "OWNER",
+      },
+    });
+
+    if (ownerCount <= 1) {
+      throw new Error("Company must have at least one owner");
+    }
+  }
+
+  const updatedMember = await prisma.companyUser.update({
+    where: {
+      id: companyUserId,
+    },
+    data: {
+      role: input.role,
+    },
+    include: {
+      user: true,
+    },
+  });
+
+  return updatedMember;
+}
+
+export async function removeCompanyMember({
+  companyId,
+  companyUserId,
+  currentUserId,
+}: RemoveCompanyMemberInput) {
+  const member = await prisma.companyUser.findFirst({
+    where: {
+      id: companyUserId,
+      companyId,
+    },
+    include: {
+      user: true,
+    },
+  });
+
+  if (!member) {
+    throw new Error("Team member not found");
+  }
+
+  if (member.userId === currentUserId) {
+    throw new Error("You cannot remove yourself");
+  }
+
+  if (member.role === "OWNER") {
+    const ownerCount = await prisma.companyUser.count({
+      where: {
+        companyId,
+        role: "OWNER",
+      },
+    });
+
+    if (ownerCount <= 1) {
+      throw new Error("Company must have at least one owner");
+    }
+  }
+
+  await prisma.companyUser.delete({
+    where: {
+      id: member.id,
+    },
+  });
+
+  return member;
+}

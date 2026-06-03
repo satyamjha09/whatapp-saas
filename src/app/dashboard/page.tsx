@@ -1,4 +1,3 @@
-import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
@@ -16,75 +15,82 @@ export default async function DashboardPage() {
 
   const { user, membership } = context;
 
+  const cards = [
+    {
+      title: "WhatsApp Connection",
+      description: "Connect and manage your WhatsApp Business account.",
+      href: "/dashboard/settings/whatsapp",
+    },
+    {
+      title: "Templates",
+      description: "Create reusable WhatsApp message templates.",
+      href: "/dashboard/templates",
+    },
+    {
+      title: "Contacts",
+      description: "Manage customers and phone numbers.",
+      href: "/dashboard/contacts",
+    },
+    {
+      title: "Messages",
+      description: "Send template messages and view history.",
+      href: "/dashboard/messages",
+    },
+    {
+      title: "Campaigns",
+      description: "Create and start bulk message campaigns.",
+      href: "/dashboard/campaigns",
+    },
+    {
+      title: "Reports",
+      description: "Track message status and delivery performance.",
+      href: "/dashboard/reports",
+    },
+    {
+      title: "Wallet",
+      description: "Top up balance and view transactions.",
+      href: "/dashboard/wallet",
+    },
+    {
+      title: "Billing",
+      description: "View spending, refunds, and billing summary.",
+      href: "/dashboard/billing",
+    },
+  ];
+
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-4xl">
-        <header className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              {membership.company.name}
-            </h1>
-
-            <p className="mt-1 text-sm text-gray-600">
-              Welcome back, {user.name ?? user.email}
-            </p>
-          </div>
-
-          <UserButton />
-        </header>
-
+    <main className="p-8">
+      <div className="mx-auto max-w-6xl">
         <section className="rounded-2xl border bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium text-green-700">
-            Workspace connected successfully
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+
+          <p className="mt-2 text-sm text-gray-600">
+            Welcome back, {user.name ?? user.email}. You are managing{" "}
+            <span className="font-medium text-gray-900">
+              {membership.company.name}
+            </span>{" "}
+            as{" "}
+            <span className="font-medium text-gray-900">
+              {membership.role}
+            </span>
+            .
           </p>
+        </section>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border p-4">
-              <p className="text-sm text-gray-500">Company</p>
-
-              <p className="mt-1 text-lg font-semibold text-gray-900">
-                {membership.company.name}
-              </p>
-            </div>
-
-            <div className="rounded-xl border p-4">
-              <p className="text-sm text-gray-500">Your Role</p>
-
-              <p className="mt-1 text-lg font-semibold text-gray-900">
-                {membership.role}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-3">
+        <section className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {cards.map((card) => (
             <Link
-              href="/dashboard/settings/whatsapp"
-              className="inline-flex rounded-lg bg-black px-5 py-3 font-medium text-white"
+              key={card.href}
+              href={card.href}
+              className="rounded-2xl border bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
-              Manage WhatsApp Connection
-            </Link>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {card.title}
+              </h2>
 
-            <Link
-              href="/dashboard/templates"
-              className="inline-flex rounded-lg border border-gray-300 bg-white px-5 py-3 font-medium text-gray-900"
-            >
-              Manage Templates
+              <p className="mt-2 text-sm text-gray-600">{card.description}</p>
             </Link>
-
-            <Link
-              href="/dashboard/contacts"
-              className="inline-flex rounded-lg border border-gray-300 bg-white px-5 py-3 font-medium text-gray-900"
-            >
-              Manage Contacts
-            </Link>
-
-            <Link
-              href="/dashboard/messages"
-              className="inline-flex rounded-lg border border-gray-300 bg-white px-5 py-3 font-medium text-gray-900"
-            >
-              Send Messages
-            </Link>
-          </div>
+          ))}
         </section>
       </div>
     </main>

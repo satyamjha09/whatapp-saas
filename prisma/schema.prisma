@@ -13,6 +13,13 @@ enum CompanyRole {
   MEMBER
 }
 
+enum CompanyInviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
 enum WhatsAppAccountStatus {
   PENDING
   CONNECTED
@@ -48,6 +55,50 @@ enum MessageDirection {
   INBOUND
 }
 
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum CampaignContactStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  SKIPPED
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  REFUND
+  ADJUSTMENT
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+}
+
 model User {
   id          String @id @default(cuid())
   clerkUserId String @unique
@@ -56,6 +107,10 @@ model User {
   imageUrl    String?
 
   companies CompanyUser[]
+  sentCompanyInvites     CompanyInvite[] @relation("SentCompanyInvites")
+  acceptedCompanyInvites CompanyInvite[] @relation("AcceptedCompanyInvites")
+  auditLogs              AuditLog[]
+  createdApiKeys         ApiKey[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -72,6 +127,14 @@ model Company {
   contacts             Contact[]
   messages             Message[]
   messageEvents        MessageEvent[]
+  webhookEvents        WebhookEvent[]
+  campaigns            Campaign[]
+  campaignContacts     CampaignContact[]
+  wallet               Wallet?
+  walletTransactions   WalletTransaction[]
+  invites              CompanyInvite[]
+  auditLogs            AuditLog[]
+  apiKeys              ApiKey[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -145,6 +208,7 @@ model Template {
 
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   messages Message[]
+  campaigns Campaign[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -163,6 +227,7 @@ model Contact {
 
   company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   messages Message[]
+  campaignContacts CampaignContact[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -177,6 +242,8 @@ model Message {
 
   contactId  String
   templateId String?
+  campaignId String?
+  campaignContactId String? @unique
 
   direction MessageDirection @default(OUTBOUND)
   status    MessageStatus    @default(QUEUED)
@@ -190,6 +257,8 @@ model Message {
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contact  Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
   template Template? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  campaignContact CampaignContact? @relation(fields: [campaignContactId], references: [id], onDelete: SetNull)
 
   events MessageEvent[]
 
@@ -200,6 +269,8 @@ model Message {
   @@index([contactId])
   @@index([templateId])
   @@index([metaMessageId])
+  @@index([campaignId])
+  @@index([campaignContactId])
 }
 
 model MessageEvent {
@@ -210,6 +281,8 @@ model MessageEvent {
   status MessageStatus
   raw    Json?
 
+  dedupeKey String? @unique
+
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
@@ -217,4 +290,197 @@ model MessageEvent {
 
   @@index([companyId])
   @@index([messageId])
+}
+
+model WebhookEvent {
+  id        String  @id @default(cuid())
+  companyId String?
+
+  source String             @default("whatsapp")
+  status WebhookEventStatus @default(RECEIVED)
+
+  eventType String?
+  payload   Json
+
+  dedupeKey String? @unique
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([eventType])
+}
+
+model Campaign {
+  id         String @id @default(cuid())
+  companyId  String
+  templateId String
+
+  name   String
+  status CampaignStatus @default(DRAFT)
+
+  variables String[]
+
+  totalContacts  Int @default(0)
+  queuedCount    Int @default(0)
+  sentCount      Int @default(0)
+  deliveredCount Int @default(0)
+  readCount      Int @default(0)
+  failedCount    Int @default(0)
+
+  scheduledAt DateTime?
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  contacts CampaignContact[]
+  messages Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([templateId])
+  @@index([status])
+}
+
+model CampaignContact {
+  id         String @id @default(cuid())
+  companyId  String
+  campaignId String
+  contactId  String
+
+  status    CampaignContactStatus @default(PENDING)
+  variables String[]
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  message Message?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, contactId])
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([contactId])
+  @@index([status])
+}
+
+model Wallet {
+  id        String @id @default(cuid())
+  companyId String @unique
+
+  balancePaise Int @default(0)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WalletTransaction {
+  id        String @id @default(cuid())
+  companyId String
+
+  type   WalletTransactionType
+  status WalletTransactionStatus @default(SUCCESS)
+
+  amountPaise Int
+  description String?
+
+  referenceId String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([type])
+  @@index([status])
+}
+
+model CompanyInvite {
+  id        String @id @default(cuid())
+  companyId String
+
+  email String
+  role  CompanyRole
+
+  status CompanyInviteStatus @default(PENDING)
+
+  tokenHash String   @unique
+  expiresAt DateTime
+
+  invitedByUserId String
+  acceptedByUserId String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  invitedBy User  @relation("SentCompanyInvites", fields: [invitedByUserId], references: [id], onDelete: Cascade)
+  acceptedBy User? @relation("AcceptedCompanyInvites", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  acceptedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([email])
+  @@index([status])
+}
+
+model AuditLog {
+  id        String @id @default(cuid())
+  companyId String
+
+  actorUserId String?
+
+  action     String
+  entityType String
+  entityId   String?
+
+  metadata Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([entityType])
+}
+
+model ApiKey {
+  id        String @id @default(cuid())
+  companyId String
+
+  name String
+
+  keyHash   String @unique
+  keyPrefix String
+  keyLast4  String
+
+  status ApiKeyStatus @default(ACTIVE)
+
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+
+  createdByUserId String?
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
 }

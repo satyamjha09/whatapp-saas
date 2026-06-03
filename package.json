@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "worker:messages": "tsx src/workers/message.worker.ts",
+    "worker:webhooks": "tsx src/workers/webhook.worker.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

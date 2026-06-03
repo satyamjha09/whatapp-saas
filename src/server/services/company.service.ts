@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { UpdateCompanyInput } from "@/server/validators/company.validator";
 
 export async function getUserCompany(userId: string) {
   const membership = await prisma.companyUser.findFirst({
@@ -33,6 +34,22 @@ export async function createCompanyForUser(userId: string, companyName: string) 
           role: "OWNER",
         },
       },
+    },
+  });
+
+  return company;
+}
+
+export async function updateCompany(
+  companyId: string,
+  input: UpdateCompanyInput,
+) {
+  const company = await prisma.company.update({
+    where: {
+      id: companyId,
+    },
+    data: {
+      name: input.name,
     },
   });
 

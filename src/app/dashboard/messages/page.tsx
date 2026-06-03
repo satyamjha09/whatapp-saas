@@ -97,6 +97,15 @@ export default async function MessagesPage() {
                         Created: {message.createdAt.toLocaleDateString()}
                       </span>
                     </div>
+
+                    <div className="mt-4">
+                      <Link
+                        href={`/dashboard/messages/${message.id}`}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        View details &rarr;
+                      </Link>
+                    </div>
                   </div>
                 ))}
               </div>

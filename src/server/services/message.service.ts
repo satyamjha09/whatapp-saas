@@ -1,4 +1,5 @@
 import { messageQueue } from "@/lib/queue";
+import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { SendTemplateMessageInput } from "@/server/validators/message.validator";
 
@@ -62,32 +63,68 @@ export async function createQueuedTemplateMessage(
   const toPhoneNumber = `${contact.countryCode}${contact.phoneNumber}`;
   const body = renderTemplateBody(template.body, input.variables);
 
-  const message = await prisma.message.create({
-    data: {
-      companyId,
-      contactId: contact.id,
-      templateId: template.id,
-      toPhoneNumber,
-      body,
-      variables: input.variables,
-      status: "QUEUED",
-      direction: "OUTBOUND",
-      events: {
-        create: {
-          companyId,
-          status: "QUEUED",
-          raw: {
-            source: "api",
-            reason: "Template message queued",
+  const message = await prisma.$transaction(async (tx) => {
+    const wallet = await tx.wallet.findUnique({
+      where: {
+        companyId,
+      },
+    });
+
+    if (!wallet || wallet.balancePaise < MESSAGE_PRICE_PAISE) {
+      throw new Error("Insufficient wallet balance");
+    }
+
+    const createdMessage = await tx.message.create({
+      data: {
+        companyId,
+        contactId: contact.id,
+        templateId: template.id,
+        toPhoneNumber,
+        body,
+        variables: input.variables,
+        status: "QUEUED",
+        direction: "OUTBOUND",
+        events: {
+          create: {
+            companyId,
+            status: "QUEUED",
+            raw: {
+              source: "api",
+              reason: "Template message queued",
+            },
           },
         },
       },
-    },
-    include: {
-      contact: true,
-      template: true,
-      events: true,
-    },
+      include: {
+        contact: true,
+        template: true,
+        events: true,
+      },
+    });
+
+    await tx.wallet.update({
+      where: {
+        companyId,
+      },
+      data: {
+        balancePaise: {
+          decrement: MESSAGE_PRICE_PAISE,
+        },
+      },
+    });
+
+    await tx.walletTransaction.create({
+      data: {
+        companyId,
+        type: "DEBIT",
+        status: "SUCCESS",
+        amountPaise: MESSAGE_PRICE_PAISE,
+        description: "Template message queued",
+        referenceId: createdMessage.id,
+      },
+    });
+
+    return createdMessage;
   });
 
   await messageQueue.add("send-template-message", {
@@ -96,4 +133,22 @@ export async function createQueuedTemplateMessage(
   });
 
   return message;
+}
+
+export async function getMessageByCompany(messageId: string, companyId: string) {
+  return prisma.message.findFirst({
+    where: {
+      id: messageId,
+      companyId,
+    },
+    include: {
+      contact: true,
+      template: true,
+      events: {
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
+  });
 }

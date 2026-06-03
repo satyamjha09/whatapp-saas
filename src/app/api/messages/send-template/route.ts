@@ -61,6 +61,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
 
+    if (
+      error instanceof Error &&
+      error.message === "Insufficient wallet balance"
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 402 });
+    }
+
     return NextResponse.json(
       { message: "Unable to queue template message" },
       { status: 500 },
