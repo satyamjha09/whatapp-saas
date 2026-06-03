@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getDeveloperWebhookEndpointsByCompany } from "@/server/services/developer-webhook.service";
 import RevokeWebhookEndpointButton from "./revoke-webhook-endpoint-button";
+import TestWebhookEndpointButton from "./test-webhook-endpoint-button";
 import WebhookEndpointForm from "./webhook-endpoint-form";
 
 export default async function DeveloperWebhooksPage() {
@@ -113,10 +114,17 @@ export default async function DeveloperWebhooksPage() {
                         <td className="py-3 pr-4">
                           {canManageWebhooks &&
                           endpoint.status === "ACTIVE" ? (
-                            <RevokeWebhookEndpointButton
-                              endpointId={endpoint.id}
-                              disabled={false}
-                            />
+                            <div className="flex flex-wrap gap-2">
+                              <TestWebhookEndpointButton
+                                endpointId={endpoint.id}
+                                disabled={false}
+                              />
+
+                              <RevokeWebhookEndpointButton
+                                endpointId={endpoint.id}
+                                disabled={false}
+                              />
+                            </div>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}

@@ -2,7 +2,10 @@ import "dotenv/config";
 import { Worker } from "bullmq";
 import { redisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
-import { enqueueDeveloperMessageStatusWebhook } from "@/server/services/developer-webhook.service";
+import {
+  enqueueDeveloperInboundMessageWebhook,
+  enqueueDeveloperMessageStatusWebhook,
+} from "@/server/services/developer-webhook.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
 import type { ProcessWebhookJobData } from "@/lib/queue";
@@ -25,6 +28,81 @@ function extractStatuses(payload: unknown) {
   const statuses = value?.statuses;
 
   return Array.isArray(statuses) ? statuses : [];
+}
+
+function extractIncomingMessages(payload: unknown) {
+  const root = asRecord(payload);
+  const entry = asRecord(firstArrayItem(root?.entry));
+  const change = asRecord(firstArrayItem(entry?.changes));
+  const value = asRecord(change?.value);
+  const messages = value?.messages;
+
+  return Array.isArray(messages) ? messages : [];
+}
+
+function extractWebhookContacts(payload: unknown) {
+  const root = asRecord(payload);
+  const entry = asRecord(firstArrayItem(root?.entry));
+  const change = asRecord(firstArrayItem(entry?.changes));
+  const value = asRecord(change?.value);
+  const contacts = value?.contacts;
+
+  return Array.isArray(contacts) ? contacts : [];
+}
+
+function getContactNameFromPayload(payload: unknown, waId: string) {
+  const contacts = extractWebhookContacts(payload);
+
+  for (const contactValue of contacts) {
+    const contact = asRecord(contactValue);
+
+    if (contact?.wa_id !== waId) {
+      continue;
+    }
+
+    const profile = asRecord(contact.profile);
+    const name = profile?.name;
+
+    return typeof name === "string" ? name : null;
+  }
+
+  return null;
+}
+
+function splitInboundPhoneNumber(phoneNumber: string) {
+  if (phoneNumber.startsWith("91") && phoneNumber.length > 10) {
+    return {
+      countryCode: "91",
+      phoneNumber: phoneNumber.slice(2),
+    };
+  }
+
+  return {
+    countryCode: "",
+    phoneNumber,
+  };
+}
+
+function getInboundMessageBody(message: JsonRecord) {
+  if (message.type === "text") {
+    const text = asRecord(message.text);
+    const body = text?.body;
+
+    return typeof body === "string" ? body : "";
+  }
+
+  if (message.type === "button") {
+    const button = asRecord(message.button);
+    const text = button?.text;
+
+    return typeof text === "string" ? text : "";
+  }
+
+  if (message.type === "interactive") {
+    return JSON.stringify(message.interactive ?? {});
+  }
+
+  return `[Unsupported inbound message type: ${String(message.type)}]`;
 }
 
 function mapMetaStatusToMessageStatus(status: string): MessageStatus | null {
@@ -69,6 +147,85 @@ const worker = new Worker<ProcessWebhookJobData>(
     });
 
     const statuses = extractStatuses(webhookEvent.payload);
+    const incomingMessages = extractIncomingMessages(webhookEvent.payload);
+
+    for (const incomingMessageValue of incomingMessages) {
+      const incomingMessage = asRecord(incomingMessageValue);
+      const companyId = webhookEvent.companyId;
+
+      if (!incomingMessage || !companyId) {
+        continue;
+      }
+
+      const metaMessageId = incomingMessage.id;
+      const fromPhoneNumber = incomingMessage.from;
+
+      if (
+        typeof metaMessageId !== "string" ||
+        typeof fromPhoneNumber !== "string"
+      ) {
+        continue;
+      }
+
+      const existingMessage = await prisma.message.findFirst({
+        where: {
+          companyId,
+          metaMessageId,
+        },
+      });
+
+      if (existingMessage) {
+        continue;
+      }
+
+      const phone = splitInboundPhoneNumber(fromPhoneNumber);
+      const contactName = getContactNameFromPayload(
+        webhookEvent.payload,
+        fromPhoneNumber,
+      );
+      const body = getInboundMessageBody(incomingMessage);
+
+      const contact = await prisma.contact.upsert({
+        where: {
+          companyId_phoneNumber: {
+            companyId,
+            phoneNumber: phone.phoneNumber,
+          },
+        },
+        update: {
+          name: contactName,
+          countryCode: phone.countryCode,
+        },
+        create: {
+          companyId,
+          name: contactName,
+          countryCode: phone.countryCode,
+          phoneNumber: phone.phoneNumber,
+        },
+      });
+
+      const message = await prisma.message.create({
+        data: {
+          companyId,
+          contactId: contact.id,
+          direction: "INBOUND",
+          status: "RECEIVED",
+          toPhoneNumber: fromPhoneNumber,
+          body,
+          variables: [],
+          metaMessageId,
+          events: {
+            create: {
+              companyId,
+              status: "RECEIVED",
+              raw: incomingMessage as Prisma.InputJsonValue,
+            },
+          },
+        },
+      });
+
+      await enqueueDeveloperInboundMessageWebhook(companyId, message.id);
+    }
 
     for (const statusEventValue of statuses) {
       const statusEvent = asRecord(statusEventValue);

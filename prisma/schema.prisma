@@ -48,11 +48,17 @@ enum MessageStatus {
   DELIVERED
   READ
   FAILED
+  RECEIVED
 }
 
 enum MessageDirection {
   OUTBOUND
   INBOUND
+}
+
+enum InboxConversationStatus {
+  OPEN
+  CLOSED
 }
 
 enum WebhookEventStatus {
@@ -239,6 +245,9 @@ model Contact {
   phoneNumber String
   countryCode String @default("91")
 
+  inboxStatus   InboxConversationStatus @default(OPEN)
+  inboxClosedAt DateTime?
+
   company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   messages Message[]
   campaignContacts CampaignContact[]
@@ -248,6 +257,7 @@ model Contact {
 
   @@unique([companyId, phoneNumber])
   @@index([companyId])
+  @@index([companyId, inboxStatus])
 }
 
 model Message {
@@ -268,6 +278,8 @@ model Message {
 
   metaMessageId String?
 
+  inboxReadAt DateTime?
+
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contact  Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
   template Template? @relation(fields: [templateId], references: [id], onDelete: SetNull)
@@ -285,6 +297,7 @@ model Message {
   @@index([metaMessageId])
   @@index([campaignId])
   @@index([campaignContactId])
+  @@index([companyId, direction, inboxReadAt])
 }
 
 model MessageEvent {

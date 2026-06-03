@@ -25,6 +25,10 @@ const navigationItems = [
     href: "/dashboard/messages",
   },
   {
+    label: "Inbox",
+    href: "/dashboard/inbox",
+  },
+  {
     label: "Campaigns",
     href: "/dashboard/campaigns",
   },

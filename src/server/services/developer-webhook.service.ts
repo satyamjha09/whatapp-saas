@@ -216,3 +216,104 @@ export async function enqueueDeveloperMessageStatusWebhook(
     },
   });
 }
+
+export async function sendTestDeveloperWebhook(
+  companyId: string,
+  endpointId: string,
+) {
+  const endpoint = await prisma.developerWebhookEndpoint.findFirst({
+    where: {
+      id: endpointId,
+      companyId,
+    },
+  });
+
+  if (!endpoint) {
+    throw new Error("Webhook endpoint not found");
+  }
+
+  if (endpoint.status !== "ACTIVE") {
+    throw new Error("Webhook endpoint is not active");
+  }
+
+  const delivery = await prisma.developerWebhookDelivery.create({
+    data: {
+      companyId,
+      endpointId: endpoint.id,
+      eventType: "webhook.test",
+      status: "PENDING",
+      payload: {
+        id: `evt_test_${Date.now()}`,
+        type: "webhook.test",
+        createdAt: new Date().toISOString(),
+        data: {
+          message: "This is a test webhook from your WhatsApp SaaS platform.",
+          endpointId: endpoint.id,
+          endpointName: endpoint.name,
+        },
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  await developerWebhookQueue.add(
+    "deliver-developer-webhook",
+    {
+      deliveryId: delivery.id,
+    },
+    {
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 5000,
+      },
+    },
+  );
+
+  return delivery;
+}
+
+export async function enqueueDeveloperInboundMessageWebhook(
+  companyId: string,
+  messageId: string,
+) {
+  const message = await prisma.message.findFirst({
+    where: {
+      id: messageId,
+      companyId,
+    },
+    include: {
+      contact: true,
+      template: true,
+    },
+  });
+
+  if (!message) {
+    return [];
+  }
+
+  return enqueueDeveloperWebhookDeliveries({
+    companyId,
+    eventType: "message.received",
+    payload: {
+      id: `evt_${message.id}_received_${Date.now()}`,
+      type: "message.received",
+      createdAt: new Date().toISOString(),
+      data: {
+        messageId: message.id,
+        status: message.status,
+        direction: message.direction,
+        fromPhoneNumber: message.toPhoneNumber,
+        body: message.body,
+        metaMessageId: message.metaMessageId,
+        contact: {
+          id: message.contact.id,
+          name: message.contact.name,
+          countryCode: message.contact.countryCode,
+          phoneNumber: message.contact.phoneNumber,
+        },
+        createdAt: message.createdAt.toISOString(),
+        updatedAt: message.updatedAt.toISOString(),
+      },
+    },
+  });
+}

@@ -308,13 +308,37 @@ export default async function DeveloperDocsPage() {
           </h2>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {["QUEUED", "SENDING", "SENT", "DELIVERED", "READ", "FAILED"].map(
-              (status) => (
-                <div key={status} className="rounded-xl border p-4">
-                  <p className="font-medium text-gray-900">{status}</p>
-                </div>
-              ),
-            )}
+            {[
+              "QUEUED",
+              "SENDING",
+              "SENT",
+              "DELIVERED",
+              "READ",
+              "FAILED",
+              "RECEIVED",
+            ].map((status) => (
+              <div key={status} className="rounded-xl border p-4">
+                <p className="font-medium text-gray-900">{status}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Developer Webhook Event Types
+          </h2>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              "webhook.test",
+              "message.status_updated",
+              "message.received",
+            ].map((eventType) => (
+              <div key={eventType} className="rounded-xl border p-4">
+                <p className="font-medium text-gray-900">{eventType}</p>
+              </div>
+            ))}
           </div>
         </section>
 
