@@ -27,3 +27,29 @@ export async function createContactForCompany(
 
   return contact;
 }
+
+export async function upsertContactForCompany(
+  companyId: string,
+  input: CreateContactInput,
+) {
+  const contact = await prisma.contact.upsert({
+    where: {
+      companyId_phoneNumber: {
+        companyId,
+        phoneNumber: input.phoneNumber,
+      },
+    },
+    update: {
+      name: input.name || null,
+      countryCode: input.countryCode,
+    },
+    create: {
+      companyId,
+      name: input.name || null,
+      countryCode: input.countryCode,
+      phoneNumber: input.phoneNumber,
+    },
+  });
+
+  return contact;
+}

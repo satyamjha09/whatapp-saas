@@ -5,6 +5,7 @@ import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { redisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppTemplateMessage } from "@/lib/whatsapp";
+import { enqueueDeveloperMessageStatusWebhook } from "@/server/services/developer-webhook.service";
 import { refundWalletForMessage } from "@/server/services/wallet.service";
 import type { SendMessageJobData } from "@/lib/queue";
 
@@ -111,6 +112,8 @@ async function markMessageAsFailed(
       },
     },
   });
+
+  await enqueueDeveloperMessageStatusWebhook(companyId, message.id);
 
   await refundWalletForMessage(
     companyId,
@@ -234,6 +237,8 @@ const worker = new Worker<SendMessageJobData>(
           },
         });
 
+        await enqueueDeveloperMessageStatusWebhook(companyId, message.id);
+
         await markCampaignMessageSent(message);
 
         console.log("Message sent in dev mode:", message.id);
@@ -272,6 +277,8 @@ const worker = new Worker<SendMessageJobData>(
           },
         },
       });
+
+      await enqueueDeveloperMessageStatusWebhook(companyId, message.id);
 
       await markCampaignMessageSent(message);
 

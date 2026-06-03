@@ -99,6 +99,18 @@ enum ApiKeyStatus {
   REVOKED
 }
 
+enum DeveloperWebhookEndpointStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum DeveloperWebhookDeliveryStatus {
+  PENDING
+  SENDING
+  DELIVERED
+  FAILED
+}
+
 model User {
   id          String @id @default(cuid())
   clerkUserId String @unique
@@ -135,6 +147,8 @@ model Company {
   invites              CompanyInvite[]
   auditLogs            AuditLog[]
   apiKeys              ApiKey[]
+  developerWebhookEndpoints DeveloperWebhookEndpoint[]
+  developerWebhookDeliveries DeveloperWebhookDelivery[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -483,4 +497,55 @@ model ApiKey {
 
   @@index([companyId])
   @@index([status])
+}
+
+model DeveloperWebhookEndpoint {
+  id        String @id @default(cuid())
+  companyId String
+
+  name String
+  url  String
+
+  signingSecretEncrypted String
+  secretPrefix           String
+  secretLast4            String
+
+  status DeveloperWebhookEndpointStatus @default(ACTIVE)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  deliveries DeveloperWebhookDelivery[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+}
+
+model DeveloperWebhookDelivery {
+  id         String @id @default(cuid())
+  companyId  String
+  endpointId String
+
+  eventType String
+  payload   Json
+
+  status DeveloperWebhookDeliveryStatus @default(PENDING)
+
+  attempts       Int     @default(0)
+  responseStatus Int?
+  lastError      String?
+
+  deliveredAt DateTime?
+
+  company  Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  endpoint DeveloperWebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([endpointId])
+  @@index([status])
+  @@index([eventType])
 }

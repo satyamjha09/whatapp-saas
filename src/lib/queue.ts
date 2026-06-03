@@ -9,6 +9,10 @@ export const webhookQueue = new Queue("webhook-queue", {
   connection: redisConnection,
 });
 
+export const developerWebhookQueue = new Queue("developer-webhook-queue", {
+  connection: redisConnection,
+});
+
 export type SendMessageJobData = {
   messageId: string;
   companyId: string;
@@ -16,4 +20,8 @@ export type SendMessageJobData = {
 
 export type ProcessWebhookJobData = {
   webhookEventId: string;
+};
+
+export type DeliverDeveloperWebhookJobData = {
+  deliveryId: string;
 };

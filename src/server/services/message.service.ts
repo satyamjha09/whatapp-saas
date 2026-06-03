@@ -2,6 +2,7 @@ import { messageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { SendTemplateMessageInput } from "@/server/validators/message.validator";
+import { PublicSendTemplateMessageInput } from "@/server/validators/public-message.validator";
 
 function renderTemplateBody(body: string, variables: string[]) {
   return body.replace(/{{(\d+)}}/g, (_, index: string) => {
@@ -151,4 +152,150 @@ export async function getMessageByCompany(messageId: string, companyId: string) 
       },
     },
   });
+}
+
+function splitPhoneNumber(to: string) {
+  if (to.startsWith("91") && to.length > 10) {
+    return {
+      countryCode: "91",
+      phoneNumber: to.slice(2),
+    };
+  }
+
+  return {
+    countryCode: "",
+    phoneNumber: to,
+  };
+}
+
+export async function createQueuedPublicTemplateMessage(
+  companyId: string,
+  input: PublicSendTemplateMessageInput,
+) {
+  const message = await prisma.$transaction(async (tx) => {
+    const template = await tx.template.findFirst({
+      where: {
+        companyId,
+        name: input.templateName,
+        language: input.language,
+      },
+    });
+
+    if (!template) {
+      throw new Error("Template not found");
+    }
+
+    const requiredVariableCount = template.variables.length;
+
+    if (input.variables.length !== requiredVariableCount) {
+      throw new Error(
+        `This template requires ${requiredVariableCount} variable value(s)`,
+      );
+    }
+
+    const existingWallet = await tx.wallet.findUnique({
+      where: {
+        companyId,
+      },
+    });
+
+    if (!existingWallet) {
+      await tx.wallet.create({
+        data: {
+          companyId,
+          balancePaise: 0,
+        },
+      });
+    }
+
+    const debitResult = await tx.wallet.updateMany({
+      where: {
+        companyId,
+        balancePaise: {
+          gte: MESSAGE_PRICE_PAISE,
+        },
+      },
+      data: {
+        balancePaise: {
+          decrement: MESSAGE_PRICE_PAISE,
+        },
+      },
+    });
+
+    if (debitResult.count !== 1) {
+      throw new Error("Insufficient wallet balance");
+    }
+
+    const phone = splitPhoneNumber(input.to);
+
+    const contact = await tx.contact.upsert({
+      where: {
+        companyId_phoneNumber: {
+          companyId,
+          phoneNumber: phone.phoneNumber,
+        },
+      },
+      update: {
+        name: input.contactName,
+        countryCode: phone.countryCode,
+      },
+      create: {
+        companyId,
+        name: input.contactName,
+        countryCode: phone.countryCode,
+        phoneNumber: phone.phoneNumber,
+      },
+    });
+
+    const body = renderTemplateBody(template.body, input.variables);
+
+    const createdMessage = await tx.message.create({
+      data: {
+        companyId,
+        contactId: contact.id,
+        templateId: template.id,
+        toPhoneNumber: input.to,
+        body,
+        variables: input.variables,
+        status: "QUEUED",
+        direction: "OUTBOUND",
+        events: {
+          create: {
+            companyId,
+            status: "QUEUED",
+            raw: {
+              source: "public_api",
+              templateName: input.templateName,
+              language: input.language,
+            },
+          },
+        },
+      },
+      include: {
+        contact: true,
+        template: true,
+        events: true,
+      },
+    });
+
+    await tx.walletTransaction.create({
+      data: {
+        companyId,
+        type: "DEBIT",
+        status: "SUCCESS",
+        amountPaise: MESSAGE_PRICE_PAISE,
+        description: "Template message queued via public API",
+        referenceId: createdMessage.id,
+      },
+    });
+
+    return createdMessage;
+  });
+
+  await messageQueue.add("send-template-message", {
+    messageId: message.id,
+    companyId,
+  });
+
+  return message;
 }

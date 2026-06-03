@@ -56,6 +56,14 @@ const navigationItems = [
     label: "API Keys",
     href: "/dashboard/developer/api-keys",
   },
+  {
+    label: "API Docs",
+    href: "/dashboard/developer/docs",
+  },
+  {
+    label: "Webhooks",
+    href: "/dashboard/developer/webhooks",
+  },
 ];
 
 export default async function DashboardLayout({

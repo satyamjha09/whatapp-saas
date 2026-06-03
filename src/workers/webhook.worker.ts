@@ -2,6 +2,7 @@ import "dotenv/config";
 import { Worker } from "bullmq";
 import { redisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
+import { enqueueDeveloperMessageStatusWebhook } from "@/server/services/developer-webhook.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
 import type { ProcessWebhookJobData } from "@/lib/queue";
@@ -139,6 +140,11 @@ const worker = new Worker<ProcessWebhookJobData>(
           },
         },
       });
+
+      await enqueueDeveloperMessageStatusWebhook(
+        updatedMessage.companyId,
+        updatedMessage.id,
+      );
 
       if (
         updatedMessage.campaignContactId &&
