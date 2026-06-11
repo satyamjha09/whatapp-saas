@@ -125,6 +125,9 @@ model User {
   imageUrl    String?
 
   companies CompanyUser[]
+  assignedContacts       Contact[]       @relation("ContactAssignee")
+  inboxNotes             InboxNote[]     @relation("InboxNoteAuthor")
+  createdQuickReplies    QuickReply[]    @relation("QuickReplyCreator")
   sentCompanyInvites     CompanyInvite[] @relation("SentCompanyInvites")
   acceptedCompanyInvites CompanyInvite[] @relation("AcceptedCompanyInvites")
   auditLogs              AuditLog[]
@@ -152,6 +155,8 @@ model Company {
   walletTransactions   WalletTransaction[]
   invites              CompanyInvite[]
   auditLogs            AuditLog[]
+  inboxNotes           InboxNote[]
+  quickReplies         QuickReply[]
   apiKeys              ApiKey[]
   developerWebhookEndpoints DeveloperWebhookEndpoint[]
   developerWebhookDeliveries DeveloperWebhookDelivery[]
@@ -238,8 +243,9 @@ model Template {
 }
 
 model Contact {
-  id        String @id @default(cuid())
-  companyId String
+  id               String @id @default(cuid())
+  companyId        String
+  assignedToUserId String?
 
   name        String?
   phoneNumber String
@@ -248,8 +254,10 @@ model Contact {
   inboxStatus   InboxConversationStatus @default(OPEN)
   inboxClosedAt DateTime?
 
-  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  messages Message[]
+  company          Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedTo       User?             @relation("ContactAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  messages         Message[]
+  inboxNotes       InboxNote[]
   campaignContacts CampaignContact[]
 
   createdAt DateTime @default(now())
@@ -257,7 +265,49 @@ model Contact {
 
   @@unique([companyId, phoneNumber])
   @@index([companyId])
+  @@index([assignedToUserId])
   @@index([companyId, inboxStatus])
+}
+
+model InboxNote {
+  id        String @id @default(cuid())
+  companyId String
+  contactId String
+
+  authorUserId String
+
+  body String
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  author  User    @relation("InboxNoteAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, contactId])
+  @@index([authorUserId])
+}
+
+model QuickReply {
+  id        String @id @default(cuid())
+  companyId String
+
+  title String
+  body  String
+
+  createdByUserId String?
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("QuickReplyCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, title])
+  @@index([companyId])
+  @@index([createdByUserId])
 }
 
 model Message {

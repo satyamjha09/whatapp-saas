@@ -4,18 +4,28 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import {
   getConversationByContact,
   getInboxContactsByCompany,
+  resolveInboxFilter,
 } from "@/server/services/inbox.service";
+import InboxFilterTabs from "../inbox-filter-tabs";
+import InboxSearchForm from "../inbox-search-form";
 import ConversationStatusButton from "./conversation-status-button";
 import MarkConversationRead from "./mark-conversation-read";
+import NoteCard from "./note-card";
+import NoteForm from "./note-form";
 
 type InboxConversationPageProps = {
   params: Promise<{
     contactId: string;
   }>;
+  searchParams: Promise<{
+    filter?: string;
+    q?: string;
+  }>;
 };
 
 export default async function InboxConversationPage({
   params,
+  searchParams,
 }: InboxConversationPageProps) {
   const context = await getCurrentWorkspaceContext();
 
@@ -29,9 +39,16 @@ export default async function InboxConversationPage({
 
   const { contactId } = await params;
   const companyId = context.membership.companyId;
+  const resolvedSearchParams = await searchParams;
+  const activeFilter = resolveInboxFilter(resolvedSearchParams.filter);
+  const searchQuery = resolvedSearchParams.q?.trim() ?? "";
 
   const [contacts, conversation] = await Promise.all([
-    getInboxContactsByCompany(companyId),
+    getInboxContactsByCompany(companyId, {
+      filter: activeFilter,
+      currentUserId: context.user.id,
+      search: searchQuery,
+    }),
     getConversationByContact(companyId, contactId),
   ]);
 
@@ -50,6 +67,23 @@ export default async function InboxConversationPage({
           <p className="mt-2 text-sm text-gray-600">
             Workspace: {context.membership.company.name}
           </p>
+
+          <Link
+            href="/dashboard/inbox/quick-replies"
+            className="mt-4 inline-flex rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Manage quick replies
+          </Link>
+
+          <InboxFilterTabs
+            activeFilter={activeFilter}
+            searchQuery={searchQuery}
+          />
+
+          <InboxSearchForm
+            activeFilter={activeFilter}
+            searchQuery={searchQuery}
+          />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
@@ -60,7 +94,9 @@ export default async function InboxConversationPage({
 
             {contacts.length === 0 ? (
               <p className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
-                No conversations yet.
+                {searchQuery
+                  ? "No conversations found for this search."
+                  : "No conversations found for this filter."}
               </p>
             ) : (
               <div className="mt-6 space-y-3">
@@ -72,7 +108,11 @@ export default async function InboxConversationPage({
                   return (
                     <Link
                       key={contact.id}
-                      href={`/dashboard/inbox/${contact.id}`}
+                      href={`/dashboard/inbox/${contact.id}?filter=${activeFilter}${
+                        searchQuery
+                          ? `&q=${encodeURIComponent(searchQuery)}`
+                          : ""
+                      }`}
                       className={`block rounded-xl border p-4 transition ${
                         isActive
                           ? "border-black bg-gray-50"
@@ -157,6 +197,38 @@ export default async function InboxConversationPage({
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="border-b bg-yellow-50 p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Internal Notes
+                  </h3>
+
+                  <p className="mt-1 text-xs text-gray-600">
+                    Private notes visible only to your team.
+                  </p>
+                </div>
+
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-700">
+                  {conversation.inboxNotes.length} note(s)
+                </span>
+              </div>
+
+              <NoteForm contactId={conversation.id} />
+
+              {conversation.inboxNotes.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {conversation.inboxNotes.map((note) => (
+                    <NoteCard
+                      key={note.id}
+                      contactId={conversation.id}
+                      note={note}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="min-h-[520px] space-y-4 bg-gray-50 p-6">

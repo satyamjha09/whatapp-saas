@@ -1,9 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
-import { getInboxContactsByCompany } from "@/server/services/inbox.service";
+import {
+  getInboxContactsByCompany,
+  resolveInboxFilter,
+} from "@/server/services/inbox.service";
+import InboxFilterTabs from "./inbox-filter-tabs";
+import InboxSearchForm from "./inbox-search-form";
 
-export default async function InboxPage() {
+type InboxPageProps = {
+  searchParams: Promise<{
+    filter?: string;
+    q?: string;
+  }>;
+};
+
+export default async function InboxPage({ searchParams }: InboxPageProps) {
   const context = await getCurrentWorkspaceContext();
 
   if (!context) {
@@ -14,8 +26,17 @@ export default async function InboxPage() {
     redirect("/onboarding");
   }
 
+  const resolvedSearchParams = await searchParams;
+  const activeFilter = resolveInboxFilter(resolvedSearchParams.filter);
+  const searchQuery = resolvedSearchParams.q?.trim() ?? "";
+
   const contacts = await getInboxContactsByCompany(
     context.membership.companyId,
+    {
+      filter: activeFilter,
+      currentUserId: context.user.id,
+      search: searchQuery,
+    },
   );
 
   return (
@@ -27,6 +48,23 @@ export default async function InboxPage() {
           <p className="mt-2 text-sm text-gray-600">
             Workspace: {context.membership.company.name}
           </p>
+
+          <Link
+            href="/dashboard/inbox/quick-replies"
+            className="mt-4 inline-flex rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Manage quick replies
+          </Link>
+
+          <InboxFilterTabs
+            activeFilter={activeFilter}
+            searchQuery={searchQuery}
+          />
+
+          <InboxSearchForm
+            activeFilter={activeFilter}
+            searchQuery={searchQuery}
+          />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
@@ -37,7 +75,9 @@ export default async function InboxPage() {
 
             {contacts.length === 0 ? (
               <p className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
-                No conversations yet. Inbound replies will appear here.
+                {searchQuery
+                  ? "No conversations found for this search."
+                  : "No conversations found for this filter."}
               </p>
             ) : (
               <div className="mt-6 space-y-3">
@@ -48,7 +88,11 @@ export default async function InboxPage() {
                   return (
                     <Link
                       key={contact.id}
-                      href={`/dashboard/inbox/${contact.id}`}
+                      href={`/dashboard/inbox/${contact.id}?filter=${activeFilter}${
+                        searchQuery
+                          ? `&q=${encodeURIComponent(searchQuery)}`
+                          : ""
+                      }`}
                       className="block rounded-xl border p-4 transition hover:bg-gray-50"
                     >
                       <div className="flex items-start justify-between gap-3">

@@ -1,17 +1,113 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
+import {
+  CreateInboxNoteInput,
+  UpdateInboxNoteInput,
+} from "@/server/validators/inbox-note.validator";
 import { UpdateConversationStatusInput } from "@/server/validators/inbox-status.validator";
 
-export async function getInboxContactsByCompany(companyId: string) {
-  const contacts = await prisma.contact.findMany({
-    where: {
-      companyId,
-      messages: {
-        some: {
-          companyId,
-        },
+export type InboxFilter =
+  | "all"
+  | "open"
+  | "closed"
+  | "assigned-to-me"
+  | "unassigned";
+
+type GetInboxContactsInput = {
+  filter?: InboxFilter;
+  currentUserId?: string;
+  search?: string;
+};
+
+export const inboxFilters: InboxFilter[] = [
+  "all",
+  "open",
+  "closed",
+  "assigned-to-me",
+  "unassigned",
+];
+
+export function resolveInboxFilter(filter: string | undefined): InboxFilter {
+  if (inboxFilters.includes(filter as InboxFilter)) {
+    return filter as InboxFilter;
+  }
+
+  return "all";
+}
+
+export async function getInboxContactsByCompany(
+  companyId: string,
+  input: GetInboxContactsInput = {},
+) {
+  const filter = input.filter ?? "all";
+  const search = input.search?.trim();
+
+  const where: Prisma.ContactWhereInput = {
+    companyId,
+    messages: {
+      some: {
+        companyId,
       },
     },
+    ...(filter === "open"
+      ? {
+          inboxStatus: "OPEN" as const,
+        }
+      : {}),
+    ...(filter === "closed"
+      ? {
+          inboxStatus: "CLOSED" as const,
+        }
+      : {}),
+    ...(filter === "assigned-to-me" && input.currentUserId
+      ? {
+          assignedToUserId: input.currentUserId,
+        }
+      : {}),
+    ...(filter === "unassigned"
+      ? {
+          assignedToUserId: null,
+        }
+      : {}),
+    ...(search
+      ? {
+          OR: [
+            {
+              name: {
+                contains: search,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              phoneNumber: {
+                contains: search,
+              },
+            },
+            {
+              countryCode: {
+                contains: search,
+              },
+            },
+            {
+              messages: {
+                some: {
+                  companyId,
+                  body: {
+                    contains: search,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+
+  const contacts = await prisma.contact.findMany({
+    where,
     include: {
+      assignedTo: true,
       messages: {
         where: {
           companyId,
@@ -81,6 +177,22 @@ export async function getConversationByContact(
       companyId,
     },
     include: {
+      assignedTo: true,
+      inboxNotes: {
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              imageUrl: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
       messages: {
         where: {
           companyId,
@@ -94,6 +206,107 @@ export async function getConversationByContact(
       },
     },
   });
+}
+
+export async function createInboxNote(
+  companyId: string,
+  contactId: string,
+  authorUserId: string,
+  input: CreateInboxNoteInput,
+) {
+  const contact = await prisma.contact.findFirst({
+    where: {
+      id: contactId,
+      companyId,
+    },
+  });
+
+  if (!contact) {
+    throw new Error("Contact not found");
+  }
+
+  return prisma.inboxNote.create({
+    data: {
+      companyId,
+      contactId,
+      authorUserId,
+      body: input.body,
+    },
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          imageUrl: true,
+        },
+      },
+    },
+  });
+}
+
+export async function updateInboxNote(
+  companyId: string,
+  contactId: string,
+  noteId: string,
+  input: UpdateInboxNoteInput,
+) {
+  const note = await prisma.inboxNote.findFirst({
+    where: {
+      id: noteId,
+      companyId,
+      contactId,
+    },
+  });
+
+  if (!note) {
+    throw new Error("Note not found");
+  }
+
+  return prisma.inboxNote.update({
+    where: {
+      id: note.id,
+    },
+    data: {
+      body: input.body,
+    },
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          imageUrl: true,
+        },
+      },
+    },
+  });
+}
+
+export async function deleteInboxNote(
+  companyId: string,
+  contactId: string,
+  noteId: string,
+) {
+  const note = await prisma.inboxNote.findFirst({
+    where: {
+      id: noteId,
+      companyId,
+      contactId,
+    },
+  });
+
+  if (!note) {
+    throw new Error("Note not found");
+  }
+
+  await prisma.inboxNote.delete({
+    where: {
+      id: note.id,
+    },
+  });
+
+  return note;
 }
 
 export async function updateConversationStatus(
