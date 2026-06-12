@@ -61,6 +61,13 @@ enum InboxConversationStatus {
   CLOSED
 }
 
+enum InboxPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 enum WebhookEventStatus {
   RECEIVED
   PROCESSING
@@ -156,6 +163,8 @@ model Company {
   invites              CompanyInvite[]
   auditLogs            AuditLog[]
   inboxNotes           InboxNote[]
+  inboxTags            InboxTag[]
+  contactInboxTags     ContactInboxTag[]
   quickReplies         QuickReply[]
   apiKeys              ApiKey[]
   developerWebhookEndpoints DeveloperWebhookEndpoint[]
@@ -253,11 +262,13 @@ model Contact {
 
   inboxStatus   InboxConversationStatus @default(OPEN)
   inboxClosedAt DateTime?
+  inboxPriority InboxPriority @default(NORMAL)
 
   company          Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignedTo       User?             @relation("ContactAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
   messages         Message[]
   inboxNotes       InboxNote[]
+  inboxTags        ContactInboxTag[]
   campaignContacts CampaignContact[]
 
   createdAt DateTime @default(now())
@@ -267,6 +278,7 @@ model Contact {
   @@index([companyId])
   @@index([assignedToUserId])
   @@index([companyId, inboxStatus])
+  @@index([companyId, inboxPriority])
 }
 
 model InboxNote {
@@ -288,6 +300,40 @@ model InboxNote {
   @@index([companyId])
   @@index([companyId, contactId])
   @@index([authorUserId])
+}
+
+model InboxTag {
+  id        String @id @default(cuid())
+  companyId String
+
+  name  String
+  color String @default("gray")
+
+  company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contacts ContactInboxTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model ContactInboxTag {
+  id        String @id @default(cuid())
+  companyId String
+  contactId String
+  tagId     String
+
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     InboxTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([contactId, tagId])
+  @@index([companyId])
+  @@index([companyId, tagId])
 }
 
 model QuickReply {

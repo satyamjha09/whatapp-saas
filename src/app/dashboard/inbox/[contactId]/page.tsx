@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { getInboxTagsByCompany } from "@/server/services/inbox-tag.service";
 import {
   getConversationByContact,
   getInboxContactsByCompany,
@@ -8,6 +9,9 @@ import {
 } from "@/server/services/inbox.service";
 import InboxFilterTabs from "../inbox-filter-tabs";
 import InboxSearchForm from "../inbox-search-form";
+import { getPriorityColorClass } from "../priority-color";
+import ConversationPrioritySelect from "./conversation-priority-select";
+import ConversationTagManager from "./conversation-tag-manager";
 import ConversationStatusButton from "./conversation-status-button";
 import MarkConversationRead from "./mark-conversation-read";
 import NoteCard from "./note-card";
@@ -43,13 +47,14 @@ export default async function InboxConversationPage({
   const activeFilter = resolveInboxFilter(resolvedSearchParams.filter);
   const searchQuery = resolvedSearchParams.q?.trim() ?? "";
 
-  const [contacts, conversation] = await Promise.all([
+  const [contacts, conversation, inboxTags] = await Promise.all([
     getInboxContactsByCompany(companyId, {
       filter: activeFilter,
       currentUserId: context.user.id,
       search: searchQuery,
     }),
     getConversationByContact(companyId, contactId),
+    getInboxTagsByCompany(companyId),
   ]);
 
   if (!conversation) {
@@ -68,12 +73,21 @@ export default async function InboxConversationPage({
             Workspace: {context.membership.company.name}
           </p>
 
-          <Link
-            href="/dashboard/inbox/quick-replies"
-            className="mt-4 inline-flex rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Manage quick replies
-          </Link>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/dashboard/inbox/quick-replies"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Manage quick replies
+            </Link>
+
+            <Link
+              href="/dashboard/inbox/tags"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Manage tags
+            </Link>
+          </div>
 
           <InboxFilterTabs
             activeFilter={activeFilter}
@@ -129,6 +143,19 @@ export default async function InboxConversationPage({
                             +{contact.countryCode}
                             {contact.phoneNumber}
                           </p>
+
+                          {contact.inboxTags.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {contact.inboxTags.map((item) => (
+                                <span
+                                  key={item.id}
+                                  className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700"
+                                >
+                                  {item.tag.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex flex-col items-end gap-2">
@@ -137,6 +164,14 @@ export default async function InboxConversationPage({
                               {unreadCount} unread
                             </span>
                           )}
+
+                          <span
+                            className={`rounded-full px-2 py-1 text-xs font-medium ${getPriorityColorClass(
+                              contact.inboxPriority,
+                            )}`}
+                          >
+                            {contact.inboxPriority}
+                          </span>
 
                           <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
                             {contact.inboxStatus}
@@ -187,15 +222,36 @@ export default async function InboxConversationPage({
                     {conversation.inboxStatus}
                   </span>
 
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${getPriorityColorClass(
+                      conversation.inboxPriority,
+                    )}`}
+                  >
+                    {conversation.inboxPriority}
+                  </span>
+
                   <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
                     {conversation.messages.length} message(s)
                   </span>
+
+                  <ConversationPrioritySelect
+                    contactId={conversation.id}
+                    currentPriority={conversation.inboxPriority}
+                  />
 
                   <ConversationStatusButton
                     contactId={conversation.id}
                     currentStatus={conversation.inboxStatus}
                   />
                 </div>
+              </div>
+
+              <div className="mt-4">
+                <ConversationTagManager
+                  contactId={conversation.id}
+                  allTags={inboxTags}
+                  activeTags={conversation.inboxTags.map((item) => item.tag)}
+                />
               </div>
             </div>
 

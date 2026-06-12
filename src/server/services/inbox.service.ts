@@ -4,6 +4,7 @@ import {
   CreateInboxNoteInput,
   UpdateInboxNoteInput,
 } from "@/server/validators/inbox-note.validator";
+import { UpdateConversationPriorityInput } from "@/server/validators/inbox-priority.validator";
 import { UpdateConversationStatusInput } from "@/server/validators/inbox-status.validator";
 
 export type InboxFilter =
@@ -108,6 +109,11 @@ export async function getInboxContactsByCompany(
     where,
     include: {
       assignedTo: true,
+      inboxTags: {
+        include: {
+          tag: true,
+        },
+      },
       messages: {
         where: {
           companyId,
@@ -178,6 +184,11 @@ export async function getConversationByContact(
     },
     include: {
       assignedTo: true,
+      inboxTags: {
+        include: {
+          tag: true,
+        },
+      },
       inboxNotes: {
         include: {
           author: {
@@ -332,6 +343,32 @@ export async function updateConversationStatus(
     data: {
       inboxStatus: input.status,
       inboxClosedAt: input.status === "CLOSED" ? new Date() : null,
+    },
+  });
+}
+
+export async function updateConversationPriority(
+  companyId: string,
+  contactId: string,
+  input: UpdateConversationPriorityInput,
+) {
+  const contact = await prisma.contact.findFirst({
+    where: {
+      id: contactId,
+      companyId,
+    },
+  });
+
+  if (!contact) {
+    throw new Error("Contact not found");
+  }
+
+  return prisma.contact.update({
+    where: {
+      id: contact.id,
+    },
+    data: {
+      inboxPriority: input.priority,
     },
   });
 }

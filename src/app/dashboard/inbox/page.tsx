@@ -7,6 +7,7 @@ import {
 } from "@/server/services/inbox.service";
 import InboxFilterTabs from "./inbox-filter-tabs";
 import InboxSearchForm from "./inbox-search-form";
+import { getPriorityColorClass } from "./priority-color";
 
 type InboxPageProps = {
   searchParams: Promise<{
@@ -49,12 +50,21 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
             Workspace: {context.membership.company.name}
           </p>
 
-          <Link
-            href="/dashboard/inbox/quick-replies"
-            className="mt-4 inline-flex rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Manage quick replies
-          </Link>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/dashboard/inbox/quick-replies"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Manage quick replies
+            </Link>
+
+            <Link
+              href="/dashboard/inbox/tags"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Manage tags
+            </Link>
+          </div>
 
           <InboxFilterTabs
             activeFilter={activeFilter}
@@ -105,6 +115,19 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
                             +{contact.countryCode}
                             {contact.phoneNumber}
                           </p>
+
+                          {contact.inboxTags.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {contact.inboxTags.map((item) => (
+                                <span
+                                  key={item.id}
+                                  className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700"
+                                >
+                                  {item.tag.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex flex-col items-end gap-2">
@@ -113,6 +136,14 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
                               {unreadCount} unread
                             </span>
                           )}
+
+                          <span
+                            className={`rounded-full px-2 py-1 text-xs font-medium ${getPriorityColorClass(
+                              contact.inboxPriority,
+                            )}`}
+                          >
+                            {contact.inboxPriority}
+                          </span>
 
                           <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
                             {contact.inboxStatus}
