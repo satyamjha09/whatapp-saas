@@ -1,5 +1,15 @@
 import Link from "next/link";
+import { CheckCircle2, RadioTower, Send } from "lucide-react";
 import { redirect } from "next/navigation";
+import {
+  EmptyState,
+  MetricCard,
+  PageHeader,
+  Panel,
+  PanelTitle,
+  StatusPill,
+  statusTone,
+} from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getCampaignsByCompany } from "@/server/services/campaign.service";
 import { getContactsByCompany } from "@/server/services/contact.service";
@@ -26,132 +36,154 @@ export default async function CampaignsPage() {
     getTemplatesByCompany(companyId),
   ]);
 
+  const runningCampaigns = campaigns.filter(
+    (campaign) => campaign.status === "RUNNING",
+  ).length;
+  const totalQueued = campaigns.reduce(
+    (total, campaign) => total + campaign.queuedCount,
+    0,
+  );
+  const totalDelivered = campaigns.reduce(
+    (total, campaign) => total + campaign.deliveredCount,
+    0,
+  );
+
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8">
-          <Link
-            href="/dashboard"
-            className="text-sm font-medium text-gray-600 hover:text-gray-900"
-          >
-            &larr; Back to dashboard
-          </Link>
+    <div>
+      <PageHeader
+        eyebrow={context.membership.company.name}
+        title="Campaigns"
+        description="Create draft campaigns from real contacts and templates, then track queued, delivered, read, and failed counts."
+      />
 
-          <h1 className="mt-5 text-3xl font-bold text-gray-900">Campaigns</h1>
-
-          <p className="mt-2 text-sm text-gray-600">
-            Workspace: {context.membership.company.name}
-          </p>
+      {contacts.length === 0 || templates.length === 0 ? (
+        <div className="mb-6 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-5 text-sm text-amber-200">
+          Before creating a campaign, create at least one contact and one
+          template.
         </div>
+      ) : null}
 
-        {contacts.length === 0 || templates.length === 0 ? (
-          <div className="mb-6 rounded-2xl border bg-yellow-50 p-5 text-sm text-yellow-800">
-            Before creating a campaign, create at least one contact and one
-            template.
-          </div>
-        ) : null}
+      <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <MetricCard
+          icon={RadioTower}
+          label="Campaigns"
+          value={campaigns.length.toLocaleString("en-IN")}
+          detail={`${runningCampaigns.toLocaleString("en-IN")} running`}
+        />
+        <MetricCard
+          icon={Send}
+          label="Queued messages"
+          value={totalQueued.toLocaleString("en-IN")}
+          detail="Across all campaigns"
+        />
+        <MetricCard
+          icon={CheckCircle2}
+          label="Delivered"
+          value={totalDelivered.toLocaleString("en-IN")}
+          detail="Confirmed campaign deliveries"
+        />
+      </section>
 
-        <div className="grid gap-6 lg:grid-cols-[440px_1fr]">
-          <CampaignForm contacts={contacts} templates={templates} />
+      <div className="grid gap-6 lg:grid-cols-[440px_1fr]">
+        <CampaignForm contacts={contacts} templates={templates} />
 
-          <div className="rounded-2xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Saved Campaigns
-            </h2>
+        <Panel>
+          <PanelTitle
+            title="Saved campaigns"
+            description="Real campaign records and their stored delivery counters."
+          />
 
-            {campaigns.length === 0 ? (
-              <p className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
-                No campaigns created yet.
-              </p>
-            ) : (
-              <div className="mt-6 space-y-4">
-                {campaigns.map((campaign) => (
-                  <div key={campaign.id} className="rounded-xl border p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
-                          {campaign.name}
-                        </h3>
-
-                        <p className="mt-1 text-sm text-gray-500">
-                          Template: {campaign.template.name}
-                        </p>
-                      </div>
-
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                        {campaign.status}
-                      </span>
-                    </div>
-
-                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-lg bg-gray-50 p-3">
-                        <p className="text-xs text-gray-500">Contacts</p>
-                        <p className="mt-1 text-lg font-semibold text-gray-900">
-                          {campaign.totalContacts}
-                        </p>
-                      </div>
-
-                      <div className="rounded-lg bg-gray-50 p-3">
-                        <p className="text-xs text-gray-500">Queued</p>
-                        <p className="mt-1 text-lg font-semibold text-gray-900">
-                          {campaign.queuedCount}
-                        </p>
-                      </div>
-
-                      <div className="rounded-lg bg-gray-50 p-3">
-                        <p className="text-xs text-gray-500">Failed</p>
-                        <p className="mt-1 text-lg font-semibold text-gray-900">
-                          {campaign.failedCount}
-                        </p>
-                      </div>
-                    </div>
-
-                    {campaign.status === "DRAFT" ? (
-                      <StartCampaignButton campaignId={campaign.id} />
-                    ) : null}
-
-                    <div className="mt-4">
-                      <p className="text-xs font-medium text-gray-500">
-                        Campaign Contacts
+          {campaigns.length === 0 ? (
+            <div className="mt-6">
+              <EmptyState>No campaigns created yet.</EmptyState>
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-4">
+              {campaigns.map((campaign) => (
+                <div
+                  key={campaign.id}
+                  className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 transition hover:border-indigo-300/25 hover:bg-white/[0.06]"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-semibold text-white">
+                        {campaign.name}
+                      </h3>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        Template: {campaign.template.name}
                       </p>
-
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {campaign.contacts.slice(0, 5).map((item) => (
-                          <span
-                            key={item.id}
-                            className="rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
-                          >
-                            {item.contact.name ?? item.contact.phoneNumber}
-                          </span>
-                        ))}
-
-                        {campaign.contacts.length > 5 ? (
-                          <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
-                            +{campaign.contacts.length - 5} more
-                          </span>
-                        ) : null}
-                      </div>
                     </div>
 
-                    <p className="mt-4 text-xs text-gray-500">
-                      Created: {campaign.createdAt.toLocaleDateString()}
-                    </p>
+                    <StatusPill tone={statusTone(campaign.status)}>
+                      {campaign.status}
+                    </StatusPill>
+                  </div>
 
-                    <div className="mt-4">
-                      <Link
-                        href={`/dashboard/campaigns/${campaign.id}`}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                      >
-                        View campaign details &rarr;
-                      </Link>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl bg-white/[0.045] p-3">
+                      <p className="text-xs text-zinc-500">Contacts</p>
+                      <p className="mt-1 text-lg font-semibold text-white">
+                        {campaign.totalContacts}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-white/[0.045] p-3">
+                      <p className="text-xs text-zinc-500">Queued</p>
+                      <p className="mt-1 text-lg font-semibold text-white">
+                        {campaign.queuedCount}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-white/[0.045] p-3">
+                      <p className="text-xs text-zinc-500">Failed</p>
+                      <p className="mt-1 text-lg font-semibold text-white">
+                        {campaign.failedCount}
+                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+
+                  {campaign.status === "DRAFT" ? (
+                    <StartCampaignButton campaignId={campaign.id} />
+                  ) : null}
+
+                  <div className="mt-4">
+                    <p className="text-xs font-medium text-zinc-500">
+                      Campaign contacts
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {campaign.contacts.slice(0, 5).map((item) => (
+                        <StatusPill key={item.id} tone="blue">
+                          {item.contact.name ?? item.contact.phoneNumber}
+                        </StatusPill>
+                      ))}
+
+                      {campaign.contacts.length > 5 ? (
+                        <StatusPill tone="zinc">
+                          +{campaign.contacts.length - 5} more
+                        </StatusPill>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-xs text-zinc-600">
+                    Created {campaign.createdAt.toLocaleDateString()}
+                  </p>
+
+                  <div className="mt-4">
+                    <Link
+                      href={`/dashboard/campaigns/${campaign.id}`}
+                      className="text-sm font-medium text-indigo-300 transition hover:text-indigo-200"
+                    >
+                      View campaign details
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
       </div>
-    </main>
+    </div>
   );
 }

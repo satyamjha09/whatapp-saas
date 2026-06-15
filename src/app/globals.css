@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #08090d;
+  --foreground: #f4f4f5;
 }
 
 @theme inline {
@@ -12,15 +12,92 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+* {
+  scrollbar-color: rgba(129, 140, 248, 0.45) rgba(255, 255, 255, 0.04);
+}
+
+::selection {
+  background: rgba(129, 140, 248, 0.35);
+  color: #ffffff;
+}
+
+.dashboard-light .dashboard-content [class*="bg-white/"] {
+  background-color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.dashboard-light .dashboard-content [class*="bg-zinc-950"] {
+  background-color: rgba(255, 255, 255, 0.84) !important;
+}
+
+.dashboard-light .dashboard-content [class*="border-white/"] {
+  border-color: rgba(24, 24, 27, 0.10) !important;
+}
+
+.dashboard-light .dashboard-content [class*="ring-white/"] {
+  --tw-ring-color: rgba(24, 24, 27, 0.10) !important;
+}
+
+.dashboard-light .dashboard-content .text-white {
+  color: #18181b !important;
+}
+
+.dashboard-light .dashboard-content .text-zinc-200,
+.dashboard-light .dashboard-content .text-zinc-300,
+.dashboard-light .dashboard-content .text-zinc-400 {
+  color: #3f3f46 !important;
+}
+
+.dashboard-light .dashboard-content .text-zinc-500 {
+  color: #71717a !important;
+}
+
+.dashboard-light .dashboard-content .text-zinc-600 {
+  color: #a1a1aa !important;
+}
+
+.dashboard-light .dashboard-content .text-indigo-300 {
+  color: #4f46e5 !important;
+}
+
+.dashboard-light .dashboard-content .text-cyan-300 {
+  color: #0891b2 !important;
+}
+
+.dashboard-light .dashboard-content .text-emerald-300 {
+  color: #059669 !important;
+}
+
+.dashboard-light .dashboard-content .text-amber-300 {
+  color: #b45309 !important;
+}
+
+.dashboard-light .dashboard-content .text-rose-300 {
+  color: #e11d48 !important;
+}
+
+.dashboard-light .dashboard-content .bg-indigo-500,
+.dashboard-light .dashboard-content button.bg-indigo-500 {
+  background-color: #6366f1 !important;
+  color: #ffffff !important;
+}
+
+.dashboard-light .dashboard-content input,
+.dashboard-light .dashboard-content select,
+.dashboard-light .dashboard-content textarea {
+  color: #18181b !important;
+}
+
+.dashboard-light .dashboard-content input::placeholder,
+.dashboard-light .dashboard-content textarea::placeholder {
+  color: #a1a1aa !important;
+}
+
+.dashboard-light .dashboard-content table tr {
+  border-color: rgba(24, 24, 27, 0.10) !important;
 }

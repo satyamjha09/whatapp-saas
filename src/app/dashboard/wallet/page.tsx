@@ -1,5 +1,14 @@
-import Link from "next/link";
+import { CreditCard, ReceiptText, Wallet } from "lucide-react";
 import { redirect } from "next/navigation";
+import {
+  EmptyState,
+  MetricCard,
+  PageHeader,
+  Panel,
+  PanelTitle,
+  StatusPill,
+  statusTone,
+} from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import {
   getOrCreateWallet,
@@ -9,8 +18,8 @@ import WalletTopupForm from "./wallet-topup-form";
 
 function formatMoney(amountPaise: number) {
   return new Intl.NumberFormat("en-IN", {
-    style: "currency",
     currency: "INR",
+    style: "currency",
   }).format(amountPaise / 100);
 }
 
@@ -32,95 +41,105 @@ export default async function WalletPage() {
     getWalletTransactions(companyId),
   ]);
 
+  const credits = transactions
+    .filter((transaction) => transaction.type === "CREDIT")
+    .reduce((total, transaction) => total + transaction.amountPaise, 0);
+  const debits = transactions
+    .filter((transaction) => transaction.type === "DEBIT")
+    .reduce((total, transaction) => total + transaction.amountPaise, 0);
+
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8">
-          <Link
-            href="/dashboard"
-            className="text-sm font-medium text-gray-600 hover:text-gray-900"
-          >
-            &larr; Back to dashboard
-          </Link>
+    <div>
+      <PageHeader
+        eyebrow={context.membership.company.name}
+        title="Wallet"
+        description="Track the real stored wallet balance and transaction ledger used by message sending."
+      />
 
-          <h1 className="mt-5 text-3xl font-bold text-gray-900">Wallet</h1>
+      <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <MetricCard
+          icon={Wallet}
+          label="Current balance"
+          value={formatMoney(wallet.balancePaise)}
+          detail="Stored internally in paise"
+        />
+        <MetricCard
+          icon={CreditCard}
+          label="Total credits"
+          value={formatMoney(credits)}
+          detail="Successful top-ups and adjustments"
+        />
+        <MetricCard
+          icon={ReceiptText}
+          label="Total debits"
+          value={formatMoney(debits)}
+          detail="Message and campaign charges"
+        />
+      </section>
 
-          <p className="mt-2 text-sm text-gray-600">
-            Workspace: {context.membership.company.name}
-          </p>
-        </div>
+      <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+        <WalletTopupForm />
 
-        <section className="mb-6 rounded-2xl border bg-white p-8 shadow-sm">
-          <p className="text-sm text-gray-500">Current Balance</p>
+        <Panel>
+          <PanelTitle
+            title="Transactions"
+            description="Real wallet transaction history for this workspace."
+          />
 
-          <p className="mt-3 text-4xl font-bold text-gray-900">
-            {formatMoney(wallet.balancePaise)}
-          </p>
+          {transactions.length === 0 ? (
+            <div className="mt-6">
+              <EmptyState>No wallet transactions yet.</EmptyState>
+            </div>
+          ) : (
+            <div className="mt-6 overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-white/[0.08] text-zinc-500">
+                    <th className="py-3 pr-4 font-medium">Type</th>
+                    <th className="py-3 pr-4 font-medium">Amount</th>
+                    <th className="py-3 pr-4 font-medium">Status</th>
+                    <th className="py-3 pr-4 font-medium">Description</th>
+                    <th className="py-3 pr-4 font-medium">Date</th>
+                  </tr>
+                </thead>
 
-          <p className="mt-2 text-sm text-gray-600">
-            Balance is stored internally in paise to avoid decimal money bugs.
-          </p>
-        </section>
+                <tbody>
+                  {transactions.map((transaction) => (
+                    <tr
+                      key={transaction.id}
+                      className="border-b border-white/[0.06] text-zinc-300 last:border-0"
+                    >
+                      <td className="py-4 pr-4">
+                        <StatusPill tone={statusTone(transaction.type)}>
+                          {transaction.type}
+                        </StatusPill>
+                      </td>
 
-        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-          <WalletTopupForm />
+                      <td className="py-4 pr-4 font-medium text-white">
+                        {formatMoney(transaction.amountPaise)}
+                      </td>
 
-          <div className="rounded-2xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Transactions
-            </h2>
+                      <td className="py-4 pr-4">
+                        <StatusPill tone={statusTone(transaction.status)}>
+                          {transaction.status}
+                        </StatusPill>
+                      </td>
 
-            {transactions.length === 0 ? (
-              <p className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
-                No wallet transactions yet.
-              </p>
-            ) : (
-              <div className="mt-6 overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b text-gray-500">
-                      <th className="py-3 pr-4">Type</th>
-                      <th className="py-3 pr-4">Amount</th>
-                      <th className="py-3 pr-4">Status</th>
-                      <th className="py-3 pr-4">Description</th>
-                      <th className="py-3 pr-4">Date</th>
+                      <td className="py-4 pr-4 text-zinc-500">
+                        {transaction.description ?? "-"}
+                      </td>
+
+                      <td className="py-4 pr-4 text-zinc-500">
+                        {transaction.createdAt.toLocaleDateString()}
+                      </td>
                     </tr>
-                  </thead>
-
-                  <tbody>
-                    {transactions.map((transaction) => (
-                      <tr
-                        key={transaction.id}
-                        className="border-b last:border-0"
-                      >
-                        <td className="py-3 pr-4">
-                          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                            {transaction.type}
-                          </span>
-                        </td>
-
-                        <td className="py-3 pr-4 font-medium text-gray-900">
-                          {formatMoney(transaction.amountPaise)}
-                        </td>
-
-                        <td className="py-3 pr-4">{transaction.status}</td>
-
-                        <td className="py-3 pr-4">
-                          {transaction.description ?? "-"}
-                        </td>
-
-                        <td className="py-3 pr-4">
-                          {transaction.createdAt.toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
       </div>
-    </main>
+    </div>
   );
 }

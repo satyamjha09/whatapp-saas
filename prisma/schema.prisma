@@ -263,6 +263,11 @@ model Contact {
   inboxStatus   InboxConversationStatus @default(OPEN)
   inboxClosedAt DateTime?
   inboxPriority InboxPriority @default(NORMAL)
+  snoozedUntil DateTime?
+  inboxSlaDueAt DateTime?
+  inboxLastCustomerMessageAt DateTime?
+  inboxSlaBreachedAt DateTime?
+  inboxSlaEscalationCount Int @default(0)
 
   company          Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignedTo       User?             @relation("ContactAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
@@ -279,6 +284,11 @@ model Contact {
   @@index([assignedToUserId])
   @@index([companyId, inboxStatus])
   @@index([companyId, inboxPriority])
+  @@index([companyId, snoozedUntil])
+  @@index([companyId, inboxSlaDueAt])
+  @@index([companyId, inboxStatus, inboxSlaDueAt])
+  @@index([companyId, inboxSlaBreachedAt])
+  @@index([companyId, inboxStatus, inboxSlaDueAt, inboxSlaBreachedAt])
 }
 
 model InboxNote {

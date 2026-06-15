@@ -2,6 +2,13 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  actionButtonClass,
+  fieldClass,
+  labelClass,
+  Panel,
+  PanelTitle,
+} from "@/app/dashboard/dashboard-ui";
 
 type TopUpWalletResponse = {
   message: string;
@@ -73,19 +80,15 @@ export default function WalletTopupForm() {
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900">Manual Top-up</h2>
-
-      <p className="mt-2 text-sm text-gray-600">
-        Add test balance to this workspace wallet.
-      </p>
+    <Panel>
+      <PanelTitle
+        title="Manual top-up"
+        description="Add test balance to this workspace wallet."
+      />
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <div>
-          <label
-            htmlFor="amount"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="amount" className={labelClass}>
             Amount in INR
           </label>
 
@@ -98,15 +101,12 @@ export default function WalletTopupForm() {
             onChange={(event) => setAmountRupees(event.target.value)}
             placeholder="100"
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           />
         </div>
 
         <div>
-          <label
-            htmlFor="description"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="description" className={labelClass}>
             Description
           </label>
 
@@ -116,18 +116,18 @@ export default function WalletTopupForm() {
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             placeholder="Initial test top-up"
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           />
         </div>
 
         {error ? (
-          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+          <p className="rounded-xl border border-rose-300/20 bg-rose-400/10 p-3 text-sm text-rose-300">
             {error}
           </p>
         ) : null}
 
         {success ? (
-          <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
+          <p className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm text-emerald-300">
             {success}
           </p>
         ) : null}
@@ -135,11 +135,11 @@ export default function WalletTopupForm() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-black px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className={actionButtonClass()}
         >
           {isSubmitting ? "Adding balance..." : "Top Up Wallet"}
         </button>
       </form>
-    </div>
+    </Panel>
   );
 }

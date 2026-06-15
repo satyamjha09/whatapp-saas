@@ -1,5 +1,13 @@
-import Link from "next/link";
+import { Calendar, Phone, Users } from "lucide-react";
 import { redirect } from "next/navigation";
+import {
+  EmptyState,
+  MetricCard,
+  PageHeader,
+  Panel,
+  PanelTitle,
+  StatusPill,
+} from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getContactsByCompany } from "@/server/services/contact.service";
 import ContactForm from "./contact-form";
@@ -16,67 +24,79 @@ export default async function ContactsPage() {
   }
 
   const contacts = await getContactsByCompany(context.membership.companyId);
+  const namedContacts = contacts.filter((contact) => contact.name).length;
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-8">
-          <Link
-            href="/dashboard"
-            className="text-sm font-medium text-gray-600 hover:text-gray-900"
-          >
-            &larr; Back to dashboard
-          </Link>
+    <div>
+      <PageHeader
+        eyebrow={context.membership.company.name}
+        title="Contacts"
+        description="Maintain the real customer phonebook used for inbox threads, campaigns, and template message delivery."
+      />
 
-          <h1 className="mt-5 text-3xl font-bold text-gray-900">Contacts</h1>
+      <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <MetricCard
+          icon={Users}
+          label="Total contacts"
+          value={contacts.length.toLocaleString("en-IN")}
+          detail="Stored in this workspace"
+        />
+        <MetricCard
+          icon={Phone}
+          label="Named contacts"
+          value={namedContacts.toLocaleString("en-IN")}
+          detail="Contacts with a display name"
+        />
+        <MetricCard
+          icon={Calendar}
+          label="Latest contact"
+          value={contacts[0]?.createdAt.toLocaleDateString() ?? "-"}
+          detail="Most recent record"
+        />
+      </section>
 
-          <p className="mt-2 text-sm text-gray-600">
-            Workspace: {context.membership.company.name}
-          </p>
-        </div>
+      <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+        <ContactForm />
 
-        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-          <ContactForm />
+        <Panel>
+          <PanelTitle
+            title="Saved contacts"
+            description="Real contacts available for message and campaign workflows."
+          />
 
-          <div className="rounded-2xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Saved Contacts
-            </h2>
-
-            {contacts.length === 0 ? (
-              <p className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
-                No contacts created yet.
-              </p>
-            ) : (
-              <div className="mt-6 space-y-4">
-                {contacts.map((contact) => (
-                  <div key={contact.id} className="rounded-xl border p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
-                          {contact.name ?? "Unnamed Contact"}
-                        </h3>
-
-                        <p className="mt-1 text-sm text-gray-500">
-                          +{contact.countryCode} {contact.phoneNumber}
-                        </p>
-                      </div>
-
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                        Contact
-                      </span>
+          {contacts.length === 0 ? (
+            <div className="mt-6">
+              <EmptyState>No contacts created yet.</EmptyState>
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-3">
+              {contacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 transition hover:border-indigo-300/25 hover:bg-white/[0.06]"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-semibold text-white">
+                        {contact.name ?? "Unnamed Contact"}
+                      </h3>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        +{contact.countryCode} {contact.phoneNumber}
+                      </p>
                     </div>
 
-                    <p className="mt-4 text-xs text-gray-500">
-                      Created: {contact.createdAt.toLocaleDateString()}
-                    </p>
+                    <StatusPill tone="violet">Contact</StatusPill>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+
+                  <p className="mt-4 text-xs text-zinc-600">
+                    Created {contact.createdAt.toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
       </div>
-    </main>
+    </div>
   );
 }

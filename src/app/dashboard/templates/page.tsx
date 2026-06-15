@@ -1,5 +1,14 @@
-import Link from "next/link";
+import { FileText, Globe2, Tags } from "lucide-react";
 import { redirect } from "next/navigation";
+import {
+  EmptyState,
+  MetricCard,
+  PageHeader,
+  Panel,
+  PanelTitle,
+  StatusPill,
+  statusTone,
+} from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getTemplatesByCompany } from "@/server/services/template.service";
 import TemplateForm from "./template-form";
@@ -16,92 +25,104 @@ export default async function TemplatesPage() {
   }
 
   const templates = await getTemplatesByCompany(context.membership.companyId);
+  const approvedTemplates = templates.filter(
+    (template) => template.status === "APPROVED",
+  ).length;
+  const languages = new Set(templates.map((template) => template.language)).size;
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-8">
-          <Link
-            href="/dashboard"
-            className="text-sm font-medium text-gray-600 hover:text-gray-900"
-          >
-            &larr; Back to dashboard
-          </Link>
+    <div>
+      <PageHeader
+        eyebrow={context.membership.company.name}
+        title="Message templates"
+        description="Create and review reusable WhatsApp template content. These are the real templates used by messages and campaigns."
+      />
 
-          <h1 className="mt-5 text-3xl font-bold text-gray-900">
-            Message Templates
-          </h1>
+      <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <MetricCard
+          icon={FileText}
+          label="Total templates"
+          value={templates.length.toLocaleString("en-IN")}
+          detail="Created in this workspace"
+        />
+        <MetricCard
+          icon={Tags}
+          label="Approved"
+          value={approvedTemplates.toLocaleString("en-IN")}
+          detail="Ready for production sending"
+        />
+        <MetricCard
+          icon={Globe2}
+          label="Languages"
+          value={languages.toLocaleString("en-IN")}
+          detail="Unique language codes"
+        />
+      </section>
 
-          <p className="mt-2 text-sm text-gray-600">
-            Workspace: {context.membership.company.name}
-          </p>
-        </div>
+      <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+        <TemplateForm />
 
-        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-          <TemplateForm />
+        <Panel>
+          <PanelTitle
+            title="Saved templates"
+            description="Template bodies and variables stored for this workspace."
+          />
 
-          <div className="rounded-2xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Saved Templates
-            </h2>
-
-            {templates.length === 0 ? (
-              <p className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
-                No templates created yet.
-              </p>
-            ) : (
-              <div className="mt-6 space-y-4">
-                {templates.map((template) => (
-                  <div key={template.id} className="rounded-xl border p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
-                          {template.name}
-                        </h3>
-
-                        <p className="mt-1 text-sm text-gray-500">
-                          {template.language} - {template.category}
-                        </p>
-                      </div>
-
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                        {template.status}
-                      </span>
+          {templates.length === 0 ? (
+            <div className="mt-6">
+              <EmptyState>No templates created yet.</EmptyState>
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-3">
+              {templates.map((template) => (
+                <div
+                  key={template.id}
+                  className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 transition hover:border-indigo-300/25 hover:bg-white/[0.06]"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-semibold text-white">
+                        {template.name}
+                      </h3>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {template.language} - {template.category}
+                      </p>
                     </div>
 
-                    <p className="mt-4 whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
-                      {template.body}
+                    <StatusPill tone={statusTone(template.status)}>
+                      {template.status}
+                    </StatusPill>
+                  </div>
+
+                  <p className="mt-4 whitespace-pre-wrap rounded-2xl border border-white/[0.06] bg-zinc-950/45 p-4 text-sm leading-6 text-zinc-300">
+                    {template.body}
+                  </p>
+
+                  <div className="mt-4">
+                    <p className="text-xs font-medium text-zinc-500">
+                      Variables
                     </p>
 
-                    <div className="mt-4">
-                      <p className="text-xs font-medium text-gray-500">
-                        Variables
+                    {template.variables.length === 0 ? (
+                      <p className="mt-2 text-sm text-zinc-600">
+                        No variables
                       </p>
-
-                      {template.variables.length === 0 ? (
-                        <p className="mt-1 text-sm text-gray-500">
-                          No variables
-                        </p>
-                      ) : (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {template.variables.map((variable) => (
-                            <span
-                              key={variable}
-                              className="rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
-                            >
-                              {variable}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    ) : (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {template.variables.map((variable) => (
+                          <StatusPill key={variable} tone="blue">
+                            {variable}
+                          </StatusPill>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
       </div>
-    </main>
+    </div>
   );
 }

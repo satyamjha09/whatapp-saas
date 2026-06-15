@@ -15,7 +15,7 @@ export async function GET() {
     }
 
     if (!context.membership) {
-      return NextResponse.json(
+      return NextResponse.json(   
         { message: "Complete company onboarding first" },
         { status: 403 },
       );

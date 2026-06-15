@@ -2,6 +2,13 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  actionButtonClass,
+  fieldClass,
+  labelClass,
+  Panel,
+  PanelTitle,
+} from "@/app/dashboard/dashboard-ui";
 
 type Contact = {
   id: string;
@@ -120,21 +127,15 @@ export default function SendMessageForm({
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900">
-        Send Template Message
-      </h2>
-
-      <p className="mt-2 text-sm text-gray-600">
-        Select a contact and template. This will queue the message for sending.
-      </p>
+    <Panel>
+      <PanelTitle
+        title="Send template message"
+        description="Select a contact and template. This will queue the message for sending."
+      />
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <div>
-          <label
-            htmlFor="contact"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="contact" className={labelClass}>
             Contact
           </label>
 
@@ -143,7 +144,7 @@ export default function SendMessageForm({
             value={contactId}
             onChange={(event) => setContactId(event.target.value)}
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           >
             <option value="">Select contact</option>
 
@@ -157,10 +158,7 @@ export default function SendMessageForm({
         </div>
 
         <div>
-          <label
-            htmlFor="template"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="template" className={labelClass}>
             Template
           </label>
 
@@ -169,7 +167,7 @@ export default function SendMessageForm({
             value={templateId}
             onChange={(event) => handleTemplateChange(event.target.value)}
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           >
             <option value="">Select template</option>
 
@@ -182,12 +180,12 @@ export default function SendMessageForm({
         </div>
 
         {selectedTemplate && (
-          <div className="rounded-lg bg-gray-50 p-4">
-            <p className="text-sm font-medium text-gray-700">
+          <div className="rounded-2xl border border-white/[0.08] bg-zinc-950/45 p-4">
+            <p className="text-sm font-medium text-zinc-300">
               Template Preview
             </p>
 
-            <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-500">
               {selectedTemplate.body}
             </p>
           </div>
@@ -195,7 +193,7 @@ export default function SendMessageForm({
 
         {selectedTemplate && selectedTemplate.variables.length > 0 && (
           <div className="space-y-4">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-zinc-300">
               Template Variables
             </p>
 
@@ -203,7 +201,7 @@ export default function SendMessageForm({
               <div key={variable}>
                 <label
                   htmlFor={`variable-${index}`}
-                  className="mb-2 block text-sm text-gray-600"
+                  className="mb-2 block text-sm text-zinc-500"
                 >
                   Value for {variable}
                 </label>
@@ -221,7 +219,7 @@ export default function SendMessageForm({
                         : `Value ${index + 1}`
                   }
                   required
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+                  className={fieldClass}
                 />
               </div>
             ))}
@@ -229,13 +227,13 @@ export default function SendMessageForm({
         )}
 
         {error && (
-          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+          <p className="rounded-xl border border-rose-300/20 bg-rose-400/10 p-3 text-sm text-rose-300">
             {error}
           </p>
         )}
 
         {success && (
-          <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
+          <p className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm text-emerald-300">
             {success}
           </p>
         )}
@@ -245,11 +243,11 @@ export default function SendMessageForm({
           disabled={
             isSubmitting || contacts.length === 0 || templates.length === 0
           }
-          className="w-full rounded-lg bg-black px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className={actionButtonClass()}
         >
           {isSubmitting ? "Queueing..." : "Queue Message"}
         </button>
       </form>
-    </div>
+    </Panel>
   );
 }

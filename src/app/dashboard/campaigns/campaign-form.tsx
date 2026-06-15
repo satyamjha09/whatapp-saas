@@ -2,6 +2,13 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  actionButtonClass,
+  fieldClass,
+  labelClass,
+  Panel,
+  PanelTitle,
+} from "@/app/dashboard/dashboard-ui";
 
 type Contact = {
   id: string;
@@ -134,19 +141,15 @@ export default function CampaignForm({
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900">Create Campaign</h2>
-
-      <p className="mt-2 text-sm text-gray-600">
-        Create a draft campaign using one template and multiple contacts.
-      </p>
+    <Panel>
+      <PanelTitle
+        title="Create campaign"
+        description="Create a draft campaign using one template and multiple contacts."
+      />
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <div>
-          <label
-            htmlFor="campaignName"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="campaignName" className={labelClass}>
             Campaign name
           </label>
 
@@ -157,15 +160,12 @@ export default function CampaignForm({
             onChange={(event) => setName(event.target.value)}
             placeholder="June Order Updates"
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           />
         </div>
 
         <div>
-          <label
-            htmlFor="template"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="template" className={labelClass}>
             Template
           </label>
 
@@ -174,7 +174,7 @@ export default function CampaignForm({
             value={templateId}
             onChange={(event) => handleTemplateChange(event.target.value)}
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           >
             <option value="">Select template</option>
 
@@ -187,12 +187,12 @@ export default function CampaignForm({
         </div>
 
         {selectedTemplate ? (
-          <div className="rounded-lg bg-gray-50 p-4">
-            <p className="text-sm font-medium text-gray-700">
+          <div className="rounded-2xl border border-white/[0.08] bg-zinc-950/45 p-4">
+            <p className="text-sm font-medium text-zinc-300">
               Template Preview
             </p>
 
-            <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-500">
               {selectedTemplate.body}
             </p>
           </div>
@@ -200,7 +200,7 @@ export default function CampaignForm({
 
         {selectedTemplate && selectedTemplate.variables.length > 0 ? (
           <div className="space-y-4">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-zinc-300">
               Campaign Variables
             </p>
 
@@ -208,7 +208,7 @@ export default function CampaignForm({
               <div key={variable}>
                 <label
                   htmlFor={`campaign-variable-${index}`}
-                  className="mb-2 block text-sm text-gray-600"
+                  className="mb-2 block text-sm text-zinc-500"
                 >
                   Value for {variable}
                 </label>
@@ -226,7 +226,7 @@ export default function CampaignForm({
                         : `Value ${index + 1}`
                   }
                   required
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+                  className={fieldClass}
                 />
               </div>
             ))}
@@ -234,29 +234,27 @@ export default function CampaignForm({
         ) : null}
 
         <div>
-          <p className="mb-2 block text-sm font-medium text-gray-700">
-            Contacts
-          </p>
+          <p className={labelClass}>Contacts</p>
 
           {contacts.length === 0 ? (
-            <p className="rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
+            <p className="rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-sm text-amber-200">
               Create contacts before creating a campaign.
             </p>
           ) : (
-            <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-3">
+            <div className="max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950/35 p-3">
               {contacts.map((contact) => (
                 <label
                   key={contact.id}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-gray-50"
+                  className="flex cursor-pointer items-center gap-3 rounded-xl p-2 text-zinc-300 transition hover:bg-white/[0.06]"
                 >
                   <input
                     type="checkbox"
                     checked={selectedContactIds.includes(contact.id)}
                     onChange={() => toggleContact(contact.id)}
-                    className="h-4 w-4"
+                    className="h-4 w-4 accent-indigo-500"
                   />
 
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm">
                     {contact.name ?? "Unnamed Contact"} - +{contact.countryCode}
                     {contact.phoneNumber}
                   </span>
@@ -265,19 +263,19 @@ export default function CampaignForm({
             </div>
           )}
 
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-zinc-500">
             Selected contacts: {selectedContactIds.length}
           </p>
         </div>
 
         {error ? (
-          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+          <p className="rounded-xl border border-rose-300/20 bg-rose-400/10 p-3 text-sm text-rose-300">
             {error}
           </p>
         ) : null}
 
         {success ? (
-          <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
+          <p className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm text-emerald-300">
             {success}
           </p>
         ) : null}
@@ -287,11 +285,11 @@ export default function CampaignForm({
           disabled={
             isSubmitting || contacts.length === 0 || templates.length === 0
           }
-          className="w-full rounded-lg bg-black px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className={actionButtonClass()}
         >
           {isSubmitting ? "Creating..." : "Create Draft Campaign"}
         </button>
       </form>
-    </div>
+    </Panel>
   );
 }

@@ -1,47 +1,48 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import {
+  DEFAULT_INBOX_SLA_SETTINGS,
+  isInboxConversationOverdue,
+} from "@/lib/inbox-sla";
+import type {
+  InboxFilter,
+  InboxPriorityFilter,
+  InboxSort,
+} from "@/lib/inbox-options";
+import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
+import {
   CreateInboxNoteInput,
   UpdateInboxNoteInput,
 } from "@/server/validators/inbox-note.validator";
 import { UpdateConversationPriorityInput } from "@/server/validators/inbox-priority.validator";
+import { UpdateConversationSnoozeInput } from "@/server/validators/inbox-snooze.validator";
 import { UpdateConversationStatusInput } from "@/server/validators/inbox-status.validator";
-
-export type InboxFilter =
-  | "all"
-  | "open"
-  | "closed"
-  | "assigned-to-me"
-  | "unassigned";
+import type { BulkInboxActionInput } from "@/server/validators/inbox-bulk-action.validator";
 
 type GetInboxContactsInput = {
   filter?: InboxFilter;
   currentUserId?: string;
   search?: string;
+  tagId?: string;
+  priority?: InboxPriorityFilter;
+  sort?: InboxSort;
+  page?: number;
+  pageSize?: number;
+  sla?: string | null;
 };
-
-export const inboxFilters: InboxFilter[] = [
-  "all",
-  "open",
-  "closed",
-  "assigned-to-me",
-  "unassigned",
-];
-
-export function resolveInboxFilter(filter: string | undefined): InboxFilter {
-  if (inboxFilters.includes(filter as InboxFilter)) {
-    return filter as InboxFilter;
-  }
-
-  return "all";
-}
 
 export async function getInboxContactsByCompany(
   companyId: string,
   input: GetInboxContactsInput = {},
 ) {
   const filter = input.filter ?? "all";
+  const priority = input.priority ?? "all";
+  const sort = input.sort ?? "latest";
+  const page = Math.max(input.page ?? 1, 1);
+  const pageSize = Math.min(Math.max(input.pageSize ?? 20, 1), 50);
   const search = input.search?.trim();
+  const now = new Date();
+  const inboxSlaSettings = await getInboxSlaSettingsByCompany(companyId);
 
   const where: Prisma.ContactWhereInput = {
     companyId,
@@ -60,6 +61,13 @@ export async function getInboxContactsByCompany(
           inboxStatus: "CLOSED" as const,
         }
       : {}),
+    ...(filter === "snoozed"
+      ? {
+          snoozedUntil: {
+            gt: now,
+          },
+        }
+      : {}),
     ...(filter === "assigned-to-me" && input.currentUserId
       ? {
           assignedToUserId: input.currentUserId,
@@ -70,40 +78,97 @@ export async function getInboxContactsByCompany(
           assignedToUserId: null,
         }
       : {}),
-    ...(search
+    ...(input.tagId
       ? {
-          OR: [
-            {
-              name: {
-                contains: search,
-                mode: "insensitive" as const,
-              },
+          inboxTags: {
+            some: {
+              tagId: input.tagId,
+              companyId,
             },
+          },
+        }
+      : {}),
+    ...(priority !== "all"
+      ? {
+          inboxPriority: priority,
+        }
+      : {}),
+    AND: [
+      ...(filter === "open"
+        ? [
             {
-              phoneNumber: {
-                contains: search,
-              },
+              OR: [
+                {
+                  snoozedUntil: null,
+                },
+                {
+                  snoozedUntil: {
+                    lte: now,
+                  },
+                },
+              ],
             },
+          ]
+        : []),
+      ...(search
+        ? [
             {
-              countryCode: {
-                contains: search,
-              },
-            },
-            {
-              messages: {
-                some: {
-                  companyId,
-                  body: {
+              OR: [
+                {
+                  name: {
                     contains: search,
                     mode: "insensitive" as const,
                   },
                 },
-              },
+                {
+                  phoneNumber: {
+                    contains: search,
+                  },
+                },
+                {
+                  countryCode: {
+                    contains: search,
+                  },
+                },
+                {
+                  messages: {
+                    some: {
+                      companyId,
+                      body: {
+                        contains: search,
+                        mode: "insensitive" as const,
+                      },
+                    },
+                  },
+                },
+              ],
             },
-          ],
-        }
-      : {}),
+          ]
+        : []),
+    ],
   };
+
+  if (input.sla === "overdue") {
+    where.inboxStatus = "OPEN";
+    where.inboxSlaDueAt = {
+      lt: now,
+    };
+  }
+
+  if (input.sla === "due-soon") {
+    where.inboxStatus = "OPEN";
+    where.inboxSlaDueAt = {
+      gte: now,
+      lte: new Date(now.getTime() + 30 * 60 * 1000),
+    };
+  }
+
+  if (input.sla === "breached") {
+    where.inboxStatus = "OPEN";
+    where.inboxSlaBreachedAt = {
+      not: null,
+    };
+  }
 
   const contacts = await prisma.contact.findMany({
     where,
@@ -135,14 +200,109 @@ export async function getInboxContactsByCompany(
         },
       },
     },
+    orderBy: [
+      {
+        inboxSlaDueAt: "asc",
+      },
+      {
+        updatedAt: "desc",
+      },
+    ],
   });
 
-  return contacts.sort((a, b) => {
+  const filteredContacts = contacts.filter((contact) => {
+    const latestMessage = contact.messages[0];
+
+    if (filter === "needs-reply") {
+      if (!latestMessage) {
+        return false;
+      }
+
+      const isSnoozed = contact.snoozedUntil && contact.snoozedUntil > now;
+
+      return (
+        latestMessage.direction === "INBOUND" &&
+        contact.inboxStatus === "OPEN" &&
+        !isSnoozed
+      );
+    }
+
+    if (filter === "overdue") {
+      if (!latestMessage) {
+        return false;
+      }
+
+      return isInboxConversationOverdue({
+        latestMessageCreatedAt: latestMessage.createdAt,
+        latestMessageDirection: latestMessage.direction,
+        inboxStatus: contact.inboxStatus,
+        inboxPriority: contact.inboxPriority,
+        snoozedUntil: contact.snoozedUntil,
+        slaSettings: inboxSlaSettings,
+      });
+    }
+
+    return true;
+  });
+
+  const priorityRank = {
+    URGENT: 4,
+    HIGH: 3,
+    NORMAL: 2,
+    LOW: 1,
+  };
+
+  const sortedContacts = filteredContacts.sort((a, b) => {
     const aDate = a.messages[0]?.createdAt.getTime() ?? 0;
     const bDate = b.messages[0]?.createdAt.getTime() ?? 0;
+    const aUnread = a._count.messages;
+    const bUnread = b._count.messages;
+
+    if (sort === "oldest") {
+      return aDate - bDate;
+    }
+
+    if (sort === "priority") {
+      const priorityDiff =
+        priorityRank[b.inboxPriority] - priorityRank[a.inboxPriority];
+
+      if (priorityDiff !== 0) {
+        return priorityDiff;
+      }
+
+      return bDate - aDate;
+    }
+
+    if (sort === "unread") {
+      const unreadDiff = bUnread - aUnread;
+
+      if (unreadDiff !== 0) {
+        return unreadDiff;
+      }
+
+      return bDate - aDate;
+    }
 
     return bDate - aDate;
   });
+
+  const total = sortedContacts.length;
+  const totalPages = Math.max(Math.ceil(total / pageSize), 1);
+  const boundedPage = Math.min(page, totalPages);
+  const start = (boundedPage - 1) * pageSize;
+  const end = start + pageSize;
+
+  return {
+    contacts: sortedContacts.slice(start, end),
+    pagination: {
+      page: boundedPage,
+      pageSize,
+      total,
+      totalPages,
+      hasPreviousPage: boundedPage > 1,
+      hasNextPage: boundedPage < totalPages,
+    },
+  };
 }
 
 export async function markConversationAsRead(
@@ -336,6 +496,11 @@ export async function updateConversationStatus(
     throw new Error("Contact not found");
   }
 
+  const slaDueAt =
+    input.status === "CLOSED"
+      ? null
+      : calculateInboxSlaDueAt(contact.inboxPriority);
+
   return prisma.contact.update({
     where: {
       id: contact.id,
@@ -343,6 +508,9 @@ export async function updateConversationStatus(
     data: {
       inboxStatus: input.status,
       inboxClosedAt: input.status === "CLOSED" ? new Date() : null,
+      inboxSlaDueAt: slaDueAt,
+      inboxSlaBreachedAt: null,
+      inboxSlaEscalationCount: 0,
     },
   });
 }
@@ -363,12 +531,580 @@ export async function updateConversationPriority(
     throw new Error("Contact not found");
   }
 
+  const slaDueAt =
+    contact.inboxStatus === "CLOSED"
+      ? null
+      : calculateInboxSlaDueAt(input.priority);
+
   return prisma.contact.update({
     where: {
       id: contact.id,
     },
     data: {
       inboxPriority: input.priority,
+      inboxSlaDueAt: slaDueAt,
+      inboxSlaBreachedAt: null,
+      inboxSlaEscalationCount: 0,
     },
   });
+}
+
+type BulkInboxActionResult = {
+  count: number;
+  messageCount: number | null;
+  action: BulkInboxActionInput["action"];
+  status: "OPEN" | "CLOSED" | null;
+  priority: "LOW" | "NORMAL" | "HIGH" | "URGENT" | null;
+  assignedToUserId: string | null;
+  tagId: string | null;
+  tagName: string | null;
+  snoozedUntil: Date | null;
+  contactIds: string[];
+};
+
+function createBulkInboxActionResult(input: {
+  count: number;
+  action: BulkInboxActionInput["action"];
+  contactIds: string[];
+  messageCount?: number | null;
+  status?: "OPEN" | "CLOSED" | null;
+  priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT" | null;
+  assignedToUserId?: string | null;
+  tagId?: string | null;
+  tagName?: string | null;
+  snoozedUntil?: Date | null;
+}): BulkInboxActionResult {
+  return {
+    count: input.count,
+    messageCount: input.messageCount ?? null,
+    action: input.action,
+    status: input.status ?? null,
+    priority: input.priority ?? null,
+    assignedToUserId: input.assignedToUserId ?? null,
+    tagId: input.tagId ?? null,
+    tagName: input.tagName ?? null,
+    snoozedUntil: input.snoozedUntil ?? null,
+    contactIds: input.contactIds,
+  };
+}
+
+export async function bulkUpdateInboxConversations(
+  companyId: string,
+  input: BulkInboxActionInput,
+): Promise<BulkInboxActionResult> {
+  const contacts = await prisma.contact.findMany({
+    where: {
+      companyId,
+      id: {
+        in: input.contactIds,
+      },
+    },
+    select: {
+      id: true,
+      inboxPriority: true,
+      inboxStatus: true,
+    },
+  });
+
+  if (contacts.length === 0) {
+    throw new Error("No valid conversations found");
+  }
+
+  const validContactIds = contacts.map((contact) => contact.id);
+  const now = new Date();
+
+  if (input.action === "SET_STATUS") {
+    const status = input.status!;
+
+    if (status === "CLOSED") {
+      const result = await prisma.contact.updateMany({
+        where: {
+          companyId,
+          id: {
+            in: validContactIds,
+          },
+        },
+        data: {
+          inboxStatus: status,
+          inboxClosedAt: now,
+          inboxSlaDueAt: null,
+          inboxSlaBreachedAt: null,
+          inboxSlaEscalationCount: 0,
+        },
+      });
+
+      return createBulkInboxActionResult({
+        count: result.count,
+        action: input.action,
+        status,
+        contactIds: validContactIds,
+      });
+    }
+
+    await prisma.$transaction(
+      contacts.map((contact) =>
+        prisma.contact.update({
+          where: {
+            id: contact.id,
+          },
+          data: {
+            inboxStatus: status,
+            inboxClosedAt: null,
+            inboxSlaDueAt: calculateInboxSlaDueAt(contact.inboxPriority, now),
+            inboxSlaBreachedAt: null,
+            inboxSlaEscalationCount: 0,
+          },
+        }),
+      ),
+    );
+
+    return createBulkInboxActionResult({
+      count: contacts.length,
+      action: input.action,
+      status,
+      contactIds: validContactIds,
+    });
+  }
+
+  if (input.action === "SET_PRIORITY") {
+    const priority = input.priority!;
+    const openContactIds = contacts
+      .filter((contact) => contact.inboxStatus === "OPEN")
+      .map((contact) => contact.id);
+    const closedContactIds = contacts
+      .filter((contact) => contact.inboxStatus === "CLOSED")
+      .map((contact) => contact.id);
+
+    const [openResult, closedResult] = await prisma.$transaction([
+      prisma.contact.updateMany({
+        where: {
+          companyId,
+          id: {
+            in: openContactIds,
+          },
+        },
+        data: {
+          inboxPriority: priority,
+          inboxSlaDueAt: calculateInboxSlaDueAt(priority, now),
+          inboxSlaBreachedAt: null,
+          inboxSlaEscalationCount: 0,
+        },
+      }),
+      prisma.contact.updateMany({
+        where: {
+          companyId,
+          id: {
+            in: closedContactIds,
+          },
+        },
+        data: {
+          inboxPriority: priority,
+          inboxSlaDueAt: null,
+          inboxSlaBreachedAt: null,
+          inboxSlaEscalationCount: 0,
+        },
+      }),
+    ]);
+
+    return createBulkInboxActionResult({
+      count: openResult.count + closedResult.count,
+      action: input.action,
+      priority,
+      contactIds: validContactIds,
+    });
+  }
+
+  if (input.action === "SET_ASSIGNEE") {
+    const assignedToUserId = input.assignedToUserId ?? null;
+
+    if (assignedToUserId) {
+      const membership = await prisma.companyUser.findFirst({
+        where: {
+          companyId,
+          userId: assignedToUserId,
+        },
+      });
+
+      if (!membership) {
+        throw new Error("Assigned user is not a member of this company");
+      }
+    }
+
+    const result = await prisma.contact.updateMany({
+      where: {
+        companyId,
+        id: {
+          in: validContactIds,
+        },
+      },
+      data: {
+        assignedToUserId,
+      },
+    });
+
+    return createBulkInboxActionResult({
+      count: result.count,
+      action: input.action,
+      assignedToUserId,
+      contactIds: validContactIds,
+    });
+  }
+
+  if (input.action === "MARK_READ") {
+    const result = await prisma.message.updateMany({
+      where: {
+        companyId,
+        contactId: {
+          in: validContactIds,
+        },
+        direction: "INBOUND",
+        inboxReadAt: null,
+      },
+      data: {
+        inboxReadAt: now,
+      },
+    });
+
+    return createBulkInboxActionResult({
+      count: validContactIds.length,
+      messageCount: result.count,
+      action: input.action,
+      contactIds: validContactIds,
+    });
+  }
+
+  if (input.action === "MARK_UNREAD") {
+    const result = await prisma.message.updateMany({
+      where: {
+        companyId,
+        contactId: {
+          in: validContactIds,
+        },
+        direction: "INBOUND",
+        inboxReadAt: {
+          not: null,
+        },
+      },
+      data: {
+        inboxReadAt: null,
+      },
+    });
+
+    return createBulkInboxActionResult({
+      count: validContactIds.length,
+      messageCount: result.count,
+      action: input.action,
+      contactIds: validContactIds,
+    });
+  }
+
+  if (input.action === "SNOOZE") {
+    const snoozedUntil = new Date(input.snoozedUntil!);
+
+    if (snoozedUntil <= now) {
+      throw new Error("Snooze time must be in the future");
+    }
+
+    const result = await prisma.contact.updateMany({
+      where: {
+        companyId,
+        id: {
+          in: validContactIds,
+        },
+      },
+      data: {
+        inboxStatus: "OPEN",
+        inboxClosedAt: null,
+        snoozedUntil,
+      },
+    });
+
+    return createBulkInboxActionResult({
+      count: result.count,
+      action: input.action,
+      snoozedUntil,
+      contactIds: validContactIds,
+    });
+  }
+
+  if (input.action === "UNSNOOZE") {
+    const result = await prisma.contact.updateMany({
+      where: {
+        companyId,
+        id: {
+          in: validContactIds,
+        },
+      },
+      data: {
+        snoozedUntil: null,
+      },
+    });
+
+    return createBulkInboxActionResult({
+      count: result.count,
+      action: input.action,
+      contactIds: validContactIds,
+    });
+  }
+
+  const tag = await prisma.inboxTag.findFirst({
+    where: {
+      id: input.tagId!,
+      companyId,
+    },
+  });
+
+  if (!tag) {
+    throw new Error("Tag not found");
+  }
+
+  if (input.action === "ADD_TAG") {
+    await prisma.contactInboxTag.createMany({
+      data: validContactIds.map((contactId) => ({
+        companyId,
+        contactId,
+        tagId: tag.id,
+      })),
+      skipDuplicates: true,
+    });
+
+    return createBulkInboxActionResult({
+      count: validContactIds.length,
+      action: input.action,
+      tagId: tag.id,
+      tagName: tag.name,
+      contactIds: validContactIds,
+    });
+  }
+
+  const result = await prisma.contactInboxTag.deleteMany({
+    where: {
+      companyId,
+      contactId: {
+        in: validContactIds,
+      },
+      tagId: tag.id,
+    },
+  });
+
+  return createBulkInboxActionResult({
+    count: result.count,
+    action: input.action,
+    tagId: tag.id,
+    tagName: tag.name,
+    contactIds: validContactIds,
+  });
+}
+
+export async function updateConversationSnooze(
+  companyId: string,
+  contactId: string,
+  input: UpdateConversationSnoozeInput,
+) {
+  const contact = await prisma.contact.findFirst({
+    where: {
+      id: contactId,
+      companyId,
+    },
+  });
+
+  if (!contact) {
+    throw new Error("Contact not found");
+  }
+
+  const snoozedUntil = input.snoozedUntil
+    ? new Date(input.snoozedUntil)
+    : null;
+
+  if (snoozedUntil && snoozedUntil <= new Date()) {
+    throw new Error("Snooze time must be in the future");
+  }
+
+  return prisma.contact.update({
+    where: {
+      id: contact.id,
+    },
+    data: {
+      snoozedUntil,
+      inboxStatus: snoozedUntil ? "OPEN" : contact.inboxStatus,
+      inboxClosedAt: snoozedUntil ? null : contact.inboxClosedAt,
+    },
+  });
+}
+
+export async function getInboxSlaSettingsByCompany(companyId: string) {
+  await prisma.company.findUnique({
+    where: {
+      id: companyId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return DEFAULT_INBOX_SLA_SETTINGS;
+}
+
+export async function getInboxStatsByCompany(
+  companyId: string,
+  currentUserId: string,
+) {
+  const now = new Date();
+  const inboxSlaSettings = await getInboxSlaSettingsByCompany(companyId);
+  const baseContactWhere: Prisma.ContactWhereInput = {
+    companyId,
+    messages: {
+      some: {
+        companyId,
+      },
+    },
+  };
+
+  const [
+    totalConversations,
+    openConversations,
+    closedConversations,
+    snoozedConversations,
+    unreadConversations,
+    unreadMessages,
+    urgentConversations,
+    assignedToMeConversations,
+    unassignedConversations,
+    inboundLatestCandidates,
+  ] = await prisma.$transaction([
+    prisma.contact.count({
+      where: baseContactWhere,
+    }),
+    prisma.contact.count({
+      where: {
+        ...baseContactWhere,
+        inboxStatus: "OPEN",
+        OR: [
+          {
+            snoozedUntil: null,
+          },
+          {
+            snoozedUntil: {
+              lte: now,
+            },
+          },
+        ],
+      },
+    }),
+    prisma.contact.count({
+      where: {
+        ...baseContactWhere,
+        inboxStatus: "CLOSED",
+      },
+    }),
+    prisma.contact.count({
+      where: {
+        ...baseContactWhere,
+        snoozedUntil: {
+          gt: now,
+        },
+      },
+    }),
+    prisma.contact.count({
+      where: {
+        ...baseContactWhere,
+        messages: {
+          some: {
+            companyId,
+            direction: "INBOUND",
+            inboxReadAt: null,
+          },
+        },
+      },
+    }),
+    prisma.message.count({
+      where: {
+        companyId,
+        direction: "INBOUND",
+        inboxReadAt: null,
+      },
+    }),
+    prisma.contact.count({
+      where: {
+        ...baseContactWhere,
+        inboxPriority: "URGENT",
+      },
+    }),
+    prisma.contact.count({
+      where: {
+        ...baseContactWhere,
+        assignedToUserId: currentUserId,
+      },
+    }),
+    prisma.contact.count({
+      where: {
+        ...baseContactWhere,
+        assignedToUserId: null,
+      },
+    }),
+    prisma.contact.findMany({
+      where: {
+        ...baseContactWhere,
+        inboxStatus: "OPEN",
+        OR: [
+          {
+            snoozedUntil: null,
+          },
+          {
+            snoozedUntil: {
+              lte: now,
+            },
+          },
+        ],
+      },
+      include: {
+        messages: {
+          where: {
+            companyId,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 1,
+        },
+      },
+    }),
+  ]);
+
+  const needsReplyConversations = inboundLatestCandidates.filter((contact) => {
+    const latestMessage = contact.messages[0];
+
+    return latestMessage?.direction === "INBOUND";
+  }).length;
+
+  const overdueConversations = inboundLatestCandidates.filter((contact) => {
+    const latestMessage = contact.messages[0];
+
+    if (!latestMessage) {
+      return false;
+    }
+
+    return isInboxConversationOverdue({
+      latestMessageCreatedAt: latestMessage.createdAt,
+      latestMessageDirection: latestMessage.direction,
+      inboxStatus: contact.inboxStatus,
+      inboxPriority: contact.inboxPriority,
+      snoozedUntil: contact.snoozedUntil,
+      slaSettings: inboxSlaSettings,
+    });
+  }).length;
+
+  return {
+    totalConversations,
+    openConversations,
+    closedConversations,
+    snoozedConversations,
+    unreadConversations,
+    unreadMessages,
+    urgentConversations,
+    assignedToMeConversations,
+    unassignedConversations,
+    needsReplyConversations,
+    overdueConversations,
+  };
 }

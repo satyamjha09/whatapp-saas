@@ -6,6 +6,7 @@ import {
   enqueueDeveloperInboundMessageWebhook,
   enqueueDeveloperMessageStatusWebhook,
 } from "@/server/services/developer-webhook.service";
+import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
 import type { ProcessWebhookJobData } from "@/lib/queue";
@@ -195,12 +196,18 @@ const worker = new Worker<ProcessWebhookJobData>(
         update: {
           name: contactName,
           countryCode: phone.countryCode,
+          inboxStatus: "OPEN",
+          inboxClosedAt: null,
+          snoozedUntil: null,
         },
         create: {
           companyId,
           name: contactName,
           countryCode: phone.countryCode,
           phoneNumber: phone.phoneNumber,
+          inboxStatus: "OPEN",
+          inboxClosedAt: null,
+          snoozedUntil: null,
         },
       });
 
@@ -221,6 +228,23 @@ const worker = new Worker<ProcessWebhookJobData>(
               raw: incomingMessage as Prisma.InputJsonValue,
             },
           },
+        },
+      });
+
+      const now = new Date();
+
+      await prisma.contact.update({
+        where: {
+          id: contact.id,
+        },
+        data: {
+          inboxStatus: "OPEN",
+          inboxClosedAt: null,
+          snoozedUntil: null,
+          inboxLastCustomerMessageAt: now,
+          inboxSlaDueAt: calculateInboxSlaDueAt(contact.inboxPriority, now),
+          inboxSlaBreachedAt: null,
+          inboxSlaEscalationCount: 0,
         },
       });
 

@@ -7,8 +7,10 @@
     "worker:messages": "tsx src/workers/message.worker.ts",
     "worker:webhooks": "tsx src/workers/webhook.worker.ts",
     "worker:developer-webhooks": "tsx src/workers/developer-webhook.worker.ts",
+    "worker:inbox-sla": "tsx src/workers/inbox-sla.worker.ts",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run lint",
+    "prisma:check": "prisma validate",
+    "check": "prisma validate && tsc --noEmit && npm run lint",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -20,11 +22,13 @@
     "axios": "^1.16.1",
     "bullmq": "^5.77.6",
     "ioredis": "^5.10.1",
+    "lucide-react": "^1.18.0",
     "next": "16.2.6",
     "pg": "^8.21.0",
     "prisma": "^7.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "recharts": "^3.8.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

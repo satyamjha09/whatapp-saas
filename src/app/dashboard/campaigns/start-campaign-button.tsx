@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { actionButtonClass } from "@/app/dashboard/dashboard-ui";
 
 type StartCampaignButtonProps = {
   campaignId: string;
@@ -48,13 +49,13 @@ export default function StartCampaignButton({
       <button
         onClick={startCampaign}
         disabled={isStarting}
-        className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        className={actionButtonClass()}
       >
         {isStarting ? "Starting..." : "Start Campaign"}
       </button>
 
       {error ? (
-        <p className="mt-2 rounded-lg bg-red-50 p-2 text-sm text-red-600">
+        <p className="mt-2 rounded-xl border border-rose-300/20 bg-rose-400/10 p-2 text-sm text-rose-300">
           {error}
         </p>
       ) : null}

@@ -56,6 +56,7 @@ export async function PATCH(
       entityId: contact.id,
       metadata: {
         priority: contact.inboxPriority,
+        slaDueAt: contact.inboxSlaDueAt,
       },
     });
 

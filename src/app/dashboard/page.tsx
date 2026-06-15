@@ -1,6 +1,470 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  DashboardOverview,
+  type DashboardMetric,
+  type DashboardOverviewData,
+} from "@/app/dashboard/dashboard-overview";
+import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import type { MessageStatus } from "@/generated/prisma/enums";
+
+function startOfDay(date: Date) {
+  const nextDate = new Date(date);
+  nextDate.setHours(0, 0, 0, 0);
+  return nextDate;
+}
+
+function addDays(date: Date, days: number) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("en-IN").format(value);
+}
+
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
+function formatMoneyPaise(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    currency: "INR",
+    maximumFractionDigits: 0,
+    style: "currency",
+  }).format(value / 100);
+}
+
+function formatPeriodChange(current: number, previous: number) {
+  if (previous === 0 && current === 0) {
+    return "No change";
+  }
+
+  if (previous === 0) {
+    return "New this week";
+  }
+
+  const change = ((current - previous) / previous) * 100;
+  const sign = change > 0 ? "+" : "";
+  return `${sign}${change.toFixed(1)}% vs previous 7d`;
+}
+
+function formatTimeAgo(date: Date) {
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+
+  if (seconds < 60) {
+    return "Just now";
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+async function getDashboardOverviewData(
+  companyId: string,
+): Promise<DashboardOverviewData> {
+  const today = startOfDay(new Date());
+  const currentStart = addDays(today, -6);
+  const previousStart = addDays(currentStart, -7);
+  const previousEnd = currentStart;
+
+  const deliveredStatuses: MessageStatus[] = ["SENT", "DELIVERED", "READ"];
+  const completedOutboundStatuses: MessageStatus[] = [
+    "SENT",
+    "DELIVERED",
+    "READ",
+    "FAILED",
+  ];
+
+  const [
+    outboundSent,
+    previousOutboundSent,
+    completedOutbound,
+    deliveredOutbound,
+    contacts,
+    currentContacts,
+    previousContacts,
+    openInbox,
+    previousOpenInbox,
+    wallet,
+    currentWalletTransactions,
+    previousWalletTransactions,
+    queuedMessages,
+    unreadInbound,
+    messageStatuses,
+    messagesThisWeek,
+    campaigns,
+    recentMessages,
+    recentCampaigns,
+    recentTransactions,
+  ] = await Promise.all([
+    prisma.message.count({
+      where: {
+        companyId,
+        direction: "OUTBOUND",
+        status: {
+          in: deliveredStatuses,
+        },
+      },
+    }),
+    prisma.message.count({
+      where: {
+        companyId,
+        createdAt: {
+          gte: previousStart,
+          lt: previousEnd,
+        },
+        direction: "OUTBOUND",
+        status: {
+          in: deliveredStatuses,
+        },
+      },
+    }),
+    prisma.message.count({
+      where: {
+        companyId,
+        direction: "OUTBOUND",
+        status: {
+          in: completedOutboundStatuses,
+        },
+      },
+    }),
+    prisma.message.count({
+      where: {
+        companyId,
+        direction: "OUTBOUND",
+        status: {
+          in: deliveredStatuses,
+        },
+      },
+    }),
+    prisma.contact.count({
+      where: {
+        companyId,
+      },
+    }),
+    prisma.contact.count({
+      where: {
+        companyId,
+        createdAt: {
+          gte: currentStart,
+        },
+      },
+    }),
+    prisma.contact.count({
+      where: {
+        companyId,
+        createdAt: {
+          gte: previousStart,
+          lt: previousEnd,
+        },
+      },
+    }),
+    prisma.contact.count({
+      where: {
+        companyId,
+        inboxStatus: "OPEN",
+      },
+    }),
+    prisma.contact.count({
+      where: {
+        companyId,
+        createdAt: {
+          gte: previousStart,
+          lt: previousEnd,
+        },
+        inboxStatus: "OPEN",
+      },
+    }),
+    prisma.wallet.findUnique({
+      where: {
+        companyId,
+      },
+    }),
+    prisma.walletTransaction.findMany({
+      where: {
+        companyId,
+        createdAt: {
+          gte: currentStart,
+        },
+      },
+      select: {
+        amountPaise: true,
+        type: true,
+      },
+    }),
+    prisma.walletTransaction.findMany({
+      where: {
+        companyId,
+        createdAt: {
+          gte: previousStart,
+          lt: previousEnd,
+        },
+      },
+      select: {
+        amountPaise: true,
+        type: true,
+      },
+    }),
+    prisma.message.count({
+      where: {
+        companyId,
+        status: "QUEUED",
+      },
+    }),
+    prisma.message.count({
+      where: {
+        companyId,
+        direction: "INBOUND",
+        inboxReadAt: null,
+      },
+    }),
+    prisma.message.groupBy({
+      by: ["status"],
+      where: {
+        companyId,
+      },
+      _count: {
+        _all: true,
+      },
+    }),
+    prisma.message.findMany({
+      where: {
+        companyId,
+        createdAt: {
+          gte: currentStart,
+        },
+      },
+      select: {
+        createdAt: true,
+        direction: true,
+        status: true,
+      },
+    }),
+    prisma.campaign.findMany({
+      where: {
+        companyId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        deliveredCount: true,
+        name: true,
+        readCount: true,
+        totalContacts: true,
+      },
+      take: 5,
+    }),
+    prisma.message.findMany({
+      where: {
+        companyId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        createdAt: true,
+        direction: true,
+        status: true,
+        toPhoneNumber: true,
+      },
+      take: 4,
+    }),
+    prisma.campaign.findMany({
+      where: {
+        companyId,
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      select: {
+        name: true,
+        status: true,
+        totalContacts: true,
+        updatedAt: true,
+      },
+      take: 4,
+    }),
+    prisma.walletTransaction.findMany({
+      where: {
+        companyId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        amountPaise: true,
+        createdAt: true,
+        description: true,
+        type: true,
+      },
+      take: 4,
+    }),
+  ]);
+
+  const deliveryRate =
+    completedOutbound === 0 ? 0 : (deliveredOutbound / completedOutbound) * 100;
+
+  const transactionNet = (
+    transactions: Array<{ amountPaise: number; type: string }>,
+  ) =>
+    transactions.reduce((total, transaction) => {
+      if (transaction.type === "CREDIT" || transaction.type === "REFUND") {
+        return total + transaction.amountPaise;
+      }
+
+      if (transaction.type === "DEBIT") {
+        return total - transaction.amountPaise;
+      }
+
+      return total;
+    }, 0);
+
+  const metrics: DashboardMetric[] = [
+    {
+      label: "Messages sent",
+      value: formatNumber(outboundSent),
+      detail: formatPeriodChange(outboundSent, previousOutboundSent),
+      tone: "indigo",
+      icon: "send",
+    },
+    {
+      label: "Delivery rate",
+      value: formatPercent(deliveryRate),
+      detail:
+        completedOutbound === 0
+          ? "No completed outbound messages"
+          : `${formatNumber(deliveredOutbound)} of ${formatNumber(
+              completedOutbound,
+            )} completed`,
+      tone: "emerald",
+      icon: "check",
+    },
+    {
+      label: "Contacts",
+      value: formatNumber(contacts),
+      detail: formatPeriodChange(currentContacts, previousContacts),
+      tone: "violet",
+      icon: "users",
+    },
+    {
+      label: "Open inbox",
+      value: formatNumber(openInbox),
+      detail: formatPeriodChange(openInbox, previousOpenInbox),
+      tone: "amber",
+      icon: "message",
+    },
+    {
+      label: "Wallet balance",
+      value: formatMoneyPaise(wallet?.balancePaise ?? 0),
+      detail: `${formatMoneyPaise(
+        transactionNet(currentWalletTransactions),
+      )} net this week`,
+      tone: "cyan",
+      icon: "wallet",
+    },
+  ];
+
+  const messageVolume = Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(currentStart, index);
+    const nextDate = addDays(date, 1);
+    const messagesForDay = messagesThisWeek.filter(
+      (message) => message.createdAt >= date && message.createdAt < nextDate,
+    );
+
+    return {
+      day: date.toLocaleDateString("en-US", { weekday: "short" }),
+      delivered: messagesForDay.filter((message) =>
+        deliveredStatuses.includes(message.status),
+      ).length,
+      inbound: messagesForDay.filter((message) => message.direction === "INBOUND")
+        .length,
+      sent: messagesForDay.filter((message) => message.direction === "OUTBOUND")
+        .length,
+    };
+  });
+
+  const statusColors: Record<string, string> = {
+    DELIVERED: "#818cf8",
+    FAILED: "#f43f5e",
+    QUEUED: "#f59e0b",
+    READ: "#22d3ee",
+    RECEIVED: "#a78bfa",
+    SENDING: "#38bdf8",
+    SENT: "#34d399",
+  };
+
+  const channelMix = messageStatuses.map((status) => ({
+    color: statusColors[status.status] ?? "#71717a",
+    name: status.status,
+    value: status._count._all,
+  }));
+
+  const campaignPerformance = campaigns.map((campaign) => ({
+    delivered:
+      campaign.totalContacts === 0
+        ? 0
+        : Math.round((campaign.deliveredCount / campaign.totalContacts) * 100),
+    name: campaign.name,
+    read:
+      campaign.totalContacts === 0
+        ? 0
+        : Math.round((campaign.readCount / campaign.totalContacts) * 100),
+  }));
+
+  const activities = [
+    ...recentMessages.map((message) => ({
+      detail:
+        message.direction === "INBOUND"
+          ? `Inbound message from +${message.toPhoneNumber}`
+          : `Outbound message to +${message.toPhoneNumber}`,
+      time: formatTimeAgo(message.createdAt),
+      title: `Message ${message.status.toLowerCase()}`,
+      type: "message" as const,
+    })),
+    ...recentCampaigns.map((campaign) => ({
+      detail: `${formatNumber(campaign.totalContacts)} contacts`,
+      time: formatTimeAgo(campaign.updatedAt),
+      title: `${campaign.name} is ${campaign.status.toLowerCase()}`,
+      type: "campaign" as const,
+    })),
+    ...recentTransactions.map((transaction) => ({
+      detail:
+        transaction.description ??
+        `${transaction.type.toLowerCase()} ${formatMoneyPaise(
+          transaction.amountPaise,
+        )}`,
+      time: formatTimeAgo(transaction.createdAt),
+      title: `Wallet ${transaction.type.toLowerCase()}`,
+      type: "wallet" as const,
+    })),
+  ].slice(0, 6);
+
+  return {
+    activities,
+    campaignPerformance,
+    channelMix,
+    messageVolume,
+    metrics,
+    summary: {
+      queuedMessages,
+      previousWalletNetPaise: transactionNet(previousWalletTransactions),
+      unreadInbound,
+    },
+  };
+}
 
 export default async function DashboardPage() {
   const context = await getCurrentWorkspaceContext();
@@ -13,86 +477,16 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
-  const { user, membership } = context;
-
-  const cards = [
-    {
-      title: "WhatsApp Connection",
-      description: "Connect and manage your WhatsApp Business account.",
-      href: "/dashboard/settings/whatsapp",
-    },
-    {
-      title: "Templates",
-      description: "Create reusable WhatsApp message templates.",
-      href: "/dashboard/templates",
-    },
-    {
-      title: "Contacts",
-      description: "Manage customers and phone numbers.",
-      href: "/dashboard/contacts",
-    },
-    {
-      title: "Messages",
-      description: "Send template messages and view history.",
-      href: "/dashboard/messages",
-    },
-    {
-      title: "Campaigns",
-      description: "Create and start bulk message campaigns.",
-      href: "/dashboard/campaigns",
-    },
-    {
-      title: "Reports",
-      description: "Track message status and delivery performance.",
-      href: "/dashboard/reports",
-    },
-    {
-      title: "Wallet",
-      description: "Top up balance and view transactions.",
-      href: "/dashboard/wallet",
-    },
-    {
-      title: "Billing",
-      description: "View spending, refunds, and billing summary.",
-      href: "/dashboard/billing",
-    },
-  ];
+  const overviewData = await getDashboardOverviewData(
+    context.membership.companyId,
+  );
 
   return (
-    <main className="p-8">
-      <div className="mx-auto max-w-6xl">
-        <section className="rounded-2xl border bg-white p-8 shadow-sm">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-
-          <p className="mt-2 text-sm text-gray-600">
-            Welcome back, {user.name ?? user.email}. You are managing{" "}
-            <span className="font-medium text-gray-900">
-              {membership.company.name}
-            </span>{" "}
-            as{" "}
-            <span className="font-medium text-gray-900">
-              {membership.role}
-            </span>
-            .
-          </p>
-        </section>
-
-        <section className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {cards.map((card) => (
-            <Link
-              key={card.href}
-              href={card.href}
-              className="rounded-2xl border bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <h2 className="text-lg font-semibold text-gray-900">
-                {card.title}
-              </h2>
-
-              <p className="mt-2 text-sm text-gray-600">{card.description}</p>
-            </Link>
-          ))}
-        </section>
-      </div>
-    </main>
+    <DashboardOverview
+      companyName={context.membership.company.name}
+      data={overviewData}
+      userName={context.user.name ?? context.user.email}
+      userRole={context.membership.role}
+    />
   );
 }

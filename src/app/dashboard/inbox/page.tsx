@@ -1,18 +1,46 @@
 import Link from "next/link";
+import { MessageCircle } from "lucide-react";
 import { redirect } from "next/navigation";
+import {
+  EmptyState,
+  PageHeader,
+  Panel,
+  PanelTitle,
+  StatusPill,
+  actionButtonClass,
+  statusTone,
+} from "@/app/dashboard/dashboard-ui";
+import {
+  getInboxSlaDueAt,
+  isInboxConversationOverdue,
+} from "@/lib/inbox-sla";
+import { buildInboxHref, getInboxUrlState } from "@/lib/inbox-url";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { getInboxTagsByCompany } from "@/server/services/inbox-tag.service";
 import {
   getInboxContactsByCompany,
-  resolveInboxFilter,
+  getInboxSlaSettingsByCompany,
+  getInboxStatsByCompany,
 } from "@/server/services/inbox.service";
+import { getCompanyMembers } from "@/server/services/team.service";
 import InboxFilterTabs from "./inbox-filter-tabs";
+import InboxBulkActions from "./inbox-bulk-actions";
+import InboxPagination from "./inbox-pagination";
+import InboxPriorityFilter from "./inbox-priority-filter";
 import InboxSearchForm from "./inbox-search-form";
-import { getPriorityColorClass } from "./priority-color";
+import InboxStatsCards from "./inbox-stats-cards";
+import SlaBadge from "./sla-badge";
+import SlaFilter from "./sla-filter";
 
 type InboxPageProps = {
   searchParams: Promise<{
     filter?: string;
     q?: string;
+    tagId?: string;
+    priority?: string;
+    sort?: string;
+    page?: string;
+    sla?: string;
   }>;
 };
 
@@ -28,166 +56,289 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
   }
 
   const resolvedSearchParams = await searchParams;
-  const activeFilter = resolveInboxFilter(resolvedSearchParams.filter);
-  const searchQuery = resolvedSearchParams.q?.trim() ?? "";
+  const inboxUrlState = getInboxUrlState(resolvedSearchParams);
+  const activeFilter = inboxUrlState.filter;
+  const searchQuery = inboxUrlState.q;
+  const activeTagId = inboxUrlState.tagId;
+  const activePriority = inboxUrlState.priority;
+  const activeSort = inboxUrlState.sort;
+  const activePage = inboxUrlState.page;
+  const sla = inboxUrlState.sla;
 
-  const contacts = await getInboxContactsByCompany(
-    context.membership.companyId,
-    {
-      filter: activeFilter,
-      currentUserId: context.user.id,
-      search: searchQuery,
-    },
-  );
+  const [inboxResult, inboxTags, members, inboxStats, inboxSlaSettings] =
+    await Promise.all([
+      getInboxContactsByCompany(context.membership.companyId, {
+        filter: activeFilter,
+        currentUserId: context.user.id,
+        search: searchQuery,
+        tagId: activeTagId,
+        priority: activePriority,
+        sort: activeSort,
+        page: activePage,
+        pageSize: 20,
+        sla,
+      }),
+      getInboxTagsByCompany(context.membership.companyId),
+      getCompanyMembers(context.membership.companyId),
+      getInboxStatsByCompany(context.membership.companyId, context.user.id),
+      getInboxSlaSettingsByCompany(context.membership.companyId),
+    ]);
+  const contacts = inboxResult.contacts;
+  const pagination = inboxResult.pagination;
+  const now = new Date();
 
   return (
-    <main className="p-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Inbox</h1>
-
-          <p className="mt-2 text-sm text-gray-600">
-            Workspace: {context.membership.company.name}
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-2">
+    <div>
+      <PageHeader
+        eyebrow={context.membership.company.name}
+        title="Inbox"
+        description="Review real conversations, unread inbound messages, tags, priorities, and conversation status."
+        actions={
+          <>
+            <Link
+              href="/dashboard/inbox/analytics"
+              className={actionButtonClass("secondary")}
+            >
+              Analytics
+            </Link>
             <Link
               href="/dashboard/inbox/quick-replies"
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className={actionButtonClass("secondary")}
             >
               Manage quick replies
             </Link>
-
             <Link
               href="/dashboard/inbox/tags"
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className={actionButtonClass("secondary")}
             >
               Manage tags
             </Link>
-          </div>
+          </>
+        }
+      />
 
-          <InboxFilterTabs
+      <InboxStatsCards stats={inboxStats} />
+
+      <Panel className="mb-6">
+        <InboxFilterTabs
+          activeFilter={activeFilter}
+          searchQuery={searchQuery}
+          activeTagId={activeTagId}
+          activePriority={activePriority}
+          activeSort={activeSort}
+          sla={sla}
+        />
+        <InboxSearchForm
+          activeFilter={activeFilter}
+          searchQuery={searchQuery}
+          activeTagId={activeTagId}
+          activePriority={activePriority}
+          activeSort={activeSort}
+          sla={sla}
+        />
+        <div className="mt-4">
+          <InboxPriorityFilter
             activeFilter={activeFilter}
             searchQuery={searchQuery}
-          />
-
-          <InboxSearchForm
-            activeFilter={activeFilter}
-            searchQuery={searchQuery}
+            activeTagId={activeTagId}
+            activePriority={activePriority}
+            activeSort={activeSort}
+            sla={sla}
           />
         </div>
+        <div className="mt-4">
+          <SlaFilter />
+        </div>
+      </Panel>
 
-        <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-          <section className="rounded-2xl border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Conversations
-            </h2>
+      <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
+        <Panel>
+          <PanelTitle
+            title="Conversations"
+            description="Latest message preview for each matching contact."
+          />
 
-            {contacts.length === 0 ? (
-              <p className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
+          <InboxBulkActions
+            contacts={contacts.map((contact) => ({
+              id: contact.id,
+              name: contact.name,
+              countryCode: contact.countryCode,
+              phoneNumber: contact.phoneNumber,
+              inboxStatus: contact.inboxStatus,
+              inboxPriority: contact.inboxPriority,
+            }))}
+            members={members}
+            tags={inboxTags}
+          />
+
+          {contacts.length === 0 ? (
+            <div className="mt-6">
+              <EmptyState>
                 {searchQuery
                   ? "No conversations found for this search."
-                  : "No conversations found for this filter."}
-              </p>
-            ) : (
-              <div className="mt-6 space-y-3">
-                {contacts.map((contact) => {
-                  const latestMessage = contact.messages[0];
-                  const unreadCount = contact._count.messages;
+                  : activeTagId
+                    ? "No conversations found for this tag."
+                    : activePriority !== "all"
+                      ? "No conversations found for this priority."
+                      : activeFilter === "overdue"
+                        ? "No overdue conversations."
+                        : "No conversations found for this filter."}
+              </EmptyState>
+            </div>
+          ) : (
+            <div className="mt-6 space-y-3">
+              {contacts.map((contact) => {
+                const latestMessage = contact.messages[0];
+                const unreadCount = contact._count.messages;
+                const needsReply =
+                  latestMessage?.direction === "INBOUND" &&
+                  contact.inboxStatus === "OPEN" &&
+                  (!contact.snoozedUntil || contact.snoozedUntil <= now);
+                const isOverdue = latestMessage
+                  ? isInboxConversationOverdue({
+                      latestMessageCreatedAt: latestMessage.createdAt,
+                      latestMessageDirection: latestMessage.direction,
+                      inboxStatus: contact.inboxStatus,
+                      inboxPriority: contact.inboxPriority,
+                      snoozedUntil: contact.snoozedUntil,
+                      slaSettings: inboxSlaSettings,
+                    })
+                  : false;
+                const slaDueAt =
+                  latestMessage && needsReply
+                      ? getInboxSlaDueAt(
+                          latestMessage.createdAt,
+                          contact.inboxPriority,
+                          inboxSlaSettings,
+                        )
+                    : null;
 
-                  return (
-                    <Link
-                      key={contact.id}
-                      href={`/dashboard/inbox/${contact.id}?filter=${activeFilter}${
-                        searchQuery
-                          ? `&q=${encodeURIComponent(searchQuery)}`
-                          : ""
-                      }`}
-                      className="block rounded-xl border p-4 transition hover:bg-gray-50"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            {contact.name ?? "Unnamed Contact"}
+                return (
+                  <Link
+                    key={contact.id}
+                    href={buildInboxHref(
+                      `/dashboard/inbox/${contact.id}`,
+                      inboxUrlState,
+                    )}
+                    className="block rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 transition hover:border-indigo-300/25 hover:bg-white/[0.06]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-white">
+                          {contact.name ?? "Unnamed Contact"}
+                        </p>
+
+                        <p className="mt-1 text-sm text-zinc-500">
+                          +{contact.countryCode}
+                          {contact.phoneNumber}
+                        </p>
+
+                        {contact.snoozedUntil && contact.snoozedUntil > now ? (
+                          <p className="mt-1 text-xs text-purple-300">
+                            Snoozed until {contact.snoozedUntil.toLocaleString()}
                           </p>
+                        ) : null}
 
-                          <p className="mt-1 text-sm text-gray-500">
-                            +{contact.countryCode}
-                            {contact.phoneNumber}
-                          </p>
-
-                          {contact.inboxTags.length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {contact.inboxTags.map((item) => (
-                                <span
-                                  key={item.id}
-                                  className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700"
-                                >
-                                  {item.tag.name}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col items-end gap-2">
-                          {unreadCount > 0 && (
-                            <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
-                              {unreadCount} unread
-                            </span>
-                          )}
-
-                          <span
-                            className={`rounded-full px-2 py-1 text-xs font-medium ${getPriorityColorClass(
-                              contact.inboxPriority,
-                            )}`}
+                        {slaDueAt ? (
+                          <p
+                            className={`mt-1 text-xs ${
+                              isOverdue ? "text-red-300" : "text-zinc-500"
+                            }`}
                           >
-                            {contact.inboxPriority}
-                          </span>
+                            SLA due: {slaDueAt.toLocaleString()}
+                          </p>
+                        ) : null}
 
-                          <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
-                            {contact.inboxStatus}
-                          </span>
-
-                          {latestMessage && (
-                            <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
-                              {latestMessage.direction}
-                            </span>
-                          )}
-                        </div>
+                        {contact.inboxTags.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {contact.inboxTags.map((item) => (
+                              <StatusPill key={item.id} tone="violet">
+                                {item.tag.name}
+                              </StatusPill>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
-                      {latestMessage && (
-                        <>
-                          <p className="mt-3 line-clamp-2 text-sm text-gray-600">
-                            {latestMessage.body}
-                          </p>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        {isOverdue ? (
+                          <StatusPill tone="red">Overdue</StatusPill>
+                        ) : null}
 
-                          <p className="mt-2 text-xs text-gray-400">
-                            {latestMessage.createdAt.toLocaleString()}
-                          </p>
-                        </>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+                        {needsReply ? (
+                          <StatusPill tone="amber">Needs reply</StatusPill>
+                        ) : null}
 
-          <section className="flex min-h-[520px] items-center justify-center rounded-2xl border bg-white p-6 shadow-sm">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Select a conversation
-              </h2>
+                        {unreadCount > 0 && (
+                          <StatusPill tone="green">{unreadCount} unread</StatusPill>
+                        )}
 
-              <p className="mt-2 text-sm text-gray-600">
-                Choose a contact from the left to view the conversation.
-              </p>
+                        <StatusPill tone={statusTone(contact.inboxPriority)}>
+                          {contact.inboxPriority}
+                        </StatusPill>
+
+                        {contact.snoozedUntil && contact.snoozedUntil > now ? (
+                          <StatusPill tone="violet">Snoozed</StatusPill>
+                        ) : null}
+
+                        <SlaBadge
+                          inboxStatus={contact.inboxStatus}
+                          inboxSlaDueAt={contact.inboxSlaDueAt}
+                          inboxSlaBreachedAt={contact.inboxSlaBreachedAt}
+                        />
+
+                        <StatusPill tone={statusTone(contact.inboxStatus)}>
+                          {contact.inboxStatus}
+                        </StatusPill>
+                      </div>
+                    </div>
+
+                    {latestMessage && (
+                      <>
+                        <p className="mt-3 line-clamp-2 text-sm leading-6 text-zinc-400">
+                          {latestMessage.body}
+                        </p>
+
+                        <p className="mt-2 text-xs text-zinc-600">
+                          {latestMessage.direction} -{" "}
+                          {latestMessage.createdAt.toLocaleString()}
+                        </p>
+                      </>
+                    )}
+                  </Link>
+                );
+              })}
+              <InboxPagination
+                basePath="/dashboard/inbox"
+                pagination={pagination}
+                urlState={{
+                  filter: activeFilter,
+                  q: searchQuery,
+                  tagId: activeTagId,
+                  priority: activePriority,
+                  sort: activeSort,
+                  sla,
+                }}
+              />
             </div>
-          </section>
-        </div>
+          )}
+        </Panel>
+
+        <Panel className="flex min-h-[520px] items-center justify-center">
+          <div className="max-w-sm text-center">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-indigo-400/10 text-indigo-300">
+              <MessageCircle className="h-6 w-6" />
+            </div>
+            <h2 className="mt-5 text-xl font-semibold text-white">
+              Select a conversation
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-zinc-500">
+              Choose a contact from the conversation list to view the thread.
+            </p>
+          </div>
+        </Panel>
       </div>
-    </main>
+    </div>
   );
 }

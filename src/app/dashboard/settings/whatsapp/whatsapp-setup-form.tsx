@@ -2,6 +2,15 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  actionButtonClass,
+  fieldClass,
+  labelClass,
+  Panel,
+  PanelTitle,
+  StatusPill,
+  statusTone,
+} from "@/app/dashboard/dashboard-ui";
 
 type WhatsAppAccount = {
   id: string;
@@ -74,58 +83,57 @@ export default function WhatsAppSetupForm({
 
   if (account) {
     return (
-      <div className="rounded-2xl border bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-gray-900">
-          WhatsApp Business Account
-        </h2>
+      <Panel>
+        <PanelTitle
+          title="WhatsApp Business Account"
+          description="Stored WhatsApp account details for this workspace."
+        />
 
         <div className="mt-6 space-y-4">
-          <div className="rounded-xl border p-4">
-            <p className="text-sm text-gray-500">Business Name</p>
-            <p className="mt-1 font-medium text-gray-900">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
+            <p className="text-sm text-zinc-500">Business Name</p>
+            <p className="mt-1 font-medium text-white">
               {account.businessName ?? "Not provided"}
             </p>
           </div>
 
-          <div className="rounded-xl border p-4">
-            <p className="text-sm text-gray-500">Connection Status</p>
-            <p className="mt-1 font-medium text-gray-900">{account.status}</p>
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
+            <p className="text-sm text-zinc-500">Connection Status</p>
+            <div className="mt-2">
+              <StatusPill tone={statusTone(account.status)}>
+                {account.status}
+              </StatusPill>
+            </div>
           </div>
 
-          <div className="rounded-xl border p-4">
-            <p className="text-sm text-gray-500">Meta WABA ID</p>
-            <p className="mt-1 font-medium text-gray-900">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
+            <p className="text-sm text-zinc-500">Meta WABA ID</p>
+            <p className="mt-1 font-medium text-white">
               {account.wabaId ?? "Not connected yet"}
             </p>
           </div>
         </div>
 
         {account.status === "PENDING" && (
-          <p className="mt-6 rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800">
+          <p className="mt-6 rounded-xl border border-amber-300/20 bg-amber-400/10 p-4 text-sm text-amber-200">
             Your WhatsApp setup has started. Meta connection will be added in
             the next module.
           </p>
         )}
-      </div>
+      </Panel>
     );
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900">
-        Connect WhatsApp Business
-      </h2>
-
-      <p className="mt-2 text-sm text-gray-600">
-        Start your WhatsApp Business setup for this workspace.
-      </p>
+    <Panel>
+      <PanelTitle
+        title="Connect WhatsApp Business"
+        description="Start your WhatsApp Business setup for this workspace."
+      />
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <div>
-          <label
-            htmlFor="businessName"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="businessName" className={labelClass}>
             WhatsApp business name
           </label>
 
@@ -137,12 +145,12 @@ export default function WhatsAppSetupForm({
             onChange={(event) => setBusinessName(event.target.value)}
             placeholder="Whizco"
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           />
         </div>
 
         {error && (
-          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+          <p className="rounded-xl border border-rose-300/20 bg-rose-400/10 p-3 text-sm text-rose-300">
             {error}
           </p>
         )}
@@ -150,11 +158,11 @@ export default function WhatsAppSetupForm({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-black px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className={actionButtonClass()}
         >
           {isSubmitting ? "Starting setup..." : "Start WhatsApp Setup"}
         </button>
       </form>
-    </div>
+    </Panel>
   );
 }

@@ -1,15 +1,29 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import {
+  getInboxSlaDueAt,
+  isInboxConversationOverdue,
+} from "@/lib/inbox-sla";
+import { buildInboxHref, getInboxUrlState } from "@/lib/inbox-url";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getInboxTagsByCompany } from "@/server/services/inbox-tag.service";
 import {
   getConversationByContact,
   getInboxContactsByCompany,
-  resolveInboxFilter,
+  getInboxSlaSettingsByCompany,
+  getInboxStatsByCompany,
 } from "@/server/services/inbox.service";
+import { getCompanyMembers } from "@/server/services/team.service";
 import InboxFilterTabs from "../inbox-filter-tabs";
+import InboxBulkActions from "../inbox-bulk-actions";
+import InboxPagination from "../inbox-pagination";
+import InboxPriorityFilter from "../inbox-priority-filter";
 import InboxSearchForm from "../inbox-search-form";
+import InboxStatsCards from "../inbox-stats-cards";
 import { getPriorityColorClass } from "../priority-color";
+import SlaBadge from "../sla-badge";
+import SlaFilter from "../sla-filter";
+import ConversationSnoozeControls from "./conversation-snooze-controls";
 import ConversationPrioritySelect from "./conversation-priority-select";
 import ConversationTagManager from "./conversation-tag-manager";
 import ConversationStatusButton from "./conversation-status-button";
@@ -24,6 +38,11 @@ type InboxConversationPageProps = {
   searchParams: Promise<{
     filter?: string;
     q?: string;
+    tagId?: string;
+    priority?: string;
+    sort?: string;
+    page?: string;
+    sla?: string;
   }>;
 };
 
@@ -44,22 +63,72 @@ export default async function InboxConversationPage({
   const { contactId } = await params;
   const companyId = context.membership.companyId;
   const resolvedSearchParams = await searchParams;
-  const activeFilter = resolveInboxFilter(resolvedSearchParams.filter);
-  const searchQuery = resolvedSearchParams.q?.trim() ?? "";
+  const inboxUrlState = getInboxUrlState(resolvedSearchParams);
+  const activeFilter = inboxUrlState.filter;
+  const searchQuery = inboxUrlState.q;
+  const activeTagId = inboxUrlState.tagId;
+  const activePriority = inboxUrlState.priority;
+  const activeSort = inboxUrlState.sort;
+  const activePage = inboxUrlState.page;
+  const sla = inboxUrlState.sla;
 
-  const [contacts, conversation, inboxTags] = await Promise.all([
+  const [
+    inboxResult,
+    conversation,
+    inboxTags,
+    members,
+    inboxStats,
+    inboxSlaSettings,
+  ] = await Promise.all([
     getInboxContactsByCompany(companyId, {
       filter: activeFilter,
       currentUserId: context.user.id,
       search: searchQuery,
+      tagId: activeTagId,
+      priority: activePriority,
+      sort: activeSort,
+      page: activePage,
+      pageSize: 20,
+      sla,
     }),
     getConversationByContact(companyId, contactId),
     getInboxTagsByCompany(companyId),
+    getCompanyMembers(companyId),
+    getInboxStatsByCompany(companyId, context.user.id),
+    getInboxSlaSettingsByCompany(companyId),
   ]);
+  const contacts = inboxResult.contacts;
+  const pagination = inboxResult.pagination;
+  const now = new Date();
 
   if (!conversation) {
     notFound();
   }
+
+  const latestConversationMessage =
+    conversation.messages[conversation.messages.length - 1];
+  const conversationNeedsReply =
+    latestConversationMessage?.direction === "INBOUND" &&
+    conversation.inboxStatus === "OPEN" &&
+    (!conversation.snoozedUntil || conversation.snoozedUntil <= now);
+  const conversationIsOverdue = latestConversationMessage
+    ? isInboxConversationOverdue({
+        latestMessageCreatedAt: latestConversationMessage.createdAt,
+        latestMessageDirection: latestConversationMessage.direction,
+        inboxStatus: conversation.inboxStatus,
+        inboxPriority: conversation.inboxPriority,
+        snoozedUntil: conversation.snoozedUntil,
+        slaSettings: inboxSlaSettings,
+      })
+    : false;
+  const conversationSlaDueAt =
+    latestConversationMessage && conversationNeedsReply
+      ? getInboxSlaDueAt(
+          latestConversationMessage.createdAt,
+          conversation.inboxPriority,
+          inboxSlaSettings,
+        )
+      : null;
 
   return (
     <main className="p-8">
@@ -73,7 +142,18 @@ export default async function InboxConversationPage({
             Workspace: {context.membership.company.name}
           </p>
 
+          <div className="mt-6">
+            <InboxStatsCards stats={inboxStats} variant="light" />
+          </div>
+
           <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/dashboard/inbox/analytics"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Analytics
+            </Link>
+
             <Link
               href="/dashboard/inbox/quick-replies"
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -92,12 +172,35 @@ export default async function InboxConversationPage({
           <InboxFilterTabs
             activeFilter={activeFilter}
             searchQuery={searchQuery}
+            activeTagId={activeTagId}
+            activePriority={activePriority}
+            activeSort={activeSort}
+            sla={sla}
           />
 
           <InboxSearchForm
             activeFilter={activeFilter}
             searchQuery={searchQuery}
+            activeTagId={activeTagId}
+            activePriority={activePriority}
+            activeSort={activeSort}
+            sla={sla}
           />
+
+          <div className="mt-4">
+            <InboxPriorityFilter
+              activeFilter={activeFilter}
+              searchQuery={searchQuery}
+              activeTagId={activeTagId}
+              activePriority={activePriority}
+              activeSort={activeSort}
+              sla={sla}
+            />
+          </div>
+
+          <div className="mt-4">
+            <SlaFilter />
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
@@ -106,11 +209,30 @@ export default async function InboxConversationPage({
               Conversations
             </h2>
 
+            <InboxBulkActions
+              contacts={contacts.map((contact) => ({
+                id: contact.id,
+                name: contact.name,
+                countryCode: contact.countryCode,
+                phoneNumber: contact.phoneNumber,
+                inboxStatus: contact.inboxStatus,
+                inboxPriority: contact.inboxPriority,
+              }))}
+              members={members}
+              tags={inboxTags}
+            />
+
             {contacts.length === 0 ? (
               <p className="mt-6 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
                 {searchQuery
                   ? "No conversations found for this search."
-                  : "No conversations found for this filter."}
+                  : activeTagId
+                    ? "No conversations found for this tag."
+                    : activePriority !== "all"
+                      ? "No conversations found for this priority."
+                      : activeFilter === "overdue"
+                        ? "No overdue conversations."
+                        : "No conversations found for this filter."}
               </p>
             ) : (
               <div className="mt-6 space-y-3">
@@ -118,15 +240,36 @@ export default async function InboxConversationPage({
                   const latestMessage = contact.messages[0];
                   const isActive = contact.id === conversation.id;
                   const unreadCount = contact._count.messages;
+                  const needsReply =
+                    latestMessage?.direction === "INBOUND" &&
+                    contact.inboxStatus === "OPEN" &&
+                    (!contact.snoozedUntil || contact.snoozedUntil <= now);
+                  const isOverdue = latestMessage
+                    ? isInboxConversationOverdue({
+                        latestMessageCreatedAt: latestMessage.createdAt,
+                        latestMessageDirection: latestMessage.direction,
+                        inboxStatus: contact.inboxStatus,
+                        inboxPriority: contact.inboxPriority,
+                        snoozedUntil: contact.snoozedUntil,
+                        slaSettings: inboxSlaSettings,
+                      })
+                    : false;
+                  const slaDueAt =
+                    latestMessage && needsReply
+                      ? getInboxSlaDueAt(
+                          latestMessage.createdAt,
+                          contact.inboxPriority,
+                          inboxSlaSettings,
+                        )
+                      : null;
 
                   return (
                     <Link
                       key={contact.id}
-                      href={`/dashboard/inbox/${contact.id}?filter=${activeFilter}${
-                        searchQuery
-                          ? `&q=${encodeURIComponent(searchQuery)}`
-                          : ""
-                      }`}
+                      href={buildInboxHref(
+                        `/dashboard/inbox/${contact.id}`,
+                        inboxUrlState,
+                      )}
                       className={`block rounded-xl border p-4 transition ${
                         isActive
                           ? "border-black bg-gray-50"
@@ -144,6 +287,24 @@ export default async function InboxConversationPage({
                             {contact.phoneNumber}
                           </p>
 
+                          {contact.snoozedUntil &&
+                          contact.snoozedUntil > now ? (
+                            <p className="mt-1 text-xs text-purple-600">
+                              Snoozed until{" "}
+                              {contact.snoozedUntil.toLocaleString()}
+                            </p>
+                          ) : null}
+
+                          {slaDueAt ? (
+                            <p
+                              className={`mt-1 text-xs ${
+                                isOverdue ? "text-red-600" : "text-gray-500"
+                              }`}
+                            >
+                              SLA due: {slaDueAt.toLocaleString()}
+                            </p>
+                          ) : null}
+
                           {contact.inboxTags.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
                               {contact.inboxTags.map((item) => (
@@ -159,6 +320,18 @@ export default async function InboxConversationPage({
                         </div>
 
                         <div className="flex flex-col items-end gap-2">
+                          {isOverdue ? (
+                            <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
+                              Overdue
+                            </span>
+                          ) : null}
+
+                          {needsReply ? (
+                            <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
+                              Needs reply
+                            </span>
+                          ) : null}
+
                           {unreadCount > 0 && (
                             <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
                               {unreadCount} unread
@@ -172,6 +345,19 @@ export default async function InboxConversationPage({
                           >
                             {contact.inboxPriority}
                           </span>
+
+                          {contact.snoozedUntil &&
+                          contact.snoozedUntil > now ? (
+                            <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700">
+                              Snoozed
+                            </span>
+                          ) : null}
+
+                          <SlaBadge
+                            inboxStatus={contact.inboxStatus}
+                            inboxSlaDueAt={contact.inboxSlaDueAt}
+                            inboxSlaBreachedAt={contact.inboxSlaBreachedAt}
+                          />
 
                           <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
                             {contact.inboxStatus}
@@ -199,6 +385,18 @@ export default async function InboxConversationPage({
                     </Link>
                   );
                 })}
+                <InboxPagination
+                  basePath={`/dashboard/inbox/${contactId}`}
+                  pagination={pagination}
+                  urlState={{
+                    filter: activeFilter,
+                    q: searchQuery,
+                    tagId: activeTagId,
+                    priority: activePriority,
+                    sort: activeSort,
+                    sla,
+                  }}
+                />
               </div>
             )}
           </section>
@@ -230,6 +428,43 @@ export default async function InboxConversationPage({
                     {conversation.inboxPriority}
                   </span>
 
+                  <SlaBadge
+                    inboxStatus={conversation.inboxStatus}
+                    inboxSlaDueAt={conversation.inboxSlaDueAt}
+                    inboxSlaBreachedAt={conversation.inboxSlaBreachedAt}
+                  />
+
+                  {conversationNeedsReply ? (
+                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                      Needs reply
+                    </span>
+                  ) : null}
+
+                  {conversationIsOverdue ? (
+                    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+                      Overdue
+                    </span>
+                  ) : null}
+
+                  {conversationSlaDueAt ? (
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        conversationIsOverdue
+                          ? "bg-red-100 text-red-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      SLA due {conversationSlaDueAt.toLocaleString()}
+                    </span>
+                  ) : null}
+
+                  {conversation.snoozedUntil &&
+                  conversation.snoozedUntil > now ? (
+                    <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700">
+                      Snoozed until {conversation.snoozedUntil.toLocaleString()}
+                    </span>
+                  ) : null}
+
                   <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
                     {conversation.messages.length} message(s)
                   </span>
@@ -251,6 +486,13 @@ export default async function InboxConversationPage({
                   contactId={conversation.id}
                   allTags={inboxTags}
                   activeTags={conversation.inboxTags.map((item) => item.tag)}
+                />
+              </div>
+
+              <div className="mt-4">
+                <ConversationSnoozeControls
+                  contactId={conversation.id}
+                  snoozedUntil={conversation.snoozedUntil}
                 />
               </div>
             </div>

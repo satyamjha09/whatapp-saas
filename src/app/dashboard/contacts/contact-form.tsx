@@ -2,6 +2,14 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  actionButtonClass,
+  fieldClass,
+  helperTextClass,
+  labelClass,
+  Panel,
+  PanelTitle,
+} from "@/app/dashboard/dashboard-ui";
 
 type Contact = {
   id: string;
@@ -74,19 +82,15 @@ export default function ContactForm() {
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900">Create Contact</h2>
-
-      <p className="mt-2 text-sm text-gray-600">
-        Add a customer contact for sending WhatsApp template messages.
-      </p>
+    <Panel>
+      <PanelTitle
+        title="Create contact"
+        description="Add a customer contact for sending WhatsApp template messages."
+      />
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <div>
-          <label
-            htmlFor="name"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="name" className={labelClass}>
             Contact name
           </label>
 
@@ -96,15 +100,12 @@ export default function ContactForm() {
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="Test Customer"
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           />
         </div>
 
         <div>
-          <label
-            htmlFor="countryCode"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="countryCode" className={labelClass}>
             Country code
           </label>
 
@@ -115,15 +116,12 @@ export default function ContactForm() {
             onChange={(event) => setCountryCode(event.target.value)}
             placeholder="91"
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           />
         </div>
 
         <div>
-          <label
-            htmlFor="phoneNumber"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="phoneNumber" className={labelClass}>
             Phone number
           </label>
 
@@ -134,12 +132,15 @@ export default function ContactForm() {
             onChange={(event) => setPhoneNumber(event.target.value)}
             placeholder="9876543210"
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           />
+          <p className={helperTextClass}>
+            Store the number without spaces or symbols.
+          </p>
         </div>
 
         {error && (
-          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+          <p className="rounded-xl border border-rose-300/20 bg-rose-400/10 p-3 text-sm text-rose-300">
             {error}
           </p>
         )}
@@ -147,11 +148,11 @@ export default function ContactForm() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-black px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className={actionButtonClass()}
         >
           {isSubmitting ? "Creating..." : "Create Contact"}
         </button>
       </form>
-    </div>
+    </Panel>
   );
 }

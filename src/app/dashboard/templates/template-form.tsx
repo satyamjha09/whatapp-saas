@@ -2,6 +2,14 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  actionButtonClass,
+  fieldClass,
+  helperTextClass,
+  labelClass,
+  Panel,
+  PanelTitle,
+} from "@/app/dashboard/dashboard-ui";
 
 type Template = {
   id: string;
@@ -84,20 +92,15 @@ export default function TemplateForm() {
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900">Create Template</h2>
-
-      <p className="mt-2 text-sm text-gray-600">
-        Create a reusable WhatsApp template. Use variables like {"{{1}}"} and{" "}
-        {"{{2}}"} inside the message body.
-      </p>
+    <Panel>
+      <PanelTitle
+        title="Create template"
+        description={`Create a reusable WhatsApp template. Use variables like {{1}} and {{2}} inside the message body.`}
+      />
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <div>
-          <label
-            htmlFor="name"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="name" className={labelClass}>
             Template name
           </label>
 
@@ -108,19 +111,16 @@ export default function TemplateForm() {
             onChange={(event) => setName(event.target.value)}
             placeholder="order_update"
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           />
 
-          <p className="mt-1 text-xs text-gray-500">
+          <p className={helperTextClass}>
             Use lowercase letters, numbers, and underscores only.
           </p>
         </div>
 
         <div>
-          <label
-            htmlFor="language"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="language" className={labelClass}>
             Language
           </label>
 
@@ -131,15 +131,12 @@ export default function TemplateForm() {
             onChange={(event) => setLanguage(event.target.value)}
             placeholder="en_US"
             required
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           />
         </div>
 
         <div>
-          <label
-            htmlFor="category"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="category" className={labelClass}>
             Category
           </label>
 
@@ -154,7 +151,7 @@ export default function TemplateForm() {
                   | "AUTHENTICATION",
               )
             }
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           >
             <option value="UTILITY">UTILITY</option>
             <option value="MARKETING">MARKETING</option>
@@ -163,10 +160,7 @@ export default function TemplateForm() {
         </div>
 
         <div>
-          <label
-            htmlFor="body"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="body" className={labelClass}>
             Message body
           </label>
 
@@ -177,12 +171,12 @@ export default function TemplateForm() {
             placeholder="Hello {{1}}, your order {{2}} has been shipped."
             required
             rows={5}
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
+            className={fieldClass}
           />
         </div>
 
         {error && (
-          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+          <p className="rounded-xl border border-rose-300/20 bg-rose-400/10 p-3 text-sm text-rose-300">
             {error}
           </p>
         )}
@@ -190,11 +184,11 @@ export default function TemplateForm() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-black px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className={actionButtonClass()}
         >
           {isSubmitting ? "Creating..." : "Create Template"}
         </button>
       </form>
-    </div>
+    </Panel>
   );
 }
