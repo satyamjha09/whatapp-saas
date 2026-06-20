@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { actionButtonClass, fieldClass } from "@/app/dashboard/dashboard-ui";
 
 type BulkContact = {
   id: string;
@@ -171,12 +170,21 @@ export default function InboxBulkActions({
     return null;
   }
 
+  const controlClass =
+    "w-full rounded-lg border border-[#D8E6F3] bg-white px-2.5 py-1.5 text-xs text-[#102040] outline-none transition focus:border-[#0052CC]/40 focus:ring-2 focus:ring-[#0052CC]/10";
+  const secondaryButtonClass =
+    "rounded-lg border border-[#D8E6F3] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#0052CC] transition hover:bg-[#F0F8FF]";
+  const primaryButtonClass =
+    "rounded-lg bg-[#0052CC] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#003F9E] disabled:cursor-not-allowed disabled:opacity-60";
+
   return (
-    <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="font-semibold text-white">Bulk actions</p>
-          <p className="mt-1 text-sm text-zinc-500">
+    <div className="rounded-2xl border border-[#D8E6F3] bg-white p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-[#081B3A]">
+            Bulk actions
+          </p>
+          <p className="truncate text-xs text-[#526173]">
             Selected {selectedIds.length} of {contacts.length} visible
             conversations.
           </p>
@@ -185,32 +193,32 @@ export default function InboxBulkActions({
         <button
           type="button"
           onClick={toggleAllVisible}
-          className={actionButtonClass("secondary")}
+          className={secondaryButtonClass}
         >
           {allVisibleSelected ? "Clear selection" : "Select visible"}
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3 xl:grid-cols-[1fr_180px_180px_auto]">
-        <div className="max-h-44 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950/35 p-2">
+      <div className="mt-3 grid gap-2">
+        <div className="max-h-20 overflow-y-auto rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] p-1.5">
           <div className="space-y-1">
             {contacts.map((contact) => (
               <label
                 key={contact.id}
-                className="flex cursor-pointer items-start gap-3 rounded-lg p-2 transition hover:bg-white/[0.05]"
+                className="flex cursor-pointer items-start gap-2 rounded-lg p-1.5 transition hover:bg-white"
               >
                 <input
                   type="checkbox"
                   checked={selectedIds.includes(contact.id)}
                   onChange={() => toggleContact(contact.id)}
-                  className="mt-1"
+                  className="mt-0.5"
                 />
 
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-white">
+                  <p className="truncate text-xs font-medium text-[#081B3A]">
                     {contact.name ?? "Unnamed Contact"}
                   </p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="truncate text-[11px] text-[#526173]">
                     +{contact.countryCode}
                     {contact.phoneNumber} - {contact.inboxStatus} -{" "}
                     {contact.inboxPriority}
@@ -221,10 +229,11 @@ export default function InboxBulkActions({
           </div>
         </div>
 
-        <div>
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <div>
           <label
             htmlFor="bulkAction"
-            className="mb-2 block text-xs font-medium text-zinc-500"
+            className="mb-1.5 block text-xs font-medium text-[#526173]"
           >
             Action
           </label>
@@ -232,7 +241,7 @@ export default function InboxBulkActions({
             id="bulkAction"
             value={action}
             onChange={(event) => setAction(event.target.value as BulkAction)}
-            className={`${fieldClass} py-2.5`}
+            className={controlClass}
           >
             <option value="SET_STATUS">Set status</option>
             <option value="SET_PRIORITY">Set priority</option>
@@ -244,14 +253,14 @@ export default function InboxBulkActions({
             <option value="SNOOZE">Snooze</option>
             <option value="UNSNOOZE">Unsnooze</option>
           </select>
-        </div>
+          </div>
 
-        <div>
+          <div>
           {action === "SET_STATUS" ? (
             <>
               <label
                 htmlFor="bulkStatus"
-                className="mb-2 block text-xs font-medium text-zinc-500"
+                className="mb-1.5 block text-xs font-medium text-[#526173]"
               >
                 Status
               </label>
@@ -261,7 +270,7 @@ export default function InboxBulkActions({
                 onChange={(event) =>
                   setStatus(event.target.value as "OPEN" | "CLOSED")
                 }
-                className={`${fieldClass} py-2.5`}
+                className={controlClass}
               >
                 <option value="OPEN">OPEN</option>
                 <option value="CLOSED">CLOSED</option>
@@ -271,7 +280,7 @@ export default function InboxBulkActions({
             <>
               <label
                 htmlFor="bulkPriority"
-                className="mb-2 block text-xs font-medium text-zinc-500"
+                className="mb-1.5 block text-xs font-medium text-[#526173]"
               >
                 Priority
               </label>
@@ -283,7 +292,7 @@ export default function InboxBulkActions({
                     event.target.value as "LOW" | "NORMAL" | "HIGH" | "URGENT",
                   )
                 }
-                className={`${fieldClass} py-2.5`}
+                className={controlClass}
               >
                 <option value="LOW">LOW</option>
                 <option value="NORMAL">NORMAL</option>
@@ -295,7 +304,7 @@ export default function InboxBulkActions({
             <>
               <label
                 htmlFor="bulkAssignee"
-                className="mb-2 block text-xs font-medium text-zinc-500"
+                className="mb-1.5 block text-xs font-medium text-[#526173]"
               >
                 Assignee
               </label>
@@ -303,7 +312,7 @@ export default function InboxBulkActions({
                 id="bulkAssignee"
                 value={assignedToUserId}
                 onChange={(event) => setAssignedToUserId(event.target.value)}
-                className={`${fieldClass} py-2.5`}
+                className={controlClass}
               >
                 <option value="">Unassigned</option>
                 {members.map((member) => (
@@ -317,7 +326,7 @@ export default function InboxBulkActions({
             <>
               <label
                 htmlFor="bulkTag"
-                className="mb-2 block text-xs font-medium text-zinc-500"
+                className="mb-1.5 block text-xs font-medium text-[#526173]"
               >
                 Tag
               </label>
@@ -325,7 +334,7 @@ export default function InboxBulkActions({
                 id="bulkTag"
                 value={tagId}
                 onChange={(event) => setTagId(event.target.value)}
-                className={`${fieldClass} py-2.5`}
+                className={controlClass}
               >
                 <option value="">Select tag</option>
                 {tags.map((tag) => (
@@ -339,7 +348,7 @@ export default function InboxBulkActions({
             <>
               <label
                 htmlFor="bulkSnooze"
-                className="mb-2 block text-xs font-medium text-zinc-500"
+                className="mb-1.5 block text-xs font-medium text-[#526173]"
               >
                 Snooze until
               </label>
@@ -347,7 +356,7 @@ export default function InboxBulkActions({
                 id="bulkSnooze"
                 value={snoozePreset}
                 onChange={(event) => setSnoozePreset(event.target.value)}
-                className={`${fieldClass} py-2.5`}
+                className={controlClass}
               >
                 <option value="1_hour">1 hour</option>
                 <option value="tomorrow">Tomorrow</option>
@@ -355,26 +364,27 @@ export default function InboxBulkActions({
               </select>
             </>
           ) : (
-            <div className="rounded-xl border border-white/10 bg-zinc-950/35 p-3 text-sm leading-6 text-zinc-500">
+            <div className="rounded-lg border border-[#D8E6F3] bg-[#F0F8FF] p-2 text-xs leading-5 text-[#526173]">
               No extra value needed for this action.
             </div>
           )}
-        </div>
+          </div>
 
-        <div className="flex items-end">
+          <div className="flex items-end">
           <button
             type="button"
             onClick={applyBulkAction}
             disabled={isApplyDisabled}
-            className={actionButtonClass()}
+            className={primaryButtonClass}
           >
             {isApplying ? "Applying..." : "Apply"}
           </button>
+          </div>
         </div>
       </div>
 
       {error ? (
-        <p className="mt-4 rounded-xl border border-rose-300/20 bg-rose-400/10 p-3 text-sm text-rose-300">
+        <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-2 text-xs text-rose-700">
           {error}
         </p>
       ) : null}

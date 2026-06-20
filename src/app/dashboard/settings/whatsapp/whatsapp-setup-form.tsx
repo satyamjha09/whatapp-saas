@@ -89,16 +89,16 @@ export default function WhatsAppSetupForm({
           description="Stored WhatsApp account details for this workspace."
         />
 
-        <div className="mt-6 space-y-4">
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
-            <p className="text-sm text-zinc-500">Business Name</p>
-            <p className="mt-1 font-medium text-white">
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-lg border border-sky-100 bg-sky-50/60 p-4">
+            <p className="text-sm text-slate-500">Business Name</p>
+            <p className="mt-1 font-medium text-slate-950">
               {account.businessName ?? "Not provided"}
             </p>
           </div>
 
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
-            <p className="text-sm text-zinc-500">Connection Status</p>
+          <div className="rounded-lg border border-sky-100 bg-sky-50/60 p-4">
+            <p className="text-sm text-slate-500">Connection Status</p>
             <div className="mt-2">
               <StatusPill tone={statusTone(account.status)}>
                 {account.status}
@@ -106,16 +106,16 @@ export default function WhatsAppSetupForm({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
-            <p className="text-sm text-zinc-500">Meta WABA ID</p>
-            <p className="mt-1 font-medium text-white">
+          <div className="rounded-lg border border-yellow-100 bg-yellow-50/70 p-4">
+            <p className="text-sm text-slate-500">Meta WABA ID</p>
+            <p className="mt-1 font-medium text-slate-950">
               {account.wabaId ?? "Not connected yet"}
             </p>
           </div>
         </div>
 
         {account.status === "PENDING" && (
-          <p className="mt-6 rounded-xl border border-amber-300/20 bg-amber-400/10 p-4 text-sm text-amber-200">
+          <p className="mt-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
             Your WhatsApp setup has started. Meta connection will be added in
             the next module.
           </p>
@@ -150,7 +150,7 @@ export default function WhatsAppSetupForm({
         </div>
 
         {error && (
-          <p className="rounded-xl border border-rose-300/20 bg-rose-400/10 p-3 text-sm text-rose-300">
+          <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
             {error}
           </p>
         )}

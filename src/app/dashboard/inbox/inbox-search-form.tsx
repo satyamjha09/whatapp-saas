@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { actionButtonClass, fieldClass } from "@/app/dashboard/dashboard-ui";
 import type {
   InboxFilter,
   InboxPriorityFilter,
@@ -28,7 +27,7 @@ export default function InboxSearchForm({
     <form
       action="/dashboard/inbox"
       method="GET"
-      className="mt-4 flex flex-wrap gap-3"
+      className="flex min-w-0 gap-2"
     >
       <input type="hidden" name="filter" value={activeFilter} />
       {activeTagId ? <input type="hidden" name="tagId" value={activeTagId} /> : null}
@@ -45,12 +44,12 @@ export default function InboxSearchForm({
         name="q"
         defaultValue={searchQuery}
         placeholder="Search name, phone, or message..."
-        className={`${fieldClass} min-w-[280px] flex-1 py-2.5`}
+        className="min-w-0 flex-1 rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-sm text-[#102040] outline-none transition placeholder:text-[#526173]/80 focus:border-[#0052CC]/40 focus:bg-white focus:ring-4 focus:ring-[#0052CC]/10"
       />
 
       <button
         type="submit"
-        className={actionButtonClass()}
+        className="rounded-xl bg-[#0052CC] px-3 py-2 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(0,82,204,0.22)] transition hover:bg-[#003F9E] disabled:cursor-not-allowed disabled:opacity-60"
       >
         Search
       </button>
@@ -64,7 +63,7 @@ export default function InboxSearchForm({
             sort: activeSort,
             sla,
           })}
-          className={actionButtonClass("secondary")}
+          className="rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-sm font-semibold text-[#0052CC] transition hover:bg-[#F0F8FF]"
         >
           Clear
         </Link>

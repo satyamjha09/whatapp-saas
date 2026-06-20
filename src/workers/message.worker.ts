@@ -4,7 +4,10 @@ import { decryptText } from "@/lib/encryption";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { redisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
-import { sendWhatsAppTemplateMessage } from "@/lib/whatsapp";
+import {
+  sendWhatsAppTemplateMessage,
+  sendWhatsAppTextMessage,
+} from "@/lib/whatsapp";
 import { enqueueDeveloperMessageStatusWebhook } from "@/server/services/developer-webhook.service";
 import { refundWalletForMessage } from "@/server/services/wallet.service";
 import type { SendMessageJobData } from "@/lib/queue";
@@ -115,12 +118,14 @@ async function markMessageAsFailed(
 
   await enqueueDeveloperMessageStatusWebhook(companyId, message.id);
 
-  await refundWalletForMessage(
-    companyId,
-    MESSAGE_PRICE_PAISE,
-    "Message sending failed refund",
-    message.id,
-  );
+  if (message.templateId) {
+    await refundWalletForMessage(
+      companyId,
+      MESSAGE_PRICE_PAISE,
+      "Message sending failed refund",
+      message.id,
+    );
+  }
 
   if (message.campaignContactId) {
     await prisma.campaignContact.update({
@@ -169,10 +174,6 @@ const worker = new Worker<SendMessageJobData>(
 
       if (!message) {
         throw new Error("Message not found");
-      }
-
-      if (!message.template) {
-        throw new Error("Template not found for message");
       }
 
       const whatsAppAccount = await prisma.whatsAppAccount.findFirst({
@@ -247,14 +248,21 @@ const worker = new Worker<SendMessageJobData>(
 
       const decryptedAccessToken = decryptText(whatsAppAccount!.accessToken!);
 
-      const result = await sendWhatsAppTemplateMessage({
-        accessToken: decryptedAccessToken,
-        phoneNumberId: phoneNumber!.phoneNumberId!,
-        to: message.toPhoneNumber,
-        templateName: message.template.name,
-        languageCode: message.template.language,
-        variables: message.variables,
-      });
+      const result = message.template
+        ? await sendWhatsAppTemplateMessage({
+            accessToken: decryptedAccessToken,
+            phoneNumberId: phoneNumber!.phoneNumberId!,
+            to: message.toPhoneNumber,
+            templateName: message.template.name,
+            languageCode: message.template.language,
+            variables: message.variables,
+          })
+        : await sendWhatsAppTextMessage({
+            accessToken: decryptedAccessToken,
+            phoneNumberId: phoneNumber!.phoneNumberId!,
+            to: message.toPhoneNumber,
+            body: message.body,
+          });
 
       await prisma.message.update({
         where: {
@@ -282,7 +290,12 @@ const worker = new Worker<SendMessageJobData>(
 
       await markCampaignMessageSent(message);
 
-      console.log("Message sent using Meta API:", message.id);
+      console.log(
+        message.template
+          ? "Template message sent using Meta API:"
+          : "Session reply sent using Meta API:",
+        message.id,
+      );
     } catch (error) {
       const reason =
         error instanceof Error ? error.message : "Unknown worker error";

@@ -3,6 +3,7 @@ import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { SendTemplateMessageInput } from "@/server/validators/message.validator";
 import { PublicSendTemplateMessageInput } from "@/server/validators/public-message.validator";
+import { CreateInboxReplyInput } from "@/server/validators/inbox-reply.validator";
 
 function renderTemplateBody(body: string, variables: string[]) {
   return body.replace(/{{(\d+)}}/g, (_, index: string) => {
@@ -152,6 +153,67 @@ export async function getMessageByCompany(messageId: string, companyId: string) 
       },
     },
   });
+}
+
+export async function createQueuedInboxReply(
+  companyId: string,
+  contactId: string,
+  input: CreateInboxReplyInput,
+) {
+  const contact = await prisma.contact.findFirst({
+    where: {
+      id: contactId,
+      companyId,
+    },
+  });
+
+  if (!contact) {
+    throw new Error("Contact not found");
+  }
+
+  const customerServiceWindowStartedAt = contact.inboxLastCustomerMessageAt;
+  const customerServiceWindowEndsAt = customerServiceWindowStartedAt
+    ? new Date(
+        customerServiceWindowStartedAt.getTime() + 24 * 60 * 60 * 1000,
+      )
+    : null;
+
+  if (!customerServiceWindowEndsAt || customerServiceWindowEndsAt <= new Date()) {
+    throw new Error("Customer service window has expired");
+  }
+
+  const message = await prisma.message.create({
+    data: {
+      companyId,
+      contactId: contact.id,
+      toPhoneNumber: `${contact.countryCode}${contact.phoneNumber}`,
+      body: input.body,
+      variables: [],
+      status: "QUEUED",
+      direction: "OUTBOUND",
+      events: {
+        create: {
+          companyId,
+          status: "QUEUED",
+          raw: {
+            source: "inbox_reply",
+            reason: "Customer service window reply queued",
+          },
+        },
+      },
+    },
+    include: {
+      contact: true,
+      events: true,
+    },
+  });
+
+  await messageQueue.add("send-session-message", {
+    messageId: message.id,
+    companyId,
+  });
+
+  return message;
 }
 
 function splitPhoneNumber(to: string) {

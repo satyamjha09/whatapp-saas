@@ -1,8 +1,9 @@
 import { currentUser } from "@clerk/nextjs/server";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { syncUser } from "@/server/services/auth.service";
 
-export async function getCurrentDatabaseUser() {
+export const getCurrentDatabaseUser = cache(async function getCurrentDatabaseUser() {
   const clerkUser = await currentUser();
 
   if (!clerkUser) {
@@ -26,9 +27,9 @@ export async function getCurrentDatabaseUser() {
   });
 
   return user;
-}
+});
 
-export async function getCurrentWorkspaceContext() {
+export const getCurrentWorkspaceContext = cache(async function getCurrentWorkspaceContext() {
   const user = await getCurrentDatabaseUser();
 
   if (!user) {
@@ -48,4 +49,4 @@ export async function getCurrentWorkspaceContext() {
     user,
     membership,
   };
-}
+});

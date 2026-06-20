@@ -1,10 +1,14 @@
+import { revalidateTag, unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   AddConversationTagInput,
   CreateInboxTagInput,
 } from "@/server/validators/inbox-tag.validator";
 
-export async function getInboxTagsByCompany(companyId: string) {
+const INBOX_TAGS_CACHE_TAG = "inbox-tags";
+
+export const getInboxTagsByCompany = unstable_cache(
+  async function getInboxTagsByCompany(companyId: string) {
   return prisma.inboxTag.findMany({
     where: {
       companyId,
@@ -13,7 +17,13 @@ export async function getInboxTagsByCompany(companyId: string) {
       name: "asc",
     },
   });
-}
+  },
+  ["inbox-tags-by-company"],
+  {
+    revalidate: 60,
+    tags: [INBOX_TAGS_CACHE_TAG],
+  },
+);
 
 export async function createInboxTag(
   companyId: string,
@@ -32,13 +42,17 @@ export async function createInboxTag(
     throw new Error("Tag with this name already exists");
   }
 
-  return prisma.inboxTag.create({
+  const tag = await prisma.inboxTag.create({
     data: {
       companyId,
       name: input.name,
       color: input.color,
     },
   });
+
+  revalidateTag(INBOX_TAGS_CACHE_TAG, "max");
+
+  return tag;
 }
 
 export async function deleteInboxTag(companyId: string, tagId: string) {
@@ -58,6 +72,8 @@ export async function deleteInboxTag(companyId: string, tagId: string) {
       id: tag.id,
     },
   });
+
+  revalidateTag(INBOX_TAGS_CACHE_TAG, "max");
 
   return tag;
 }
@@ -89,7 +105,7 @@ export async function addTagToConversation(
     throw new Error("Tag not found");
   }
 
-  return prisma.contactInboxTag.upsert({
+  const contactTag = await prisma.contactInboxTag.upsert({
     where: {
       contactId_tagId: {
         contactId,
@@ -106,6 +122,10 @@ export async function addTagToConversation(
       tag: true,
     },
   });
+
+  revalidateTag(INBOX_TAGS_CACHE_TAG, "max");
+
+  return contactTag;
 }
 
 export async function removeTagFromConversation(
@@ -133,6 +153,8 @@ export async function removeTagFromConversation(
       id: contactTag.id,
     },
   });
+
+  revalidateTag(INBOX_TAGS_CACHE_TAG, "max");
 
   return contactTag;
 }

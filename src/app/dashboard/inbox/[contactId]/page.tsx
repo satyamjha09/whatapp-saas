@@ -27,6 +27,7 @@ import ConversationSnoozeControls from "./conversation-snooze-controls";
 import ConversationPrioritySelect from "./conversation-priority-select";
 import ConversationTagManager from "./conversation-tag-manager";
 import ConversationStatusButton from "./conversation-status-button";
+import InboxReplyForm from "./inbox-reply-form";
 import MarkConversationRead from "./mark-conversation-read";
 import NoteCard from "./note-card";
 import NoteForm from "./note-form";
@@ -129,6 +130,12 @@ export default async function InboxConversationPage({
           inboxSlaSettings,
         )
       : null;
+  const customerServiceWindowEndsAt = conversation.inboxLastCustomerMessageAt
+    ? new Date(
+        conversation.inboxLastCustomerMessageAt.getTime() +
+          24 * 60 * 60 * 1000,
+      )
+    : null;
 
   return (
     <main className="p-8">
@@ -609,6 +616,13 @@ export default async function InboxConversationPage({
                 })
               )}
             </div>
+
+            <InboxReplyForm
+              contactId={conversation.id}
+              customerServiceWindowEndsAt={
+                customerServiceWindowEndsAt?.toISOString() ?? null
+              }
+            />
           </section>
         </div>
       </div>

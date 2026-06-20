@@ -1,17 +1,47 @@
+import { revalidateTag, unstable_cache } from "next/cache";
 import { encryptText } from "@/lib/encryption";
 import { prisma } from "@/lib/prisma";
 import { SaveWhatsAppCredentialsInput } from "@/server/validators/whatsapp.validator";
 
-export async function getWhatsAppAccountByCompany(companyId: string) {
+const WHATSAPP_ACCOUNT_CACHE_TAG = "whatsapp-account";
+
+const safeWhatsAppAccountSelect = {
+  id: true,
+  companyId: true,
+  wabaId: true,
+  businessName: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  phoneNumbers: {
+    select: {
+      id: true,
+      companyId: true,
+      whatsAppAccountId: true,
+      phoneNumberId: true,
+      displayPhoneNumber: true,
+      verifiedName: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
+} as const;
+
+export const getWhatsAppAccountByCompany = unstable_cache(
+  async function getWhatsAppAccountByCompany(companyId: string) {
   return prisma.whatsAppAccount.findFirst({
     where: {
       companyId,
     },
-    include: {
-      phoneNumbers: true,
-    },
+    select: safeWhatsAppAccountSelect,
   });
-}
+  },
+  ["whatsapp-account-by-company"],
+  {
+    revalidate: 60,
+    tags: [WHATSAPP_ACCOUNT_CACHE_TAG],
+  },
+);
 
 export async function createWhatsAppAccountForCompany(
   companyId: string,
@@ -33,7 +63,10 @@ export async function createWhatsAppAccountForCompany(
       businessName,
       status: "PENDING",
     },
+    select: safeWhatsAppAccountSelect,
   });
+
+  revalidateTag(WHATSAPP_ACCOUNT_CACHE_TAG, "max");
 
   return account;
 }
@@ -69,10 +102,10 @@ export async function saveWhatsAppCredentialsForCompany(
         },
       },
     },
-    include: {
-      phoneNumbers: true,
-    },
+    select: safeWhatsAppAccountSelect,
   });
+
+  revalidateTag(WHATSAPP_ACCOUNT_CACHE_TAG, "max");
 
   return account;
 }

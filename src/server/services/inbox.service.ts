@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import {
@@ -932,7 +933,8 @@ export async function updateConversationSnooze(
   });
 }
 
-export async function getInboxSlaSettingsByCompany(companyId: string) {
+export const getInboxSlaSettingsByCompany = unstable_cache(
+  async function getInboxSlaSettingsByCompany(companyId: string) {
   await prisma.company.findUnique({
     where: {
       id: companyId,
@@ -943,7 +945,13 @@ export async function getInboxSlaSettingsByCompany(companyId: string) {
   });
 
   return DEFAULT_INBOX_SLA_SETTINGS;
-}
+  },
+  ["inbox-sla-settings-by-company"],
+  {
+    revalidate: 300,
+    tags: ["inbox-sla-settings"],
+  },
+);
 
 export async function getInboxStatsByCompany(
   companyId: string,

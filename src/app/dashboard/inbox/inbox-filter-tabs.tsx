@@ -31,7 +31,7 @@ export default function InboxFilterTabs({
   sla,
 }: InboxFilterTabsProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5">
       {filters.map((filter) => {
         const isActive = activeFilter === filter.value;
 
@@ -46,10 +46,10 @@ export default function InboxFilterTabs({
               sort: activeSort,
               sla,
             })}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
               isActive
-                ? "bg-white text-zinc-950"
-                : "border border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-white"
+                ? "border border-[#0052CC]/25 bg-[#F0F8FF] text-[#0052CC]"
+                : "border border-[#D8E6F3] bg-white text-[#526173] hover:border-[#0052CC]/30 hover:bg-[#F0F8FF] hover:text-[#102040]"
             }`}
           >
             {filter.label}

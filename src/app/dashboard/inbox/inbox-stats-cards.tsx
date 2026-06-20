@@ -72,38 +72,42 @@ export default function InboxStatsCards({
     },
   ];
 
-  const isLight = variant === "light";
-
   return (
-    <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section className="mt-3 grid shrink-0 gap-2 sm:grid-cols-5 xl:grid-cols-10">
       {cards.map((card) => (
         <div
           key={card.label}
           className={
-            isLight
-              ? "rounded-2xl border bg-white p-4 shadow-sm"
-              : "rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4"
+            variant === "light"
+              ? "rounded-2xl border border-[#D8E6F3] bg-white p-3 shadow-[0_10px_26px_rgba(8,27,58,0.07)]"
+              : "rounded-2xl border border-[#D8E6F3] bg-white p-3 shadow-[0_10px_26px_rgba(8,27,58,0.07)]"
           }
         >
           <p
             className={
-              isLight
-                ? "text-sm font-medium text-gray-500"
-                : "text-sm font-medium text-zinc-500"
+              variant === "light"
+                ? "text-sm font-medium text-[#526173]"
+                : "truncate text-xs font-medium text-[#526173]"
             }
           >
             {card.label}
           </p>
           <p
             className={
-              isLight
-                ? "mt-2 text-2xl font-semibold text-gray-900"
-                : "mt-2 text-2xl font-semibold text-white"
+              variant === "light"
+                ? "mt-2 text-2xl font-bold text-[#081B3A]"
+                : "mt-1 text-lg font-bold text-[#081B3A]"
             }
           >
             {card.value.toLocaleString("en-IN")}
           </p>
-          <p className={isLight ? "mt-1 text-xs text-gray-500" : "mt-1 text-xs text-zinc-600"}>
+          <p
+            className={
+              variant === "light"
+                ? "mt-1 text-xs text-[#526173]"
+                : "mt-0.5 truncate text-[11px] text-[#526173]/80"
+            }
+          >
             {card.description}
           </p>
         </div>

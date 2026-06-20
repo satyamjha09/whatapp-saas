@@ -397,13 +397,13 @@ async function getDashboardOverviewData(
   });
 
   const statusColors: Record<string, string> = {
-    DELIVERED: "#818cf8",
-    FAILED: "#f43f5e",
-    QUEUED: "#f59e0b",
-    READ: "#22d3ee",
-    RECEIVED: "#a78bfa",
-    SENDING: "#38bdf8",
-    SENT: "#34d399",
+    DELIVERED: "#2070B0",
+    FAILED: "#e11d48",
+    QUEUED: "#F8C830",
+    READ: "#0052CC",
+    RECEIVED: "#384080",
+    SENDING: "#2070B0",
+    SENT: "#22C55E",
   };
 
   const channelMix = messageStatuses.map((status) => ({

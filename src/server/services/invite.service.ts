@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { revalidateCompanyMembersCache } from "@/server/services/team.service";
 import { CreateCompanyInviteInput } from "@/server/validators/invite.validator";
 
 function hashToken(token: string) {
@@ -189,6 +190,8 @@ export async function acceptCompanyInvite(token: string, userId: string) {
       invite: updatedInvite,
     };
   });
+
+  revalidateCompanyMembersCache();
 
   return result;
 }

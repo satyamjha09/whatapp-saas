@@ -35,23 +35,23 @@ export default function InboxPagination({
   });
 
   return (
-    <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-      <p className="text-sm text-zinc-500">
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#D8E6F3] pt-3">
+      <p className="text-xs text-[#526173]">
         Page {pagination.page} of {pagination.totalPages} -{" "}
         {pagination.total.toLocaleString("en-IN")} conversation(s)
       </p>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         <Link
           href={buildInboxHref(basePath, {
             ...urlState,
             page: pagination.page - 1,
           })}
           aria-disabled={!pagination.hasPreviousPage}
-          className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+          className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
             pagination.hasPreviousPage
-              ? "border-white/10 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.08]"
-              : "pointer-events-none border-white/[0.06] text-zinc-700"
+              ? "border-[#D8E6F3] bg-white text-[#526173] hover:bg-[#F0F8FF] hover:text-[#102040]"
+              : "pointer-events-none border-[#D8E6F3] text-[#526173]/60"
           }`}
         >
           Previous
@@ -64,10 +64,10 @@ export default function InboxPagination({
               ...urlState,
               page,
             })}
-            className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+            className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
               page === pagination.page
-                ? "border-indigo-400 bg-indigo-500 text-white"
-                : "border-white/10 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.08]"
+                ? "border-[#0052CC] bg-[#0052CC] text-white"
+                : "border-[#D8E6F3] bg-white text-[#526173] hover:bg-[#F0F8FF] hover:text-[#102040]"
             }`}
           >
             {page}
@@ -80,10 +80,10 @@ export default function InboxPagination({
             page: pagination.page + 1,
           })}
           aria-disabled={!pagination.hasNextPage}
-          className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
             pagination.hasNextPage
-              ? "bg-indigo-500 text-white hover:bg-indigo-400"
-              : "pointer-events-none bg-white/[0.04] text-zinc-700"
+              ? "bg-[#0052CC] text-white hover:bg-[#003F9E]"
+              : "pointer-events-none bg-[#F0F8FF] text-[#526173]/60"
           }`}
         >
           Next

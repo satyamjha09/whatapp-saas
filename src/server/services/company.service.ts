@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { revalidateCompanyMembersCache } from "@/server/services/team.service";
 import { UpdateCompanyInput } from "@/server/validators/company.validator";
 
 export async function getUserCompany(userId: string) {
@@ -36,6 +37,8 @@ export async function createCompanyForUser(userId: string, companyName: string) 
       },
     },
   });
+
+  revalidateCompanyMembersCache();
 
   return company;
 }

@@ -118,11 +118,11 @@ const quickActions = [
 
 function cardTone(tone: DashboardMetric["tone"]) {
   const tones: Record<DashboardMetric["tone"], string> = {
-    amber: "from-amber-400/18 to-amber-500/5 text-amber-300",
-    cyan: "from-cyan-400/18 to-cyan-500/5 text-cyan-300",
-    emerald: "from-emerald-400/18 to-emerald-500/5 text-emerald-300",
-    indigo: "from-indigo-400/18 to-indigo-500/5 text-indigo-300",
-    violet: "from-violet-400/18 to-violet-500/5 text-violet-300",
+    amber: "bg-[#F8C830]/20 text-[#081B3A] ring-[#F8C830]/35",
+    cyan: "bg-[#2070B0]/10 text-[#2070B0] ring-[#2070B0]/20",
+    emerald: "bg-[#22C55E]/10 text-[#15803d] ring-[#22C55E]/25",
+    indigo: "bg-[#0052CC]/10 text-[#0052CC] ring-[#0052CC]/20",
+    violet: "bg-[#384080]/10 text-[#384080] ring-[#384080]/20",
   };
 
   return tones[tone];
@@ -150,17 +150,17 @@ function ChartTooltip({
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-zinc-950/95 px-3 py-2 text-xs shadow-2xl">
-      {label && <p className="mb-1 font-medium text-white">{label}</p>}
+    <div className="rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-xs shadow-[0_16px_40px_rgba(8,27,58,0.14)]">
+      {label && <p className="mb-1 font-semibold text-[#081B3A]">{label}</p>}
       <div className="space-y-1">
         {payload.map((item) => (
-          <div key={item.name} className="flex items-center gap-2 text-zinc-400">
+          <div key={item.name} className="flex items-center gap-2 text-[#526173]">
             <span
               className="h-2 w-2 rounded-full"
               style={{ backgroundColor: item.color }}
             />
             <span>{item.name}</span>
-            <span className="ml-auto font-medium text-zinc-100">
+            <span className="ml-auto font-semibold text-[#102040]">
               {item.value.toLocaleString()}
             </span>
           </div>
@@ -180,7 +180,7 @@ function Panel({
   return (
     <section
       className={[
-        "rounded-3xl border border-white/[0.08] bg-white/[0.045] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.24)] backdrop-blur-xl",
+        "rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)]",
         className,
       ].join(" ")}
     >
@@ -191,10 +191,10 @@ function Panel({
 
 function EmptyChart({ message }: { message: string }) {
   return (
-    <div className="grid h-full min-h-[220px] place-items-center rounded-2xl border border-dashed border-white/[0.10] bg-white/[0.025] p-6 text-center">
+    <div className="grid h-full min-h-[220px] place-items-center rounded-2xl border border-dashed border-[#D8E6F3] bg-[#F0F8FF] p-6 text-center">
       <div>
-        <p className="text-sm font-medium text-white">No real data yet</p>
-        <p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">
+        <p className="text-sm font-semibold text-[#081B3A]">No real data yet</p>
+        <p className="mt-2 max-w-sm text-sm leading-6 text-[#526173]">
           {message}
         </p>
       </div>
@@ -213,46 +213,46 @@ export function DashboardOverview({
   const hasChannelMix = data.channelMix.some((item) => item.value > 0);
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[2rem] border border-white/[0.08] bg-white/[0.045] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.32)] backdrop-blur-xl sm:p-8">
-        <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
+    <div className="space-y-5">
+      <section className="overflow-hidden rounded-[1.75rem] border border-[#D8E6F3] bg-[linear-gradient(135deg,#FFFFFF,#F0F8FF_62%,rgba(216,230,243,0.72))] p-6 shadow-[0_18px_48px_rgba(8,27,58,0.10)] sm:p-8">
+        <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-end">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-300/20 bg-indigo-400/10 px-3 py-1 text-xs font-medium text-indigo-200">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#D8E6F3] bg-white px-3 py-1 text-xs font-semibold text-[#0052CC]">
               <ShieldCheck className="h-3.5 w-3.5" />
               {userRole} workspace
             </div>
-            <h1 className="mt-5 max-w-4xl text-3xl font-semibold tracking-normal text-white sm:text-5xl">
+            <h1 className="mt-5 max-w-4xl text-3xl font-extrabold tracking-normal text-[#081B3A] sm:text-5xl">
               Command center for {companyName}
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-base">
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-[#526173] sm:text-base">
               These dashboard numbers are calculated from your real workspace
               data: messages, contacts, wallet transactions, campaigns, and
               inbox records.
             </p>
           </div>
 
-          <div className="rounded-3xl border border-white/[0.08] bg-zinc-950/60 p-4">
+          <div className="rounded-2xl border border-[#D8E6F3] bg-white p-4 shadow-[0_14px_34px_rgba(8,27,58,0.07)]">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-zinc-500">Signed in as</p>
-                <p className="mt-1 truncate text-sm font-medium text-white">
+              <div className="min-w-0">
+                <p className="text-xs text-[#526173]">Signed in as</p>
+                <p className="mt-1 truncate text-sm font-bold text-[#081B3A]">
                   {userName}
                 </p>
               </div>
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-indigo-400/10 text-indigo-300">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#F0F8FF] text-[#0052CC]">
                 <MousePointer2 className="h-5 w-5" />
               </div>
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-white/[0.05] p-3">
-                <p className="text-[11px] text-zinc-500">Queued messages</p>
-                <p className="mt-1 text-lg font-semibold text-white">
+              <div className="rounded-2xl border border-[#D8E6F3] bg-[#F0F8FF] p-3">
+                <p className="text-[11px] text-[#526173]">Queued messages</p>
+                <p className="mt-1 text-lg font-bold text-[#081B3A]">
                   {data.summary.queuedMessages.toLocaleString("en-IN")}
                 </p>
               </div>
-              <div className="rounded-2xl bg-white/[0.05] p-3">
-                <p className="text-[11px] text-zinc-500">Unread inbound</p>
-                <p className="mt-1 text-lg font-semibold text-white">
+              <div className="rounded-2xl border border-[#D8E6F3] bg-[#F0F8FF] p-3">
+                <p className="text-[11px] text-[#526173]">Unread inbound</p>
+                <p className="mt-1 text-lg font-bold text-[#081B3A]">
                   {data.summary.unreadInbound.toLocaleString("en-IN")}
                 </p>
               </div>
@@ -268,26 +268,26 @@ export function DashboardOverview({
           return (
             <div
               key={stat.label}
-              className="group rounded-3xl border border-white/[0.08] bg-white/[0.045] p-5 shadow-[0_20px_70px_rgba(0,0,0,0.22)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-indigo-300/30 hover:bg-white/[0.07]"
+              className="group rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_14px_34px_rgba(8,27,58,0.07)] transition duration-300 hover:-translate-y-0.5 hover:border-[#0052CC]/30 hover:shadow-[0_18px_42px_rgba(8,27,58,0.11)]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div
                   className={[
-                    "grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br",
+                    "grid h-12 w-12 place-items-center rounded-2xl ring-1",
                     cardTone(stat.tone),
                   ].join(" ")}
                 >
                   <Icon className="h-5 w-5" />
                 </div>
-                <div className="grid h-8 w-8 place-items-center rounded-full bg-white/[0.05] text-zinc-500">
+                <div className="grid h-8 w-8 place-items-center rounded-full bg-[#F0F8FF] text-[#526173]">
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </div>
               </div>
-              <p className="mt-5 text-sm text-zinc-500">{stat.label}</p>
-              <p className="mt-2 text-2xl font-semibold tracking-normal text-white">
+              <p className="mt-5 text-sm text-[#526173]">{stat.label}</p>
+              <p className="mt-2 text-2xl font-extrabold tracking-normal text-[#081B3A]">
                 {stat.value}
               </p>
-              <p className="mt-2 min-h-5 text-xs text-zinc-500">
+              <p className="mt-2 min-h-5 text-xs text-[#526173]">
                 {stat.detail}
               </p>
             </div>
@@ -295,62 +295,62 @@ export function DashboardOverview({
         })}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
+      <section className="grid gap-5 xl:grid-cols-[1.35fr_0.85fr]">
         <Panel>
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-white">Message volume</p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="text-sm font-bold text-[#081B3A]">Message volume</p>
+              <p className="mt-1 text-xs text-[#526173]">
                 Real sent, delivered, and inbound messages from the last 7 days
               </p>
             </div>
-            <div className="hidden items-center gap-3 text-xs text-zinc-500 sm:flex">
+            <div className="hidden items-center gap-3 text-xs text-[#526173] sm:flex">
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-indigo-400" />
+                <span className="h-2 w-2 rounded-full bg-[#0052CC]" />
                 Sent
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-cyan-300" />
+                <span className="h-2 w-2 rounded-full bg-[#2070B0]" />
                 Delivered
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-violet-300" />
+                <span className="h-2 w-2 rounded-full bg-[#384080]" />
                 Inbound
               </span>
             </div>
           </div>
 
-          <div className="h-[320px]">
+          <div className="h-[300px]">
             {hasMessageVolume ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data.messageVolume} margin={{ left: -18, right: 8 }}>
                   <defs>
                     <linearGradient id="sentGradient" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="5%" stopColor="#818cf8" stopOpacity={0.45} />
-                      <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#0052CC" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#0052CC" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="inboundGradient" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="5%" stopColor="#c084fc" stopOpacity={0.28} />
-                      <stop offset="95%" stopColor="#c084fc" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#384080" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="#384080" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis
                     axisLine={false}
                     dataKey="day"
                     tickLine={false}
-                    tick={{ fill: "#71717a", fontSize: 12 }}
+                    tick={{ fill: "#526173", fontSize: 12 }}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "#71717a", fontSize: 12 }}
+                    tick={{ fill: "#526173", fontSize: 12 }}
                   />
                   <Tooltip content={<ChartTooltip />} />
                   <Area
                     dataKey="sent"
                     fill="url(#sentGradient)"
                     name="Sent"
-                    stroke="#818cf8"
+                    stroke="#0052CC"
                     strokeWidth={3}
                     type="monotone"
                   />
@@ -358,7 +358,7 @@ export function DashboardOverview({
                     dataKey="delivered"
                     fill="transparent"
                     name="Delivered"
-                    stroke="#22d3ee"
+                    stroke="#2070B0"
                     strokeWidth={3}
                     type="monotone"
                   />
@@ -366,7 +366,7 @@ export function DashboardOverview({
                     dataKey="inbound"
                     fill="url(#inboundGradient)"
                     name="Inbound"
-                    stroke="#c084fc"
+                    stroke="#384080"
                     strokeWidth={3}
                     type="monotone"
                   />
@@ -380,14 +380,14 @@ export function DashboardOverview({
 
         <Panel>
           <div className="mb-6">
-            <p className="text-sm font-medium text-white">Message status mix</p>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="text-sm font-bold text-[#081B3A]">Message status mix</p>
+            <p className="mt-1 text-xs text-[#526173]">
               Current distribution by stored message status
             </p>
           </div>
           {hasChannelMix ? (
-            <div className="grid items-center gap-6 sm:grid-cols-[240px_1fr] xl:grid-cols-1 2xl:grid-cols-[240px_1fr]">
-              <div className="h-[240px]">
+            <div className="grid items-center gap-6 sm:grid-cols-[220px_1fr] xl:grid-cols-1 2xl:grid-cols-[220px_1fr]">
+              <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -395,8 +395,8 @@ export function DashboardOverview({
                       cy="50%"
                       data={data.channelMix}
                       dataKey="value"
-                      innerRadius={68}
-                      outerRadius={98}
+                      innerRadius={62}
+                      outerRadius={90}
                       paddingAngle={4}
                       stroke="transparent"
                     >
@@ -412,16 +412,16 @@ export function DashboardOverview({
                 {data.channelMix.map((item) => (
                   <div
                     key={item.name}
-                    className="flex items-center justify-between rounded-2xl bg-white/[0.04] px-4 py-3"
+                    className="flex items-center justify-between rounded-2xl border border-[#D8E6F3] bg-[#F0F8FF] px-4 py-3"
                   >
-                    <span className="flex items-center gap-2 text-sm text-zinc-300">
+                    <span className="flex items-center gap-2 text-sm text-[#526173]">
                       <span
                         className="h-2.5 w-2.5 rounded-full"
                         style={{ backgroundColor: item.color }}
                       />
                       {item.name}
                     </span>
-                    <span className="text-sm font-semibold text-white">
+                    <span className="text-sm font-bold text-[#081B3A]">
                       {item.value.toLocaleString("en-IN")}
                     </span>
                   </div>
@@ -434,18 +434,18 @@ export function DashboardOverview({
         </Panel>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <section className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
         <Panel>
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-white">
+              <p className="text-sm font-bold text-[#081B3A]">
                 Campaign performance
               </p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-[#526173]">
                 Delivered and read percentages from stored campaign counters
               </p>
             </div>
-            <Clock3 className="h-4 w-4 text-zinc-600" />
+            <Clock3 className="h-4 w-4 text-[#526173]" />
           </div>
           <div className="h-[300px]">
             {hasCampaignPerformance ? (
@@ -455,23 +455,23 @@ export function DashboardOverview({
                     axisLine={false}
                     dataKey="name"
                     tickLine={false}
-                    tick={{ fill: "#71717a", fontSize: 12 }}
+                    tick={{ fill: "#526173", fontSize: 12 }}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "#71717a", fontSize: 12 }}
+                    tick={{ fill: "#526173", fontSize: 12 }}
                   />
                   <Tooltip content={<ChartTooltip />} />
                   <Bar
                     dataKey="delivered"
-                    fill="#818cf8"
+                    fill="#0052CC"
                     name="Delivered %"
                     radius={[8, 8, 0, 0]}
                   />
                   <Bar
                     dataKey="read"
-                    fill="#22d3ee"
+                    fill="#2070B0"
                     name="Read %"
                     radius={[8, 8, 0, 0]}
                   />
@@ -486,12 +486,12 @@ export function DashboardOverview({
         <Panel>
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-white">Recent activity</p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="text-sm font-bold text-[#081B3A]">Recent activity</p>
+              <p className="mt-1 text-xs text-[#526173]">
                 Latest messages, campaigns, and wallet transactions
               </p>
             </div>
-            <div className="rounded-full bg-indigo-400/10 px-3 py-1 text-xs font-medium text-indigo-300">
+            <div className="rounded-full bg-[#F8C830]/20 px-3 py-1 text-xs font-semibold text-[#081B3A]">
               Real data
             </div>
           </div>
@@ -504,20 +504,20 @@ export function DashboardOverview({
                 return (
                   <div
                     key={`${item.title}-${item.time}-${index}`}
-                    className="group flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.035] p-4 transition duration-200 hover:border-indigo-300/20 hover:bg-white/[0.06]"
+                    className="group flex items-center gap-4 rounded-2xl border border-[#D8E6F3] bg-white p-4 transition duration-200 hover:border-[#0052CC]/25 hover:bg-[#F0F8FF]"
                   >
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-indigo-400/10 text-indigo-300 transition group-hover:bg-indigo-400/20">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#F0F8FF] text-[#0052CC] transition group-hover:bg-white">
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-white">
+                      <p className="truncate text-sm font-semibold text-[#081B3A]">
                         {item.title}
                       </p>
-                      <p className="mt-1 truncate text-xs text-zinc-500">
+                      <p className="mt-1 truncate text-xs text-[#526173]">
                         {item.detail}
                       </p>
                     </div>
-                    <p className="shrink-0 text-xs text-zinc-600">{item.time}</p>
+                    <p className="shrink-0 text-xs text-[#526173]">{item.time}</p>
                   </div>
                 );
               })}
@@ -536,18 +536,18 @@ export function DashboardOverview({
             <Link
               key={action.href}
               href={action.href}
-              className="group rounded-3xl border border-white/[0.08] bg-white/[0.045] p-5 shadow-[0_20px_70px_rgba(0,0,0,0.22)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-indigo-300/30 hover:bg-white/[0.07]"
+              className="group rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_14px_34px_rgba(8,27,58,0.07)] transition duration-300 hover:-translate-y-0.5 hover:border-[#0052CC]/30 hover:bg-[#F0F8FF]"
             >
               <div className="flex items-center justify-between">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/[0.06] text-indigo-300">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#F0F8FF] text-[#0052CC]">
                   <Icon className="h-5 w-5" />
                 </div>
-                <ArrowUpRight className="h-4 w-4 text-zinc-600 transition group-hover:text-indigo-300" />
+                <ArrowUpRight className="h-4 w-4 text-[#526173] transition group-hover:text-[#0052CC]" />
               </div>
-              <p className="mt-5 text-sm font-semibold text-white">
+              <p className="mt-5 text-sm font-bold text-[#081B3A]">
                 {action.label}
               </p>
-              <p className="mt-2 text-sm leading-6 text-zinc-500">
+              <p className="mt-2 text-sm leading-6 text-[#526173]">
                 {action.description}
               </p>
             </Link>

@@ -1,3 +1,4 @@
+import { revalidateTag, unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { UpdateMemberRoleInput } from "@/server/validators/team.validator";
 
@@ -14,7 +15,14 @@ type RemoveCompanyMemberInput = {
   currentUserId: string;
 };
 
-export async function getCompanyMembers(companyId: string) {
+export const COMPANY_MEMBERS_CACHE_TAG = "company-members";
+
+export function revalidateCompanyMembersCache() {
+  revalidateTag(COMPANY_MEMBERS_CACHE_TAG, "max");
+}
+
+export const getCompanyMembers = unstable_cache(
+  async function getCompanyMembers(companyId: string) {
   return prisma.companyUser.findMany({
     where: {
       companyId,
@@ -26,7 +34,13 @@ export async function getCompanyMembers(companyId: string) {
       createdAt: "asc",
     },
   });
-}
+  },
+  ["company-members-by-company"],
+  {
+    revalidate: 60,
+    tags: [COMPANY_MEMBERS_CACHE_TAG],
+  },
+);
 
 export async function updateCompanyMemberRole({
   companyId,
@@ -74,6 +88,8 @@ export async function updateCompanyMemberRole({
     },
   });
 
+  revalidateCompanyMembersCache();
+
   return updatedMember;
 }
 
@@ -118,6 +134,8 @@ export async function removeCompanyMember({
       id: member.id,
     },
   });
+
+  revalidateCompanyMembersCache();
 
   return member;
 }
