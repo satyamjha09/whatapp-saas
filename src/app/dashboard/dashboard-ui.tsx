@@ -145,15 +145,15 @@ export const labelClass = "mb-2 block text-sm font-medium text-[#102040]";
 export const helperTextClass = "mt-2 text-xs leading-5 text-[#526173]";
 
 export function statusTone(status: string): "zinc" | "green" | "blue" | "amber" | "red" | "violet" {
-  if (["CONNECTED", "APPROVED", "SENT", "DELIVERED", "READ", "SUCCESS", "COMPLETED"].includes(status)) {
+  if (["CONNECTED", "APPROVED", "SENT", "DELIVERED", "READ", "SUCCESS", "COMPLETED", "ACTIVE"].includes(status)) {
     return "green";
   }
 
-  if (["QUEUED", "SENDING", "PENDING", "PENDING_APPROVAL", "RUNNING", "SCHEDULED"].includes(status)) {
+  if (["QUEUED", "SENDING", "PENDING", "PENDING_APPROVAL", "RUNNING", "SCHEDULED", "TRIALING"].includes(status)) {
     return "amber";
   }
 
-  if (["FAILED", "REJECTED", "ERROR", "DISCONNECTED", "CANCELLED"].includes(status)) {
+  if (["FAILED", "REJECTED", "ERROR", "DISCONNECTED", "CANCELLED", "CANCELED", "PAST_DUE", "INCOMPLETE"].includes(status)) {
     return "red";
   }
 

@@ -20,6 +20,21 @@ enum CompanyInviteStatus {
   REVOKED
 }
 
+enum BillingPlan {
+  FREE
+  STARTER
+  PRO
+  BUSINESS
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
 enum WhatsAppAccountStatus {
   PENDING
   CONNECTED
@@ -125,13 +140,13 @@ enum DeveloperWebhookDeliveryStatus {
 }
 
 model User {
-  id          String @id @default(cuid())
-  clerkUserId String @unique
-  email       String @unique
+  id          String  @id @default(cuid())
+  clerkUserId String  @unique
+  email       String  @unique
   name        String?
   imageUrl    String?
 
-  companies CompanyUser[]
+  companies              CompanyUser[]
   assignedContacts       Contact[]       @relation("ContactAssignee")
   inboxNotes             InboxNote[]     @relation("InboxNoteAuthor")
   createdQuickReplies    QuickReply[]    @relation("QuickReplyCreator")
@@ -148,26 +163,38 @@ model Company {
   id   String @id @default(cuid())
   name String
 
-  users                CompanyUser[]
-  whatsAppAccounts     WhatsAppAccount[]
-  whatsAppPhoneNumbers WhatsAppPhoneNumber[]
-  templates            Template[]
-  contacts             Contact[]
-  messages             Message[]
-  messageEvents        MessageEvent[]
-  webhookEvents        WebhookEvent[]
-  campaigns            Campaign[]
-  campaignContacts     CampaignContact[]
-  wallet               Wallet?
-  walletTransactions   WalletTransaction[]
-  invites              CompanyInvite[]
-  auditLogs            AuditLog[]
-  inboxNotes           InboxNote[]
-  inboxTags            InboxTag[]
-  contactInboxTags     ContactInboxTag[]
-  quickReplies         QuickReply[]
-  apiKeys              ApiKey[]
-  developerWebhookEndpoints DeveloperWebhookEndpoint[]
+  metaPaymentMethodAdded         Boolean   @default(false)
+  metaBusinessVerificationStatus String    @default("NOT_STARTED")
+  productionChecklistNotes       String?
+  productionChecklistUpdatedAt   DateTime?
+
+  billingPlan         BillingPlan        @default(FREE)
+  subscriptionStatus  SubscriptionStatus @default(TRIALING)
+  trialEndsAt         DateTime?
+  currentPeriodStart  DateTime?
+  currentPeriodEnd    DateTime?
+  monthlyMessageLimit Int                @default(100)
+
+  users                      CompanyUser[]
+  whatsAppAccounts           WhatsAppAccount[]
+  whatsAppPhoneNumbers       WhatsAppPhoneNumber[]
+  templates                  Template[]
+  contacts                   Contact[]
+  messages                   Message[]
+  messageEvents              MessageEvent[]
+  webhookEvents              WebhookEvent[]
+  campaigns                  Campaign[]
+  campaignContacts           CampaignContact[]
+  wallet                     Wallet?
+  walletTransactions         WalletTransaction[]
+  invites                    CompanyInvite[]
+  auditLogs                  AuditLog[]
+  inboxNotes                 InboxNote[]
+  inboxTags                  InboxTag[]
+  contactInboxTags           ContactInboxTag[]
+  quickReplies               QuickReply[]
+  apiKeys                    ApiKey[]
+  developerWebhookEndpoints  DeveloperWebhookEndpoint[]
   developerWebhookDeliveries DeveloperWebhookDelivery[]
 
   createdAt DateTime @default(now())
@@ -193,12 +220,12 @@ model WhatsAppAccount {
   id        String @id @default(cuid())
   companyId String
 
-  wabaId       String? @unique
+  wabaId       String?               @unique
   businessName String?
   accessToken  String?
   status       WhatsAppAccountStatus @default(PENDING)
 
-  company      Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   phoneNumbers WhatsAppPhoneNumber[]
 
   createdAt DateTime @default(now())
@@ -216,7 +243,7 @@ model WhatsAppPhoneNumber {
   displayPhoneNumber String?
   verifiedName       String?
 
-  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   whatsAppAccount WhatsAppAccount @relation(fields: [whatsAppAccountId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
@@ -233,15 +260,15 @@ model Template {
   name     String
   language String
   category TemplateCategory
-  status   TemplateStatus @default(DRAFT)
+  status   TemplateStatus   @default(DRAFT)
 
   body      String
   variables String[]
 
   metaTemplateId String?
 
-  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  messages Message[]
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages  Message[]
   campaigns Campaign[]
 
   createdAt DateTime @default(now())
@@ -252,24 +279,24 @@ model Template {
 }
 
 model Contact {
-  id               String @id @default(cuid())
+  id               String  @id @default(cuid())
   companyId        String
   assignedToUserId String?
 
   name        String?
   phoneNumber String
-  countryCode String @default("91")
+  countryCode String  @default("91")
 
-  inboxStatus   InboxConversationStatus @default(OPEN)
-  inboxClosedAt DateTime?
-  inboxPriority InboxPriority @default(NORMAL)
-  snoozedUntil DateTime?
-  inboxSlaDueAt DateTime?
+  inboxStatus                InboxConversationStatus @default(OPEN)
+  inboxClosedAt              DateTime?
+  inboxPriority              InboxPriority           @default(NORMAL)
+  snoozedUntil               DateTime?
+  inboxSlaDueAt              DateTime?
   inboxLastCustomerMessageAt DateTime?
-  inboxSlaBreachedAt DateTime?
-  inboxSlaEscalationCount Int @default(0)
+  inboxSlaBreachedAt         DateTime?
+  inboxSlaEscalationCount    Int                     @default(0)
 
-  company          Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignedTo       User?             @relation("ContactAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
   messages         Message[]
   inboxNotes       InboxNote[]
@@ -370,9 +397,9 @@ model Message {
   id        String @id @default(cuid())
   companyId String
 
-  contactId  String
-  templateId String?
-  campaignId String?
+  contactId         String
+  templateId        String?
+  campaignId        String?
   campaignContactId String? @unique
 
   direction MessageDirection @default(OUTBOUND)
@@ -386,10 +413,10 @@ model Message {
 
   inboxReadAt DateTime?
 
-  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contact  Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  template Template? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact         Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  template        Template?        @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  campaign        Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   campaignContact CampaignContact? @relation(fields: [campaignContactId], references: [id], onDelete: SetNull)
 
   events MessageEvent[]
@@ -550,12 +577,12 @@ model CompanyInvite {
   tokenHash String   @unique
   expiresAt DateTime
 
-  invitedByUserId String
+  invitedByUserId  String
   acceptedByUserId String?
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  invitedBy User  @relation("SentCompanyInvites", fields: [invitedByUserId], references: [id], onDelete: Cascade)
+  invitedBy  User  @relation("SentCompanyInvites", fields: [invitedByUserId], references: [id], onDelete: Cascade)
   acceptedBy User? @relation("AcceptedCompanyInvites", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
 
   acceptedAt DateTime?
@@ -631,7 +658,7 @@ model DeveloperWebhookEndpoint {
 
   status DeveloperWebhookEndpointStatus @default(ACTIVE)
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company    Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   deliveries DeveloperWebhookDelivery[]
 
   createdAt DateTime @default(now())

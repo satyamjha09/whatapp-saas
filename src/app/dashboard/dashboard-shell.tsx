@@ -2,15 +2,13 @@
 
 import { UserButton } from "@clerk/nextjs";
 import {
-  Activity,
   Bell,
-  BookOpen,
+  CalendarClock,
+  ChevronDown,
   ChevronRight,
-  Code2,
-  CreditCard,
-  FileText,
+  ClipboardCheck,
+  ContactRound,
   Gauge,
-  KeyRound,
   LayoutGrid,
   Menu,
   MessageCircle,
@@ -21,14 +19,17 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
-  Tags,
-  Users,
   Wallet,
+  Wrench,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
+import {
+  dashboardNavigation,
+  type DashboardNavItem,
+} from "@/lib/dashboard-navigation";
 
 type DashboardShellProps = {
   children: React.ReactNode;
@@ -37,58 +38,67 @@ type DashboardShellProps = {
   userRole: string;
 };
 
-const mainNavItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutGrid },
-  { label: "Inbox", href: "/dashboard/inbox", icon: MessageCircle },
-  { label: "Campaigns", href: "/dashboard/campaigns", icon: Send },
-  { label: "Messages", href: "/dashboard/messages", icon: Activity },
-  { label: "Contacts", href: "/dashboard/contacts", icon: Users },
-  { label: "Templates", href: "/dashboard/templates", icon: FileText },
-  { label: "Reports", href: "/dashboard/reports", icon: Gauge },
-];
-
-const secondaryNavItems = [
-  { label: "WhatsApp", href: "/dashboard/whatsapp", icon: ShieldCheck },
-  { label: "Wallet", href: "/dashboard/wallet", icon: Wallet },
-  { label: "Billing", href: "/dashboard/billing", icon: CreditCard },
-  { label: "Team", href: "/dashboard/settings/team", icon: Users },
-  { label: "API Keys", href: "/dashboard/developer/api-keys", icon: KeyRound },
-  { label: "API Docs", href: "/dashboard/developer/docs", icon: BookOpen },
-  { label: "Webhooks", href: "/dashboard/developer/webhooks", icon: Code2 },
-  { label: "Settings", href: "/dashboard/settings/company", icon: Settings },
-  { label: "Audit Logs", href: "/dashboard/settings/audit-logs", icon: Tags },
-];
+const navigationIcons: Record<
+  string,
+  React.ComponentType<{ className?: string }>
+> = {
+  Dashboard: LayoutGrid,
+  Inbox: MessageCircle,
+  "Send Message": Send,
+  Reports: Gauge,
+  "Scheduled Items": CalendarClock,
+  Analytics: Gauge,
+  Money: Wallet,
+  Contact: ContactRound,
+  "WhatsApp Items": MessageCircle,
+  "Integrations & Utilities": Wrench,
+  "Workspace Settings": Settings,
+  "Production Checklist": ClipboardCheck,
+  "WhatsApp Settings": ShieldCheck,
+};
 
 function isActivePath(pathname: string, href: string) {
   if (href === "/dashboard") {
     return pathname === href;
   }
 
-  return pathname.startsWith(href);
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavLink({
-  href,
+function getActiveHref(pathname: string) {
+  const links = dashboardNavigation.flatMap((group) => {
+    const directLink = group.href
+      ? [{ label: group.label, href: group.href }]
+      : [];
+
+    return [...directLink, ...(group.items ?? [])];
+  });
+
+  return links
+    .filter((item) => isActivePath(pathname, item.href))
+    .sort((left, right) => right.href.length - left.href.length)[0]?.href;
+}
+
+function DirectNavLink({
+  item,
   icon: Icon,
-  label,
   collapsed,
-  pathname,
+  activeHref,
   onNavigate,
 }: {
-  href: string;
+  item: DashboardNavItem;
   icon: React.ComponentType<{ className?: string }>;
-  label: string;
   collapsed: boolean;
-  pathname: string;
+  activeHref?: string;
   onNavigate?: () => void;
 }) {
-  const active = isActivePath(pathname, href);
+  const active = activeHref === item.href;
 
   return (
     <Link
-      href={href}
+      href={item.href}
       onClick={onNavigate}
-      title={collapsed ? label : undefined}
+      title={collapsed ? item.label : undefined}
       className={[
         "group flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition duration-200",
         collapsed ? "justify-center" : "",
@@ -103,8 +113,88 @@ function NavLink({
           active ? "text-[#0052CC]" : "text-[#526173] group-hover:text-[#0052CC]",
         ].join(" ")}
       />
-      {!collapsed && <span className="truncate">{label}</span>}
+      {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
+  );
+}
+
+function CollapsibleNavGroup({
+  activeHref,
+  collapsed,
+  item,
+  onNavigate,
+  onToggle,
+  open,
+}: {
+  activeHref?: string;
+  collapsed: boolean;
+  item: { label: string; items: DashboardNavItem[] };
+  onNavigate?: () => void;
+  onToggle: () => void;
+  open: boolean;
+}) {
+  const Icon = navigationIcons[item.label] ?? LayoutGrid;
+  const active = item.items.some((child) => child.href === activeHref);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        title={collapsed ? item.label : undefined}
+        aria-expanded={open}
+        className={[
+          "group flex h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium transition duration-200",
+          collapsed ? "justify-center" : "",
+          active
+            ? "bg-[#F0F8FF] text-[#0052CC]"
+            : "text-[#526173] hover:bg-[#F0F8FF] hover:text-[#0052CC]",
+        ].join(" ")}
+      >
+        <Icon
+          className={[
+            "h-4.5 w-4.5 shrink-0",
+            active ? "text-[#0052CC]" : "text-[#526173] group-hover:text-[#0052CC]",
+          ].join(" ")}
+        />
+        {!collapsed ? (
+          <>
+            <span className="min-w-0 flex-1 truncate text-left">
+              {item.label}
+            </span>
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 transition-transform ${
+                open ? "rotate-180" : ""
+              }`}
+            />
+          </>
+        ) : null}
+      </button>
+
+      {!collapsed && open ? (
+        <div className="mt-1 space-y-1 border-l border-[#D8E6F3] pl-3 ml-5">
+          {item.items.map((child) => {
+            const childActive = child.href === activeHref;
+
+            return (
+              <Link
+                key={child.href}
+                href={child.href}
+                onClick={onNavigate}
+                className={[
+                  "flex min-h-9 items-center rounded-lg px-3 py-2 text-xs font-medium transition",
+                  childActive
+                    ? "bg-[#F0F8FF] text-[#0052CC]"
+                    : "text-[#526173] hover:bg-[#F0F8FF] hover:text-[#0052CC]",
+                ].join(" ")}
+              >
+                <span className="truncate">{child.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -112,16 +202,20 @@ function SidebarContent({
   collapsed,
   companyName,
   userRole,
-  pathname,
+  activeHref,
+  groupOpenOverrides,
   onToggleCollapse,
+  onToggleGroup,
   onNavigate,
   mobile = false,
 }: {
   collapsed: boolean;
   companyName: string;
   userRole: string;
-  pathname: string;
+  activeHref?: string;
+  groupOpenOverrides: Record<string, boolean | undefined>;
   onToggleCollapse?: () => void;
+  onToggleGroup: (label: string) => void;
   onNavigate?: () => void;
   mobile?: boolean;
 }) {
@@ -161,38 +255,45 @@ function SidebarContent({
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
         {!collapsed && (
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-normal text-[#526173]/70">
-            Main
+            Workspace
           </p>
         )}
         <nav className="space-y-1">
-          {mainNavItems.map((item) => (
-            <NavLink
-              key={item.href}
-              {...item}
-              collapsed={collapsed}
-              pathname={pathname}
-              onNavigate={onNavigate}
-            />
-          ))}
-        </nav>
+          {dashboardNavigation.map((item) => {
+            const Icon = navigationIcons[item.label] ?? LayoutGrid;
 
-        <div className="my-5 h-px bg-[#D8E6F3]" />
+            if (item.href) {
+              return (
+                <DirectNavLink
+                  key={item.href}
+                  item={{ label: item.label, href: item.href }}
+                  icon={Icon}
+                  collapsed={collapsed}
+                  activeHref={activeHref}
+                  onNavigate={onNavigate}
+                />
+              );
+            }
 
-        {!collapsed && (
-          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-normal text-[#526173]/70">
-            Operations
-          </p>
-        )}
-        <nav className="space-y-1">
-          {secondaryNavItems.map((item) => (
-            <NavLink
-              key={item.href}
-              {...item}
-              collapsed={collapsed}
-              pathname={pathname}
-              onNavigate={onNavigate}
-            />
-          ))}
+            if (item.items) {
+              return (
+                <CollapsibleNavGroup
+                  key={item.label}
+                  item={{ label: item.label, items: item.items }}
+                  collapsed={collapsed}
+                  activeHref={activeHref}
+                  open={
+                    groupOpenOverrides[item.label] ??
+                    item.items.some((child) => child.href === activeHref)
+                  }
+                  onToggle={() => onToggleGroup(item.label)}
+                  onNavigate={onNavigate}
+                />
+              );
+            }
+
+            return null;
+          })}
         </nav>
       </div>
 
@@ -233,11 +334,36 @@ export function DashboardShell({
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [groupOpenOverrides, setGroupOpenOverrides] = useState<
+    Record<string, boolean | undefined>
+  >({});
+  const activeHref = useMemo(() => getActiveHref(pathname), [pathname]);
 
   const pageTitle = useMemo(() => {
-    const allItems = [...mainNavItems, ...secondaryNavItems];
-    return allItems.find((item) => isActivePath(pathname, item.href))?.label;
-  }, [pathname]);
+    for (const group of dashboardNavigation) {
+      if (group.href === activeHref) return group.label;
+
+      const activeItem = group.items?.find((item) => item.href === activeHref);
+      if (activeItem) return activeItem.label;
+    }
+
+    return "Dashboard";
+  }, [activeHref]);
+
+  function toggleGroup(label: string) {
+    const activeByDefault = dashboardNavigation
+      .find((group) => group.label === label)
+      ?.items?.some((item) => item.href === activeHref);
+
+    setGroupOpenOverrides((current) => {
+      const currentlyOpen = current[label] ?? Boolean(activeByDefault);
+
+      return {
+        ...current,
+        [label]: !currentlyOpen,
+      };
+    });
+  }
 
   return (
     <div className="min-h-screen bg-[#F0F8FF] text-[#102040]">
@@ -253,8 +379,10 @@ export function DashboardShell({
           collapsed={collapsed}
           companyName={companyName}
           userRole={userRole}
-          pathname={pathname}
+          activeHref={activeHref}
+          groupOpenOverrides={groupOpenOverrides}
           onToggleCollapse={() => setCollapsed((value) => !value)}
+          onToggleGroup={toggleGroup}
         />
       </aside>
 
@@ -281,7 +409,9 @@ export function DashboardShell({
               collapsed={false}
               companyName={companyName}
               userRole={userRole}
-              pathname={pathname}
+              activeHref={activeHref}
+              groupOpenOverrides={groupOpenOverrides}
+              onToggleGroup={toggleGroup}
               onNavigate={() => setMobileOpen(false)}
             />
           </div>

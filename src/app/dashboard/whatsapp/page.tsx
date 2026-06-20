@@ -1,6 +1,10 @@
 import { CheckCircle2, KeyRound, PhoneCall, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/app/dashboard/dashboard-ui";
+import {
+  actionButtonClass,
+  PageHeader,
+} from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getWhatsAppSettingsByCompany } from "@/server/services/whatsapp-settings.service";
 import WhatsAppSettingsForm from "./whatsapp-settings-form";
@@ -29,6 +33,15 @@ export default async function WhatsAppSettingsPage() {
         eyebrow={context.membership.company.name}
         title="WhatsApp Settings"
         description="Manage your Meta WhatsApp Cloud API connection without exposing stored access tokens."
+        actions={
+          <Link
+            href="/dashboard/production-checklist"
+            className={actionButtonClass("secondary")}
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+            Production Checklist
+          </Link>
+        }
       />
 
       <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
