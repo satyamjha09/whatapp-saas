@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { TemplateStatus } from "@/generated/prisma/enums";
 import {
   actionButtonClass,
   fieldClass,
@@ -22,7 +23,7 @@ type Template = {
   name: string;
   language: string;
   category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
-  status: "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "PAUSED";
+  status: TemplateStatus;
   body: string;
   variables: string[];
 };

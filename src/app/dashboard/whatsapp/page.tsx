@@ -1,4 +1,10 @@
-import { CheckCircle2, KeyRound, PhoneCall, ShieldCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  KeyRound,
+  LogIn,
+  PhoneCall,
+  ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -7,6 +13,7 @@ import {
 } from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getWhatsAppSettingsByCompany } from "@/server/services/whatsapp-settings.service";
+import SubscribeWebhooksButton from "./subscribe-webhooks-button";
 import WhatsAppSettingsForm from "./whatsapp-settings-form";
 
 export default async function WhatsAppSettingsPage() {
@@ -34,13 +41,22 @@ export default async function WhatsAppSettingsPage() {
         title="WhatsApp Settings"
         description="Manage your Meta WhatsApp Cloud API connection without exposing stored access tokens."
         actions={
-          <Link
-            href="/dashboard/production-checklist"
-            className={actionButtonClass("secondary")}
-          >
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            Production Checklist
-          </Link>
+          <>
+            <Link
+              href="/dashboard/whatsapp/connect"
+              className={actionButtonClass()}
+            >
+              <LogIn className="mr-2 h-4 w-4" />
+              Login with Facebook
+            </Link>
+            <Link
+              href="/dashboard/production-checklist"
+              className={actionButtonClass("secondary")}
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Production Checklist
+            </Link>
+          </>
         }
       />
 
@@ -88,6 +104,11 @@ export default async function WhatsAppSettingsPage() {
           <WhatsAppSettingsForm settings={settings} canManage={canManage} />
         </div>
       </section>
+
+      <SubscribeWebhooksButton
+        canManage={canManage}
+        isConnected={Boolean(settings.wabaId && settings.hasAccessToken)}
+      />
     </div>
   );
 }

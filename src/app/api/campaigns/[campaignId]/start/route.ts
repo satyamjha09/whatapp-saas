@@ -62,7 +62,10 @@ export async function POST(
 
     if (
       error instanceof Error &&
-      error.message === "Only draft campaigns can be started"
+      [
+        "Only draft campaigns can be started",
+        "Campaign template is no longer approved",
+      ].includes(error.message)
     ) {
       return NextResponse.json({ message: error.message }, { status: 409 });
     }

@@ -1,6 +1,7 @@
 import axios from "axios";
 import { decryptText, encryptText } from "@/lib/encryption";
 import { prisma } from "@/lib/prisma";
+import { subscribeAppToWabaWebhooks } from "@/server/services/whatsapp-embedded-signup.service";
 import { UpdateWhatsAppSettingsInput } from "@/server/validators/whatsapp-settings.validator";
 
 export async function getWhatsAppSettingsByCompany(companyId: string) {
@@ -27,6 +28,7 @@ export async function getWhatsAppSettingsByCompany(companyId: string) {
       phoneNumberId: "",
       displayPhoneNumber: "",
       verifiedName: "",
+      qualityRating: "",
     };
   }
 
@@ -40,6 +42,7 @@ export async function getWhatsAppSettingsByCompany(companyId: string) {
     phoneNumberId: phoneNumber?.phoneNumberId ?? "",
     displayPhoneNumber: phoneNumber?.displayPhoneNumber ?? "",
     verifiedName: phoneNumber?.verifiedName ?? "",
+    qualityRating: phoneNumber?.qualityRating ?? "",
   };
 }
 
@@ -192,6 +195,7 @@ export async function testWhatsAppConnection(companyId: string) {
     response.data.display_phone_number ?? phoneNumber.displayPhoneNumber ?? "",
   );
   const verifiedName = String(response.data.verified_name ?? "");
+  const qualityRating = String(response.data.quality_rating ?? "UNKNOWN");
 
   await prisma.whatsAppPhoneNumber.update({
     where: {
@@ -200,6 +204,7 @@ export async function testWhatsAppConnection(companyId: string) {
     data: {
       displayPhoneNumber,
       verifiedName: verifiedName || null,
+      qualityRating,
     },
   });
 
@@ -208,6 +213,30 @@ export async function testWhatsAppConnection(companyId: string) {
     phoneNumberId: String(response.data.id ?? phoneNumber.phoneNumberId),
     displayPhoneNumber,
     verifiedName,
-    qualityRating: String(response.data.quality_rating ?? "UNKNOWN"),
+    qualityRating,
+  };
+}
+
+export async function subscribeCurrentWhatsAppAccountToWebhooks(
+  companyId: string,
+) {
+  const account = await prisma.whatsAppAccount.findFirst({
+    where: { companyId },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (!account?.wabaId || !account.accessToken) {
+    throw new Error("WhatsApp account is not connected");
+  }
+
+  await subscribeAppToWabaWebhooks(
+    decryptText(account.accessToken),
+    account.wabaId,
+  );
+
+  return {
+    subscribed: true as const,
+    accountId: account.id,
+    wabaId: account.wabaId,
   };
 }

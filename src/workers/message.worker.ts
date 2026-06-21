@@ -9,6 +9,7 @@ import {
   sendWhatsAppTextMessage,
 } from "@/lib/whatsapp";
 import { enqueueDeveloperMessageStatusWebhook } from "@/server/services/developer-webhook.service";
+import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
 import { refundWalletForMessage } from "@/server/services/wallet.service";
 import type { SendMessageJobData } from "@/lib/queue";
 
@@ -93,7 +94,11 @@ async function markMessageAsFailed(
     },
   });
 
-  if (!message || message.status === "FAILED") {
+  if (
+    !message ||
+    message.status === "FAILED" ||
+    message.status === "CANCELED"
+  ) {
     return;
   }
 
@@ -116,6 +121,7 @@ async function markMessageAsFailed(
     },
   });
 
+  await updateBulkMessageRecipientTracking(message.id, "FAILED", reason);
   await enqueueDeveloperMessageStatusWebhook(companyId, message.id);
 
   if (message.templateId) {
@@ -176,6 +182,65 @@ const worker = new Worker<SendMessageJobData>(
         throw new Error("Message not found");
       }
 
+      if (message.status === "CANCELED") {
+        return;
+      }
+
+      const claimedForSending = await prisma.$transaction(async (tx) => {
+        const bulkRecipient = await tx.bulkMessageBatchRecipient.findUnique({
+          where: { messageId: message.id },
+          select: { batchId: true },
+        });
+
+        if (bulkRecipient) {
+          const scheduledBatchClaim = await tx.bulkMessageBatch.updateMany({
+            where: {
+              id: bulkRecipient.batchId,
+              status: "SCHEDULED",
+            },
+            data: { status: "QUEUED" },
+          });
+
+          if (scheduledBatchClaim.count === 0) {
+            const currentBatch = await tx.bulkMessageBatch.findUnique({
+              where: { id: bulkRecipient.batchId },
+              select: { status: true },
+            });
+
+            if (currentBatch?.status === "CANCELED") return false;
+          }
+        }
+
+        const messageClaim = await tx.message.updateMany({
+          where: {
+            id: message.id,
+            companyId,
+            status: "QUEUED",
+          },
+          data: { status: "SENDING" },
+        });
+
+        if (messageClaim.count !== 1) return false;
+
+        await tx.messageEvent.create({
+          data: {
+            companyId,
+            messageId: message.id,
+            status: "SENDING",
+            raw: {
+              source: "worker",
+              jobId: job.id,
+            },
+          },
+        });
+
+        return true;
+      });
+
+      if (!claimedForSending) return;
+
+      await updateBulkMessageRecipientTracking(message.id, "SENDING");
+
       const whatsAppAccount = await prisma.whatsAppAccount.findFirst({
         where: {
           companyId,
@@ -191,25 +256,6 @@ const worker = new Worker<SendMessageJobData>(
       const hasCompanyWhatsAppCredentials =
         Boolean(whatsAppAccount?.accessToken) &&
         Boolean(phoneNumber?.phoneNumberId);
-
-      await prisma.message.update({
-        where: {
-          id: message.id,
-        },
-        data: {
-          status: "SENDING",
-          events: {
-            create: {
-              companyId,
-              status: "SENDING",
-              raw: {
-                source: "worker",
-                jobId: job.id,
-              },
-            },
-          },
-        },
-      });
 
       if (!hasCompanyWhatsAppCredentials) {
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -238,6 +284,7 @@ const worker = new Worker<SendMessageJobData>(
           },
         });
 
+        await updateBulkMessageRecipientTracking(message.id, "SENT");
         await enqueueDeveloperMessageStatusWebhook(companyId, message.id);
 
         await markCampaignMessageSent(message);
@@ -286,6 +333,7 @@ const worker = new Worker<SendMessageJobData>(
         },
       });
 
+      await updateBulkMessageRecipientTracking(message.id, "SENT");
       await enqueueDeveloperMessageStatusWebhook(companyId, message.id);
 
       await markCampaignMessageSent(message);

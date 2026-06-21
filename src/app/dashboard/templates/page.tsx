@@ -11,6 +11,7 @@ import {
 } from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getTemplatesByCompany } from "@/server/services/template.service";
+import SyncWhatsAppTemplatesButton from "./sync-whatsapp-templates-button";
 import TemplateForm from "./template-form";
 
 export default async function TemplatesPage() {
@@ -29,6 +30,9 @@ export default async function TemplatesPage() {
     (template) => template.status === "APPROVED",
   ).length;
   const languages = new Set(templates.map((template) => template.language)).size;
+  const canManage =
+    context.membership.role === "OWNER" ||
+    context.membership.role === "ADMIN";
 
   return (
     <div>
@@ -36,6 +40,7 @@ export default async function TemplatesPage() {
         eyebrow={context.membership.company.name}
         title="Message templates"
         description="Create and review reusable WhatsApp template content. These are the real templates used by messages and campaigns."
+        actions={<SyncWhatsAppTemplatesButton canManage={canManage} />}
       />
 
       <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

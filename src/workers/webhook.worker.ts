@@ -6,6 +6,7 @@ import {
   enqueueDeveloperInboundMessageWebhook,
   enqueueDeveloperMessageStatusWebhook,
 } from "@/server/services/developer-webhook.service";
+import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
 import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
@@ -321,6 +322,12 @@ const worker = new Worker<ProcessWebhookJobData>(
           },
         },
       });
+
+      await updateBulkMessageRecipientTracking(
+        updatedMessage.id,
+        nextStatus,
+        nextStatus === "FAILED" ? "Meta reported delivery failure" : undefined,
+      );
 
       await enqueueDeveloperMessageStatusWebhook(
         updatedMessage.companyId,

@@ -54,6 +54,11 @@ enum TemplateStatus {
   APPROVED
   REJECTED
   PAUSED
+  IN_APPEAL
+  PENDING_DELETION
+  DELETED
+  DISABLED
+  LIMIT_EXCEEDED
 }
 
 enum MessageStatus {
@@ -64,6 +69,7 @@ enum MessageStatus {
   READ
   FAILED
   RECEIVED
+  CANCELED
 }
 
 enum MessageDirection {
@@ -139,6 +145,27 @@ enum DeveloperWebhookDeliveryStatus {
   FAILED
 }
 
+enum BulkMessageBatchStatus {
+  SCHEDULED
+  QUEUED
+  PARTIAL_FAILED
+  FAILED
+  CANCELED
+}
+
+enum BulkMessageRecipientStatus {
+  SCHEDULED
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  SKIPPED_DUPLICATE
+  SKIPPED_BLOCKED
+  CANCELED
+}
+
 model User {
   id          String  @id @default(cuid())
   clerkUserId String  @unique
@@ -146,14 +173,15 @@ model User {
   name        String?
   imageUrl    String?
 
-  companies              CompanyUser[]
-  assignedContacts       Contact[]       @relation("ContactAssignee")
-  inboxNotes             InboxNote[]     @relation("InboxNoteAuthor")
-  createdQuickReplies    QuickReply[]    @relation("QuickReplyCreator")
-  sentCompanyInvites     CompanyInvite[] @relation("SentCompanyInvites")
-  acceptedCompanyInvites CompanyInvite[] @relation("AcceptedCompanyInvites")
-  auditLogs              AuditLog[]
-  createdApiKeys         ApiKey[]
+  companies                 CompanyUser[]
+  assignedContacts          Contact[]          @relation("ContactAssignee")
+  inboxNotes                InboxNote[]        @relation("InboxNoteAuthor")
+  createdQuickReplies       QuickReply[]       @relation("QuickReplyCreator")
+  sentCompanyInvites        CompanyInvite[]    @relation("SentCompanyInvites")
+  acceptedCompanyInvites    CompanyInvite[]    @relation("AcceptedCompanyInvites")
+  auditLogs                 AuditLog[]
+  createdApiKeys            ApiKey[]
+  createdBulkMessageBatches BulkMessageBatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -196,6 +224,8 @@ model Company {
   apiKeys                    ApiKey[]
   developerWebhookEndpoints  DeveloperWebhookEndpoint[]
   developerWebhookDeliveries DeveloperWebhookDelivery[]
+  bulkMessageBatches         BulkMessageBatch[]
+  contactGroups              ContactGroup[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -242,6 +272,7 @@ model WhatsAppPhoneNumber {
   phoneNumberId      String? @unique
   displayPhoneNumber String?
   verifiedName       String?
+  qualityRating      String?
 
   company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   whatsAppAccount WhatsAppAccount @relation(fields: [whatsAppAccountId], references: [id], onDelete: Cascade)
@@ -262,14 +293,16 @@ model Template {
   category TemplateCategory
   status   TemplateStatus   @default(DRAFT)
 
-  body      String
-  variables String[]
+  body       String
+  variables  String[]
+  components Json?
 
   metaTemplateId String?
 
-  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  messages  Message[]
-  campaigns Campaign[]
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages           Message[]
+  campaigns          Campaign[]
+  bulkMessageBatches BulkMessageBatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -286,6 +319,8 @@ model Contact {
   name        String?
   phoneNumber String
   countryCode String  @default("91")
+  source      String  @default("MANUAL")
+  isBlocked   Boolean @default(false)
 
   inboxStatus                InboxConversationStatus @default(OPEN)
   inboxClosedAt              DateTime?
@@ -296,12 +331,13 @@ model Contact {
   inboxSlaBreachedAt         DateTime?
   inboxSlaEscalationCount    Int                     @default(0)
 
-  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  assignedTo       User?             @relation("ContactAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
-  messages         Message[]
-  inboxNotes       InboxNote[]
-  inboxTags        ContactInboxTag[]
-  campaignContacts CampaignContact[]
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedTo          User?                @relation("ContactAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  messages            Message[]
+  inboxNotes          InboxNote[]
+  inboxTags           ContactInboxTag[]
+  campaignContacts    CampaignContact[]
+  contactGroupMembers ContactGroupMember[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -316,6 +352,38 @@ model Contact {
   @@index([companyId, inboxStatus, inboxSlaDueAt])
   @@index([companyId, inboxSlaBreachedAt])
   @@index([companyId, inboxStatus, inboxSlaDueAt, inboxSlaBreachedAt])
+}
+
+model ContactGroup {
+  id          String  @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  color       String?
+
+  company Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  members ContactGroupMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model ContactGroupMember {
+  id        String @id @default(cuid())
+  groupId   String
+  contactId String
+
+  group   ContactGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  contact Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, contactId])
+  @@index([groupId])
+  @@index([contactId])
 }
 
 model InboxNote {
@@ -413,11 +481,12 @@ model Message {
 
   inboxReadAt DateTime?
 
-  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contact         Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  template        Template?        @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  campaign        Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  campaignContact CampaignContact? @relation(fields: [campaignContactId], references: [id], onDelete: SetNull)
+  company                   Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact                   Contact                    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  template                  Template?                  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  campaign                  Campaign?                  @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  campaignContact           CampaignContact?           @relation(fields: [campaignContactId], references: [id], onDelete: SetNull)
+  bulkMessageBatchRecipient BulkMessageBatchRecipient?
 
   events MessageEvent[]
 
@@ -530,6 +599,64 @@ model CampaignContact {
   @@index([campaignId])
   @@index([contactId])
   @@index([status])
+}
+
+model BulkMessageBatch {
+  id              String  @id @default(cuid())
+  companyId       String
+  templateId      String?
+  createdByUserId String?
+
+  templateName          String?
+  contactGroupId        String?
+  contactGroupName      String?
+  status                BulkMessageBatchStatus @default(QUEUED)
+  requestedCount        Int                    @default(0)
+  queuedCount           Int                    @default(0)
+  failedCount           Int                    @default(0)
+  skippedDuplicateCount Int                    @default(0)
+  skippedBlockedCount   Int                    @default(0)
+  scheduledAt           DateTime?
+  canceledAt            DateTime?
+
+  company    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  template   Template?                   @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdBy  User?                       @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  recipients BulkMessageBatchRecipient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([templateId])
+  @@index([contactGroupId])
+  @@index([createdByUserId])
+  @@index([createdAt])
+}
+
+model BulkMessageBatchRecipient {
+  id         String  @id @default(cuid())
+  batchId    String
+  messageId  String? @unique
+  queueJobId String?
+
+  countryCode    String
+  phoneNumber    String
+  name           String?
+  bodyParameters Json?
+  status         BulkMessageRecipientStatus @default(QUEUED)
+  errorMessage   String?
+
+  batch   BulkMessageBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  message Message?         @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([batchId])
+  @@index([messageId])
+  @@index([queueJobId])
+  @@index([phoneNumber])
 }
 
 model Wallet {

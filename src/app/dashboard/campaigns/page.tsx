@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, RadioTower, Send } from "lucide-react";
+import { CheckCircle2, Layers3, RadioTower, Send } from "lucide-react";
 import { redirect } from "next/navigation";
 import {
   EmptyState,
@@ -8,12 +8,14 @@ import {
   Panel,
   PanelTitle,
   StatusPill,
+  actionButtonClass,
   statusTone,
 } from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getCampaignsByCompany } from "@/server/services/campaign.service";
 import { getContactsByCompany } from "@/server/services/contact.service";
 import { getTemplatesByCompany } from "@/server/services/template.service";
+import { prisma } from "@/lib/prisma";
 import CampaignForm from "./campaign-form";
 import StartCampaignButton from "./start-campaign-button";
 
@@ -30,10 +32,15 @@ export default async function CampaignsPage() {
 
   const companyId = context.membership.companyId;
 
-  const [campaigns, contacts, templates] = await Promise.all([
+  const [campaigns, contacts, templates, bulkBatches] = await Promise.all([
     getCampaignsByCompany(companyId),
     getContactsByCompany(companyId),
     getTemplatesByCompany(companyId),
+    prisma.bulkMessageBatch.findMany({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
   ]);
 
   const runningCampaigns = campaigns.filter(
@@ -47,6 +54,9 @@ export default async function CampaignsPage() {
     (total, campaign) => total + campaign.deliveredCount,
     0,
   );
+  const approvedTemplates = templates.filter(
+    (template) => template.status === "APPROVED",
+  );
 
   return (
     <div>
@@ -54,16 +64,22 @@ export default async function CampaignsPage() {
         eyebrow={context.membership.company.name}
         title="Campaigns"
         description="Create draft campaigns from real contacts and templates, then track queued, delivered, read, and failed counts."
+        actions={
+          <Link href="/dashboard/messages/bulk" className={actionButtonClass()}>
+            <Send className="mr-2 h-4 w-4" />
+            New Bulk Message
+          </Link>
+        }
       />
 
-      {contacts.length === 0 || templates.length === 0 ? (
+      {contacts.length === 0 || approvedTemplates.length === 0 ? (
         <div className="mb-6 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-5 text-sm text-amber-200">
           Before creating a campaign, create at least one contact and one
-          template.
+          approved template.
         </div>
       ) : null}
 
-      <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           icon={RadioTower}
           label="Campaigns"
@@ -82,10 +98,97 @@ export default async function CampaignsPage() {
           value={totalDelivered.toLocaleString("en-IN")}
           detail="Confirmed campaign deliveries"
         />
+        <MetricCard
+          icon={Layers3}
+          label="Bulk batches"
+          value={bulkBatches.length.toLocaleString("en-IN")}
+          detail="Latest tracked bulk sends"
+        />
       </section>
 
+      <Panel className="mb-6 overflow-hidden p-0 sm:p-0">
+        <div className="border-b border-[#D8E6F3] px-5 py-4 sm:px-6">
+          <PanelTitle
+            title="Bulk campaign history"
+            description="Tracked CSV and pasted-recipient batches, including duplicates and queue failures."
+          />
+        </div>
+
+        {bulkBatches.length === 0 ? (
+          <div className="p-5 sm:p-6">
+            <EmptyState>No bulk message batches yet.</EmptyState>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left text-sm">
+              <thead className="bg-[#F0F8FF] text-xs uppercase text-[#526173]">
+                <tr>
+                  <th className="px-5 py-3">Template</th>
+                  <th className="px-5 py-3">Group</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Scheduled</th>
+                  <th className="px-5 py-3">Requested</th>
+                  <th className="px-5 py-3">Queued</th>
+                  <th className="px-5 py-3">Failed</th>
+                  <th className="px-5 py-3">Duplicates</th>
+                  <th className="px-5 py-3">Created</th>
+                  <th className="px-5 py-3">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#D8E6F3]">
+                {bulkBatches.map((batch) => (
+                  <tr key={batch.id}>
+                    <td className="px-5 py-4 font-semibold text-[#081B3A]">
+                      {batch.templateName ?? "—"}
+                    </td>
+                    <td className="px-5 py-4 text-[#526173]">
+                      {batch.contactGroupName ?? "CSV / Manual"}
+                    </td>
+                    <td className="px-5 py-4">
+                      <StatusPill tone={statusTone(batch.status)}>
+                        {batch.status}
+                      </StatusPill>
+                    </td>
+                    <td className="px-5 py-4 text-[#526173]">
+                      {batch.scheduledAt
+                        ? batch.scheduledAt.toLocaleString()
+                        : "Immediate"}
+                    </td>
+                    <td className="px-5 py-4">{batch.requestedCount}</td>
+                    <td className="px-5 py-4">{batch.queuedCount}</td>
+                    <td className="px-5 py-4">{batch.failedCount}</td>
+                    <td className="px-5 py-4">
+                      {batch.skippedDuplicateCount}
+                    </td>
+                    <td className="px-5 py-4 text-[#526173]">
+                      {batch.createdAt.toLocaleString()}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex flex-wrap gap-3">
+                        <Link
+                          href={`/dashboard/campaigns/${batch.id}`}
+                          className="font-semibold text-[#0052CC] hover:underline"
+                        >
+                          View
+                        </Link>
+                        <Link
+                          href={`/dashboard/reports/campaigns/${batch.id}`}
+                          className="font-semibold text-[#0052CC] hover:underline"
+                        >
+                          Report
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
       <div className="grid gap-6 lg:grid-cols-[440px_1fr]">
-        <CampaignForm contacts={contacts} templates={templates} />
+        <CampaignForm contacts={contacts} templates={approvedTemplates} />
 
         <Panel>
           <PanelTitle

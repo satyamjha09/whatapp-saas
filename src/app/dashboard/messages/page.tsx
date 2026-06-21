@@ -40,6 +40,9 @@ export default async function MessagesPage() {
   const delivered = messages.filter((message) =>
     ["SENT", "DELIVERED", "READ"].includes(message.status),
   );
+  const approvedTemplates = templates.filter(
+    (template) => template.status === "APPROVED",
+  );
 
   return (
     <div>
@@ -49,10 +52,10 @@ export default async function MessagesPage() {
         description="Queue template messages and review the real message history recorded for this workspace."
       />
 
-      {contacts.length === 0 || templates.length === 0 ? (
+      {contacts.length === 0 || approvedTemplates.length === 0 ? (
         <div className="mb-6 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-5 text-sm text-amber-200">
           Before sending a message, create at least one contact and one
-          template.
+          approved template.
         </div>
       ) : null}
 
@@ -78,7 +81,7 @@ export default async function MessagesPage() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-        <SendMessageForm contacts={contacts} templates={templates} />
+        <SendMessageForm contacts={contacts} templates={approvedTemplates} />
 
         <Panel>
           <PanelTitle

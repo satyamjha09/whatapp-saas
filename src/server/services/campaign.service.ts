@@ -30,6 +30,7 @@ export async function createCampaignForCompany(
     where: {
       id: input.templateId,
       companyId,
+      status: "APPROVED",
     },
   });
 
@@ -124,6 +125,10 @@ export async function startCampaignForCompany(
 
   if (campaign.status !== "DRAFT") {
     throw new Error("Only draft campaigns can be started");
+  }
+
+  if (campaign.template.status !== "APPROVED") {
+    throw new Error("Campaign template is no longer approved");
   }
 
   const pendingContacts = campaign.contacts.filter(

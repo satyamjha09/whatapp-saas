@@ -153,7 +153,7 @@ export function statusTone(status: string): "zinc" | "green" | "blue" | "amber" 
     return "amber";
   }
 
-  if (["FAILED", "REJECTED", "ERROR", "DISCONNECTED", "CANCELLED", "CANCELED", "PAST_DUE", "INCOMPLETE"].includes(status)) {
+  if (["FAILED", "PARTIAL_FAILED", "REJECTED", "ERROR", "DISCONNECTED", "CANCELLED", "CANCELED", "PAST_DUE", "INCOMPLETE", "DELETED", "DISABLED", "LIMIT_EXCEEDED"].includes(status)) {
     return "red";
   }
 

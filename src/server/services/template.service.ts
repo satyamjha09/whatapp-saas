@@ -8,7 +8,9 @@ function extractTemplateVariables(body: string) {
     return [];
   }
 
-  return Array.from(new Set(matches));
+  return Array.from(new Set(matches)).sort((left, right) => {
+    return Number(left.slice(2, -2)) - Number(right.slice(2, -2));
+  });
 }
 
 export async function getTemplatesByCompany(companyId: string) {

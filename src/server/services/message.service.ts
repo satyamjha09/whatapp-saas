@@ -47,6 +47,7 @@ export async function createQueuedTemplateMessage(
     where: {
       id: input.templateId,
       companyId,
+      status: "APPROVED",
     },
   });
 
@@ -240,6 +241,7 @@ export async function createQueuedPublicTemplateMessage(
         companyId,
         name: input.templateName,
         language: input.language,
+        status: "APPROVED",
       },
     });
 

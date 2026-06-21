@@ -16,7 +16,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
     label: "Send Message",
     items: [
       { label: "Single", href: "/dashboard/messages/send" },
-      { label: "Bulk Message", href: "/dashboard/campaigns" },
+      { label: "Bulk Message", href: "/dashboard/messages/bulk" },
       { label: "Canned Message", href: "/dashboard/inbox/quick-replies" },
     ],
   },
@@ -69,6 +69,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
     label: "Contact",
     items: [
       { label: "Contacts List", href: "/dashboard/contacts" },
+      { label: "Contact Groups", href: "/dashboard/contacts/groups" },
       { label: "Contact Settings", href: "/dashboard/contacts/settings" },
       { label: "Blocked Contacts", href: "/dashboard/contacts/blocked" },
       { label: "Contact Addresses", href: "/dashboard/contacts/addresses" },
@@ -77,6 +78,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
   {
     label: "WhatsApp Items",
     items: [
+      { label: "Connect WhatsApp", href: "/dashboard/whatsapp/connect" },
       { label: "Templates", href: "/dashboard/templates" },
       { label: "Catalogs", href: "/dashboard/catalogs" },
       { label: "Flows", href: "/dashboard/whatsapp/flows" },
