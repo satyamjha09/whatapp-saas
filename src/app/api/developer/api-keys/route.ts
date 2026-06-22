@@ -105,6 +105,9 @@ export async function POST(request: Request) {
         name: record.name,
         keyPrefix: record.keyPrefix,
         keyLast4: record.keyLast4,
+        scopes: record.scopes,
+        allowedIps: record.allowedIps,
+        expiresAt: record.expiresAt,
       },
     });
 

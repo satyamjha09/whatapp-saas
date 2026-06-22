@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DEVELOPER_API_SCOPES } from "@/server/config/developer-api-scopes";
+import { DEVELOPER_WEBHOOK_EVENTS } from "@/server/config/developer-webhook-events";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 
 export default async function DeveloperDocsPage() {
@@ -53,6 +55,133 @@ export default async function DeveloperDocsPage() {
             </Link>
             .
           </p>
+        </section>
+
+        <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Webhook Event Subscriptions
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-600">
+            Each webhook endpoint can subscribe only to the events it needs.
+            This keeps customer integrations simpler and reduces unnecessary
+            delivery traffic.
+          </p>
+
+          <div className="mt-5 overflow-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Event</th>
+                  <th className="px-4 py-3">Description</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {DEVELOPER_WEBHOOK_EVENTS.map((event) => (
+                  <tr key={event.id}>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {event.id}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {event.description}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Webhook Payload Version
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-600">
+            Webhook payloads include a version field. Keep your webhook on the
+            default version unless you are intentionally testing newer payload
+            formats.
+          </p>
+
+          <div className="mt-4 rounded-xl bg-gray-950 p-4 text-sm text-gray-100">
+            <pre className="overflow-auto text-xs">{`{
+  "id": "evt_123",
+  "type": "message.delivered",
+  "version": "2026-06-01",
+  "createdAt": "2026-06-22T10:00:00.000Z",
+  "data": {
+    "messageId": "msg_123",
+    "status": "DELIVERED"
+  }
+}`}</pre>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900">
+            API Key IP Allowlist
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-600">
+            API keys can be restricted to trusted server IP addresses. Leave the
+            allowlist empty to allow requests from any IP.
+          </p>
+
+          <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
+            <p className="font-medium text-gray-900">Examples</p>
+
+            <pre className="mt-2 whitespace-pre-wrap text-xs">
+              {`103.10.20.30
+103.10.20.0/24`}
+            </pre>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900">
+            API Key Expiry
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-600">
+            Set an expiry date for temporary integrations, test keys, and
+            contractor access. Expired keys return HTTP 403.
+          </p>
+        </section>
+
+        <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900">
+            API Key Scopes
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-600">
+            API keys only work for the scopes selected at creation time.
+            Owners and admins can edit active key names and scopes later without
+            exposing the secret key.
+          </p>
+
+          <div className="mt-5 overflow-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Scope</th>
+                  <th className="px-4 py-3">Access</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y">
+                {DEVELOPER_API_SCOPES.map((scope) => (
+                  <tr key={scope.id}>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {scope.id}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {scope.description}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
@@ -326,19 +455,79 @@ export default async function DeveloperDocsPage() {
 
         <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold text-gray-900">
-            Developer Webhook Event Types
+            Verifying Webhook Signatures
           </h2>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              "webhook.test",
-              "message.status_updated",
-              "message.received",
-            ].map((eventType) => (
-              <div key={eventType} className="rounded-xl border p-4">
-                <p className="font-medium text-gray-900">{eventType}</p>
-              </div>
-            ))}
+          <p className="mt-2 text-sm text-gray-600">
+            Every developer webhook delivery includes a timestamp and HMAC
+            SHA-256 signature. Verify the raw request body before trusting the
+            event.
+          </p>
+
+          <div className="mt-4 rounded-xl bg-gray-950 p-4 text-sm text-gray-100">
+            <pre className="overflow-auto text-xs">{`import crypto from "crypto";
+
+function verifyTallyKonnectWebhook({
+  rawBody,
+  signatureHeader,
+  secret,
+}) {
+  const parts = Object.fromEntries(
+    signatureHeader.split(",").map((item) => item.split("="))
+  );
+
+  const timestamp = parts.t;
+  const signature = parts.v1;
+
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(\`\${timestamp}.\${rawBody}\`, "utf8")
+    .digest("hex");
+
+  return crypto.timingSafeEqual(
+    Buffer.from(signature, "hex"),
+    Buffer.from(expected, "hex")
+  );
+}`}</pre>
+          </div>
+
+          <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
+            <p className="font-medium text-gray-900">Headers</p>
+
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>X-TallyKonnect-Webhook-Id</li>
+              <li>X-TallyKonnect-Webhook-Event</li>
+              <li>X-TallyKonnect-Webhook-Timestamp</li>
+              <li>X-TallyKonnect-Webhook-Signature</li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Webhook Health and Auto-disable
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-600">
+            If a webhook endpoint repeatedly fails, TallyKonnect automatically
+            disables it to prevent unnecessary retries and delivery noise. Fix
+            your receiver endpoint, then re-enable the webhook from Developer
+            Webhooks.
+          </p>
+
+          <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
+            <p className="font-medium text-gray-900">Health states</p>
+
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>
+                Healthy: webhook is active and recent deliveries are
+                succeeding.
+              </li>
+              <li>Degraded: webhook has repeated recent failures.</li>
+              <li>
+                Auto-disabled: webhook was paused after repeated failures.
+              </li>
+            </ul>
           </div>
         </section>
 

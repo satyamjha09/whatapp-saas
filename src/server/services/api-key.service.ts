@@ -1,6 +1,9 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { CreateApiKeyInput } from "@/server/validators/api-key.validator";
+import {
+  CreateApiKeyInput,
+  UpdateApiKeyInput,
+} from "@/server/validators/api-key.validator";
 
 const apiKeyDisplaySelect = {
   id: true,
@@ -8,8 +11,11 @@ const apiKeyDisplaySelect = {
   name: true,
   keyPrefix: true,
   keyLast4: true,
+  scopes: true,
+  allowedIps: true,
   status: true,
   lastUsedAt: true,
+  revokedAt: true,
   expiresAt: true,
   createdByUserId: true,
   createdAt: true,
@@ -52,6 +58,9 @@ export async function createApiKeyForCompany(
       keyHash,
       keyPrefix: apiKey.slice(0, 12),
       keyLast4: apiKey.slice(-4),
+      scopes: input.scopes,
+      allowedIps: input.allowedIps,
+      expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
       status: "ACTIVE",
     },
     select: apiKeyDisplaySelect,
@@ -75,7 +84,7 @@ export async function revokeApiKey(companyId: string, apiKeyId: string) {
     throw new Error("API key not found");
   }
 
-  if (apiKey.status === "REVOKED") {
+  if (apiKey.status === "REVOKED" || apiKey.revokedAt) {
     throw new Error("API key is already revoked");
   }
 
@@ -85,6 +94,41 @@ export async function revokeApiKey(companyId: string, apiKeyId: string) {
     },
     data: {
       status: "REVOKED",
+      revokedAt: new Date(),
+    },
+    select: apiKeyDisplaySelect,
+  });
+}
+
+export async function updateApiKeyForCompany(
+  companyId: string,
+  apiKeyId: string,
+  input: UpdateApiKeyInput,
+) {
+  const apiKey = await prisma.apiKey.findFirst({
+    where: {
+      id: apiKeyId,
+      companyId,
+    },
+  });
+
+  if (!apiKey) {
+    throw new Error("API key not found");
+  }
+
+  if (apiKey.status === "REVOKED" || apiKey.revokedAt) {
+    throw new Error("Cannot edit a revoked API key");
+  }
+
+  return prisma.apiKey.update({
+    where: {
+      id: apiKey.id,
+    },
+    data: {
+      name: input.name,
+      scopes: input.scopes,
+      allowedIps: input.allowedIps,
+      expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
     },
     select: apiKeyDisplaySelect,
   });
@@ -106,22 +150,28 @@ export async function validateApiKey(rawApiKey: string) {
     return null;
   }
 
+  if (apiKey.status === "REVOKED" || apiKey.revokedAt) {
+    throw new Error("API key has been revoked");
+  }
+
   if (apiKey.status !== "ACTIVE") {
     return null;
   }
 
   if (apiKey.expiresAt && apiKey.expiresAt < new Date()) {
-    return null;
+    throw new Error("API key has expired");
   }
 
+  return apiKey;
+}
+
+export async function markApiKeyLastUsed(apiKeyId: string) {
   await prisma.apiKey.update({
     where: {
-      id: apiKey.id,
+      id: apiKeyId,
     },
     data: {
       lastUsedAt: new Date(),
     },
   });
-
-  return apiKey;
 }

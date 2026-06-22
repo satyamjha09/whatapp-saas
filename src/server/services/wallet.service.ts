@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { publishWalletDeveloperWebhookEvent } from "@/server/services/developer-webhook-event-publisher.service";
 import { TopUpWalletInput } from "@/server/validators/wallet.validator";
 
 export async function getOrCreateWallet(companyId: string) {
@@ -64,6 +65,12 @@ export async function topUpWallet(companyId: string, input: TopUpWalletInput) {
     };
   });
 
+  await publishWalletDeveloperWebhookEvent({
+    companyId,
+    transaction: result.transaction,
+    balanceAfterPaise: result.wallet.balancePaise,
+  });
+
   return result;
 }
 
@@ -106,6 +113,12 @@ export async function debitWalletForMessage(
       wallet: updatedWallet,
       transaction,
     };
+  });
+
+  await publishWalletDeveloperWebhookEvent({
+    companyId,
+    transaction: result.transaction,
+    balanceAfterPaise: result.wallet.balancePaise,
   });
 
   return result;

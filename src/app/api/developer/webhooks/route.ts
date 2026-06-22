@@ -111,6 +111,9 @@ export async function POST(request: Request) {
       metadata: {
         name: endpoint.name,
         url: endpoint.url,
+        events: endpoint.events,
+        payloadVersion: endpoint.payloadVersion,
+        signingSecretPreview: endpoint.signingSecretPreview,
       },
     });
 

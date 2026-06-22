@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { authenticatePublicApiRequest } from "@/server/auth/public-api";
+import {
+  authenticatePublicApiRequest,
+  requirePublicApiScope,
+} from "@/server/auth/public-api";
 import { createAuditLog } from "@/server/services/audit.service";
 import {
   getContactsByCompany,
@@ -16,6 +19,15 @@ export async function GET(request: Request) {
     }
 
     const { apiKeyRecord } = auth;
+    const scopeResponse = await requirePublicApiScope({
+      request,
+      apiKeyRecord,
+      requiredScope: "CONTACTS_READ",
+    });
+
+    if (scopeResponse) {
+      return scopeResponse;
+    }
 
     const contacts = await getContactsByCompany(apiKeyRecord.companyId);
 
@@ -50,6 +62,15 @@ export async function POST(request: Request) {
     }
 
     const { apiKeyRecord } = auth;
+    const scopeResponse = await requirePublicApiScope({
+      request,
+      apiKeyRecord,
+      requiredScope: "CONTACTS_WRITE",
+    });
+
+    if (scopeResponse) {
+      return scopeResponse;
+    }
 
     const body: unknown = await request.json();
 

@@ -9,6 +9,7 @@ import {
   sendWhatsAppTextMessage,
 } from "@/lib/whatsapp";
 import { enqueueDeveloperMessageStatusWebhook } from "@/server/services/developer-webhook.service";
+import { publishCampaignDeveloperWebhookEvent } from "@/server/services/developer-webhook-event-publisher.service";
 import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
 import { refundWalletForMessage } from "@/server/services/wallet.service";
 import type { SendMessageJobData } from "@/lib/queue";
@@ -41,13 +42,19 @@ async function updateCampaignCompletion(campaignId: string) {
     (contact) => contact.status === "FAILED",
   );
 
-  await prisma.campaign.update({
+  const updatedCampaign = await prisma.campaign.update({
     where: {
       id: campaign.id,
     },
     data: {
       status: hasFailed ? "FAILED" : "COMPLETED",
     },
+  });
+
+  await publishCampaignDeveloperWebhookEvent({
+    companyId: updatedCampaign.companyId,
+    campaign: updatedCampaign,
+    operation: "completed",
   });
 }
 

@@ -5,6 +5,7 @@ import { getBillingPlanConfig } from "@/server/config/billing-plans";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
+import { publishCampaignDeveloperWebhookEvent } from "@/server/services/developer-webhook-event-publisher.service";
 import { CreateCampaignInput } from "@/server/validators/campaign.validator";
 
 export async function getCampaignsByCompany(companyId: string) {
@@ -91,6 +92,12 @@ export async function createCampaignForCompany(
         },
       },
     },
+  });
+
+  await publishCampaignDeveloperWebhookEvent({
+    companyId,
+    campaign,
+    operation: "created",
   });
 
   return campaign;

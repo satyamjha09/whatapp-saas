@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { authenticatePublicApiRequest } from "@/server/auth/public-api";
+import {
+  authenticatePublicApiRequest,
+  requirePublicApiScope,
+} from "@/server/auth/public-api";
 import { getMessageByCompany } from "@/server/services/message.service";
 
 type PublicMessageStatusRouteContext = {
@@ -20,6 +23,15 @@ export async function GET(
     }
 
     const { apiKeyRecord } = auth;
+    const scopeResponse = await requirePublicApiScope({
+      request,
+      apiKeyRecord,
+      requiredScope: "MESSAGES_READ",
+    });
+
+    if (scopeResponse) {
+      return scopeResponse;
+    }
 
     const { messageId } = await params;
 

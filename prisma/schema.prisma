@@ -163,6 +163,7 @@ enum ApiKeyStatus {
 enum DeveloperWebhookEndpointStatus {
   ACTIVE
   REVOKED
+  AUTO_DISABLED
 }
 
 enum DeveloperWebhookDeliveryStatus {
@@ -170,6 +171,20 @@ enum DeveloperWebhookDeliveryStatus {
   SENDING
   DELIVERED
   FAILED
+}
+
+enum DeveloperWebhookOutboxStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED
+}
+
+enum DeveloperApiRequestLogStatus {
+  SUCCESS
+  FAILED
+  BLOCKED
+  RATE_LIMITED
 }
 
 enum BulkMessageBatchStatus {
@@ -253,6 +268,7 @@ model Company {
   apiKeys                    ApiKey[]
   developerWebhookEndpoints  DeveloperWebhookEndpoint[]
   developerWebhookDeliveries DeveloperWebhookDelivery[]
+  developerWebhookOutbox     DeveloperWebhookOutbox[]
   bulkMessageBatches         BulkMessageBatch[]
   contactGroups              ContactGroup[]
   creditPurchases            CreditPurchase[]
@@ -260,6 +276,7 @@ model Company {
   razorpayWebhookEvents      RazorpayWebhookEvent[]
   maintenanceJobRuns         MaintenanceJobRun[]
   developerApiUsage          DeveloperApiUsage[]
+  developerApiRequestLogs    DeveloperApiRequestLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -904,22 +921,28 @@ model ApiKey {
   keyHash   String @unique
   keyPrefix String
   keyLast4  String
+  scopes    String[] @default([])
+  allowedIps String[] @default([])
 
   status ApiKeyStatus @default(ACTIVE)
 
   lastUsedAt DateTime?
+  revokedAt  DateTime?
   expiresAt  DateTime?
 
   createdByUserId String?
 
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdBy User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  requestLogs DeveloperApiRequestLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([companyId])
   @@index([status])
+  @@index([revokedAt])
+  @@index([expiresAt])
 }
 
 model DeveloperApiUsage {
@@ -940,18 +963,52 @@ model DeveloperApiUsage {
   @@index([date])
 }
 
+model DeveloperApiRequestLog {
+  id        String @id @default(cuid())
+  companyId String
+  apiKeyId  String?
+
+  method String
+  path   String
+  status DeveloperApiRequestLogStatus
+
+  statusCode   Int?
+  errorMessage String?
+  requiredScope String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  apiKey  ApiKey?  @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([apiKeyId])
+  @@index([status])
+  @@index([createdAt])
+}
+
 model DeveloperWebhookEndpoint {
   id        String @id @default(cuid())
   companyId String
 
   name String
   url  String
+  events         String[] @default([])
+  payloadVersion String   @default("2026-06-01")
 
   signingSecretEncrypted String
   secretPrefix           String
   secretLast4            String
+  signingSecretPreview   String?
+  signingSecretRotatedAt DateTime?
 
   status DeveloperWebhookEndpointStatus @default(ACTIVE)
+
+  consecutiveFailureCount Int @default(0)
+  lastSuccessAt           DateTime?
+  lastFailureAt           DateTime?
+  autoDisabledAt          DateTime?
+  autoDisabledReason      String?
 
   company    Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   deliveries DeveloperWebhookDelivery[]
@@ -961,12 +1018,14 @@ model DeveloperWebhookEndpoint {
 
   @@index([companyId])
   @@index([status])
+  @@index([autoDisabledAt])
 }
 
 model DeveloperWebhookDelivery {
   id         String @id @default(cuid())
   companyId  String
   endpointId String
+  outboxEventId String?
 
   eventType String
   payload   Json
@@ -975,18 +1034,48 @@ model DeveloperWebhookDelivery {
 
   attempts       Int     @default(0)
   responseStatus Int?
+  responseBody   String?
+  durationMs     Int?
   lastError      String?
 
   deliveredAt DateTime?
 
   company  Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   endpoint DeveloperWebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  outboxEvent DeveloperWebhookOutbox? @relation(fields: [outboxEventId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([companyId])
   @@index([endpointId])
+  @@index([outboxEventId])
   @@index([status])
   @@index([eventType])
+}
+
+model DeveloperWebhookOutbox {
+  id             String @id @default(cuid())
+  companyId      String
+  eventType      String
+  payload        Json
+  idempotencyKey String?
+
+  status      DeveloperWebhookOutboxStatus @default(PENDING)
+  attempts    Int                          @default(0)
+  lastError   String?
+  lockedAt    DateTime?
+  processedAt DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  deliveries DeveloperWebhookDelivery[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId])
+  @@index([eventType])
+  @@index([status])
+  @@index([createdAt])
 }

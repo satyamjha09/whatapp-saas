@@ -1,17 +1,18 @@
-import crypto from "crypto";
-import { encryptText } from "@/lib/encryption";
 import { prisma } from "@/lib/prisma";
 import { getDeveloperWebhookQueue } from "@/lib/queue";
 import type { Prisma } from "@/generated/prisma/client";
+import { DEVELOPER_WEBHOOK_PAYLOAD_VERSION } from "@/server/config/developer-webhook-events";
 import { CreateDeveloperWebhookEndpointInput } from "@/server/validators/developer-webhook.validator";
 import {
   assertCompanyFeature,
   hasCompanyFeature,
 } from "@/server/services/feature-gate.service";
-
-function generateSigningSecret() {
-  return `whsec_${crypto.randomBytes(32).toString("hex")}`;
-}
+import {
+  encryptDeveloperWebhookSigningSecret,
+  generateDeveloperWebhookSigningSecret,
+  getSecretPreview,
+} from "@/server/services/developer-webhook-signature.service";
+import { publishMessageDeveloperWebhookEvent } from "@/server/services/developer-webhook-event-publisher.service";
 
 export async function getDeveloperWebhookEndpointsByCompany(
   companyId: string,
@@ -25,9 +26,18 @@ export async function getDeveloperWebhookEndpointsByCompany(
       companyId: true,
       name: true,
       url: true,
+      events: true,
+      payloadVersion: true,
       secretPrefix: true,
       secretLast4: true,
+      signingSecretPreview: true,
+      signingSecretRotatedAt: true,
       status: true,
+      consecutiveFailureCount: true,
+      lastSuccessAt: true,
+      lastFailureAt: true,
+      autoDisabledAt: true,
+      autoDisabledReason: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -42,16 +52,21 @@ export async function createDeveloperWebhookEndpointForCompany(
   input: CreateDeveloperWebhookEndpointInput,
 ) {
   await assertCompanyFeature(companyId, "DEVELOPER_WEBHOOKS");
-  const signingSecret = generateSigningSecret();
+  const signingSecret = generateDeveloperWebhookSigningSecret();
 
   const endpoint = await prisma.developerWebhookEndpoint.create({
     data: {
       companyId,
       name: input.name,
       url: input.url,
-      signingSecretEncrypted: encryptText(signingSecret),
+      events: input.events,
+      payloadVersion: input.payloadVersion,
+      signingSecretEncrypted:
+        encryptDeveloperWebhookSigningSecret(signingSecret),
       secretPrefix: signingSecret.slice(0, 10),
       secretLast4: signingSecret.slice(-4),
+      signingSecretPreview: getSecretPreview(signingSecret),
+      signingSecretRotatedAt: new Date(),
       status: "ACTIVE",
     },
     select: {
@@ -59,9 +74,18 @@ export async function createDeveloperWebhookEndpointForCompany(
       companyId: true,
       name: true,
       url: true,
+      events: true,
+      payloadVersion: true,
       secretPrefix: true,
       secretLast4: true,
+      signingSecretPreview: true,
+      signingSecretRotatedAt: true,
       status: true,
+      consecutiveFailureCount: true,
+      lastSuccessAt: true,
+      lastFailureAt: true,
+      autoDisabledAt: true,
+      autoDisabledReason: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -104,20 +128,47 @@ export async function revokeDeveloperWebhookEndpoint(
       companyId: true,
       name: true,
       url: true,
+      events: true,
+      payloadVersion: true,
       secretPrefix: true,
       secretLast4: true,
+      signingSecretPreview: true,
+      signingSecretRotatedAt: true,
       status: true,
+      consecutiveFailureCount: true,
+      lastSuccessAt: true,
+      lastFailureAt: true,
+      autoDisabledAt: true,
+      autoDisabledReason: true,
       createdAt: true,
       updatedAt: true,
     },
   });
 }
 
-export async function getActiveDeveloperWebhookEndpoints(companyId: string) {
+export async function getActiveDeveloperWebhookEndpoints({
+  companyId,
+  eventType,
+}: {
+  companyId: string;
+  eventType: string;
+}) {
   return prisma.developerWebhookEndpoint.findMany({
     where: {
       companyId,
       status: "ACTIVE",
+      OR: [
+        {
+          events: {
+            has: eventType,
+          },
+        },
+        {
+          events: {
+            isEmpty: true,
+          },
+        },
+      ],
     },
   });
 }
@@ -126,6 +177,7 @@ type EnqueueDeveloperWebhookInput = {
   companyId: string;
   eventType: string;
   payload: Record<string, unknown>;
+  outboxEventId?: string;
 };
 
 export async function enqueueDeveloperWebhookDeliveries(
@@ -135,7 +187,10 @@ export async function enqueueDeveloperWebhookDeliveries(
     return [];
   }
 
-  const endpoints = await getActiveDeveloperWebhookEndpoints(input.companyId);
+  const endpoints = await getActiveDeveloperWebhookEndpoints({
+    companyId: input.companyId,
+    eventType: input.eventType,
+  });
 
   if (endpoints.length === 0) {
     return [];
@@ -144,12 +199,22 @@ export async function enqueueDeveloperWebhookDeliveries(
   const deliveries = [];
 
   for (const endpoint of endpoints) {
+    const payload = {
+      ...input.payload,
+      type: input.eventType,
+      version: endpoint.payloadVersion ?? DEVELOPER_WEBHOOK_PAYLOAD_VERSION,
+      createdAt:
+        typeof input.payload.createdAt === "string"
+          ? input.payload.createdAt
+          : new Date().toISOString(),
+    };
     const delivery = await prisma.developerWebhookDelivery.create({
       data: {
         companyId: input.companyId,
         endpointId: endpoint.id,
+        outboxEventId: input.outboxEventId ?? null,
         eventType: input.eventType,
-        payload: input.payload as Prisma.InputJsonValue,
+        payload: payload as Prisma.InputJsonValue,
         status: "PENDING",
       },
     });
@@ -193,36 +258,9 @@ export async function enqueueDeveloperMessageStatusWebhook(
     return [];
   }
 
-  return enqueueDeveloperWebhookDeliveries({
+  return publishMessageDeveloperWebhookEvent({
     companyId,
-    eventType: "message.status_updated",
-    payload: {
-      id: `evt_${message.id}_${message.status}_${Date.now()}`,
-      type: "message.status_updated",
-      createdAt: new Date().toISOString(),
-      data: {
-        messageId: message.id,
-        status: message.status,
-        direction: message.direction,
-        toPhoneNumber: message.toPhoneNumber,
-        metaMessageId: message.metaMessageId,
-        template: message.template
-          ? {
-              id: message.template.id,
-              name: message.template.name,
-              language: message.template.language,
-            }
-          : null,
-        contact: {
-          id: message.contact.id,
-          name: message.contact.name,
-          countryCode: message.contact.countryCode,
-          phoneNumber: message.contact.phoneNumber,
-        },
-        createdAt: message.createdAt.toISOString(),
-        updatedAt: message.updatedAt.toISOString(),
-      },
-    },
+    message,
   });
 }
 
@@ -246,15 +284,19 @@ export async function sendTestDeveloperWebhook(
     throw new Error("Webhook endpoint is not active");
   }
 
+  const testEventType =
+    endpoint.events.length > 0 ? endpoint.events[0] : "message.sent";
+
   const delivery = await prisma.developerWebhookDelivery.create({
     data: {
       companyId,
       endpointId: endpoint.id,
-      eventType: "webhook.test",
+      eventType: testEventType,
       status: "PENDING",
       payload: {
         id: `evt_test_${Date.now()}`,
-        type: "webhook.test",
+        type: testEventType,
+        version: endpoint.payloadVersion ?? DEVELOPER_WEBHOOK_PAYLOAD_VERSION,
         createdAt: new Date().toISOString(),
         data: {
           message: "This is a test webhook from your WhatsApp SaaS platform.",
@@ -301,29 +343,8 @@ export async function enqueueDeveloperInboundMessageWebhook(
     return [];
   }
 
-  return enqueueDeveloperWebhookDeliveries({
+  return publishMessageDeveloperWebhookEvent({
     companyId,
-    eventType: "message.received",
-    payload: {
-      id: `evt_${message.id}_received_${Date.now()}`,
-      type: "message.received",
-      createdAt: new Date().toISOString(),
-      data: {
-        messageId: message.id,
-        status: message.status,
-        direction: message.direction,
-        fromPhoneNumber: message.toPhoneNumber,
-        body: message.body,
-        metaMessageId: message.metaMessageId,
-        contact: {
-          id: message.contact.id,
-          name: message.contact.name,
-          countryCode: message.contact.countryCode,
-          phoneNumber: message.contact.phoneNumber,
-        },
-        createdAt: message.createdAt.toISOString(),
-        updatedAt: message.updatedAt.toISOString(),
-      },
-    },
+    message,
   });
 }

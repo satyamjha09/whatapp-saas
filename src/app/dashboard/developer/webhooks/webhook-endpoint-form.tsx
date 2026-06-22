@@ -2,6 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  DEFAULT_DEVELOPER_WEBHOOK_EVENTS,
+  DEVELOPER_WEBHOOK_EVENTS,
+  DEVELOPER_WEBHOOK_PAYLOAD_VERSION,
+} from "@/server/config/developer-webhook-events";
 
 type CreateWebhookEndpointResponse = {
   message: string;
@@ -9,6 +14,8 @@ type CreateWebhookEndpointResponse = {
   errors?: {
     name?: string[];
     url?: string[];
+    events?: string[];
+    payloadVersion?: string[];
   };
 };
 
@@ -17,6 +24,12 @@ export default function WebhookEndpointForm() {
 
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
+  const [selectedEvents, setSelectedEvents] = useState<string[]>(
+    DEFAULT_DEVELOPER_WEBHOOK_EVENTS,
+  );
+  const [payloadVersion, setPayloadVersion] = useState(
+    DEVELOPER_WEBHOOK_PAYLOAD_VERSION,
+  );
   const [signingSecret, setSigningSecret] = useState("");
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -39,6 +52,8 @@ export default function WebhookEndpointForm() {
         body: JSON.stringify({
           name,
           url,
+          events: selectedEvents,
+          payloadVersion,
         }),
       });
 
@@ -46,7 +61,11 @@ export default function WebhookEndpointForm() {
 
       if (!response.ok) {
         const firstError =
-          data.errors?.name?.[0] ?? data.errors?.url?.[0] ?? data.message;
+          data.errors?.name?.[0] ??
+          data.errors?.url?.[0] ??
+          data.errors?.events?.[0] ??
+          data.errors?.payloadVersion?.[0] ??
+          data.message;
 
         setError(firstError);
         return;
@@ -54,6 +73,8 @@ export default function WebhookEndpointForm() {
 
       setName("");
       setUrl("");
+      setSelectedEvents(DEFAULT_DEVELOPER_WEBHOOK_EVENTS);
+      setPayloadVersion(DEVELOPER_WEBHOOK_PAYLOAD_VERSION);
       setSuccess(data.message);
       setSigningSecret(data.signingSecret ?? "");
 
@@ -63,6 +84,14 @@ export default function WebhookEndpointForm() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function toggleEvent(eventId: string) {
+    setSelectedEvents((current) =>
+      current.includes(eventId)
+        ? current.filter((item) => item !== eventId)
+        : [...current, eventId],
+    );
   }
 
   async function copySigningSecret() {
@@ -124,6 +153,48 @@ export default function WebhookEndpointForm() {
 
           <p className="mt-1 text-xs text-gray-500">
             Use HTTPS in production. Localhost/ngrok is allowed for local tests.
+          </p>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-gray-900">Events</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {DEVELOPER_WEBHOOK_EVENTS.map((event) => (
+              <label
+                key={event.id}
+                className="flex cursor-pointer items-start gap-3 rounded-xl border p-4"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedEvents.includes(event.id)}
+                  onChange={() => toggleEvent(event.id)}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-gray-900">
+                    {event.label}
+                  </span>
+                  <span className="mt-1 block text-xs text-gray-500">
+                    {event.description}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Payload Version
+          </label>
+          <input
+            value={payloadVersion}
+            onChange={(event) => setPayloadVersion(event.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 outline-none focus:border-black"
+          />
+          <p className="mt-2 text-xs text-gray-500">
+            Keep the default unless you are intentionally testing a new payload
+            version.
           </p>
         </div>
 

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { authenticatePublicApiRequest } from "@/server/auth/public-api";
+import {
+  authenticatePublicApiRequest,
+  requirePublicApiScope,
+} from "@/server/auth/public-api";
 import { createAuditLog } from "@/server/services/audit.service";
 import { createQueuedPublicTemplateMessage } from "@/server/services/message.service";
 import { publicSendTemplateMessageSchema } from "@/server/validators/public-message.validator";
@@ -13,6 +16,15 @@ export async function POST(request: Request) {
     }
 
     const { apiKeyRecord } = auth;
+    const scopeResponse = await requirePublicApiScope({
+      request,
+      apiKeyRecord,
+      requiredScope: "MESSAGES_WRITE",
+    });
+
+    if (scopeResponse) {
+      return scopeResponse;
+    }
 
     const body: unknown = await request.json();
 

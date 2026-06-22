@@ -124,6 +124,10 @@ export const dashboardNavigation: DashboardNavGroup[] = [
         label: "Developer Webhooks",
         href: "/dashboard/developer/webhooks",
       },
+      {
+        label: "Webhook Outbox",
+        href: "/dashboard/developer/webhooks/outbox",
+      },
       { label: "Audit Logs", href: "/dashboard/settings/audit-logs" },
     ],
   },

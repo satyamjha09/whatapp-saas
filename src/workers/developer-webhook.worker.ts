@@ -1,26 +1,17 @@
 import "dotenv/config";
-import crypto from "crypto";
 import axios from "axios";
 import { Worker } from "bullmq";
-import { decryptText } from "@/lib/encryption";
 import { getRedisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
 import type { DeliverDeveloperWebhookJobData } from "@/lib/queue";
-
-function createWebhookSignature({
-  secret,
-  timestamp,
-  payload,
-}: {
-  secret: string;
-  timestamp: string;
-  payload: string;
-}) {
-  return crypto
-    .createHmac("sha256", secret)
-    .update(`${timestamp}.${payload}`)
-    .digest("hex");
-}
+import {
+  buildDeveloperWebhookSignatureHeader,
+  decryptDeveloperWebhookSigningSecret,
+} from "@/server/services/developer-webhook-signature.service";
+import {
+  markDeveloperWebhookDeliveryFailure,
+  markDeveloperWebhookDeliverySuccess,
+} from "@/server/services/developer-webhook-health.service";
 
 const worker = new Worker<DeliverDeveloperWebhookJobData>(
   "developer-webhook-queue",
@@ -68,26 +59,27 @@ const worker = new Worker<DeliverDeveloperWebhookJobData>(
       },
     });
 
-    const signingSecret = decryptText(delivery.endpoint.signingSecretEncrypted);
-    const timestamp = Math.floor(Date.now() / 1000).toString();
     const payloadString = JSON.stringify(delivery.payload);
-
-    const signature = createWebhookSignature({
-      secret: signingSecret,
-      timestamp,
-      payload: payloadString,
-    });
+    const signingSecret = decryptDeveloperWebhookSigningSecret(
+      delivery.endpoint.signingSecretEncrypted,
+    );
+    const { timestamp, signatureHeader } =
+      buildDeveloperWebhookSignatureHeader({
+        payload: payloadString,
+        secret: signingSecret,
+      });
+    const startedAt = Date.now();
 
     try {
-      const response = await axios.post(delivery.endpoint.url, delivery.payload, {
+      const response = await axios.post(delivery.endpoint.url, payloadString, {
         timeout: 10000,
         headers: {
           "Content-Type": "application/json",
-          "User-Agent": "whatsapp-saas-webhooks/1.0",
-          "x-wsaas-event": delivery.eventType,
-          "x-wsaas-delivery-id": delivery.id,
-          "x-wsaas-timestamp": timestamp,
-          "x-wsaas-signature": `v1=${signature}`,
+          "User-Agent": "TallyKonnect-Webhooks/1.0",
+          "X-TallyKonnect-Webhook-Id": delivery.id,
+          "X-TallyKonnect-Webhook-Event": delivery.eventType,
+          "X-TallyKonnect-Webhook-Timestamp": String(timestamp),
+          "X-TallyKonnect-Webhook-Signature": signatureHeader,
         },
       });
 
@@ -98,10 +90,17 @@ const worker = new Worker<DeliverDeveloperWebhookJobData>(
         data: {
           status: "DELIVERED",
           responseStatus: response.status,
+          responseBody:
+            typeof response.data === "string"
+              ? response.data.slice(0, 10_000)
+              : JSON.stringify(response.data).slice(0, 10_000),
+          durationMs: Date.now() - startedAt,
           deliveredAt: new Date(),
           lastError: null,
         },
       });
+
+      await markDeveloperWebhookDeliverySuccess(delivery.endpoint.id);
 
       console.log("Developer webhook delivered:", delivery.id);
     } catch (error) {
@@ -109,6 +108,24 @@ const worker = new Worker<DeliverDeveloperWebhookJobData>(
         error instanceof Error
           ? error.message
           : "Unknown webhook delivery error";
+      const responseStatus =
+        axios.isAxiosError(error) && error.response?.status
+          ? error.response.status
+          : undefined;
+      const failureReason = responseStatus
+        ? `Webhook returned HTTP ${responseStatus}`
+        : errorMessage;
+      const responseBody =
+        axios.isAxiosError(error) && error.response?.data !== undefined
+          ? typeof error.response.data === "string"
+            ? error.response.data.slice(0, 10_000)
+            : JSON.stringify(error.response.data).slice(0, 10_000)
+          : null;
+
+      await markDeveloperWebhookDeliveryFailure({
+        endpointId: delivery.endpoint.id,
+        reason: failureReason,
+      });
 
       await prisma.developerWebhookDelivery.update({
         where: {
@@ -116,6 +133,9 @@ const worker = new Worker<DeliverDeveloperWebhookJobData>(
         },
         data: {
           status: "FAILED",
+          responseStatus,
+          responseBody,
+          durationMs: Date.now() - startedAt,
           lastError: errorMessage,
         },
       });

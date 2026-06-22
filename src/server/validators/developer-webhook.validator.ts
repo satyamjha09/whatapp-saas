@@ -1,6 +1,15 @@
 import { z } from "zod";
+import {
+  DEVELOPER_WEBHOOK_EVENTS,
+  DEVELOPER_WEBHOOK_PAYLOAD_VERSION,
+} from "@/server/config/developer-webhook-events";
 
-export const createDeveloperWebhookEndpointSchema = z.object({
+const webhookEventIds = DEVELOPER_WEBHOOK_EVENTS.map((event) => event.id) as [
+  string,
+  ...string[],
+];
+
+export const developerWebhookSchema = z.object({
   name: z
     .string()
     .trim()
@@ -18,7 +27,15 @@ export const createDeveloperWebhookEndpointSchema = z.object({
         url.includes("ngrok"),
       "Webhook URL must be HTTPS in production",
     ),
+  events: z.array(z.enum(webhookEventIds)).min(1, "Select at least one event"),
+  payloadVersion: z
+    .string()
+    .trim()
+    .min(1, "Payload version is required")
+    .default(DEVELOPER_WEBHOOK_PAYLOAD_VERSION),
 });
+
+export const createDeveloperWebhookEndpointSchema = developerWebhookSchema;
 
 export type CreateDeveloperWebhookEndpointInput = z.infer<
   typeof createDeveloperWebhookEndpointSchema

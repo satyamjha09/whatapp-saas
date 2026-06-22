@@ -2,20 +2,39 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  DEFAULT_DEVELOPER_API_SCOPES,
+  DEVELOPER_API_SCOPES,
+} from "@/server/config/developer-api-scopes";
 
 type CreateApiKeyResponse = {
   message: string;
   apiKey?: string;
   errors?: {
     name?: string[];
+    scopes?: string[];
+    allowedIps?: string[];
+    expiresAt?: string[];
   };
 };
+
+function parseAllowedIps(text: string) {
+  return text
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
 
 export default function ApiKeyForm() {
   const router = useRouter();
 
   const [name, setName] = useState("");
   const [rawApiKey, setRawApiKey] = useState("");
+  const [selectedScopes, setSelectedScopes] = useState<string[]>(
+    DEFAULT_DEVELOPER_API_SCOPES,
+  );
+  const [allowedIpsText, setAllowedIpsText] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,18 +55,28 @@ export default function ApiKeyForm() {
         },
         body: JSON.stringify({
           name,
+          scopes: selectedScopes,
+          allowedIps: parseAllowedIps(allowedIpsText),
+          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
         }),
       });
 
       const data: CreateApiKeyResponse = await response.json();
 
       if (!response.ok) {
-        const firstError = data.errors?.name?.[0] ?? data.message;
+        const firstError =
+          data.errors?.name?.[0] ??
+          data.errors?.scopes?.[0] ??
+          data.errors?.allowedIps?.[0] ??
+          data.errors?.expiresAt?.[0] ??
+          data.message;
         setError(firstError);
         return;
       }
 
       setName("");
+      setAllowedIpsText("");
+      setExpiresAt("");
       setSuccess(data.message);
       setRawApiKey(data.apiKey ?? "");
 
@@ -57,6 +86,14 @@ export default function ApiKeyForm() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function toggleScope(scope: string) {
+    setSelectedScopes((current) =>
+      current.includes(scope)
+        ? current.filter((item) => item !== scope)
+        : [...current, scope],
+    );
   }
 
   async function copyApiKey() {
@@ -94,6 +131,73 @@ export default function ApiKeyForm() {
             required
             className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
           />
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-gray-900">Scopes</p>
+          <p className="mt-1 text-xs text-gray-500">
+            Select only the permissions this integration needs.
+          </p>
+
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {DEVELOPER_API_SCOPES.map((scope) => (
+              <label
+                key={scope.id}
+                className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-4"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedScopes.includes(scope.id)}
+                  onChange={() => toggleScope(scope.id)}
+                  className="mt-1"
+                />
+
+                <span>
+                  <span className="block text-sm font-medium text-gray-900">
+                    {scope.label}
+                  </span>
+                  <span className="mt-1 block text-xs text-gray-500">
+                    {scope.description}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Allowed IPs
+          </label>
+
+          <textarea
+            value={allowedIpsText}
+            onChange={(event) => setAllowedIpsText(event.target.value)}
+            rows={4}
+            placeholder={"Optional. One per line:\n103.10.20.30\n103.10.20.0/24"}
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 outline-none focus:border-black"
+          />
+
+          <p className="mt-2 text-xs text-gray-500">
+            Leave empty to allow this key from any IP address.
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Expires At
+          </label>
+
+          <input
+            type="datetime-local"
+            value={expiresAt}
+            onChange={(event) => setExpiresAt(event.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-900 outline-none focus:border-black"
+          />
+
+          <p className="mt-2 text-xs text-gray-500">
+            Optional. Leave empty for no expiry.
+          </p>
         </div>
 
         {error && (

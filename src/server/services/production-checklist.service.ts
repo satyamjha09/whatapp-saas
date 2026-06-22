@@ -270,6 +270,96 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/developer",
         }),
         buildItem({
+          id: "developer-api-key-analytics",
+          title: "Developer API key analytics enabled",
+          description:
+            "API keys track last-used time, per-key request analytics, and can be revoked by owners/admins.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Developer",
+          actionHref: "/dashboard/developer",
+        }),
+        buildItem({
+          id: "developer-api-key-scopes",
+          title: "Developer API key scopes enabled",
+          description:
+            "API keys can be limited to specific permissions such as messages, contacts, templates, campaigns, and webhooks.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Developer",
+          actionHref: "/dashboard/developer",
+        }),
+        buildItem({
+          id: "developer-api-key-editing",
+          title: "Developer API key editing enabled",
+          description:
+            "Owners and admins can rename active API keys and adjust scopes without exposing or rotating the secret.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Developer",
+          actionHref: "/dashboard/developer",
+        }),
+        buildItem({
+          id: "developer-api-key-ip-expiry",
+          title: "Developer API key IP allowlist and expiry enabled",
+          description:
+            "API keys can be restricted to trusted IP addresses and automatically blocked after expiry.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Developer",
+          actionHref: "/dashboard/developer",
+        }),
+        buildItem({
+          id: "developer-webhook-signatures",
+          title: "Developer webhook signatures enabled",
+          description:
+            "Outbound developer webhooks are signed with HMAC SHA-256 and support signing secret rotation.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Developer Webhooks",
+          actionHref: "/dashboard/developer/webhooks",
+        }),
+        buildItem({
+          id: "developer-webhook-health-auto-disable",
+          title: "Developer webhook health monitoring enabled",
+          description:
+            "Webhook endpoints track consecutive failures, last success/failure, and auto-disable after repeated delivery failures.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Developer Webhooks",
+          actionHref: "/dashboard/developer/webhooks",
+        }),
+        buildItem({
+          id: "developer-webhook-event-subscriptions",
+          title: "Developer webhook event subscriptions enabled",
+          description:
+            "Developer webhooks can subscribe to selected event types and include a payload version for compatibility.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Developer Webhooks",
+          actionHref: "/dashboard/developer/webhooks",
+        }),
+        buildItem({
+          id: "developer-webhook-outbox",
+          title: "Developer webhook outbox enabled",
+          description:
+            "Webhook events are stored and delivered asynchronously through a reliable outbox worker with retries and idempotency.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Webhook Outbox",
+          actionHref: "/dashboard/developer/webhooks/outbox",
+        }),
+        buildItem({
+          id: "developer-webhook-outbox-detail",
+          title: "Developer webhook outbox detail enabled",
+          description:
+            "Webhook outbox events can be inspected with payload, status, retry action, and linked delivery attempts.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Webhook Outbox",
+          actionHref: "/dashboard/developer/webhooks/outbox",
+        }),
+        buildItem({
           id: "subscription-expiry-guard",
           title: "Subscription expiry guard enabled",
           description:

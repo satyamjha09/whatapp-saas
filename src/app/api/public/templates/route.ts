@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { authenticatePublicApiRequest } from "@/server/auth/public-api";
+import {
+  authenticatePublicApiRequest,
+  requirePublicApiScope,
+} from "@/server/auth/public-api";
 import { getTemplatesByCompany } from "@/server/services/template.service";
 
 export async function GET(request: Request) {
@@ -11,6 +14,15 @@ export async function GET(request: Request) {
     }
 
     const { apiKeyRecord } = auth;
+    const scopeResponse = await requirePublicApiScope({
+      request,
+      apiKeyRecord,
+      requiredScope: "TEMPLATES_READ",
+    });
+
+    if (scopeResponse) {
+      return scopeResponse;
+    }
 
     const templates = await getTemplatesByCompany(apiKeyRecord.companyId);
 

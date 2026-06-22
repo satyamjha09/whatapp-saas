@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 
 type RevokeApiKeyButtonProps = {
   apiKeyId: string;
-  disabled: boolean;
+  disabled?: boolean;
+  isRevoked?: boolean;
 };
 
 type RevokeApiKeyResponse = {
@@ -14,7 +15,8 @@ type RevokeApiKeyResponse = {
 
 export default function RevokeApiKeyButton({
   apiKeyId,
-  disabled,
+  disabled = false,
+  isRevoked = false,
 }: RevokeApiKeyButtonProps) {
   const router = useRouter();
 
@@ -34,9 +36,12 @@ export default function RevokeApiKeyButton({
     setIsRevoking(true);
 
     try {
-      const response = await fetch(`/api/developer/api-keys/${apiKeyId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/developer/api-keys/${apiKeyId}/revoke`,
+        {
+          method: "POST",
+        },
+      );
 
       const data: RevokeApiKeyResponse = await response.json();
 
@@ -51,6 +56,14 @@ export default function RevokeApiKeyButton({
     } finally {
       setIsRevoking(false);
     }
+  }
+
+  if (isRevoked) {
+    return (
+      <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+        Revoked
+      </span>
+    );
   }
 
   return (

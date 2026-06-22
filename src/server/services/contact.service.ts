@@ -1,14 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { publishContactDeveloperWebhookEvent } from "@/server/services/developer-webhook-event-publisher.service";
 import { CreateContactInput } from "@/server/validators/contact.validator";
 
 export async function getContactsByCompany(companyId: string) {
   return prisma.contact.findMany({
-    where: {
-      companyId,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
+    where: { companyId },
+    orderBy: { createdAt: "desc" },
   });
 }
 
@@ -25,6 +22,12 @@ export async function createContactForCompany(
     },
   });
 
+  await publishContactDeveloperWebhookEvent({
+    companyId,
+    contact,
+    operation: "created",
+  });
+
   return contact;
 }
 
@@ -32,6 +35,16 @@ export async function upsertContactForCompany(
   companyId: string,
   input: CreateContactInput,
 ) {
+  const existingContact = await prisma.contact.findUnique({
+    where: {
+      companyId_phoneNumber: {
+        companyId,
+        phoneNumber: input.phoneNumber,
+      },
+    },
+    select: { id: true },
+  });
+
   const contact = await prisma.contact.upsert({
     where: {
       companyId_phoneNumber: {
@@ -49,6 +62,12 @@ export async function upsertContactForCompany(
       countryCode: input.countryCode,
       phoneNumber: input.phoneNumber,
     },
+  });
+
+  await publishContactDeveloperWebhookEvent({
+    companyId,
+    contact,
+    operation: existingContact ? "updated" : "created",
   });
 
   return contact;
