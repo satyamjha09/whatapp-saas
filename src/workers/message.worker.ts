@@ -2,7 +2,7 @@ import "dotenv/config";
 import { Worker } from "bullmq";
 import { decryptText } from "@/lib/encryption";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
-import { redisConnection } from "@/lib/redis";
+import { getRedisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
 import {
   sendWhatsAppTemplateMessage,
@@ -356,7 +356,7 @@ const worker = new Worker<SendMessageJobData>(
     }
   },
   {
-    connection: redisConnection,
+    connection: getRedisConnection(),
   },
 );
 

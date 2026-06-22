@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { redisConnection } from "@/lib/redis";
+import { getRedisConnection } from "@/lib/redis";
 
 type RateLimitResult = {
   allowed: boolean;
@@ -19,6 +19,16 @@ export async function rateLimitByApiKey(
 ): Promise<RateLimitResult> {
   const apiKeyHash = hashValue(apiKey);
   const redisKey = `rate-limit:api-key:${apiKeyHash}`;
+  const redisConnection = getRedisConnection();
+
+  if (redisConnection.status !== "ready") {
+    return {
+      allowed: true,
+      limit,
+      remaining: limit,
+      resetInSeconds: windowSeconds,
+    };
+  }
 
   const current = await redisConnection.incr(redisKey);
 

@@ -6,6 +6,7 @@ import {
 } from "@/server/services/api-key.service";
 import { createAuditLog } from "@/server/services/audit.service";
 import { createApiKeySchema } from "@/server/validators/api-key.validator";
+import { assertCompanyFeature } from "@/server/services/feature-gate.service";
 
 export async function GET() {
   try {
@@ -22,6 +23,8 @@ export async function GET() {
       );
     }
 
+    await assertCompanyFeature(context.membership.companyId, "DEVELOPER_API");
+
     const apiKeys = await getApiKeysByCompany(context.membership.companyId);
 
     return NextResponse.json({
@@ -29,6 +32,14 @@ export async function GET() {
     });
   } catch (error) {
     console.error("GET_API_KEYS_ERROR:", error);
+
+    if (
+      error instanceof Error &&
+      (error.message.includes("DEVELOPER_API is not available") ||
+        error.message === "Subscription is past due")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
 
     return NextResponse.json(
       { message: "Unable to fetch API keys" },
@@ -61,6 +72,8 @@ export async function POST(request: Request) {
         { status: 403 },
       );
     }
+
+    await assertCompanyFeature(context.membership.companyId, "DEVELOPER_API");
 
     const body: unknown = await request.json();
 
@@ -105,6 +118,14 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("CREATE_API_KEY_ERROR:", error);
+
+    if (
+      error instanceof Error &&
+      (error.message.includes("DEVELOPER_API is not available") ||
+        error.message === "Subscription is past due")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
 
     return NextResponse.json(
       { message: "Unable to create API key" },

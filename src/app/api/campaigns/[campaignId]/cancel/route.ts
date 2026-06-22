@@ -4,12 +4,12 @@ import { createAuditLog } from "@/server/services/audit.service";
 import { cancelScheduledCampaign } from "@/server/services/campaign-cancel.service";
 
 type RouteContext = {
-  params: Promise<{ batchId: string }>;
+  params: Promise<{ campaignId: string }>;
 };
 
 export async function POST(_request: Request, { params }: RouteContext) {
   try {
-    const { batchId } = await params;
+    const { campaignId } = await params;
     const context = await getCurrentWorkspaceContext();
 
     if (!context) {
@@ -21,10 +21,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
         { status: 403 },
       );
     }
-    if (
-      context.membership.role !== "OWNER" &&
-      context.membership.role !== "ADMIN"
-    ) {
+    if (!["OWNER", "ADMIN"].includes(context.membership.role)) {
       return NextResponse.json(
         { message: "Only owners and admins can cancel campaigns" },
         { status: 403 },
@@ -33,15 +30,14 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     const result = await cancelScheduledCampaign(
       context.membership.companyId,
-      batchId,
+      campaignId,
     );
-
     await createAuditLog({
       companyId: context.membership.companyId,
       actorUserId: context.user.id,
       action: "campaign.scheduled.canceled",
       entityType: "BulkMessageBatch",
-      entityId: batchId,
+      entityId: campaignId,
       metadata: result,
     });
 
@@ -54,10 +50,9 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     if (
       error instanceof Error &&
-      [
-        "Campaign not found",
-        "Only scheduled campaigns can be canceled",
-      ].includes(error.message)
+      ["Campaign not found", "Only scheduled campaigns can be canceled"].includes(
+        error.message,
+      )
     ) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }

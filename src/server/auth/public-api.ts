@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { rateLimitByApiKey } from "@/lib/rate-limit";
 import { validateApiKey } from "@/server/services/api-key.service";
+import { assertAndRecordDeveloperApiUsage } from "@/server/services/developer-api-usage.service";
 
 type PublicApiAuthResult =
   | {
@@ -27,6 +28,36 @@ export async function authenticatePublicApiRequest(
     };
   }
 
+  const apiKeyRecord = await validateApiKey(apiKey);
+
+  if (!apiKeyRecord) {
+    return {
+      success: false,
+      response: NextResponse.json(
+        { success: false, message: "Invalid or revoked API key" },
+        { status: 401 },
+      ),
+    };
+  }
+
+  try {
+    await assertAndRecordDeveloperApiUsage({
+      companyId: apiKeyRecord.companyId,
+      apiKeyId: apiKeyRecord.id,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Developer API unavailable";
+    const isDailyLimit = message.includes("daily limit");
+
+    return {
+      success: false,
+      response: NextResponse.json(
+        { success: false, message },
+        { status: isDailyLimit ? 429 : 403 },
+      ),
+    };
+  }
+
   const rateLimit = await rateLimitByApiKey(apiKey);
 
   if (!rateLimit.allowed) {
@@ -43,18 +74,6 @@ export async function authenticatePublicApiRequest(
           },
         },
         { status: 429 },
-      ),
-    };
-  }
-
-  const apiKeyRecord = await validateApiKey(apiKey);
-
-  if (!apiKeyRecord) {
-    return {
-      success: false,
-      response: NextResponse.json(
-        { success: false, message: "Invalid or revoked API key" },
-        { status: 401 },
       ),
     };
   }

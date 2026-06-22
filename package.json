@@ -8,6 +8,7 @@
     "worker:webhooks": "tsx src/workers/webhook.worker.ts",
     "worker:developer-webhooks": "tsx src/workers/developer-webhook.worker.ts",
     "worker:inbox-sla": "tsx src/workers/inbox-sla.worker.ts",
+    "worker:maintenance": "tsx src/workers/maintenance.worker.ts",
     "typecheck": "tsc --noEmit",
     "prisma:check": "prisma validate",
     "check": "prisma validate && tsc --noEmit && npm run lint",

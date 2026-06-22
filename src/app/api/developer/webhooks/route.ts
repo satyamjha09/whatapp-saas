@@ -6,6 +6,7 @@ import {
   getDeveloperWebhookEndpointsByCompany,
 } from "@/server/services/developer-webhook.service";
 import { createDeveloperWebhookEndpointSchema } from "@/server/validators/developer-webhook.validator";
+import { assertCompanyFeature } from "@/server/services/feature-gate.service";
 
 export async function GET() {
   try {
@@ -22,6 +23,11 @@ export async function GET() {
       );
     }
 
+    await assertCompanyFeature(
+      context.membership.companyId,
+      "DEVELOPER_WEBHOOKS",
+    );
+
     const endpoints = await getDeveloperWebhookEndpointsByCompany(
       context.membership.companyId,
     );
@@ -31,6 +37,14 @@ export async function GET() {
     });
   } catch (error) {
     console.error("GET_DEVELOPER_WEBHOOKS_ERROR:", error);
+
+    if (
+      error instanceof Error &&
+      (error.message.includes("DEVELOPER_WEBHOOKS is not available") ||
+        error.message === "Subscription is past due")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
 
     return NextResponse.json(
       { message: "Unable to fetch webhook endpoints" },
@@ -63,6 +77,11 @@ export async function POST(request: Request) {
         { status: 403 },
       );
     }
+
+    await assertCompanyFeature(
+      context.membership.companyId,
+      "DEVELOPER_WEBHOOKS",
+    );
 
     const body: unknown = await request.json();
     const validation = createDeveloperWebhookEndpointSchema.safeParse(body);
@@ -105,6 +124,14 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("CREATE_DEVELOPER_WEBHOOK_ERROR:", error);
+
+    if (
+      error instanceof Error &&
+      (error.message.includes("DEVELOPER_WEBHOOKS is not available") ||
+        error.message === "Subscription is past due")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
 
     return NextResponse.json(
       { message: "Unable to create webhook endpoint" },

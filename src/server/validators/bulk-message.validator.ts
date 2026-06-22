@@ -42,7 +42,7 @@ export const sendBulkTemplateMessageSchema = z
     groupId: z.string().trim().optional().nullable(),
     recipients: z
       .array(bulkMessageRecipientSchema)
-      .max(500, "You can send to maximum 500 pasted recipients at once")
+      .max(10_000, "A bulk request cannot exceed 10,000 pasted recipients")
       .default([]),
     bodyParameters: z
       .array(z.string().trim().min(1, "Parameter value cannot be empty"))

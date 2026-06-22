@@ -1,6 +1,8 @@
-import { messageQueue } from "@/lib/queue";
+import { getMessageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
+import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import { SendTemplateMessageInput } from "@/server/validators/message.validator";
 import { PublicSendTemplateMessageInput } from "@/server/validators/public-message.validator";
 import { CreateInboxReplyInput } from "@/server/validators/inbox-reply.validator";
@@ -32,6 +34,8 @@ export async function createQueuedTemplateMessage(
   companyId: string,
   input: SendTemplateMessageInput,
 ) {
+  await assertSubscriptionCanSend(companyId);
+  await assertCompanyMessageQuota(companyId);
   const contact = await prisma.contact.findFirst({
     where: {
       id: input.contactId,
@@ -130,7 +134,7 @@ export async function createQueuedTemplateMessage(
     return createdMessage;
   });
 
-  await messageQueue.add("send-template-message", {
+  await getMessageQueue().add("send-template-message", {
     messageId: message.id,
     companyId,
   });
@@ -161,6 +165,8 @@ export async function createQueuedInboxReply(
   contactId: string,
   input: CreateInboxReplyInput,
 ) {
+  await assertSubscriptionCanSend(companyId);
+  await assertCompanyMessageQuota(companyId);
   const contact = await prisma.contact.findFirst({
     where: {
       id: contactId,
@@ -209,7 +215,7 @@ export async function createQueuedInboxReply(
     },
   });
 
-  await messageQueue.add("send-session-message", {
+  await getMessageQueue().add("send-session-message", {
     messageId: message.id,
     companyId,
   });
@@ -235,6 +241,8 @@ export async function createQueuedPublicTemplateMessage(
   companyId: string,
   input: PublicSendTemplateMessageInput,
 ) {
+  await assertSubscriptionCanSend(companyId);
+  await assertCompanyMessageQuota(companyId);
   const message = await prisma.$transaction(async (tx) => {
     const template = await tx.template.findFirst({
       where: {
@@ -356,7 +364,7 @@ export async function createQueuedPublicTemplateMessage(
     return createdMessage;
   });
 
-  await messageQueue.add("send-template-message", {
+  await getMessageQueue().add("send-template-message", {
     messageId: message.id,
     companyId,
   });

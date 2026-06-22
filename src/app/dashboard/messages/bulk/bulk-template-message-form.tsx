@@ -127,11 +127,20 @@ export default function BulkTemplateMessageForm({
   groups,
   initialGroupId,
   templates,
+  plan,
 }: {
   canManage: boolean;
   groups: ContactGroup[];
   initialGroupId?: string;
   templates: Template[];
+  plan: {
+    name: string;
+    maxBulkRecipients: number;
+    subscriptionStatus: string;
+    currentPeriodEnd: string | null;
+    isSubscriptionActive: boolean;
+    cancelAtPeriodEnd: boolean;
+  };
 }) {
   const router = useRouter();
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
@@ -174,6 +183,12 @@ export default function BulkTemplateMessageForm({
       }),
     ).size;
   }, [recipients]);
+  const activeRecipientCount =
+    sendMode === "GROUP"
+      ? selectedGroup?._count.members ?? 0
+      : uniqueRecipientCount;
+  const isWithinPlanLimit = activeRecipientCount <= plan.maxBulkRecipients;
+  const isPlanReady = plan.isSubscriptionActive && isWithinPlanLimit;
   const preview = useMemo(() => {
     if (!selectedTemplate) return "";
 
@@ -308,6 +323,19 @@ export default function BulkTemplateMessageForm({
       />
 
       <form onSubmit={sendBulkMessage} className="mt-6 space-y-5">
+        <div className={`rounded-xl border p-4 ${isPlanReady ? "border-[#D8E6F3] bg-[#F0F8FF]" : "border-rose-200 bg-rose-50"}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium text-[#526173]">{plan.name} plan status</p>
+              <p className="mt-1 text-xl font-bold text-[#081B3A]">{activeRecipientCount.toLocaleString("en-IN")} / {plan.maxBulkRecipients.toLocaleString("en-IN")}</p>
+              <p className="mt-1 text-xs text-[#526173]">{plan.subscriptionStatus}</p>
+              {plan.cancelAtPeriodEnd ? (
+                <p className="mt-1 text-xs font-medium text-[#7A5A00]">Cancels at period end</p>
+              ) : null}
+            </div>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isPlanReady ? "bg-[#22C55E]/10 text-[#15803d]" : "bg-rose-100 text-rose-700"}`}>{!plan.isSubscriptionActive ? "Renew plan" : isWithinPlanLimit ? "Within limit" : "Limit exceeded"}</span>
+          </div>
+        </div>
         <div>
           <label htmlFor="templateId" className={labelClass}>
             Approved template
@@ -439,7 +467,7 @@ export default function BulkTemplateMessageForm({
                 className={fieldClass}
               />
               <p className={helperTextClass}>
-                Parsed: {recipients.length}; unique: {uniqueRecipientCount}; maximum 500 recipients.
+                Parsed: {recipients.length}; unique: {uniqueRecipientCount}; plan maximum {plan.maxBulkRecipients.toLocaleString("en-IN")} recipients.
               </p>
               {parsedCsv.error ? (
                 <p className="mt-2 text-sm text-rose-700">{parsedCsv.error}</p>
@@ -574,11 +602,12 @@ export default function BulkTemplateMessageForm({
           disabled={
             !canManage ||
             isSending ||
+            !plan.isSubscriptionActive ||
             (sendMode === "CSV" &&
               (recipients.length === 0 ||
-                recipients.length > 500 ||
+                uniqueRecipientCount > plan.maxBulkRecipients ||
                 Boolean(parsedCsv.error))) ||
-            (sendMode === "GROUP" && !groupId)
+            (sendMode === "GROUP" && (!groupId || !isWithinPlanLimit))
           }
           className={actionButtonClass()}
         >

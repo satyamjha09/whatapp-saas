@@ -59,6 +59,7 @@ function extractSignupSession(eventData: unknown): SignupSession | null {
   const root = eventData as Record<string, unknown>;
 
   if (root.type !== "WA_EMBEDDED_SIGNUP") return null;
+  if (typeof root.event === "string" && root.event !== "FINISH") return null;
 
   const data = root.data;
 

@@ -23,7 +23,7 @@ enum CompanyInviteStatus {
 enum BillingPlan {
   FREE
   STARTER
-  PRO
+  GROWTH
   BUSINESS
 }
 
@@ -126,6 +126,33 @@ enum WalletTransactionStatus {
   PENDING
   SUCCESS
   FAILED
+  COMPLETED
+  REFUNDED
+}
+
+enum CreditPurchaseStatus {
+  CREATED
+  PAID
+  FAILED
+}
+
+enum SubscriptionPaymentStatus {
+  CREATED
+  PAID
+  FAILED
+}
+
+enum RazorpayWebhookEventStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum MaintenanceJobRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
 }
 
 enum ApiKeyStatus {
@@ -202,6 +229,8 @@ model Company {
   currentPeriodStart  DateTime?
   currentPeriodEnd    DateTime?
   monthlyMessageLimit Int                @default(100)
+  cancelAtPeriodEnd   Boolean            @default(false)
+  subscriptionCanceledAt DateTime?
 
   users                      CompanyUser[]
   whatsAppAccounts           WhatsAppAccount[]
@@ -226,6 +255,11 @@ model Company {
   developerWebhookDeliveries DeveloperWebhookDelivery[]
   bulkMessageBatches         BulkMessageBatch[]
   contactGroups              ContactGroup[]
+  creditPurchases            CreditPurchase[]
+  subscriptionPayments       SubscriptionPayment[]
+  razorpayWebhookEvents      RazorpayWebhookEvent[]
+  maintenanceJobRuns         MaintenanceJobRun[]
+  developerApiUsage          DeveloperApiUsage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -321,6 +355,10 @@ model Contact {
   countryCode String  @default("91")
   source      String  @default("MANUAL")
   isBlocked   Boolean @default(false)
+  blockedAt   DateTime?
+  optedOutAt  DateTime?
+  optOutReason String?
+  optOutSource String?
 
   inboxStatus                InboxConversationStatus @default(OPEN)
   inboxClosedAt              DateTime?
@@ -352,6 +390,7 @@ model Contact {
   @@index([companyId, inboxStatus, inboxSlaDueAt])
   @@index([companyId, inboxSlaBreachedAt])
   @@index([companyId, inboxStatus, inboxSlaDueAt, inboxSlaBreachedAt])
+  @@index([companyId, optedOutAt])
 }
 
 model ContactGroup {
@@ -679,9 +718,17 @@ model WalletTransaction {
   status WalletTransactionStatus @default(SUCCESS)
 
   amountPaise Int
-  description String?
+  balanceAfterPaise Int?
+  description       String?
 
-  referenceId String?
+  referenceType String?
+  referenceId   String?
+  createdByUserId String?
+
+  reservedAt DateTime?
+  completedAt DateTime?
+  refundedAt DateTime?
+  failedAt DateTime?
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -690,6 +737,109 @@ model WalletTransaction {
   @@index([companyId])
   @@index([type])
   @@index([status])
+  @@index([createdAt])
+  @@index([status, reservedAt])
+  @@unique([companyId, referenceType, referenceId, type])
+}
+
+model CreditPurchase {
+  id        String @id @default(cuid())
+  companyId String
+  userId    String
+
+  packId      String
+  credits     Int
+  amountPaise Int
+  currency    String @default("INR")
+  status      CreditPurchaseStatus @default(CREATED)
+
+  razorpayOrderId   String  @unique
+  razorpayPaymentId String? @unique
+  razorpaySignature String?
+
+  paidAt       DateTime?
+  failedAt     DateTime?
+  failureReason String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model SubscriptionPayment {
+  id        String @id @default(cuid())
+  companyId String
+  userId    String
+
+  plan        BillingPlan
+  amountPaise Int
+  currency    String @default("INR")
+  status      SubscriptionPaymentStatus @default(CREATED)
+
+  billingPeriodStart DateTime?
+  billingPeriodEnd   DateTime?
+  razorpayOrderId    String  @unique
+  razorpayPaymentId  String? @unique
+  razorpaySignature  String?
+  paidAt             DateTime?
+  failedAt           DateTime?
+  failureReason      String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([plan])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model RazorpayWebhookEvent {
+  id              String                     @id @default(cuid())
+  companyId       String?
+  razorpayEventId String?                    @unique
+  eventType       String
+  status          RazorpayWebhookEventStatus @default(RECEIVED)
+  payload         Json
+  errorMessage    String?
+  processedAt     DateTime?
+  createdAt       DateTime                   @default(now())
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([eventType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model MaintenanceJobRun {
+  id        String  @id @default(cuid())
+  companyId String?
+  jobName   String
+  status    MaintenanceJobRunStatus @default(RUNNING)
+
+  checkedCount   Int @default(0)
+  recoveredCount Int @default(0)
+  errorMessage   String?
+  startedAt      DateTime @default(now())
+  completedAt    DateTime?
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([jobName])
+  @@index([status])
+  @@index([startedAt])
 }
 
 model CompanyInvite {
@@ -770,6 +920,24 @@ model ApiKey {
 
   @@index([companyId])
   @@index([status])
+}
+
+model DeveloperApiUsage {
+  id        String @id @default(cuid())
+  companyId String
+  apiKeyId  String @default("unknown")
+  date      DateTime
+  count     Int @default(0)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, apiKeyId, date])
+  @@index([companyId])
+  @@index([apiKeyId])
+  @@index([date])
 }
 
 model DeveloperWebhookEndpoint {

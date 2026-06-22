@@ -1,4 +1,4 @@
-import { webhookQueue } from "@/lib/queue";
+import { getWebhookQueue } from "@/lib/queue";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -35,7 +35,7 @@ export async function createWebhookEvent(input: CreateWebhookEventInput) {
     },
   });
 
-  await webhookQueue.add("process-whatsapp-webhook", {
+  await getWebhookQueue().add("process-whatsapp-webhook", {
     webhookEventId: webhookEvent.id,
   });
 

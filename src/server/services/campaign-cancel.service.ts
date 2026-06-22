@@ -1,6 +1,6 @@
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
-import { messageQueue } from "@/lib/queue";
+import { getMessageQueue } from "@/lib/queue";
 
 async function removeDelayedJob(queueJobId: string) {
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -8,7 +8,7 @@ async function removeDelayedJob(queueJobId: string) {
   try {
     return await Promise.race([
       (async () => {
-        const job = await messageQueue.getJob(queueJobId);
+        const job = await getMessageQueue().getJob(queueJobId);
         if (!job) return "missing" as const;
         await job.remove();
         return "removed" as const;

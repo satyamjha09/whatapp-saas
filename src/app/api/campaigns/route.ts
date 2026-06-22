@@ -94,6 +94,14 @@ export async function POST(request: Request) {
 
     if (
       error instanceof Error &&
+      (error.message.includes("BULK_CAMPAIGNS is not available") ||
+        error.message === "Subscription is past due")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
+
+    if (
+      error instanceof Error &&
       ["Template not found", "One or more contacts were not found"].includes(
         error.message,
       )

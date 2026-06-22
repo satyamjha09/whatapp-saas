@@ -1,6 +1,10 @@
-import { messageQueue } from "@/lib/queue";
+import { getMessageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { getBillingPlanConfig } from "@/server/config/billing-plans";
+import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
+import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
+import { assertCompanyFeature } from "@/server/services/feature-gate.service";
 import { CreateCampaignInput } from "@/server/validators/campaign.validator";
 
 export async function getCampaignsByCompany(companyId: string) {
@@ -26,6 +30,7 @@ export async function createCampaignForCompany(
   companyId: string,
   input: CreateCampaignInput,
 ) {
+  await assertCompanyFeature(companyId, "BULK_CAMPAIGNS");
   const template = await prisma.template.findFirst({
     where: {
       id: input.templateId,
@@ -103,6 +108,7 @@ export async function startCampaignForCompany(
   companyId: string,
   campaignId: string,
 ) {
+  await assertCompanyFeature(companyId, "BULK_CAMPAIGNS");
   const campaign = await prisma.campaign.findFirst({
     where: {
       id: campaignId,
@@ -139,6 +145,21 @@ export async function startCampaignForCompany(
   if (pendingContacts.length === 0) {
     throw new Error("Campaign has no pending contacts");
   }
+
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { billingPlan: true },
+  });
+  if (!company) throw new Error("Company not found");
+  const plan = getBillingPlanConfig(company.billingPlan);
+
+  if (pendingContacts.length > plan.maxBulkRecipients) {
+    throw new Error(
+      `Your ${plan.name} plan allows maximum ${plan.maxBulkRecipients.toLocaleString("en-IN")} bulk recipients`,
+    );
+  }
+  await assertSubscriptionCanSend(companyId);
+  await assertCompanyMessageQuota(companyId, pendingContacts.length);
 
   const requiredBalancePaise = pendingContacts.length * MESSAGE_PRICE_PAISE;
   const wallet = await prisma.wallet.findUnique({
@@ -238,7 +259,7 @@ export async function startCampaignForCompany(
   });
 
   for (const message of createdMessages) {
-    await messageQueue.add("send-template-message", {
+    await getMessageQueue().add("send-template-message", {
       messageId: message.id,
       companyId,
     });

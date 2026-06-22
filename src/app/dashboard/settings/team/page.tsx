@@ -2,10 +2,12 @@ import { redirect } from "next/navigation";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getCompanyInvites } from "@/server/services/invite.service";
 import { getCompanyMembers } from "@/server/services/team.service";
+import { getTeamMemberPlanUsage } from "@/server/services/plan-limit.service";
 import InviteMemberForm from "./invite-member-form";
 import MemberRoleSelect from "./member-role-select";
 import RemoveMemberButton from "./remove-member-button";
 import RevokeInviteButton from "./revoke-invite-button";
+import TeamPlanLimitCard from "./team-plan-limit-card";
 
 export default async function TeamSettingsPage() {
   const context = await getCurrentWorkspaceContext();
@@ -18,9 +20,10 @@ export default async function TeamSettingsPage() {
     redirect("/onboarding");
   }
 
-  const [members, invites] = await Promise.all([
+  const [members, invites, teamUsage] = await Promise.all([
     getCompanyMembers(context.membership.companyId),
     getCompanyInvites(context.membership.companyId),
+    getTeamMemberPlanUsage(context.membership.companyId),
   ]);
 
   const canManageRoles = context.membership.role === "OWNER";
@@ -38,6 +41,8 @@ export default async function TeamSettingsPage() {
             Workspace: {context.membership.company.name}
           </p>
         </div>
+
+        <TeamPlanLimitCard usage={teamUsage} />
 
         <section className="rounded-2xl border bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -130,7 +135,10 @@ export default async function TeamSettingsPage() {
 
         {canInviteMembers && (
           <section className="mt-6">
-            <InviteMemberForm />
+            <InviteMemberForm
+              canInvite={teamUsage.canInvite}
+              remainingSeats={teamUsage.remainingSeats}
+            />
           </section>
         )}
 

@@ -101,10 +101,28 @@ export async function POST(request: Request) {
         "Contact group not found",
         "Contact group has no contacts",
         "Contact group has no sendable contacts",
-        "Contact group has more than 500 contacts. Split it before sending.",
+        "Company not found",
       ].includes(error.message)
     ) {
       return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+
+    if (error instanceof Error && error.message === "Subscription is past due") {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
+
+    if (
+      error instanceof Error &&
+      error.message.includes("plan allows maximum")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+
+    if (
+      error instanceof Error &&
+      error.message.includes("BULK_CAMPAIGNS is not available")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
     }
 
     if (
@@ -118,6 +136,13 @@ export async function POST(request: Request) {
     if (
       error instanceof Error &&
       error.message === "Insufficient wallet balance"
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 402 });
+    }
+
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Monthly message limit exceeded")
     ) {
       return NextResponse.json({ message: error.message }, { status: 402 });
     }

@@ -1,9 +1,29 @@
 import IORedis from "ioredis";
 
-if (!process.env.REDIS_URL) {
-  throw new Error("REDIS_URL is not defined");
-}
+let redisConnection: IORedis | undefined;
+let redisErrorLogged = false;
 
-export const redisConnection = new IORedis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: null,
-});
+export function getRedisConnection() {
+  const redisUrl = process.env.REDIS_URL;
+
+  if (!redisUrl) {
+    throw new Error("REDIS_URL is not defined");
+  }
+
+  if (!redisConnection) {
+    redisConnection = new IORedis(redisUrl, {
+      maxRetriesPerRequest: null,
+    });
+    redisConnection.on("error", (error) => {
+      if (!redisErrorLogged) {
+        console.error("[redis] Connection unavailable:", error.message);
+        redisErrorLogged = true;
+      }
+    });
+    redisConnection.on("ready", () => {
+      redisErrorLogged = false;
+    });
+  }
+
+  return redisConnection;
+}

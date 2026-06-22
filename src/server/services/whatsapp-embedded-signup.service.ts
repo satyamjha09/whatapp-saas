@@ -23,6 +23,15 @@ type MetaPhoneNumberResponse = {
   error?: MetaError;
 };
 
+type MetaPhoneNumbersResponse = {
+  data?: MetaPhoneNumberResponse[];
+  paging?: {
+    cursors?: { after?: string };
+    next?: string;
+  };
+  error?: MetaError;
+};
+
 type MetaSubscribedAppsResponse = {
   success?: boolean;
   error?: MetaError;
@@ -92,35 +101,60 @@ export async function exchangeEmbeddedSignupCodeForToken(code: string) {
 
 export async function getMetaPhoneNumberDetails(
   accessToken: string,
+  wabaId: string,
   phoneNumberId: string,
 ) {
-  const url = new URL(`${getMetaGraphBaseUrl()}/${phoneNumberId}`);
-  url.searchParams.set(
-    "fields",
-    "display_phone_number,verified_name,quality_rating",
-  );
+  const seenCursors = new Set<string>();
+  let after: string | undefined;
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-    cache: "no-store",
-  });
-  const data = (await response.json()) as MetaPhoneNumberResponse;
-
-  if (!response.ok || !data.id) {
-    throw new Error(
-      data.error?.message ?? "Unable to fetch WhatsApp phone number details",
+  do {
+    const url = new URL(`${getMetaGraphBaseUrl()}/${wabaId}/phone_numbers`);
+    url.searchParams.set(
+      "fields",
+      "id,display_phone_number,verified_name,quality_rating",
     );
-  }
+    url.searchParams.set("limit", "100");
+    if (after) url.searchParams.set("after", after);
 
-  return {
-    phoneNumberId: data.id,
-    displayPhoneNumber: data.display_phone_number ?? "",
-    verifiedName: data.verified_name ?? null,
-    qualityRating: data.quality_rating ?? null,
-  };
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    });
+    const data = (await response.json()) as MetaPhoneNumbersResponse;
+
+    if (!response.ok || data.error) {
+      throw new Error(
+        data.error?.message ?? "Unable to fetch WhatsApp phone number details",
+      );
+    }
+
+    const phoneNumber = data.data?.find((item) => item.id === phoneNumberId);
+
+    if (phoneNumber?.id) {
+      return {
+        phoneNumberId: phoneNumber.id,
+        displayPhoneNumber: phoneNumber.display_phone_number ?? "",
+        verifiedName: phoneNumber.verified_name ?? null,
+        qualityRating: phoneNumber.quality_rating ?? null,
+      };
+    }
+
+    const nextCursor = data.paging?.next
+      ? data.paging.cursors?.after
+      : undefined;
+
+    if (!nextCursor || seenCursors.has(nextCursor)) {
+      after = undefined;
+    } else {
+      seenCursors.add(nextCursor);
+      after = nextCursor;
+    }
+  } while (after);
+
+  throw new Error("Selected phone number does not belong to the selected WABA");
 }
 
 export async function completeWhatsAppEmbeddedSignup(
@@ -153,13 +187,14 @@ export async function completeWhatsAppEmbeddedSignup(
   }
 
   const accessToken = await exchangeEmbeddedSignupCodeForToken(input.code);
+  const phoneDetails = await getMetaPhoneNumberDetails(
+    accessToken,
+    input.wabaId,
+    input.phoneNumberId,
+  );
   const webhookSubscription = await subscribeAppToWabaWebhooks(
     accessToken,
     input.wabaId,
-  );
-  const phoneDetails = await getMetaPhoneNumberDetails(
-    accessToken,
-    input.phoneNumberId,
   );
   const encryptedAccessToken = encryptText(accessToken);
 
@@ -167,6 +202,11 @@ export async function completeWhatsAppEmbeddedSignup(
     const existingAccount = await tx.whatsAppAccount.findFirst({
       where: { companyId },
       orderBy: { createdAt: "asc" },
+      include: {
+        phoneNumbers: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
     });
 
     const account = existingAccount
@@ -187,24 +227,54 @@ export async function completeWhatsAppEmbeddedSignup(
           },
         });
 
-    const phoneNumber = await tx.whatsAppPhoneNumber.upsert({
+    const primaryPhoneNumber = existingAccount?.phoneNumbers[0];
+    const selectedPhoneNumber = await tx.whatsAppPhoneNumber.findUnique({
       where: { phoneNumberId: input.phoneNumberId },
-      update: {
-        companyId,
-        whatsAppAccountId: account.id,
-        displayPhoneNumber: phoneDetails.displayPhoneNumber,
-        verifiedName: phoneDetails.verifiedName,
-        qualityRating: phoneDetails.qualityRating,
-      },
-      create: {
-        companyId,
-        whatsAppAccountId: account.id,
-        phoneNumberId: input.phoneNumberId,
-        displayPhoneNumber: phoneDetails.displayPhoneNumber,
-        verifiedName: phoneDetails.verifiedName,
-        qualityRating: phoneDetails.qualityRating,
-      },
     });
+
+    if (
+      primaryPhoneNumber &&
+      selectedPhoneNumber &&
+      selectedPhoneNumber.id !== primaryPhoneNumber.id
+    ) {
+      await tx.whatsAppPhoneNumber.delete({
+        where: { id: selectedPhoneNumber.id },
+      });
+    }
+
+    const phoneNumber = primaryPhoneNumber
+      ? await tx.whatsAppPhoneNumber.update({
+          where: { id: primaryPhoneNumber.id },
+          data: {
+            companyId,
+            whatsAppAccountId: account.id,
+            phoneNumberId: input.phoneNumberId,
+            displayPhoneNumber: phoneDetails.displayPhoneNumber,
+            verifiedName: phoneDetails.verifiedName,
+            qualityRating: phoneDetails.qualityRating,
+          },
+        })
+      : selectedPhoneNumber
+        ? await tx.whatsAppPhoneNumber.update({
+            where: { id: selectedPhoneNumber.id },
+            data: {
+              companyId,
+              whatsAppAccountId: account.id,
+              displayPhoneNumber: phoneDetails.displayPhoneNumber,
+              verifiedName: phoneDetails.verifiedName,
+              qualityRating: phoneDetails.qualityRating,
+            },
+          })
+        : await tx.whatsAppPhoneNumber.create({
+            data: {
+              companyId,
+              whatsAppAccountId: account.id,
+              phoneNumberId: input.phoneNumberId,
+              displayPhoneNumber: phoneDetails.displayPhoneNumber,
+              verifiedName: phoneDetails.verifiedName,
+              qualityRating: phoneDetails.qualityRating,
+            },
+          });
 
     return { account, phoneNumber };
   });

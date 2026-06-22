@@ -3,6 +3,8 @@ import {
   type ProductionChecklistItem,
 } from "@/lib/production-checklist";
 import { prisma } from "@/lib/prisma";
+import { isRazorpayWebhookConfigured } from "@/server/services/razorpay-credit.service";
+import { isRazorpayCheckoutConfigured } from "@/server/services/razorpay-subscription.service";
 import type { UpdateProductionChecklistSettingsInput } from "@/server/validators/production-checklist.validator";
 
 function buildItem(input: ProductionChecklistItem): ProductionChecklistItem {
@@ -182,6 +184,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/settings/team",
         }),
         buildItem({
+          id: "team-plan-limits",
+          title: "Team member plan limits enabled",
+          description:
+            "Workspace invitations and acceptance are protected by subscription seat limits.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Team",
+          actionHref: "/dashboard/settings/team",
+        }),
+        buildItem({
           id: "inbox-tools",
           title: "Inbox tools configured",
           description:
@@ -212,6 +224,89 @@ export async function getProductionChecklistByCompany(companyId: string) {
             companySettings.monthlyMessageLimit > 0
               ? "complete"
               : "pending",
+          required: true,
+          actionLabel: "Open Billing",
+          actionHref: "/dashboard/billing",
+        }),
+        buildItem({
+          id: "razorpay-webhook",
+          title: "Razorpay webhook backup enabled",
+          description: isRazorpayWebhookConfigured()
+            ? "Signed Razorpay events are processed idempotently for credit purchases and subscription upgrades."
+            : "Configure the Razorpay webhook secret before accepting payments.",
+          status: isRazorpayWebhookConfigured() ? "complete" : "pending",
+          required: true,
+          actionLabel: "Open Credit Center",
+          actionHref: "/dashboard/billing",
+        }),
+        buildItem({
+          id: "subscription-plan-limits",
+          title: "Subscription plan limits enabled",
+          description:
+            "Monthly message quota and bulk recipient limits follow the workspace plan.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Billing",
+          actionHref: "/dashboard/billing",
+        }),
+        buildItem({
+          id: "plan-feature-gates",
+          title: "Plan-based feature gates enabled",
+          description:
+            "Bulk campaigns, contact groups, developer API, and webhooks follow subscription access.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Billing",
+          actionHref: "/dashboard/billing",
+        }),
+        buildItem({
+          id: "developer-api-plan-rate-limits",
+          title: "Developer API plan rate limits enabled",
+          description:
+            "Daily API usage is recorded atomically and blocked at the workspace plan limit.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Developer",
+          actionHref: "/dashboard/developer",
+        }),
+        buildItem({
+          id: "subscription-expiry-guard",
+          title: "Subscription expiry guard enabled",
+          description:
+            "Expired paid plans are marked past due automatically and blocked from sending until renewed.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Billing",
+          actionHref: "/dashboard/billing",
+        }),
+        buildItem({
+          id: "paid-plan-upgrade",
+          title: "Paid plan upgrade enabled",
+          description: isRazorpayCheckoutConfigured()
+            ? "Paid plans activate only after Razorpay payment verification."
+            : "Configure the Razorpay key ID and key secret before accepting plan payments.",
+          status: isRazorpayCheckoutConfigured() ? "complete" : "pending",
+          required: true,
+          actionLabel: "Open Billing",
+          actionHref: "/dashboard/billing",
+        }),
+        buildItem({
+          id: "subscription-renewal-flow",
+          title: "Subscription renewal flow enabled",
+          description: isRazorpayCheckoutConfigured()
+            ? "Past-due and expiring paid plans can renew through verified Razorpay checkout."
+            : "Configure Razorpay credentials to enable paid plan renewals.",
+          status: isRazorpayCheckoutConfigured() ? "complete" : "pending",
+          required: true,
+          actionLabel: "Open Billing",
+          actionHref: "/dashboard/billing",
+        }),
+        buildItem({
+          id: "subscription-cancel-resume",
+          title: "Subscription cancel and resume enabled",
+          description:
+            "Paid plans can cancel at period end, resume before expiry, and downgrade automatically afterward.",
+          status: "complete",
           required: true,
           actionLabel: "Open Billing",
           actionHref: "/dashboard/billing",

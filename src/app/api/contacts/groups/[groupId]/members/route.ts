@@ -3,6 +3,7 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { importContactsToGroup } from "@/server/services/contact-group.service";
 import { importContactsToGroupSchema } from "@/server/validators/contact-group.validator";
+import { assertCompanyFeature } from "@/server/services/feature-gate.service";
 
 export async function POST(
   request: Request,
@@ -29,6 +30,11 @@ export async function POST(
         { status: 403 },
       );
     }
+
+    await assertCompanyFeature(
+      context.membership.companyId,
+      "CONTACT_GROUPS",
+    );
 
     const validation = importContactsToGroupSchema.safeParse(
       (await request.json()) as unknown,
@@ -65,6 +71,13 @@ export async function POST(
     console.error("IMPORT_CONTACTS_TO_GROUP_ERROR:", error);
     if (error instanceof Error && error.message === "Contact group not found") {
       return NextResponse.json({ message: error.message }, { status: 404 });
+    }
+    if (
+      error instanceof Error &&
+      (error.message.includes("CONTACT_GROUPS is not available") ||
+        error.message === "Subscription is past due")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
     }
     return NextResponse.json(
       { message: "Unable to add contacts to group" },

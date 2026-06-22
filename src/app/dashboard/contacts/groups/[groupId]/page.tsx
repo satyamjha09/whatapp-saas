@@ -14,6 +14,8 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getContactGroupDetail } from "@/server/services/contact-group.service";
 import GroupMembersImportCard from "./group-members-import-card";
 import RemoveGroupMemberButton from "./remove-group-member-button";
+import { hasCompanyFeature } from "@/server/services/feature-gate.service";
+import PlanFeatureLockCard from "@/app/dashboard/_components/plan-feature-lock-card";
 
 export default async function ContactGroupDetailPage({
   params,
@@ -24,6 +26,21 @@ export default async function ContactGroupDetailPage({
   const context = await getCurrentWorkspaceContext();
   if (!context) redirect("/sign-in");
   if (!context.membership) redirect("/onboarding");
+
+  if (
+    !(await hasCompanyFeature(
+      context.membership.companyId,
+      "CONTACT_GROUPS",
+    ))
+  ) {
+    return (
+      <PlanFeatureLockCard
+        title="Contact groups are locked"
+        description="Upgrade this workspace to open and manage saved contact groups."
+        requiredPlan="Starter"
+      />
+    );
+  }
 
   const group = await getContactGroupDetail(
     context.membership.companyId,

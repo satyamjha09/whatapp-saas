@@ -52,6 +52,14 @@ export async function POST(
 
     if (
       error instanceof Error &&
+      (error.message.includes("BULK_CAMPAIGNS is not available") ||
+        error.message === "Subscription is past due")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
+
+    if (
+      error instanceof Error &&
       [
         "Campaign not found",
         "Campaign has no pending contacts",
@@ -75,6 +83,24 @@ export async function POST(
       error.message === "Insufficient wallet balance"
     ) {
       return NextResponse.json({ message: error.message }, { status: 402 });
+    }
+
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Monthly message limit exceeded")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 402 });
+    }
+
+    if (
+      error instanceof Error &&
+      error.message.includes("plan allows maximum")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+
+    if (error instanceof Error && error.message === "Subscription is past due") {
+      return NextResponse.json({ message: error.message }, { status: 403 });
     }
 
     return NextResponse.json(

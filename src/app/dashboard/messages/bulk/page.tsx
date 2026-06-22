@@ -7,7 +7,10 @@ import {
 } from "@/app/dashboard/dashboard-ui";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { getBillingPlanConfig } from "@/server/config/billing-plans";
 import BulkTemplateMessageForm from "./bulk-template-message-form";
+import { hasCompanyFeature } from "@/server/services/feature-gate.service";
+import PlanFeatureLockCard from "@/app/dashboard/_components/plan-feature-lock-card";
 
 export default async function BulkMessagePage({
   searchParams,
@@ -19,6 +22,20 @@ export default async function BulkMessagePage({
 
   if (!context) redirect("/sign-in");
   if (!context.membership) redirect("/onboarding");
+
+  const canUseBulkCampaigns = await hasCompanyFeature(
+    context.membership.companyId,
+    "BULK_CAMPAIGNS",
+  );
+  if (!canUseBulkCampaigns) {
+    return (
+      <PlanFeatureLockCard
+        title="Bulk campaigns are locked"
+        description="Upgrade this workspace to send bulk campaigns and schedule messages to saved groups."
+        requiredPlan="Starter"
+      />
+    );
+  }
 
   const [templates, groups] = await Promise.all([
     prisma.template.findMany({
@@ -45,13 +62,21 @@ export default async function BulkMessagePage({
   const canManage =
     context.membership.role === "OWNER" ||
     context.membership.role === "ADMIN";
+  const plan = getBillingPlanConfig(context.membership.company.billingPlan);
+  const isSubscriptionActive =
+    context.membership.company.billingPlan === "FREE" ||
+    (!["PAST_DUE", "CANCELED"].includes(
+      context.membership.company.subscriptionStatus,
+    ) &&
+      (!context.membership.company.currentPeriodEnd ||
+        context.membership.company.currentPeriodEnd >= new Date()));
 
   return (
     <div>
       <PageHeader
         eyebrow={context.membership.company.name}
         title="Bulk Message"
-        description="Paste recipients, select an approved template, and queue up to 500 messages through the existing worker."
+        description={`Paste recipients, select an approved template, and queue up to ${plan.maxBulkRecipients.toLocaleString("en-IN")} messages on ${plan.name}.`}
         actions={
           <>
             <Link
@@ -77,6 +102,15 @@ export default async function BulkMessagePage({
         templates={templates}
         groups={groups}
         initialGroupId={params.groupId}
+        plan={{
+          name: plan.name,
+          maxBulkRecipients: plan.maxBulkRecipients,
+          subscriptionStatus: context.membership.company.subscriptionStatus,
+          currentPeriodEnd:
+            context.membership.company.currentPeriodEnd?.toISOString() ?? null,
+          isSubscriptionActive,
+          cancelAtPeriodEnd: context.membership.company.cancelAtPeriodEnd,
+        }}
       />
     </div>
   );

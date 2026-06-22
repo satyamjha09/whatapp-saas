@@ -3,7 +3,7 @@ import crypto from "crypto";
 import axios from "axios";
 import { Worker } from "bullmq";
 import { decryptText } from "@/lib/encryption";
-import { redisConnection } from "@/lib/redis";
+import { getRedisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
 import type { DeliverDeveloperWebhookJobData } from "@/lib/queue";
 
@@ -126,7 +126,7 @@ const worker = new Worker<DeliverDeveloperWebhookJobData>(
     }
   },
   {
-    connection: redisConnection,
+    connection: getRedisConnection(),
   },
 );
 

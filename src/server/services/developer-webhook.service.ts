@@ -1,9 +1,13 @@
 import crypto from "crypto";
 import { encryptText } from "@/lib/encryption";
 import { prisma } from "@/lib/prisma";
-import { developerWebhookQueue } from "@/lib/queue";
+import { getDeveloperWebhookQueue } from "@/lib/queue";
 import type { Prisma } from "@/generated/prisma/client";
 import { CreateDeveloperWebhookEndpointInput } from "@/server/validators/developer-webhook.validator";
+import {
+  assertCompanyFeature,
+  hasCompanyFeature,
+} from "@/server/services/feature-gate.service";
 
 function generateSigningSecret() {
   return `whsec_${crypto.randomBytes(32).toString("hex")}`;
@@ -37,6 +41,7 @@ export async function createDeveloperWebhookEndpointForCompany(
   companyId: string,
   input: CreateDeveloperWebhookEndpointInput,
 ) {
+  await assertCompanyFeature(companyId, "DEVELOPER_WEBHOOKS");
   const signingSecret = generateSigningSecret();
 
   const endpoint = await prisma.developerWebhookEndpoint.create({
@@ -126,6 +131,10 @@ type EnqueueDeveloperWebhookInput = {
 export async function enqueueDeveloperWebhookDeliveries(
   input: EnqueueDeveloperWebhookInput,
 ) {
+  if (!(await hasCompanyFeature(input.companyId, "DEVELOPER_WEBHOOKS"))) {
+    return [];
+  }
+
   const endpoints = await getActiveDeveloperWebhookEndpoints(input.companyId);
 
   if (endpoints.length === 0) {
@@ -145,7 +154,7 @@ export async function enqueueDeveloperWebhookDeliveries(
       },
     });
 
-    await developerWebhookQueue.add(
+    await getDeveloperWebhookQueue().add(
       "deliver-developer-webhook",
       {
         deliveryId: delivery.id,
@@ -221,6 +230,7 @@ export async function sendTestDeveloperWebhook(
   companyId: string,
   endpointId: string,
 ) {
+  await assertCompanyFeature(companyId, "DEVELOPER_WEBHOOKS");
   const endpoint = await prisma.developerWebhookEndpoint.findFirst({
     where: {
       id: endpointId,
@@ -255,7 +265,7 @@ export async function sendTestDeveloperWebhook(
     },
   });
 
-  await developerWebhookQueue.add(
+  await getDeveloperWebhookQueue().add(
     "deliver-developer-webhook",
     {
       deliveryId: delivery.id,

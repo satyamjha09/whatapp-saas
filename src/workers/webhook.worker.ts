@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Worker } from "bullmq";
-import { redisConnection } from "@/lib/redis";
+import { getRedisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
 import {
   enqueueDeveloperInboundMessageWebhook,
@@ -407,7 +407,7 @@ const worker = new Worker<ProcessWebhookJobData>(
     console.log("Webhook processed:", webhookEvent.id);
   },
   {
-    connection: redisConnection,
+    connection: getRedisConnection(),
   },
 );
 

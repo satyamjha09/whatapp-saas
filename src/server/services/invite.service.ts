@@ -1,6 +1,11 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { revalidateCompanyMembersCache } from "@/server/services/team.service";
+import {
+  assertTeamMemberLimitForAcceptInvite,
+  assertTeamMemberLimitForInvite,
+  lockCompanyForTeamSeatCheck,
+} from "@/server/services/plan-limit.service";
 import { CreateCompanyInviteInput } from "@/server/validators/invite.validator";
 
 function hashToken(token: string) {
@@ -70,18 +75,21 @@ export async function createCompanyInvite(
   const token = createInviteToken();
   const tokenHash = hashToken(token);
 
-  const invite = await prisma.companyInvite.create({
-    data: {
-      companyId,
-      email: normalizedEmail,
-      role: input.role,
-      tokenHash,
-      invitedByUserId,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-    include: {
-      invitedBy: true,
-    },
+  const invite = await prisma.$transaction(async (tx) => {
+    await lockCompanyForTeamSeatCheck(tx, companyId);
+    await assertTeamMemberLimitForInvite(companyId, tx);
+
+    return tx.companyInvite.create({
+      data: {
+        companyId,
+        email: normalizedEmail,
+        role: input.role,
+        tokenHash,
+        invitedByUserId,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      include: { invitedBy: true },
+    });
   });
 
   return {
@@ -162,6 +170,27 @@ export async function acceptCompanyInvite(token: string, userId: string) {
   }
 
   const result = await prisma.$transaction(async (tx) => {
+    await lockCompanyForTeamSeatCheck(tx, invite.companyId);
+    await assertTeamMemberLimitForAcceptInvite(invite.companyId, tx);
+
+    const currentMembership = await tx.companyUser.findFirst({
+      where: { companyId: invite.companyId, userId: user.id },
+    });
+    if (currentMembership) {
+      throw new Error("User is already a member of this company");
+    }
+
+    const currentInvite = await tx.companyInvite.findUnique({
+      where: { id: invite.id },
+      select: { status: true, expiresAt: true },
+    });
+    if (!currentInvite || currentInvite.status !== "PENDING") {
+      throw new Error("Invite is not pending");
+    }
+    if (currentInvite.expiresAt < new Date()) {
+      throw new Error("Invite has expired");
+    }
+
     const membership = await tx.companyUser.create({
       data: {
         companyId: invite.companyId,

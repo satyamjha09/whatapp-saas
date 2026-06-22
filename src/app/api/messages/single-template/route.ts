@@ -73,6 +73,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
 
+    if (error instanceof Error && error.message === "Subscription is past due") {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
+
     if (
       error instanceof Error &&
       error.message.startsWith("This template requires")
@@ -83,6 +87,13 @@ export async function POST(request: Request) {
     if (
       error instanceof Error &&
       error.message === "Insufficient wallet balance"
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 402 });
+    }
+
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Monthly message limit exceeded")
     ) {
       return NextResponse.json({ message: error.message }, { status: 402 });
     }

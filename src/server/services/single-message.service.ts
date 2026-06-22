@@ -1,6 +1,8 @@
-import { messageQueue } from "@/lib/queue";
+import { getMessageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
+import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import type { SendSingleTemplateMessageInput } from "@/server/validators/single-message.validator";
 
 function normalizePhoneNumber(value: string) {
@@ -17,6 +19,8 @@ export async function sendSingleTemplateMessage(
   companyId: string,
   input: SendSingleTemplateMessageInput,
 ) {
+  await assertSubscriptionCanSend(companyId);
+  await assertCompanyMessageQuota(companyId);
   const phoneNumber = normalizePhoneNumber(input.phoneNumber);
   const countryCode = normalizePhoneNumber(input.countryCode);
 
@@ -119,7 +123,7 @@ export async function sendSingleTemplateMessage(
   });
 
   try {
-    await messageQueue.add(
+    await getMessageQueue().add(
       "send-template-message",
       {
         messageId: result.message.id,

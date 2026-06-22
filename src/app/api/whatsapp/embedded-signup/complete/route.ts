@@ -8,6 +8,7 @@ const expectedErrors = new Set([
   "Meta app credentials are not configured",
   "This WhatsApp Business Account is already connected",
   "This WhatsApp phone number is already connected",
+  "Selected phone number does not belong to the selected WABA",
 ]);
 
 export async function POST(request: Request) {

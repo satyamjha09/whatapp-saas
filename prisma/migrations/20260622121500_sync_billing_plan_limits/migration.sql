@@ -1,0 +1,7 @@
+UPDATE "Company"
+SET "monthlyMessageLimit" = CASE "billingPlan"
+    WHEN 'FREE' THEN 100
+    WHEN 'STARTER' THEN 1000
+    WHEN 'GROWTH' THEN 5000
+    WHEN 'BUSINESS' THEN 25000
+END;

@@ -14,7 +14,13 @@ type InviteMemberResponse = {
   };
 };
 
-export default function InviteMemberForm() {
+export default function InviteMemberForm({
+  canInvite,
+  remainingSeats,
+}: {
+  canInvite: boolean;
+  remainingSeats: number;
+}) {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -87,6 +93,15 @@ export default function InviteMemberForm() {
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+        {!canInvite ? (
+          <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+            Your plan has reached its team member limit. Upgrade to add more people.
+          </p>
+        ) : (
+          <p className="rounded-lg border border-[#D8E6F3] bg-[#F0F8FF] p-3 text-sm text-[#526173]">
+            Remaining seats: {remainingSeats}
+          </p>
+        )}
         <div>
           <label
             htmlFor="inviteEmail"
@@ -155,7 +170,7 @@ export default function InviteMemberForm() {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !canInvite}
           className="w-full rounded-lg bg-black px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? "Creating invite..." : "Create Invite"}

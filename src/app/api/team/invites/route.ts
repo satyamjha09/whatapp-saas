@@ -117,6 +117,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: error.message }, { status: 409 });
     }
 
+    if (error instanceof Error && error.message.includes("plan allows maximum")) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+
     return NextResponse.json(
       { message: "Unable to create invite" },
       { status: 500 },

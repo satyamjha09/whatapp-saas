@@ -73,11 +73,22 @@ export async function POST(
       return NextResponse.json({ message: error.message }, { status: 404 });
     }
 
+    if (error instanceof Error && error.message === "Subscription is past due") {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
+
     if (
       error instanceof Error &&
       error.message === "Customer service window has expired"
     ) {
       return NextResponse.json({ message: error.message }, { status: 409 });
+    }
+
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Monthly message limit exceeded")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 402 });
     }
 
     return NextResponse.json(

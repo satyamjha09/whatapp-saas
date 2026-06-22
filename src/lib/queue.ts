@@ -1,17 +1,42 @@
 import { Queue } from "bullmq";
-import { redisConnection } from "@/lib/redis";
+import { getRedisConnection } from "@/lib/redis";
 
-export const messageQueue = new Queue("message-queue", {
-  connection: redisConnection,
-});
+let messageQueue: Queue | undefined;
+let webhookQueue: Queue | undefined;
+let developerWebhookQueue: Queue | undefined;
+let maintenanceQueue: Queue | undefined;
 
-export const webhookQueue = new Queue("webhook-queue", {
-  connection: redisConnection,
-});
+export function getMessageQueue() {
+  messageQueue ??= new Queue("message-queue", {
+    connection: getRedisConnection(),
+  });
 
-export const developerWebhookQueue = new Queue("developer-webhook-queue", {
-  connection: redisConnection,
-});
+  return messageQueue;
+}
+
+export function getWebhookQueue() {
+  webhookQueue ??= new Queue("webhook-queue", {
+    connection: getRedisConnection(),
+  });
+
+  return webhookQueue;
+}
+
+export function getDeveloperWebhookQueue() {
+  developerWebhookQueue ??= new Queue("developer-webhook-queue", {
+    connection: getRedisConnection(),
+  });
+
+  return developerWebhookQueue;
+}
+
+export function getMaintenanceQueue() {
+  maintenanceQueue ??= new Queue("maintenance-queue", {
+    connection: getRedisConnection(),
+  });
+
+  return maintenanceQueue;
+}
 
 export type SendMessageJobData = {
   messageId: string;

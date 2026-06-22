@@ -12,11 +12,28 @@ import {
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getContactGroupsByCompany } from "@/server/services/contact-group.service";
 import ContactGroupCreateForm from "./contact-group-create-form";
+import { hasCompanyFeature } from "@/server/services/feature-gate.service";
+import PlanFeatureLockCard from "@/app/dashboard/_components/plan-feature-lock-card";
 
 export default async function ContactGroupsPage() {
   const context = await getCurrentWorkspaceContext();
   if (!context) redirect("/sign-in");
   if (!context.membership) redirect("/onboarding");
+
+  if (
+    !(await hasCompanyFeature(
+      context.membership.companyId,
+      "CONTACT_GROUPS",
+    ))
+  ) {
+    return (
+      <PlanFeatureLockCard
+        title="Contact groups are locked"
+        description="Upgrade this workspace to organize contacts into reusable groups for campaigns."
+        requiredPlan="Starter"
+      />
+    );
+  }
 
   const groups = await getContactGroupsByCompany(context.membership.companyId);
   const canManage =

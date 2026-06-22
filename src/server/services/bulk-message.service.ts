@@ -1,6 +1,10 @@
-import { messageQueue } from "@/lib/queue";
+import { getMessageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { getBillingPlanConfig } from "@/server/config/billing-plans";
+import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
+import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
+import { assertCompanyFeature } from "@/server/services/feature-gate.service";
 import type { SendBulkTemplateMessageInput } from "@/server/validators/bulk-message.validator";
 
 function normalizePhoneNumber(value: string) {
@@ -18,13 +22,22 @@ export async function sendBulkTemplateMessages(
   input: SendBulkTemplateMessageInput,
   createdByUserId?: string,
 ) {
+  await assertCompanyFeature(companyId, "BULK_CAMPAIGNS");
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { billingPlan: true },
+  });
+
+  if (!company) throw new Error("Company not found");
+
+  const plan = getBillingPlanConfig(company.billingPlan);
   const contactGroup = input.groupId
     ? await prisma.contactGroup.findFirst({
         where: { id: input.groupId, companyId },
         include: {
           members: {
             orderBy: { createdAt: "asc" },
-            take: 501,
+            take: plan.maxBulkRecipients + 1,
             include: {
               contact: {
                 select: {
@@ -47,9 +60,9 @@ export async function sendBulkTemplateMessages(
   if (contactGroup?._count.members === 0) {
     throw new Error("Contact group has no contacts");
   }
-  if (contactGroup && contactGroup._count.members > 500) {
+  if (contactGroup && contactGroup._count.members > plan.maxBulkRecipients) {
     throw new Error(
-      "Contact group has more than 500 contacts. Split it before sending.",
+      `Your ${plan.name} plan allows maximum ${plan.maxBulkRecipients.toLocaleString("en-IN")} bulk recipients`,
     );
   }
 
@@ -97,6 +110,13 @@ export async function sendBulkTemplateMessages(
   if (uniqueRecipients.length === 0) {
     throw new Error("Contact group has no sendable contacts");
   }
+  if (uniqueRecipients.length > plan.maxBulkRecipients) {
+    throw new Error(
+      `Your ${plan.name} plan allows maximum ${plan.maxBulkRecipients.toLocaleString("en-IN")} bulk recipients`,
+    );
+  }
+  await assertSubscriptionCanSend(companyId);
+  await assertCompanyMessageQuota(companyId, uniqueRecipients.length);
   const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : null;
   const now = new Date();
   const isScheduled = Boolean(
@@ -296,7 +316,7 @@ export async function sendBulkTemplateMessages(
   const queuedMessages = transactionResult.messages;
 
   try {
-    await messageQueue.addBulk(
+    await getMessageQueue().addBulk(
       queuedMessages.map((message) => ({
         name: "send-template-message",
         data: { messageId: message.messageId, companyId },
