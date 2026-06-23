@@ -10,6 +10,7 @@ import { getDatabaseRestoreHistory } from "@/server/services/database-restore.se
 import { getProductionEnvAudit } from "@/server/services/production-env-audit.service";
 import { getRateLimitHealth } from "@/server/services/rate-limit-health.service";
 import { getSecurityHeaderHealth } from "@/server/services/security-header-health.service";
+import { getCsrfOriginGuardHealth } from "@/server/services/csrf-origin-guard-health.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -53,6 +54,7 @@ export default async function SystemHealthPage() {
     rateLimits,
     securityHeaders,
     securityEvents,
+    csrfGuard,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -69,6 +71,7 @@ export default async function SystemHealthPage() {
       },
       take: 10,
     }),
+    getCsrfOriginGuardHealth(),
   ]);
 
   return (
@@ -318,6 +321,77 @@ export default async function SystemHealthPage() {
                 ? securityHeaders.allowedCorsOrigins.join(", ")
                 : "No browser origins configured for public API CORS."}
             </p>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                CSRF Origin Guard
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Blocks cross-site mutating browser requests to authenticated dashboard
+                and internal API routes.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                csrfGuard.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-yellow-50 text-yellow-700"
+              }`}
+            >
+              {csrfGuard.enabled ? "Enabled" : "Disabled"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Protected Methods</p>
+
+              <p className="mt-1 font-semibold text-gray-900">
+                {csrfGuard.protectedMethods.join(", ")}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Trusted Origins</p>
+
+              <p className="mt-1 font-semibold text-gray-900">
+                {csrfGuard.trustedOrigins.length}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Missing Origin</p>
+
+              <p className="mt-1 font-semibold text-gray-900">
+                {csrfGuard.allowMissingOrigin ? "Allowed" : "Blocked"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl border p-4">
+              <p className="text-sm font-medium text-gray-900">Trusted Origins</p>
+
+              <p className="mt-2 break-all text-sm text-gray-600">
+                {csrfGuard.trustedOrigins.length > 0
+                  ? csrfGuard.trustedOrigins.join(", ")
+                  : "No trusted origins configured."}
+              </p>
+            </div>
+
+            <div className="rounded-xl border p-4">
+              <p className="text-sm font-medium text-gray-900">Excluded Prefixes</p>
+
+              <p className="mt-2 break-all text-sm text-gray-600">
+                {csrfGuard.excludedPathPrefixes.join(", ")}
+              </p>
+            </div>
           </div>
         </section>
 

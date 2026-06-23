@@ -5,6 +5,7 @@ import {
   setSecurityHeaders,
   shouldApplyPublicApiCors,
 } from "@/lib/security-headers";
+import { validateCsrfOrigin } from "@/lib/csrf-origin-guard";
 
 function applyCorsHeaders(response: NextResponse, request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -21,6 +22,25 @@ function applyCorsHeaders(response: NextResponse, request: NextRequest) {
 export default clerkMiddleware(async (auth, request) => {
   const pathname = request.nextUrl.pathname;
   const shouldHandleCors = shouldApplyPublicApiCors(pathname);
+
+  const csrfValidation = validateCsrfOrigin(request);
+
+  if (!csrfValidation.allowed) {
+    const response = NextResponse.json(
+      {
+        message: "Forbidden by CSRF origin guard",
+        reason: csrfValidation.reason,
+      },
+      {
+        status: 403,
+      },
+    );
+
+    setSecurityHeaders(response.headers);
+    response.headers.set("X-CSRF-Origin-Guard", "blocked");
+
+    return response;
+  }
 
   if (request.method === "OPTIONS" && shouldHandleCors) {
     const response = new NextResponse(null, {

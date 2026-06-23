@@ -560,6 +560,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/health",
         }),
         buildItem({
+          id: "csrf-origin-guard",
+          title: "CSRF origin guard enabled",
+          description:
+            "Authenticated dashboard and internal API mutations are protected from cross-site POST, PUT, PATCH, and DELETE requests using trusted Origin/Referer validation.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
           id: "production-operation-lock",
           title: "Production operation lock enabled",
           description:

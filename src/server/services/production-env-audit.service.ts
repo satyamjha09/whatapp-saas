@@ -267,6 +267,50 @@ export function getProductionEnvAudit() {
     required: true,
   });
 
+  items.push({
+    id: "csrf-origin-guard-enabled",
+    title: "CSRF origin guard enabled",
+    severity: process.env.CSRF_ORIGIN_GUARD_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.CSRF_ORIGIN_GUARD_ENABLED !== "false"
+        ? "CSRF origin guard is enabled"
+        : "CSRF_ORIGIN_GUARD_ENABLED must not be false in production",
+    required: true,
+  });
+
+  const csrfTrustedOrigins = [
+    ...(process.env.CSRF_TRUSTED_ORIGINS ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+    process.env.NEXT_PUBLIC_APP_URL,
+  ].filter(Boolean);
+
+  items.push({
+    id: "csrf-trusted-origins-configured",
+    title: "CSRF trusted origins configured",
+    severity: csrfTrustedOrigins.length > 0 ? "PASS" : "FAIL",
+    message:
+      csrfTrustedOrigins.length > 0
+        ? "At least one trusted browser origin is configured"
+        : "Set NEXT_PUBLIC_APP_URL or CSRF_TRUSTED_ORIGINS",
+    required: true,
+  });
+
+  items.push({
+    id: "csrf-missing-origin-blocked",
+    title: "CSRF missing origin policy",
+    severity:
+      process.env.CSRF_ALLOW_MISSING_ORIGIN !== "true" || !isProduction()
+        ? "PASS"
+        : "FAIL",
+    message:
+      process.env.CSRF_ALLOW_MISSING_ORIGIN === "true" && isProduction()
+        ? "CSRF_ALLOW_MISSING_ORIGIN must not be true in production"
+        : "Missing Origin/Referer requests are blocked in production",
+    required: true,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 
