@@ -1,5 +1,6 @@
 import { revalidateTag, unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { recordContactActivity } from "@/server/services/contact-activity.service";
 import {
   AddConversationTagInput,
   CreateInboxTagInput,
@@ -82,6 +83,7 @@ export async function addTagToConversation(
   companyId: string,
   contactId: string,
   input: AddConversationTagInput,
+  actorUserId?: string | null,
 ) {
   const contact = await prisma.contact.findFirst({
     where: {
@@ -125,6 +127,18 @@ export async function addTagToConversation(
 
   revalidateTag(INBOX_TAGS_CACHE_TAG, "max");
 
+  await recordContactActivity({
+    companyId,
+    contactId,
+    actorUserId,
+    type: "TAG_ADDED",
+    title: "Tag added",
+    metadata: {
+      tagId: tag.id,
+      tagName: tag.name,
+    },
+  });
+
   return contactTag;
 }
 
@@ -132,6 +146,7 @@ export async function removeTagFromConversation(
   companyId: string,
   contactId: string,
   tagId: string,
+  actorUserId?: string | null,
 ) {
   const contactTag = await prisma.contactInboxTag.findFirst({
     where: {
@@ -155,6 +170,18 @@ export async function removeTagFromConversation(
   });
 
   revalidateTag(INBOX_TAGS_CACHE_TAG, "max");
+
+  await recordContactActivity({
+    companyId,
+    contactId,
+    actorUserId,
+    type: "TAG_REMOVED",
+    title: "Tag removed",
+    metadata: {
+      tagId: contactTag.tagId,
+      tagName: contactTag.tag.name,
+    },
+  });
 
   return contactTag;
 }

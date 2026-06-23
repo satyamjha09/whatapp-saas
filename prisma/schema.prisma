@@ -118,6 +118,32 @@ enum InboxPriority {
   URGENT
 }
 
+enum ContactActivityType {
+  MESSAGE_INBOUND
+  MESSAGE_OUTBOUND
+  NOTE_CREATED
+  NOTE_UPDATED
+  NOTE_DELETED
+  ASSIGNED
+  UNASSIGNED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  TAG_ADDED
+  TAG_REMOVED
+  SNOOZED
+  UNSNOOZED
+  BLOCKED
+  UNBLOCKED
+  OPTED_OUT
+  OPTED_IN
+  PROFILE_UPDATED
+}
+
+enum InboxSavedViewVisibility {
+  PRIVATE
+  COMPANY
+}
+
 enum WebhookEventStatus {
   RECEIVED
   PROCESSING
@@ -350,6 +376,8 @@ model User {
   companies                          CompanyUser[]
   assignedContacts                   Contact[]                          @relation("ContactAssignee")
   inboxNotes                         InboxNote[]                        @relation("InboxNoteAuthor")
+  contactActivities                  ContactActivity[]
+  inboxSavedViews                    InboxSavedView[]
   createdQuickReplies                QuickReply[]                       @relation("QuickReplyCreator")
   sentCompanyInvites                 CompanyInvite[]                    @relation("SentCompanyInvites")
   acceptedCompanyInvites             CompanyInvite[]                    @relation("AcceptedCompanyInvites")
@@ -399,6 +427,8 @@ model Company {
   inboxNotes                  InboxNote[]
   inboxTags                   InboxTag[]
   contactInboxTags            ContactInboxTag[]
+  contactActivities           ContactActivity[]
+  inboxSavedViews             InboxSavedView[]
   quickReplies                QuickReply[]
   apiKeys                     ApiKey[]
   developerWebhookEndpoints   DeveloperWebhookEndpoint[]
@@ -596,15 +626,22 @@ model Contact {
   companyId        String
   assignedToUserId String?
 
-  name         String?
-  phoneNumber  String
-  countryCode  String    @default("91")
-  source       String    @default("MANUAL")
-  isBlocked    Boolean   @default(false)
-  blockedAt    DateTime?
-  optedOutAt   DateTime?
-  optOutReason String?
-  optOutSource String?
+  name                 String?
+  email                String?
+  companyName          String?
+  phoneNumber          String
+  countryCode          String    @default("91")
+  source               String    @default("MANUAL")
+  externalCustomerId   String?
+  lifecycleStage       String    @default("LEAD")
+  lastSeenAt           DateTime?
+  lastRepliedAt        DateTime?
+  lastProfileUpdatedAt DateTime?
+  isBlocked            Boolean   @default(false)
+  blockedAt            DateTime?
+  optedOutAt           DateTime?
+  optOutReason         String?
+  optOutSource         String?
 
   inboxStatus                InboxConversationStatus @default(OPEN)
   inboxClosedAt              DateTime?
@@ -620,6 +657,7 @@ model Contact {
   messages            Message[]
   inboxNotes          InboxNote[]
   inboxTags           ContactInboxTag[]
+  activities          ContactActivity[]
   campaignContacts    CampaignContact[]
   contactGroupMembers ContactGroupMember[]
 
@@ -637,6 +675,62 @@ model Contact {
   @@index([companyId, inboxSlaBreachedAt])
   @@index([companyId, inboxStatus, inboxSlaDueAt, inboxSlaBreachedAt])
   @@index([companyId, optedOutAt])
+  @@index([companyId, lifecycleStage])
+  @@index([companyId, externalCustomerId])
+  @@index([lastSeenAt])
+  @@index([lastRepliedAt])
+}
+
+model ContactActivity {
+  id String @id @default(cuid())
+
+  companyId String
+  contactId String
+
+  actorUserId String?
+
+  type        ContactActivityType
+  title       String
+  description String?
+  metadata    Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  actor   User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([actorUserId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model InboxSavedView {
+  id String @id @default(cuid())
+
+  companyId String
+  userId    String?
+
+  name       String
+  visibility InboxSavedViewVisibility @default(PRIVATE)
+
+  filters Json
+  sortBy  String @default("recent")
+
+  isDefault Boolean @default(false)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([visibility])
+  @@index([isDefault])
 }
 
 model ContactGroup {

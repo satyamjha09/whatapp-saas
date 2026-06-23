@@ -34,6 +34,7 @@ export async function DELETE(
       context.membership.companyId,
       contactId,
       tagId,
+      context.user.id,
     );
 
     await createAuditLog({

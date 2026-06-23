@@ -35,6 +35,7 @@ export async function POST(request: Request) {
     const result = await bulkUpdateInboxConversations(
       context.membership.companyId,
       validation.data,
+      context.user.id,
     );
 
     await createAuditLog({

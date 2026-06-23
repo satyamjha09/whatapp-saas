@@ -22,6 +22,7 @@ import { getIncidentHealth } from "@/server/services/incident-health.service";
 import { getDeadLetterQueueSummary } from "@/server/services/dead-letter-queue.service";
 import { getBillingReconciliationHealth } from "@/server/services/billing-reconciliation.service";
 import { getPublicApiV1Health } from "@/server/services/public-api-v1-health.service";
+import { getInboxCrmHealth } from "@/server/services/inbox-crm-health.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -78,6 +79,7 @@ export default async function SystemHealthPage() {
     deadLetterQueue,
     billingReconciliation,
     publicApiV1,
+    inboxCrm,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -106,6 +108,7 @@ export default async function SystemHealthPage() {
     getDeadLetterQueueSummary(),
     getBillingReconciliationHealth(),
     getPublicApiV1Health(),
+    getInboxCrmHealth(),
   ]);
 
   return (
@@ -120,6 +123,47 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Inbox CRM v2
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Customer profiles, activity timeline, assignment history, and saved views.
+              </p>
+            </div>
+
+            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+              Enabled
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Activities / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {inboxCrm.activities24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Saved Views</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {inboxCrm.savedViews}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Profiled Contacts</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {inboxCrm.contactsWithLifecycle}
+              </p>
+            </div>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">

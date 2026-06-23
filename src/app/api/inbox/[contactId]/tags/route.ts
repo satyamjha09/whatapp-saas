@@ -50,6 +50,7 @@ export async function POST(
       context.membership.companyId,
       contactId,
       validation.data,
+      context.user.id,
     );
 
     await createAuditLog({
@@ -117,6 +118,7 @@ export async function DELETE(
       context.membership.companyId,
       contactId,
       tagId,
+      context.user.id,
     );
 
     await createAuditLog({

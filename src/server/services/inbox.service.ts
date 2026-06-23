@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma/client";
+import { ContactActivityType, Prisma } from "@/generated/prisma/client";
 import {
   DEFAULT_INBOX_SLA_SETTINGS,
   isInboxConversationOverdue,
@@ -11,6 +11,7 @@ import type {
   InboxSort,
 } from "@/lib/inbox-options";
 import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
+import { recordContactActivity } from "@/server/services/contact-activity.service";
 import {
   CreateInboxNoteInput,
   UpdateInboxNoteInput,
@@ -397,7 +398,7 @@ export async function createInboxNote(
     throw new Error("Contact not found");
   }
 
-  return prisma.inboxNote.create({
+  const note = await prisma.inboxNote.create({
     data: {
       companyId,
       contactId,
@@ -415,6 +416,20 @@ export async function createInboxNote(
       },
     },
   });
+
+  await recordContactActivity({
+    companyId,
+    contactId,
+    actorUserId: authorUserId,
+    type: "NOTE_CREATED",
+    title: "Internal note created",
+    description: note.body,
+    metadata: {
+      noteId: note.id,
+    },
+  });
+
+  return note;
 }
 
 export async function updateInboxNote(
@@ -435,7 +450,7 @@ export async function updateInboxNote(
     throw new Error("Note not found");
   }
 
-  return prisma.inboxNote.update({
+  const updatedNote = await prisma.inboxNote.update({
     where: {
       id: note.id,
     },
@@ -453,6 +468,20 @@ export async function updateInboxNote(
       },
     },
   });
+
+  await recordContactActivity({
+    companyId,
+    contactId,
+    actorUserId: note.authorUserId,
+    type: "NOTE_UPDATED",
+    title: "Internal note updated",
+    description: updatedNote.body,
+    metadata: {
+      noteId: updatedNote.id,
+    },
+  });
+
+  return updatedNote;
 }
 
 export async function deleteInboxNote(
@@ -478,6 +507,17 @@ export async function deleteInboxNote(
     },
   });
 
+  await recordContactActivity({
+    companyId,
+    contactId,
+    actorUserId: note.authorUserId,
+    type: "NOTE_DELETED",
+    title: "Internal note deleted",
+    metadata: {
+      noteId: note.id,
+    },
+  });
+
   return note;
 }
 
@@ -485,6 +525,7 @@ export async function updateConversationStatus(
   companyId: string,
   contactId: string,
   input: UpdateConversationStatusInput,
+  actorUserId?: string | null,
 ) {
   const contact = await prisma.contact.findFirst({
     where: {
@@ -502,7 +543,7 @@ export async function updateConversationStatus(
       ? null
       : calculateInboxSlaDueAt(contact.inboxPriority);
 
-  return prisma.contact.update({
+  const updatedContact = await prisma.contact.update({
     where: {
       id: contact.id,
     },
@@ -514,12 +555,27 @@ export async function updateConversationStatus(
       inboxSlaEscalationCount: 0,
     },
   });
+
+  await recordContactActivity({
+    companyId,
+    contactId,
+    actorUserId,
+    type: "STATUS_CHANGED",
+    title: `Conversation ${input.status.toLowerCase()}`,
+    metadata: {
+      previousStatus: contact.inboxStatus,
+      nextStatus: updatedContact.inboxStatus,
+    },
+  });
+
+  return updatedContact;
 }
 
 export async function updateConversationPriority(
   companyId: string,
   contactId: string,
   input: UpdateConversationPriorityInput,
+  actorUserId?: string | null,
 ) {
   const contact = await prisma.contact.findFirst({
     where: {
@@ -537,7 +593,7 @@ export async function updateConversationPriority(
       ? null
       : calculateInboxSlaDueAt(input.priority);
 
-  return prisma.contact.update({
+  const updatedContact = await prisma.contact.update({
     where: {
       id: contact.id,
     },
@@ -548,6 +604,20 @@ export async function updateConversationPriority(
       inboxSlaEscalationCount: 0,
     },
   });
+
+  await recordContactActivity({
+    companyId,
+    contactId,
+    actorUserId,
+    type: "PRIORITY_CHANGED",
+    title: "Priority changed",
+    metadata: {
+      previousPriority: contact.inboxPriority,
+      nextPriority: updatedContact.inboxPriority,
+    },
+  });
+
+  return updatedContact;
 }
 
 type BulkInboxActionResult = {
@@ -589,9 +659,48 @@ function createBulkInboxActionResult(input: {
   };
 }
 
+type BulkActivityContact = {
+  id: string;
+  assignedToUserId: string | null;
+  inboxPriority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+  inboxStatus: "OPEN" | "CLOSED";
+};
+
+async function recordBulkContactActivities({
+  companyId,
+  actorUserId,
+  contacts,
+  type,
+  title,
+  metadataForContact,
+}: {
+  companyId: string;
+  actorUserId?: string | null;
+  contacts: BulkActivityContact[];
+  type: ContactActivityType;
+  title: string;
+  metadataForContact: (contact: BulkActivityContact) => unknown;
+}) {
+  if (contacts.length === 0) {
+    return;
+  }
+
+  await prisma.contactActivity.createMany({
+    data: contacts.map((contact) => ({
+      companyId,
+      contactId: contact.id,
+      actorUserId: actorUserId ?? null,
+      type,
+      title,
+      metadata: metadataForContact(contact) as Prisma.InputJsonValue,
+    })),
+  });
+}
+
 export async function bulkUpdateInboxConversations(
   companyId: string,
   input: BulkInboxActionInput,
+  actorUserId?: string | null,
 ): Promise<BulkInboxActionResult> {
   const contacts = await prisma.contact.findMany({
     where: {
@@ -602,6 +711,7 @@ export async function bulkUpdateInboxConversations(
     },
     select: {
       id: true,
+      assignedToUserId: true,
       inboxPriority: true,
       inboxStatus: true,
     },
@@ -634,6 +744,18 @@ export async function bulkUpdateInboxConversations(
         },
       });
 
+      await recordBulkContactActivities({
+        companyId,
+        actorUserId,
+        contacts,
+        type: "STATUS_CHANGED",
+        title: "Conversation closed",
+        metadataForContact: (contact) => ({
+          previousStatus: contact.inboxStatus,
+          nextStatus: status,
+        }),
+      });
+
       return createBulkInboxActionResult({
         count: result.count,
         action: input.action,
@@ -658,6 +780,18 @@ export async function bulkUpdateInboxConversations(
         }),
       ),
     );
+
+    await recordBulkContactActivities({
+      companyId,
+      actorUserId,
+      contacts,
+      type: "STATUS_CHANGED",
+      title: "Conversation opened",
+      metadataForContact: (contact) => ({
+        previousStatus: contact.inboxStatus,
+        nextStatus: status,
+      }),
+    });
 
     return createBulkInboxActionResult({
       count: contacts.length,
@@ -707,6 +841,18 @@ export async function bulkUpdateInboxConversations(
       }),
     ]);
 
+    await recordBulkContactActivities({
+      companyId,
+      actorUserId,
+      contacts,
+      type: "PRIORITY_CHANGED",
+      title: "Priority changed",
+      metadataForContact: (contact) => ({
+        previousPriority: contact.inboxPriority,
+        nextPriority: priority,
+      }),
+    });
+
     return createBulkInboxActionResult({
       count: openResult.count + closedResult.count,
       action: input.action,
@@ -741,6 +887,20 @@ export async function bulkUpdateInboxConversations(
       data: {
         assignedToUserId,
       },
+    });
+
+    await recordBulkContactActivities({
+      companyId,
+      actorUserId,
+      contacts,
+      type: assignedToUserId ? "ASSIGNED" : "UNASSIGNED",
+      title: assignedToUserId
+        ? "Conversation assigned"
+        : "Conversation unassigned",
+      metadataForContact: (contact) => ({
+        previousAssignedToUserId: contact.assignedToUserId,
+        assignedToUserId,
+      }),
     });
 
     return createBulkInboxActionResult({
@@ -820,6 +980,17 @@ export async function bulkUpdateInboxConversations(
       },
     });
 
+    await recordBulkContactActivities({
+      companyId,
+      actorUserId,
+      contacts,
+      type: "SNOOZED",
+      title: "Conversation snoozed",
+      metadataForContact: () => ({
+        snoozedUntil,
+      }),
+    });
+
     return createBulkInboxActionResult({
       count: result.count,
       action: input.action,
@@ -839,6 +1010,17 @@ export async function bulkUpdateInboxConversations(
       data: {
         snoozedUntil: null,
       },
+    });
+
+    await recordBulkContactActivities({
+      companyId,
+      actorUserId,
+      contacts,
+      type: "UNSNOOZED",
+      title: "Conversation unsnoozed",
+      metadataForContact: () => ({
+        snoozedUntil: null,
+      }),
     });
 
     return createBulkInboxActionResult({
@@ -869,6 +1051,18 @@ export async function bulkUpdateInboxConversations(
       skipDuplicates: true,
     });
 
+    await recordBulkContactActivities({
+      companyId,
+      actorUserId,
+      contacts,
+      type: "TAG_ADDED",
+      title: "Tag added",
+      metadataForContact: () => ({
+        tagId: tag.id,
+        tagName: tag.name,
+      }),
+    });
+
     return createBulkInboxActionResult({
       count: validContactIds.length,
       action: input.action,
@@ -888,6 +1082,18 @@ export async function bulkUpdateInboxConversations(
     },
   });
 
+  await recordBulkContactActivities({
+    companyId,
+    actorUserId,
+    contacts,
+    type: "TAG_REMOVED",
+    title: "Tag removed",
+    metadataForContact: () => ({
+      tagId: tag.id,
+      tagName: tag.name,
+    }),
+  });
+
   return createBulkInboxActionResult({
     count: result.count,
     action: input.action,
@@ -901,6 +1107,7 @@ export async function updateConversationSnooze(
   companyId: string,
   contactId: string,
   input: UpdateConversationSnoozeInput,
+  actorUserId?: string | null,
 ) {
   const contact = await prisma.contact.findFirst({
     where: {
@@ -921,7 +1128,7 @@ export async function updateConversationSnooze(
     throw new Error("Snooze time must be in the future");
   }
 
-  return prisma.contact.update({
+  const updatedContact = await prisma.contact.update({
     where: {
       id: contact.id,
     },
@@ -931,6 +1138,20 @@ export async function updateConversationSnooze(
       inboxClosedAt: snoozedUntil ? null : contact.inboxClosedAt,
     },
   });
+
+  await recordContactActivity({
+    companyId,
+    contactId,
+    actorUserId,
+    type: snoozedUntil ? "SNOOZED" : "UNSNOOZED",
+    title: snoozedUntil ? "Conversation snoozed" : "Conversation unsnoozed",
+    metadata: {
+      previousSnoozedUntil: contact.snoozedUntil,
+      snoozedUntil: updatedContact.snoozedUntil,
+    },
+  });
+
+  return updatedContact;
 }
 
 export const getInboxSlaSettingsByCompany = unstable_cache(

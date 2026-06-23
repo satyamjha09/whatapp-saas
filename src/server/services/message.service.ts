@@ -1,6 +1,7 @@
 import { getMessageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { recordContactActivity } from "@/server/services/contact-activity.service";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import { SendTemplateMessageInput } from "@/server/validators/message.validator";
@@ -175,6 +176,7 @@ export async function createQueuedInboxReply(
   companyId: string,
   contactId: string,
   input: CreateInboxReplyInput,
+  actorUserId?: string | null,
 ) {
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId);
@@ -229,6 +231,27 @@ export async function createQueuedInboxReply(
   await getMessageQueue().add("send-session-message", {
     messageId: message.id,
     companyId,
+  });
+
+  await prisma.contact.update({
+    where: {
+      id: contact.id,
+    },
+    data: {
+      lastRepliedAt: new Date(),
+    },
+  });
+
+  await recordContactActivity({
+    companyId,
+    contactId: contact.id,
+    actorUserId,
+    type: "MESSAGE_OUTBOUND",
+    title: "Team sent message",
+    metadata: {
+      messageId: message.id,
+      status: message.status,
+    },
   });
 
   return message;

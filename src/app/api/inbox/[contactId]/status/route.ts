@@ -47,6 +47,7 @@ export async function PATCH(
       context.membership.companyId,
       contactId,
       validation.data,
+      context.user.id,
     );
 
     await createAuditLog({

@@ -67,6 +67,7 @@ export async function POST(
       context.membership.companyId,
       contactId,
       validation.data,
+      context.user.id,
     );
 
     await createAuditLog({

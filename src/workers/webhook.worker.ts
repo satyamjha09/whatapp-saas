@@ -6,6 +6,7 @@ import {
   enqueueDeveloperInboundMessageWebhook,
   enqueueDeveloperMessageStatusWebhook,
 } from "@/server/services/developer-webhook.service";
+import { recordContactActivity } from "@/server/services/contact-activity.service";
 import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
 import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
 import type { Prisma } from "@/generated/prisma/client";
@@ -248,9 +249,21 @@ const worker = new Worker<ProcessWebhookJobData>(
           inboxClosedAt: null,
           snoozedUntil: null,
           inboxLastCustomerMessageAt: now,
+          lastSeenAt: now,
           inboxSlaDueAt: calculateInboxSlaDueAt(contact.inboxPriority, now),
           inboxSlaBreachedAt: null,
           inboxSlaEscalationCount: 0,
+        },
+      });
+
+      await recordContactActivity({
+        companyId,
+        contactId: contact.id,
+        type: "MESSAGE_INBOUND",
+        title: "Customer replied",
+        metadata: {
+          messageId: message.id,
+          metaMessageId,
         },
       });
 

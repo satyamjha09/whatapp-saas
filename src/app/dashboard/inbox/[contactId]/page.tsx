@@ -162,6 +162,13 @@ export default async function InboxConversationPage({
             </Link>
 
             <Link
+              href="/dashboard/inbox/saved-views"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Saved views
+            </Link>
+
+            <Link
               href="/dashboard/inbox/quick-replies"
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
@@ -485,6 +492,13 @@ export default async function InboxConversationPage({
                     contactId={conversation.id}
                     currentStatus={conversation.inboxStatus}
                   />
+
+                  <Link
+                    href={`/dashboard/contacts/${conversation.id}/crm`}
+                    className="rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Customer CRM
+                  </Link>
                 </div>
               </div>
 

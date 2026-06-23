@@ -780,6 +780,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/developer/api-v1",
         }),
         buildItem({
+          id: "inbox-crm-v2",
+          title: "Inbox CRM v2 enabled",
+          description:
+            "Inbox supports customer CRM profiles, lifecycle stages, activity timeline, assignment history, message/note timeline, and saved inbox views.",
+          status: "complete",
+          required: false,
+          actionLabel: "Open Inbox",
+          actionHref: "/dashboard/inbox",
+        }),
+        buildItem({
           id: "subscription-expiry-guard",
           title: "Subscription expiry guard enabled",
           description:

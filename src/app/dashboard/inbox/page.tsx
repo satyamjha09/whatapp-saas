@@ -102,6 +102,12 @@ function InboxHeader({ companyName }: { companyName: string }) {
           Analytics
         </Link>
         <Link
+          href="/dashboard/inbox/saved-views"
+          className="rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-sm font-medium text-[#0052CC] transition hover:border-[#0052CC]/30 hover:bg-[#F0F8FF] hover:text-[#003F9E]"
+        >
+          Saved views
+        </Link>
+        <Link
           href="/dashboard/inbox/quick-replies"
           className="rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-sm font-medium text-[#0052CC] transition hover:border-[#0052CC]/30 hover:bg-[#F0F8FF] hover:text-[#003F9E]"
         >
@@ -336,6 +342,10 @@ async function InboxWorkspace({
                             +{contact.countryCode}
                             {contact.phoneNumber}
                           </p>
+
+                          <span className="mt-1 inline-flex text-xs font-medium text-[#0052CC] underline">
+                            CRM
+                          </span>
 
                           {latestMessage && (
                             <p className="mt-2 line-clamp-2 text-xs leading-5 text-[#526173]">
