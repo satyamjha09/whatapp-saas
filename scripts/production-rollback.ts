@@ -5,26 +5,16 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { prisma } from "@/lib/prisma";
 import { createDatabaseBackup } from "@/server/services/database-backup.service";
 import { verifyDatabaseBackup } from "@/server/services/database-backup-verification.service";
-import { setSystemMaintenanceMode } from "@/server/services/system-maintenance-mode.service";
 import {
-  completeProductionDeployment,
-  failProductionDeployment,
-  markProductionDeploymentStep,
-  startProductionDeployment,
-} from "@/server/services/production-deployment.service";
+  completeProductionRollback,
+  failProductionRollback,
+  markProductionRollbackStep,
+  startProductionRollback,
+} from "@/server/services/production-rollback.service";
+import { setSystemMaintenanceMode } from "@/server/services/system-maintenance-mode.service";
 
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
-
-function getAppUrl() {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL;
-
-  if (!appUrl) {
-    throw new Error("NEXT_PUBLIC_APP_URL or APP_URL is required for deploy health checks");
-  }
-
-  return appUrl.replace(/\/+$/, "");
-}
 
 function run(command: string, args: string[]) {
   return new Promise<void>((resolve, reject) => {
@@ -64,53 +54,26 @@ function safeOutput(command: string, args: string[]) {
   }
 }
 
-async function enableMaintenanceMode() {
-  console.log("Enabling maintenance mode...");
+function getAppUrl() {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL;
 
-  await setSystemMaintenanceMode({
-    enabled: true,
-    message:
-      "TallyKonnect is being updated. Sending and billing actions are temporarily paused.",
-    updatedByUserId: null,
-  });
-}
-
-async function disableMaintenanceMode() {
-  console.log("Disabling maintenance mode...");
-
-  await setSystemMaintenanceMode({
-    enabled: false,
-    updatedByUserId: null,
-  });
-}
-
-async function createAndVerifyBackup() {
-  if (process.env.DATABASE_BACKUPS_ENABLED !== "true") {
-    if (process.env.DEPLOY_REQUIRE_BACKUP === "true") {
-      throw new Error(
-        "DATABASE_BACKUPS_ENABLED is not true. Refusing production deploy because DEPLOY_REQUIRE_BACKUP=true.",
-      );
-    }
-
-    console.warn("Skipping database backup because DATABASE_BACKUPS_ENABLED is not true.");
-    return null;
+  if (!appUrl) {
+    throw new Error("NEXT_PUBLIC_APP_URL or APP_URL is required");
   }
 
-  console.log("Creating database backup...");
-  const backup = await createDatabaseBackup();
+  return appUrl.replace(/\/+$/, "");
+}
 
-  console.log("Verifying database backup...");
-  const verifiedBackup = await verifyDatabaseBackup({
-    backupId: backup.id,
-  });
+function getRollbackTargetRef() {
+  const targetRef = process.env.ROLLBACK_TARGET_REF ?? process.argv[2];
 
-  console.log("Backup verified:", {
-    id: verifiedBackup.id,
-    fileName: verifiedBackup.fileName,
-    verificationStatus: verifiedBackup.verificationStatus,
-  });
+  if (!targetRef) {
+    throw new Error(
+      "Rollback target is required. Use: npm run rollback:production -- <commit-or-tag>",
+    );
+  }
 
-  return verifiedBackup;
+  return targetRef;
 }
 
 async function waitForJsonHealth({
@@ -159,6 +122,41 @@ async function waitForJsonHealth({
   throw new Error(`Health check failed after ${attempts} attempts: ${path}`);
 }
 
+async function enableMaintenanceMode() {
+  await setSystemMaintenanceMode({
+    enabled: true,
+    message:
+      "TallyKonnect is being rolled back. Sending and billing actions are temporarily paused.",
+    updatedByUserId: null,
+  });
+}
+
+async function disableMaintenanceMode() {
+  await setSystemMaintenanceMode({
+    enabled: false,
+    updatedByUserId: null,
+  });
+}
+
+async function createAndVerifyBackup() {
+  if (process.env.DATABASE_BACKUPS_ENABLED !== "true") {
+    if (process.env.ROLLBACK_REQUIRE_BACKUP !== "false") {
+      throw new Error(
+        "DATABASE_BACKUPS_ENABLED is not true. Refusing rollback because backup is required.",
+      );
+    }
+
+    console.warn("Skipping rollback backup because ROLLBACK_REQUIRE_BACKUP=false.");
+    return null;
+  }
+
+  const backup = await createDatabaseBackup();
+
+  return verifyDatabaseBackup({
+    backupId: backup.id,
+  });
+}
+
 async function restartPm2() {
   try {
     await run(npmCommand, ["run", "pm2:restart"]);
@@ -169,26 +167,34 @@ async function restartPm2() {
 }
 
 async function main() {
+  const targetRef = getRollbackTargetRef();
   const startedAt = Date.now();
 
-  const commitSha = safeOutput("git", ["rev-parse", "--short", "HEAD"]);
-  const commitMessage = safeOutput("git", ["log", "-1", "--pretty=%s"]);
+  const fromCommitSha = safeOutput("git", ["rev-parse", "--short", "HEAD"]);
   const branch = safeOutput("git", ["rev-parse", "--abbrev-ref", "HEAD"]);
   const gitStatus = safeOutput("git", ["status", "--short"]);
 
-  console.log("Starting production deploy:", {
-    commitSha,
+  if (gitStatus && process.env.ROLLBACK_ALLOW_DIRTY !== "true") {
+    throw new Error(
+      "Working tree has local changes. Commit/stash them or set ROLLBACK_ALLOW_DIRTY=true.",
+    );
+  }
+
+  console.log("Starting production rollback:", {
+    fromCommitSha,
+    targetRef,
+    branch,
     appUrl: getAppUrl(),
   });
 
-  if (gitStatus) {
-    console.warn("Working tree has local changes:");
-    console.warn(gitStatus);
-  }
+  await run("git", ["fetch", "--all", "--tags"]);
 
-  const deployment = await startProductionDeployment({
-    commitSha,
-    commitMessage,
+  const toCommitSha = safeOutput("git", ["rev-parse", "--short", targetRef]);
+
+  const rollback = await startProductionRollback({
+    fromCommitSha,
+    toCommitSha,
+    toRef: targetRef,
     branch,
     appUrl: getAppUrl(),
   });
@@ -198,8 +204,8 @@ async function main() {
   try {
     currentStage = "maintenance_mode_enable";
     await enableMaintenanceMode();
-    await markProductionDeploymentStep({
-      deploymentId: deployment.id,
+    await markProductionRollbackStep({
+      rollbackId: rollback.id,
       step: "maintenanceEnabledAt",
     });
 
@@ -207,38 +213,45 @@ async function main() {
     const backup = await createAndVerifyBackup();
 
     if (backup?.id) {
-      await markProductionDeploymentStep({
-        deploymentId: deployment.id,
+      await markProductionRollbackStep({
+        rollbackId: rollback.id,
         step: "backupCompletedAt",
         backupRunId: backup.id,
       });
     }
 
-    currentStage = "prisma_migrate";
-    await run(npxCommand, ["prisma", "migrate", "deploy"]);
-    await markProductionDeploymentStep({
-      deploymentId: deployment.id,
-      step: "migrationCompletedAt",
+    currentStage = "checkout";
+    await run("git", ["checkout", targetRef]);
+    await markProductionRollbackStep({
+      rollbackId: rollback.id,
+      step: "checkoutCompletedAt",
+    });
+
+    currentStage = "install";
+    await run(npmCommand, ["install"]);
+    await markProductionRollbackStep({
+      rollbackId: rollback.id,
+      step: "installCompletedAt",
     });
 
     currentStage = "prisma_generate";
     await run(npxCommand, ["prisma", "generate"]);
-    await markProductionDeploymentStep({
-      deploymentId: deployment.id,
+    await markProductionRollbackStep({
+      rollbackId: rollback.id,
       step: "prismaGeneratedAt",
     });
 
     currentStage = "build";
     await run(npmCommand, ["run", "build"]);
-    await markProductionDeploymentStep({
-      deploymentId: deployment.id,
+    await markProductionRollbackStep({
+      rollbackId: rollback.id,
       step: "buildCompletedAt",
     });
 
     currentStage = "pm2_restart";
     await restartPm2();
-    await markProductionDeploymentStep({
-      deploymentId: deployment.id,
+    await markProductionRollbackStep({
+      rollbackId: rollback.id,
       step: "pm2RestartedAt",
     });
 
@@ -246,13 +259,13 @@ async function main() {
     await waitForJsonHealth({
       path: "/api/health",
     });
-    await markProductionDeploymentStep({
-      deploymentId: deployment.id,
+    await markProductionRollbackStep({
+      rollbackId: rollback.id,
       step: "healthCheckPassedAt",
     });
 
     if (!process.env.HEALTHCHECK_TOKEN) {
-      throw new Error("HEALTHCHECK_TOKEN is required for deep deploy health check");
+      throw new Error("HEALTHCHECK_TOKEN is required for deep health check");
     }
 
     currentStage = "deep_healthcheck";
@@ -262,49 +275,47 @@ async function main() {
         "x-healthcheck-token": process.env.HEALTHCHECK_TOKEN,
       },
     });
-    await markProductionDeploymentStep({
-      deploymentId: deployment.id,
+    await markProductionRollbackStep({
+      rollbackId: rollback.id,
       step: "deepHealthCheckPassedAt",
     });
 
     currentStage = "maintenance_mode_disable";
     await disableMaintenanceMode();
-    await markProductionDeploymentStep({
-      deploymentId: deployment.id,
+    await markProductionRollbackStep({
+      rollbackId: rollback.id,
       step: "maintenanceDisabledAt",
     });
 
-    await waitForJsonHealth({
-      path: "/api/health",
-    });
-
-    await completeProductionDeployment({
-      deploymentId: deployment.id,
+    await completeProductionRollback({
+      rollbackId: rollback.id,
     });
 
     const durationSeconds = Math.round((Date.now() - startedAt) / 1000);
 
-    console.log("Production deploy completed successfully:", {
-      commitSha,
+    console.log("Production rollback completed:", {
+      fromCommitSha,
+      toCommitSha,
+      targetRef,
       durationSeconds,
     });
   } catch (error) {
-    console.error("Production deploy failed:", error);
+    console.error("Production rollback failed:", error);
 
-    await failProductionDeployment({
-      deploymentId: deployment.id,
+    await failProductionRollback({
+      rollbackId: rollback.id,
       errorStage: currentStage,
       errorMessage:
-        error instanceof Error ? error.message : "Unknown deploy error",
-    }).catch((deployError) => {
-      console.error("Unable to mark deployment as failed:", deployError);
+        error instanceof Error ? error.message : "Unknown rollback error",
+    }).catch((rollbackError) => {
+      console.error("Unable to mark rollback as failed:", rollbackError);
     });
 
-    if (process.env.DEPLOY_DISABLE_MAINTENANCE_ON_FAILURE === "true") {
+    if (process.env.ROLLBACK_DISABLE_MAINTENANCE_ON_FAILURE === "true") {
       await disableMaintenanceMode();
     } else {
       console.error(
-        "Maintenance mode remains ENABLED because deploy failed. Review logs, fix the issue, then disable it manually from /dashboard/system/health.",
+        "Maintenance mode remains ENABLED because rollback failed. Review logs and fix manually.",
       );
     }
 

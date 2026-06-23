@@ -490,6 +490,26 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/health",
         }),
         buildItem({
+          id: "production-deployment-history",
+          title: "Production deployment history enabled",
+          description:
+            "Each production deploy records commit SHA, backup, migration, build, PM2 restart, health checks, and failure stage.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "safe-production-rollback-script",
+          title: "Safe production rollback script configured",
+          description:
+            "Production rollbacks enable maintenance mode, create and verify a backup, checkout a target ref, rebuild, restart PM2, verify health, and record rollback history.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
           id: "worker-heartbeats",
           title: "Worker heartbeats enabled",
           description:

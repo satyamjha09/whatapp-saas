@@ -88,3 +88,29 @@ A safe rollback should follow this order:
 7. Disable maintenance mode.
 
 Database rollbacks should only be done using the database restore runbook.
+
+## Deployment history
+
+Every deploy attempt writes a deployment record to the database.
+
+Open:
+`/dashboard/system/health`
+
+The deployment table shows:
+*   deploy status
+*   commit SHA
+*   branch
+*   started/completed time
+*   failed stage, if any
+
+Each deploy records these steps:
+*   maintenance mode enabled
+*   backup completed
+*   migrations completed
+*   Prisma generated
+*   build completed
+*   PM2 restarted
+*   public healthcheck passed
+*   deep healthcheck passed
+*   maintenance mode disabled
+

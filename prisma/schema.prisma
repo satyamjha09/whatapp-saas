@@ -1277,3 +1277,88 @@ model DeveloperWebhookOutbox {
   @@index([status])
   @@index([createdAt])
 }
+
+enum ProductionDeploymentStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model ProductionDeployment {
+  id        String                     @id @default(cuid())
+  status    ProductionDeploymentStatus @default(RUNNING)
+
+  commitSha     String?
+  commitMessage String?
+  branch        String?
+  appUrl        String?
+
+  backupRunId String?
+
+  maintenanceEnabledAt  DateTime?
+  backupCompletedAt     DateTime?
+  migrationCompletedAt  DateTime?
+  prismaGeneratedAt     DateTime?
+  buildCompletedAt      DateTime?
+  pm2RestartedAt        DateTime?
+  healthCheckPassedAt   DateTime?
+  deepHealthCheckPassedAt DateTime?
+  maintenanceDisabledAt DateTime?
+
+  errorStage   String?
+  errorMessage String?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@index([commitSha])
+  @@index([startedAt])
+}
+
+enum ProductionRollbackStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model ProductionRollback {
+  id        String                     @id @default(cuid())
+  status    ProductionRollbackStatus @default(RUNNING)
+
+  fromCommitSha String?
+  toCommitSha   String?
+  toRef         String?
+  branch        String?
+  appUrl        String?
+
+  backupRunId String?
+
+  maintenanceEnabledAt  DateTime?
+  backupCompletedAt     DateTime?
+  checkoutCompletedAt   DateTime?
+  installCompletedAt    DateTime?
+  prismaGeneratedAt     DateTime?
+  buildCompletedAt      DateTime?
+  pm2RestartedAt        DateTime?
+  healthCheckPassedAt   DateTime?
+  deepHealthCheckPassedAt DateTime?
+  maintenanceDisabledAt DateTime?
+
+  errorStage   String?
+  errorMessage String?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@index([fromCommitSha])
+  @@index([toCommitSha])
+  @@index([startedAt])
+}
+
+
