@@ -8,6 +8,11 @@ import {
   enqueueRecoverableDeveloperWebhookOutboxEvents,
 } from "@/server/services/developer-webhook-outbox.service";
 import { processDeveloperWebhookOutboxEvent } from "@/server/services/developer-webhook-outbox-processor.service";
+import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
+
+const heartbeat = createWorkerHeartbeat({
+  workerName: "developer-webhook-outbox-worker",
+});
 
 type DeveloperWebhookOutboxJob = {
   outboxEventId: string;
@@ -22,12 +27,15 @@ const worker = new Worker<DeveloperWebhookOutboxJob>(
   },
 );
 
+void heartbeat.start();
+
 worker.on("completed", (job) => {
   console.log(`Developer webhook outbox job completed: ${job.id}`);
 });
 
-worker.on("failed", (job, error) => {
+worker.on("failed", async (job, error) => {
   console.error(`Developer webhook outbox job failed: ${job?.id}`, error);
+  await heartbeat.markError(error);
 });
 
 async function start() {
@@ -39,6 +47,7 @@ async function start() {
 
 async function shutdown() {
   await worker.close();
+  await heartbeat.stop();
   process.exit(0);
 }
 

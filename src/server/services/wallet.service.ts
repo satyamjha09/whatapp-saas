@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
+import { createCompanyNotification } from "@/server/services/company-notification.service";
 import { publishWalletDeveloperWebhookEvent } from "@/server/services/developer-webhook-event-publisher.service";
 import { TopUpWalletInput } from "@/server/validators/wallet.validator";
 
@@ -104,6 +106,7 @@ export async function debitWalletForMessage(
         type: "DEBIT",
         status: "SUCCESS",
         amountPaise,
+        balanceAfterPaise: updatedWallet.balancePaise,
         description,
         referenceId,
       },
@@ -120,6 +123,27 @@ export async function debitWalletForMessage(
     transaction: result.transaction,
     balanceAfterPaise: result.wallet.balancePaise,
   });
+
+  if (result.wallet.balancePaise <= 20 * MESSAGE_PRICE_PAISE) {
+    const balanceAfterCredits = Math.floor(
+      result.wallet.balancePaise / MESSAGE_PRICE_PAISE,
+    );
+
+    await createCompanyNotification({
+      companyId,
+      type: "WALLET",
+      severity: "WARNING",
+      title: "Wallet balance is low",
+      message: `Your wallet balance is ${balanceAfterCredits} credits. Add credits to avoid send failures.`,
+      actionHref: "/dashboard/billing",
+      idempotencyKey: `wallet-low-balance:${companyId}:${result.wallet.balancePaise}`,
+      metadata: {
+        walletTransactionId: result.transaction.id,
+        balanceAfterPaise: result.wallet.balancePaise,
+        balanceAfterCredits,
+      },
+    });
+  }
 
   return result;
 }

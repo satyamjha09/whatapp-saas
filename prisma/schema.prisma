@@ -35,6 +35,35 @@ enum SubscriptionStatus {
   INCOMPLETE
 }
 
+enum CompanyNotificationType {
+  BILLING
+  WALLET
+  WEBHOOK
+  DEVELOPER_API
+  CAMPAIGN
+  SYSTEM
+}
+
+enum CompanyNotificationSeverity {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+enum CompanyNotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+enum CompanyNotificationEmailDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 enum WhatsAppAccountStatus {
   PENDING
   CONNECTED
@@ -155,6 +184,24 @@ enum MaintenanceJobRunStatus {
   FAILED
 }
 
+enum DatabaseBackupStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum DatabaseBackupVerificationStatus {
+  NOT_VERIFIED
+  VERIFIED
+  FAILED
+}
+
+enum SystemWorkerHeartbeatStatus {
+  RUNNING
+  STOPPED
+  ERROR
+}
+
 enum ApiKeyStatus {
   ACTIVE
   REVOKED
@@ -224,6 +271,9 @@ model User {
   auditLogs                 AuditLog[]
   createdApiKeys            ApiKey[]
   createdBulkMessageBatches BulkMessageBatch[]
+  companyNotificationRecipients       CompanyNotificationRecipient[]
+  companyNotificationPreferences      CompanyNotificationPreference[]
+  companyNotificationEmailDeliveries  CompanyNotificationEmailDelivery[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -295,6 +345,96 @@ model CompanyUser {
   createdAt DateTime @default(now())
 
   @@unique([userId, companyId])
+}
+
+model CompanyNotification {
+  id             String                      @id @default(cuid())
+  companyId      String
+  type           CompanyNotificationType
+  severity       CompanyNotificationSeverity @default(INFO)
+  status         CompanyNotificationStatus   @default(UNREAD)
+  title          String
+  message        String
+  actionHref     String?
+  idempotencyKey String?
+  metadata       Json?
+  readAt         DateTime?
+  archivedAt     DateTime?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  recipients      CompanyNotificationRecipient[]
+  emailDeliveries CompanyNotificationEmailDelivery[]
+
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, type])
+  @@index([createdAt])
+}
+
+model CompanyNotificationRecipient {
+  id             String                    @id @default(cuid())
+  notificationId String
+  userId         String
+  status         CompanyNotificationStatus @default(UNREAD)
+  readAt         DateTime?
+  archivedAt     DateTime?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  notification CompanyNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([notificationId])
+  @@index([userId])
+  @@index([userId, status])
+}
+
+model CompanyNotificationPreference {
+  id                   String                      @id @default(cuid())
+  companyId            String
+  userId               String
+  type                 CompanyNotificationType
+  inAppEnabled         Boolean                     @default(true)
+  minimumSeverity      CompanyNotificationSeverity @default(INFO)
+  emailEnabled         Boolean                     @default(false)
+  emailMinimumSeverity CompanyNotificationSeverity @default(ERROR)
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId, type])
+  @@index([companyId])
+  @@index([userId])
+}
+
+model CompanyNotificationEmailDelivery {
+  id             String                                 @id @default(cuid())
+  companyId      String
+  notificationId String
+  userId         String
+  toEmail        String
+  subject        String
+  actionUrl      String?
+  status         CompanyNotificationEmailDeliveryStatus @default(PENDING)
+  attempts       Int                                    @default(0)
+  lastError      String?
+  sentAt         DateTime?
+  skippedAt      DateTime?
+  createdAt      DateTime                               @default(now())
+  updatedAt      DateTime                               @updatedAt
+
+  notification CompanyNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([companyId])
+  @@index([notificationId])
+  @@index([userId])
+  @@index([status])
 }
 
 model WhatsAppAccount {
@@ -857,6 +997,51 @@ model MaintenanceJobRun {
   @@index([jobName])
   @@index([status])
   @@index([startedAt])
+}
+
+model DatabaseBackupRun {
+  id             String               @id @default(cuid())
+  status         DatabaseBackupStatus @default(RUNNING)
+  fileName       String?
+  filePath       String?
+  sizeBytes      Int?
+  checksumSha256 String?
+  remoteStorageEnabled Boolean        @default(false)
+  remoteBucket         String?
+  remoteKey            String?
+  remoteUploadedAt     DateTime?
+  remoteUploadError    String?
+  verificationStatus   DatabaseBackupVerificationStatus @default(NOT_VERIFIED)
+  verifiedAt           DateTime?
+  verificationError    String?
+  errorMessage   String?
+  startedAt      DateTime             @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([status])
+  @@index([startedAt])
+}
+
+model SystemWorkerHeartbeat {
+  id              String                      @id @default(cuid())
+  workerName      String
+  instanceId      String                      @unique
+  status          SystemWorkerHeartbeatStatus @default(RUNNING)
+  hostname        String?
+  processId       Int?
+  lastHeartbeatAt DateTime                    @default(now())
+  startedAt       DateTime                    @default(now())
+  stoppedAt       DateTime?
+  lastError       String?
+  metadata        Json?
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+
+  @@index([workerName])
+  @@index([status])
+  @@index([lastHeartbeatAt])
 }
 
 model CompanyInvite {

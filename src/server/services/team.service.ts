@@ -1,5 +1,7 @@
 import { revalidateTag, unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { backfillCompanyNotificationRecipients } from "@/server/services/company-notification.service";
+import { ensureCompanyNotificationPreferences } from "@/server/services/company-notification-preference.service";
 import { UpdateMemberRoleInput } from "@/server/validators/team.validator";
 
 type UpdateCompanyMemberRoleInput = {
@@ -89,6 +91,14 @@ export async function updateCompanyMemberRole({
   });
 
   revalidateCompanyMembersCache();
+
+  if (updatedMember.role === "OWNER" || updatedMember.role === "ADMIN") {
+    await ensureCompanyNotificationPreferences({
+      companyId,
+      userId: updatedMember.userId,
+    });
+    await backfillCompanyNotificationRecipients(companyId);
+  }
 
   return updatedMember;
 }

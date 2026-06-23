@@ -16,7 +16,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
     if (!context.membership) {
-      return NextResponse.json(
+      return NextResponse.json( 
         { message: "Complete company onboarding first" },
         { status: 403 },
       );

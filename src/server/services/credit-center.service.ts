@@ -3,9 +3,12 @@ import { getBillingSummary } from "@/server/services/wallet.service";
 import { getRecentMaintenanceJobRuns } from "@/server/services/maintenance-job.service";
 import { SUBSCRIPTION_EXPIRY_JOB } from "@/server/services/subscription-expiry.service";
 import { SUBSCRIPTION_CANCELLATION_JOB } from "@/server/jobs/subscription-cancellation.job";
+import { DEVELOPER_DATA_RETENTION_JOB } from "@/server/jobs/developer-data-retention.job";
+import { COMPANY_NOTIFICATION_RETENTION_JOB } from "@/server/jobs/company-notification-retention.job";
+import { COMPANY_NOTIFICATION_EMAIL_MAINTENANCE_JOB } from "@/server/jobs/company-notification-email-maintenance.job";
 
 export async function getCreditCenterOverview(companyId: string) {
-  const [billingSummary, creditPurchases, subscriptionPayments, razorpayWebhookEvents, recentSubscriptionExpiryRuns, recentSubscriptionCancellationRuns] =
+  const [billingSummary, creditPurchases, subscriptionPayments, razorpayWebhookEvents, recentSubscriptionExpiryRuns, recentSubscriptionCancellationRuns, recentDeveloperDataRetentionRuns, recentCompanyNotificationRetentionRuns, recentCompanyNotificationEmailMaintenanceRuns] =
     await Promise.all([
       getBillingSummary(companyId),
       prisma.creditPurchase.findMany({
@@ -25,6 +28,15 @@ export async function getCreditCenterOverview(companyId: string) {
       }),
       getRecentMaintenanceJobRuns(SUBSCRIPTION_EXPIRY_JOB, companyId),
       getRecentMaintenanceJobRuns(SUBSCRIPTION_CANCELLATION_JOB, companyId),
+      getRecentMaintenanceJobRuns(DEVELOPER_DATA_RETENTION_JOB, companyId),
+      getRecentMaintenanceJobRuns(
+        COMPANY_NOTIFICATION_RETENTION_JOB,
+        companyId,
+      ),
+      getRecentMaintenanceJobRuns(
+        COMPANY_NOTIFICATION_EMAIL_MAINTENANCE_JOB,
+        companyId,
+      ),
     ]);
 
   return {
@@ -34,5 +46,8 @@ export async function getCreditCenterOverview(companyId: string) {
     razorpayWebhookEvents,
     recentSubscriptionExpiryRuns,
     recentSubscriptionCancellationRuns,
+    recentDeveloperDataRetentionRuns,
+    recentCompanyNotificationRetentionRuns,
+    recentCompanyNotificationEmailMaintenanceRuns,
   };
 }

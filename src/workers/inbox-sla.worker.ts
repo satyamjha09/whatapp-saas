@@ -1,9 +1,13 @@
 import "dotenv/config";
 import { processInboxSlaBreaches } from "@/server/services/inbox-sla-escalation.service";
+import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const CHECK_INTERVAL_MS = 60_000;
 
 let isRunning = false;
+const heartbeat = createWorkerHeartbeat({
+  workerName: "inbox-sla-worker",
+});
 
 async function runSlaBreachCheck() {
   if (isRunning) {
@@ -31,6 +35,7 @@ async function runSlaBreachCheck() {
 
 console.log("[inbox-sla-worker] Started.");
 
+void heartbeat.start();
 void runSlaBreachCheck();
 
 const interval = setInterval(() => {
@@ -40,7 +45,10 @@ const interval = setInterval(() => {
 function shutdown() {
   console.log("[inbox-sla-worker] Shutting down.");
   clearInterval(interval);
-  process.exit(0);
+  heartbeat
+    .stop()
+    .catch(console.error)
+    .finally(() => process.exit(0));
 }
 
 process.on("SIGINT", shutdown);

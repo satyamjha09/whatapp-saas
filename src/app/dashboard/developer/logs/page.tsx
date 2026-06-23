@@ -97,6 +97,17 @@ export default async function DeveloperApiLogsPage({
           </Link>
         </div>
 
+        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
+          <h2 className="text-lg font-semibold text-blue-900">
+            Log Retention
+          </h2>
+          <p className="mt-1 text-sm text-blue-800">
+            API request logs are retained according to your current billing
+            plan. Upgrade to Business for longer developer diagnostics
+            retention.
+          </p>
+        </div>
+
         <section className="rounded-2xl border border-[#D8E6F3] bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-2">
             <Link

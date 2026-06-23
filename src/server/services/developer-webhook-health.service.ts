@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { DeveloperWebhookEndpointStatus } from "@/generated/prisma/enums";
+import { createCompanyNotification } from "@/server/services/company-notification.service";
 
 const WEBHOOK_AUTO_DISABLE_FAILURE_THRESHOLD = 10;
 const WEBHOOK_DEGRADED_FAILURE_THRESHOLD = 5;
@@ -31,6 +32,9 @@ export async function markDeveloperWebhookDeliveryFailure({
     },
     select: {
       id: true,
+      companyId: true,
+      name: true,
+      url: true,
       status: true,
       consecutiveFailureCount: true,
     },
@@ -45,7 +49,7 @@ export async function markDeveloperWebhookDeliveryFailure({
     endpoint.status === "ACTIVE" &&
     nextFailureCount >= WEBHOOK_AUTO_DISABLE_FAILURE_THRESHOLD;
 
-  return prisma.developerWebhookEndpoint.update({
+  const updatedEndpoint = await prisma.developerWebhookEndpoint.update({
     where: {
       id: endpointId,
     },
@@ -62,6 +66,26 @@ export async function markDeveloperWebhookDeliveryFailure({
         : {}),
     },
   });
+
+  if (shouldAutoDisable) {
+    await createCompanyNotification({
+      companyId: endpoint.companyId,
+      type: "WEBHOOK",
+      severity: "ERROR",
+      title: "Developer webhook auto-disabled",
+      message: `${endpoint.name} was disabled after repeated delivery failures.`,
+      actionHref: "/dashboard/developer/webhooks",
+      idempotencyKey: `developer-webhook-auto-disabled:${endpoint.id}`,
+      metadata: {
+        webhookId: endpoint.id,
+        webhookName: endpoint.name,
+        webhookUrl: endpoint.url,
+        reason,
+      },
+    });
+  }
+
+  return updatedEndpoint;
 }
 
 export async function reEnableDeveloperWebhookEndpoint(endpointId: string) {

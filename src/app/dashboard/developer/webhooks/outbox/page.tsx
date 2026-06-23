@@ -77,6 +77,17 @@ export default async function DeveloperWebhookOutboxPage() {
           </Link>
         </div>
 
+        <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+          <h2 className="text-lg font-semibold text-blue-900">
+            Outbox Retention
+          </h2>
+          <p className="mt-1 text-sm text-blue-800">
+            Delivered and failed events are retained according to your plan.
+            Pending and processing events are never removed by retention
+            cleanup.
+          </p>
+        </div>
+
         <section className="mb-6 grid gap-4 sm:grid-cols-4">
           {summaries.map(([label, count]) => (
             <div key={label} className="rounded-2xl border bg-white p-5 shadow-sm">

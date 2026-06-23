@@ -13,6 +13,11 @@ import { publishCampaignDeveloperWebhookEvent } from "@/server/services/develope
 import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
 import { refundWalletForMessage } from "@/server/services/wallet.service";
 import type { SendMessageJobData } from "@/lib/queue";
+import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
+
+const heartbeat = createWorkerHeartbeat({
+  workerName: process.env.WORKER_HEARTBEAT_NAME ?? "message-worker",
+});
 
 async function updateCampaignCompletion(campaignId: string) {
   const campaign = await prisma.campaign.findUnique({
@@ -367,12 +372,24 @@ const worker = new Worker<SendMessageJobData>(
   },
 );
 
+void heartbeat.start();
+
 worker.on("completed", (job) => {
   console.log(`Job completed: ${job.id}`);
 });
 
-worker.on("failed", (job, error) => {
+worker.on("failed", async (job, error) => {
   console.error(`Job failed: ${job?.id}`, error);
+  await heartbeat.markError(error);
 });
 
 console.log("Message worker is running...");
+
+async function shutdown() {
+  await worker.close();
+  await heartbeat.stop();
+  process.exit(0);
+}
+
+process.on("SIGINT", () => void shutdown());
+process.on("SIGTERM", () => void shutdown());

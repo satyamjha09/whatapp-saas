@@ -65,6 +65,9 @@ export default async function BillingPage() {
   const subscriptionMaintenanceRuns = [
     ...overview.recentSubscriptionExpiryRuns,
     ...overview.recentSubscriptionCancellationRuns,
+    ...overview.recentDeveloperDataRetentionRuns,
+    ...overview.recentCompanyNotificationRetentionRuns,
+    ...overview.recentCompanyNotificationEmailMaintenanceRuns,
   ].sort((left, right) => right.startedAt.getTime() - left.startedAt.getTime());
   const developerUsage = featureAccess.enabledFeatures.includes("DEVELOPER_API")
     ? await getDeveloperApiUsage(companyId)
@@ -403,11 +406,11 @@ export default async function BillingPage() {
 
       <Panel className="mt-5">
         <PanelTitle
-          title="Subscription maintenance runs"
-          description="Recent expiry and cancellation checks for this workspace."
+          title="Maintenance runs"
+          description="Recent subscription and retention maintenance runs for this workspace."
         />
         {subscriptionMaintenanceRuns.length === 0 ? (
-          <div className="mt-5"><EmptyState>No subscription maintenance runs yet.</EmptyState></div>
+          <div className="mt-5"><EmptyState>No maintenance runs yet.</EmptyState></div>
         ) : (
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
@@ -416,7 +419,17 @@ export default async function BillingPage() {
                 {subscriptionMaintenanceRuns.map((run) => (
                   <tr key={run.id} className="border-b border-[#D8E6F3]/70 last:border-0">
                     <td className="whitespace-nowrap py-3 pr-4 text-[#526173]">{run.startedAt.toLocaleString("en-IN")}</td>
-                    <td className="py-3 pr-4 font-medium text-[#102040]">{run.jobName === "subscription-cancellation-check" ? "Cancellation" : "Expiry"}</td>
+                    <td className="py-3 pr-4 font-medium text-[#102040]">{
+                      run.jobName === "subscription-cancellation-check"
+                        ? "Cancellation"
+                        : run.jobName === "developer-data-retention-cleanup"
+                          ? "Developer retention"
+                          : run.jobName === "company-notification-retention-cleanup"
+                            ? "Notification retention"
+                            : run.jobName === "company-notification-email-maintenance"
+                              ? "Notification email maintenance"
+                              : "Expiry"
+                    }</td>
                     <td className="py-3 pr-4"><StatusPill tone={run.status === "COMPLETED" ? "green" : run.status === "FAILED" ? "red" : "blue"}>{run.status}</StatusPill></td>
                     <td className="py-3 pr-4 text-[#102040]">{run.checkedCount}</td>
                     <td className="py-3 pr-4 text-[#102040]">{run.recoveredCount}</td>

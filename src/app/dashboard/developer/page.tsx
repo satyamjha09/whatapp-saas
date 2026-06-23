@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getDeveloperApiKeyAnalytics } from "@/server/services/developer-api-request-log.service";
+import { getCompanyFeatureAccess } from "@/server/services/feature-gate.service";
 import EditApiKeyButton from "./api-keys/edit-api-key-button";
 import RevokeApiKeyButton from "./api-keys/revoke-api-key-button";
+import RetentionCleanupButton from "./retention-cleanup-button";
 
 function formatDateTime(date: Date | null) {
   if (!date) return "Never";
@@ -44,9 +46,10 @@ export default async function DeveloperPage() {
   const canManageApiKeys =
     context.membership.role === "OWNER" ||
     context.membership.role === "ADMIN";
-  const apiKeyAnalytics = await getDeveloperApiKeyAnalytics(
-    context.membership.companyId,
-  );
+  const [apiKeyAnalytics, featureAccess] = await Promise.all([
+    getDeveloperApiKeyAnalytics(context.membership.companyId),
+    getCompanyFeatureAccess(context.membership.companyId),
+  ]);
 
   return (
     <main className="p-8">
@@ -80,6 +83,27 @@ export default async function DeveloperPage() {
             </Link>
           </div>
         </div>
+
+        <section className="rounded-2xl border border-[#D8E6F3] bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-[#081B3A]">
+                Developer Data Retention
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm text-[#526173]">
+                API request logs, webhook deliveries, and terminal outbox
+                events are retained according to your current plan.
+              </p>
+            </div>
+            {canManageApiKeys && <RetentionCleanupButton />}
+          </div>
+          <div className="mt-5 rounded-xl bg-[#F0F8FF] p-4">
+            <p className="text-sm text-[#526173]">Retention Period</p>
+            <p className="mt-1 text-2xl font-bold text-[#081B3A]">
+              {featureAccess.plan.developerLogRetentionDays} days
+            </p>
+          </div>
+        </section>
 
         <section className="overflow-hidden rounded-2xl border border-[#D8E6F3] bg-white shadow-sm">
           <div className="border-b border-[#D8E6F3] bg-[#F0F8FF] px-6 py-4">

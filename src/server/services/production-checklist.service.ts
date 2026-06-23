@@ -360,6 +360,186 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/developer/webhooks/outbox",
         }),
         buildItem({
+          id: "developer-data-retention-cleanup",
+          title: "Developer data retention cleanup enabled",
+          description:
+            "Old developer API logs, webhook delivery logs, and completed webhook outbox events are cleaned according to plan retention rules.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Developer",
+          actionHref: "/dashboard/developer",
+        }),
+        buildItem({
+          id: "in-app-notifications",
+          title: "In-app notification center enabled",
+          description:
+            "Workspace alerts are created for billing, wallet, developer webhook failures, and important system events.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Notifications",
+          actionHref: "/dashboard/notifications",
+        }),
+        buildItem({
+          id: "per-user-notification-read-state",
+          title: "Per-user notification read state enabled",
+          description:
+            "Company notifications are shared, but read/archive state and unread counts are tracked separately for each owner/admin.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Notifications",
+          actionHref: "/dashboard/notifications",
+        }),
+        buildItem({
+          id: "notification-preferences",
+          title: "Notification preferences enabled",
+          description:
+            "Owners and admins can control which alert types and severities appear in their in-app notification center.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Notification Preferences",
+          actionHref: "/dashboard/notifications/preferences",
+        }),
+        buildItem({
+          id: "notification-retention-cleanup",
+          title: "Notification retention cleanup enabled",
+          description:
+            "Read notifications are auto-archived and old resolved notifications are cleaned without deleting unread alerts.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Notifications",
+          actionHref: "/dashboard/notifications",
+        }),
+        buildItem({
+          id: "notification-email-alerts",
+          title: "Notification email alerts enabled",
+          description:
+            "Critical workspace notifications can be delivered by email according to per-user alert preferences.",
+          status:
+            process.env.NOTIFICATION_EMAILS_ENABLED === "true" &&
+            process.env.SMTP_HOST
+              ? "complete"
+              : "pending",
+          required: false,
+          actionLabel: "Open Notification Preferences",
+          actionHref: "/dashboard/notifications/preferences",
+        }),
+        buildItem({
+          id: "notification-email-retry-smtp-test",
+          title: "Notification email retry and SMTP testing enabled",
+          description:
+            "Admins can send a test email, inspect delivery status, and retry failed or skipped notification emails.",
+          status:
+            process.env.NOTIFICATION_EMAILS_ENABLED === "true" &&
+            process.env.SMTP_HOST &&
+            process.env.SMTP_USER &&
+            process.env.SMTP_PASSWORD
+              ? "complete"
+              : "pending",
+          required: false,
+          actionLabel: "Open Email Deliveries",
+          actionHref: "/dashboard/notifications/email-deliveries",
+        }),
+        buildItem({
+          id: "notification-email-template-branding",
+          title: "Notification email templates and safe links enabled",
+          description:
+            "Notification emails use branded HTML templates, escaped content, and absolute dashboard action URLs.",
+          status: process.env.NEXT_PUBLIC_APP_URL ? "complete" : "pending",
+          required: false,
+          actionLabel: "Open Email Deliveries",
+          actionHref: "/dashboard/notifications/email-deliveries",
+        }),
+        buildItem({
+          id: "notification-email-maintenance",
+          title: "Notification email maintenance enabled",
+          description:
+            "Stale pending email deliveries are recovered and old resolved email delivery rows are cleaned safely.",
+          status: "complete",
+          required: false,
+          actionLabel: "Open Email Deliveries",
+          actionHref: "/dashboard/notifications/email-deliveries",
+        }),
+        buildItem({
+          id: "operations-health-dashboard",
+          title: "Operations health dashboard enabled",
+          description:
+            "Admins can monitor database, Redis, queues, and maintenance jobs, with alerts for unhealthy background systems.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "worker-heartbeats",
+          title: "Worker heartbeats enabled",
+          description:
+            "Background workers report heartbeat status and stale workers trigger system notifications.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "production-process-manager",
+          title: "Production process manager configured",
+          description:
+            "PM2 configuration is available to run the web app and all required background workers with automatic restarts.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "production-healthcheck-endpoints",
+          title: "Production healthcheck endpoints enabled",
+          description:
+            "Public and token-protected healthcheck endpoints are available for uptime monitoring and internal diagnostics.",
+          status: process.env.HEALTHCHECK_TOKEN ? "complete" : "pending",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "database-backups",
+          title: "Database backups configured",
+          description:
+            "PostgreSQL backups can run on schedule, old backups are cleaned, and failed backups create system notifications.",
+          status:
+            process.env.DATABASE_BACKUPS_ENABLED === "true" &&
+            process.env.DATABASE_BACKUP_DIR
+              ? "complete"
+              : "pending",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "off-server-database-backup-storage",
+          title: "Off-server database backup storage configured",
+          description:
+            "PostgreSQL backups can be uploaded to S3/R2-compatible remote storage with checksum and remote key tracking.",
+          status:
+            process.env.DATABASE_BACKUP_REMOTE_STORAGE_ENABLED === "true" &&
+            process.env.S3_BACKUP_BUCKET &&
+            process.env.S3_BACKUP_ACCESS_KEY_ID &&
+            process.env.S3_BACKUP_SECRET_ACCESS_KEY
+              ? "complete"
+              : "pending",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "database-backup-verification",
+          title: "Database backup verification enabled",
+          description:
+            "Latest PostgreSQL backups are verified for checksum integrity and remote object availability.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
           id: "subscription-expiry-guard",
           title: "Subscription expiry guard enabled",
           description:

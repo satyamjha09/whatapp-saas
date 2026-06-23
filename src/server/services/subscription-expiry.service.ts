@@ -1,9 +1,26 @@
 import { prisma } from "@/lib/prisma";
+import { createCompanyNotification } from "@/server/services/company-notification.service";
 
 export const SUBSCRIPTION_EXPIRY_JOB = "subscription-expiry-check";
 
 export async function expireCompanySubscriptionIfNeeded(companyId: string) {
   const now = new Date();
+  const company = await prisma.company.findFirst({
+    where: {
+      id: companyId,
+      billingPlan: { not: "FREE" },
+      subscriptionStatus: "ACTIVE",
+      currentPeriodEnd: { lt: now },
+    },
+    select: {
+      id: true,
+      billingPlan: true,
+      currentPeriodEnd: true,
+    },
+  });
+
+  if (!company) return false;
+
   const result = await prisma.company.updateMany({
     where: {
       id: companyId,
@@ -14,7 +31,32 @@ export async function expireCompanySubscriptionIfNeeded(companyId: string) {
     data: { subscriptionStatus: "PAST_DUE" },
   });
 
+  if (result.count === 1) {
+    await createPastDueNotification(company);
+  }
+
   return result.count === 1;
+}
+
+async function createPastDueNotification(company: {
+  id: string;
+  billingPlan: string;
+  currentPeriodEnd: Date | null;
+}) {
+  return createCompanyNotification({
+    companyId: company.id,
+    type: "BILLING",
+    severity: "ERROR",
+    title: "Subscription past due",
+    message:
+      "Your paid plan has expired. Renew your subscription to continue sending messages.",
+    actionHref: "/dashboard/billing",
+    idempotencyKey: `subscription-past-due:${company.id}:${company.currentPeriodEnd?.toISOString() ?? "unknown"}`,
+    metadata: {
+      previousPlan: company.billingPlan,
+      currentPeriodEnd: company.currentPeriodEnd?.toISOString() ?? null,
+    },
+  });
 }
 
 export async function expirePastDueSubscriptions({
@@ -60,6 +102,8 @@ export async function expirePastDueSubscriptions({
     });
 
     if (updated.count === 1) {
+      await createPastDueNotification(company);
+
       results.push({
         companyId: company.id,
         companyName: company.name,

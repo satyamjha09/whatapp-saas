@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { createCompanyNotification } from "@/server/services/company-notification.service";
 import { enqueueDeveloperWebhookDeliveries } from "@/server/services/developer-webhook.service";
 
 export async function processDeveloperWebhookOutboxEvent(
@@ -58,6 +59,21 @@ export async function processDeveloperWebhookOutboxEvent(
         status: "FAILED",
         lockedAt: null,
         lastError: errorMessage.slice(0, 1_000),
+      },
+    });
+
+    await createCompanyNotification({
+      companyId: outboxEvent.companyId,
+      type: "WEBHOOK",
+      severity: "ERROR",
+      title: "Webhook outbox event failed",
+      message: `${outboxEvent.eventType} failed after webhook delivery retries.`,
+      actionHref: `/dashboard/developer/webhooks/outbox/${outboxEvent.id}`,
+      idempotencyKey: `webhook-outbox-failed:${outboxEvent.id}`,
+      metadata: {
+        outboxEventId: outboxEvent.id,
+        eventType: outboxEvent.eventType,
+        errorMessage,
       },
     });
 

@@ -12,6 +12,11 @@ import {
   markDeveloperWebhookDeliveryFailure,
   markDeveloperWebhookDeliverySuccess,
 } from "@/server/services/developer-webhook-health.service";
+import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
+
+const heartbeat = createWorkerHeartbeat({
+  workerName: "developer-webhook-worker",
+});
 
 const worker = new Worker<DeliverDeveloperWebhookJobData>(
   "developer-webhook-queue",
@@ -150,12 +155,24 @@ const worker = new Worker<DeliverDeveloperWebhookJobData>(
   },
 );
 
+void heartbeat.start();
+
 worker.on("completed", (job) => {
   console.log(`Developer webhook job completed: ${job.id}`);
 });
 
-worker.on("failed", (job, error) => {
+worker.on("failed", async (job, error) => {
   console.error(`Developer webhook job failed: ${job?.id}`, error.message);
+  await heartbeat.markError(error);
 });
 
 console.log("Developer webhook worker is running...");
+
+async function shutdown() {
+  await worker.close();
+  await heartbeat.stop();
+  process.exit(0);
+}
+
+process.on("SIGINT", () => void shutdown());
+process.on("SIGTERM", () => void shutdown());

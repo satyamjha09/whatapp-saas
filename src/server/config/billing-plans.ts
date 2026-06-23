@@ -22,6 +22,7 @@ export type BillingPlanConfig = {
   developerApiAccess: boolean;
   developerWebhookAccess: boolean;
   developerApiDailyLimit: number;
+  developerLogRetentionDays: number;
   enabledFeatures: BillingFeature[];
   features: string[];
 };
@@ -41,6 +42,7 @@ export const BILLING_PLANS: BillingPlanConfig[] = [
     developerApiAccess: false,
     developerWebhookAccess: false,
     developerApiDailyLimit: 0,
+    developerLogRetentionDays: 7,
     enabledFeatures: ["SINGLE_MESSAGES"],
     features: ["Basic inbox", "Single message sending", "Manual credits"],
   },
@@ -58,6 +60,7 @@ export const BILLING_PLANS: BillingPlanConfig[] = [
     developerApiAccess: false,
     developerWebhookAccess: false,
     developerApiDailyLimit: 0,
+    developerLogRetentionDays: 7,
     enabledFeatures: ["SINGLE_MESSAGES", "BULK_CAMPAIGNS", "CONTACT_GROUPS"],
     features: ["Bulk campaigns", "Contact groups", "Campaign reports"],
   },
@@ -75,6 +78,7 @@ export const BILLING_PLANS: BillingPlanConfig[] = [
     developerApiAccess: true,
     developerWebhookAccess: true,
     developerApiDailyLimit: 1_000,
+    developerLogRetentionDays: 30,
     enabledFeatures: [
       "SINGLE_MESSAGES",
       "BULK_CAMPAIGNS",
@@ -99,6 +103,7 @@ export const BILLING_PLANS: BillingPlanConfig[] = [
     developerApiAccess: true,
     developerWebhookAccess: true,
     developerApiDailyLimit: 10_000,
+    developerLogRetentionDays: 90,
     enabledFeatures: [
       "SINGLE_MESSAGES",
       "BULK_CAMPAIGNS",

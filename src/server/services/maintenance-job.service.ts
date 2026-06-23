@@ -51,7 +51,10 @@ export function getRecentMaintenanceJobRuns(
   companyId: string,
 ) {
   return prisma.maintenanceJobRun.findMany({
-    where: { jobName, companyId },
+    where: {
+      jobName,
+      OR: [{ companyId }, { companyId: null }],
+    },
     orderBy: { startedAt: "desc" },
     take: 25,
   });

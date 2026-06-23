@@ -11,6 +11,11 @@ import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
 import type { ProcessWebhookJobData } from "@/lib/queue";
+import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
+
+const heartbeat = createWorkerHeartbeat({
+  workerName: "webhook-worker",
+});
 
 type JsonRecord = Record<string, unknown>;
 
@@ -411,12 +416,15 @@ const worker = new Worker<ProcessWebhookJobData>(
   },
 );
 
+void heartbeat.start();
+
 worker.on("completed", (job) => {
   console.log(`Webhook job completed: ${job.id}`);
 });
 
 worker.on("failed", async (job, error) => {
   console.error(`Webhook job failed: ${job?.id}`, error);
+  await heartbeat.markError(error);
 
   if (job?.data.webhookEventId) {
     await prisma.webhookEvent.update({
@@ -429,5 +437,14 @@ worker.on("failed", async (job, error) => {
     });
   }
 });
+
+async function shutdown() {
+  await worker.close();
+  await heartbeat.stop();
+  process.exit(0);
+}
+
+process.on("SIGINT", () => void shutdown());
+process.on("SIGTERM", () => void shutdown());
 
 console.log("Webhook worker is running...");

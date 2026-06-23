@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { revalidateCompanyMembersCache } from "@/server/services/team.service";
+import { backfillCompanyNotificationRecipients } from "@/server/services/company-notification.service";
+import { ensureCompanyNotificationPreferences } from "@/server/services/company-notification-preference.service";
 import {
   assertTeamMemberLimitForAcceptInvite,
   assertTeamMemberLimitForInvite,
@@ -221,6 +223,11 @@ export async function acceptCompanyInvite(token: string, userId: string) {
   });
 
   revalidateCompanyMembersCache();
+  await ensureCompanyNotificationPreferences({
+    companyId: invite.companyId,
+    userId: result.membership.userId,
+  });
+  await backfillCompanyNotificationRecipients(invite.companyId);
 
   return result;
 }

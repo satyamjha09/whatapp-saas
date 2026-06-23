@@ -11,6 +11,11 @@ export type DashboardNavGroup = {
 
 export const dashboardNavigation: DashboardNavGroup[] = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Notifications", href: "/dashboard/notifications" },
+  {
+    label: "Notification Preferences",
+    href: "/dashboard/notifications/preferences",
+  },
   { label: "Inbox", href: "/dashboard/inbox" },
   {
     label: "Send Message",
@@ -128,6 +133,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
         label: "Webhook Outbox",
         href: "/dashboard/developer/webhooks/outbox",
       },
+      { label: "System Health", href: "/dashboard/system/health" },
       { label: "Audit Logs", href: "/dashboard/settings/audit-logs" },
     ],
   },

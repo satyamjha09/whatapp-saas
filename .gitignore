@@ -30,6 +30,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 *.log
+logs/*.log
+logs/*.pid
+logs/*.gz
+/backups/
 
 # env files
 .env

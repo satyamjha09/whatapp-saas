@@ -8,6 +8,31 @@ import {
   SUBSCRIPTION_CANCELLATION_JOB,
 } from "@/server/jobs/subscription-cancellation.job";
 import { SUBSCRIPTION_EXPIRY_JOB } from "@/server/services/subscription-expiry.service";
+import {
+  DEVELOPER_DATA_RETENTION_JOB,
+  runDeveloperDataRetentionJob,
+} from "@/server/jobs/developer-data-retention.job";
+import {
+  COMPANY_NOTIFICATION_RETENTION_JOB,
+  runCompanyNotificationRetentionJob,
+} from "@/server/jobs/company-notification-retention.job";
+import {
+  COMPANY_NOTIFICATION_EMAIL_MAINTENANCE_JOB,
+  runCompanyNotificationEmailMaintenanceJob,
+} from "@/server/jobs/company-notification-email-maintenance.job";
+import {
+  OPERATIONS_HEALTH_ALERT_JOB,
+  runOperationsHealthAlertJob,
+} from "@/server/jobs/operations-health-alert.job";
+import {
+  DATABASE_BACKUP_JOB,
+  runDatabaseBackupJob,
+} from "@/server/jobs/database-backup.job";
+import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
+
+const heartbeat = createWorkerHeartbeat({
+  workerName: "maintenance-worker",
+});
 
 async function ensureRepeatableJobs() {
   await getMaintenanceQueue().add(
@@ -30,6 +55,56 @@ async function ensureRepeatableJobs() {
       removeOnFail: { age: 7 * 24 * 60 * 60, count: 200 },
     },
   );
+  await getMaintenanceQueue().add(
+    DEVELOPER_DATA_RETENTION_JOB,
+    {},
+    {
+      repeat: { every: 24 * 60 * 60 * 1000 },
+      jobId: DEVELOPER_DATA_RETENTION_JOB,
+      removeOnComplete: { age: 24 * 60 * 60, count: 100 },
+      removeOnFail: { age: 7 * 24 * 60 * 60, count: 200 },
+    },
+  );
+  await getMaintenanceQueue().add(
+    COMPANY_NOTIFICATION_RETENTION_JOB,
+    {},
+    {
+      repeat: { every: 24 * 60 * 60 * 1000 },
+      jobId: COMPANY_NOTIFICATION_RETENTION_JOB,
+      removeOnComplete: { age: 24 * 60 * 60, count: 100 },
+      removeOnFail: { age: 7 * 24 * 60 * 60, count: 200 },
+    },
+  );
+  await getMaintenanceQueue().add(
+    COMPANY_NOTIFICATION_EMAIL_MAINTENANCE_JOB,
+    {},
+    {
+      repeat: { every: 60 * 60 * 1000 },
+      jobId: COMPANY_NOTIFICATION_EMAIL_MAINTENANCE_JOB,
+      removeOnComplete: { age: 24 * 60 * 60, count: 100 },
+      removeOnFail: { age: 7 * 24 * 60 * 60, count: 200 },
+    },
+  );
+  await getMaintenanceQueue().add(
+    OPERATIONS_HEALTH_ALERT_JOB,
+    {},
+    {
+      repeat: { every: 30 * 60 * 1000 },
+      jobId: OPERATIONS_HEALTH_ALERT_JOB,
+      removeOnComplete: { age: 24 * 60 * 60, count: 100 },
+      removeOnFail: { age: 7 * 24 * 60 * 60, count: 200 },
+    },
+  );
+  await getMaintenanceQueue().add(
+    DATABASE_BACKUP_JOB,
+    {},
+    {
+      repeat: { every: 24 * 60 * 60 * 1000 },
+      jobId: DATABASE_BACKUP_JOB,
+      removeOnComplete: { age: 24 * 60 * 60, count: 100 },
+      removeOnFail: { age: 7 * 24 * 60 * 60, count: 200 },
+    },
+  );
 }
 
 const worker = new Worker(
@@ -47,13 +122,46 @@ const worker = new Worker(
       return result;
     }
 
+    if (job.name === DEVELOPER_DATA_RETENTION_JOB) {
+      const result = await runDeveloperDataRetentionJob();
+      console.log("Developer data retention cleanup completed", result);
+      return result;
+    }
+
+    if (job.name === COMPANY_NOTIFICATION_RETENTION_JOB) {
+      const result = await runCompanyNotificationRetentionJob();
+      console.log("Company notification retention cleanup completed", result);
+      return result;
+    }
+
+    if (job.name === COMPANY_NOTIFICATION_EMAIL_MAINTENANCE_JOB) {
+      const result = await runCompanyNotificationEmailMaintenanceJob();
+      console.log("Notification email maintenance completed", result);
+      return result;
+    }
+
+    if (job.name === OPERATIONS_HEALTH_ALERT_JOB) {
+      const result = await runOperationsHealthAlertJob();
+      console.log("Operations health alert check completed", result);
+      return result;
+    }
+
+    if (job.name === DATABASE_BACKUP_JOB) {
+      const result = await runDatabaseBackupJob();
+      console.log("Database backup job completed", result);
+      return result;
+    }
+
     throw new Error(`Unknown maintenance job: ${job.name}`);
   },
   { connection: getRedisConnection() },
 );
 
-worker.on("failed", (job, error) => {
+void heartbeat.start();
+
+worker.on("failed", async (job, error) => {
   console.error(`[maintenance-worker] ${job?.name ?? "job"} failed:`, error);
+  await heartbeat.markError(error);
 });
 
 void ensureRepeatableJobs()
@@ -68,6 +176,7 @@ async function shutdown() {
   console.log("[maintenance-worker] Shutting down.");
   await worker.close();
   await getMaintenanceQueue().close();
+  await heartbeat.stop();
   process.exit(0);
 }
 

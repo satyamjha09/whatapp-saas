@@ -34,6 +34,7 @@ import {
 type DashboardShellProps = {
   children: React.ReactNode;
   companyName: string;
+  notificationBadge: React.ReactNode;
   userName: string;
   userRole: string;
 };
@@ -43,6 +44,8 @@ const navigationIcons: Record<
   React.ComponentType<{ className?: string }>
 > = {
   Dashboard: LayoutGrid,
+  Notifications: Bell,
+  "Notification Preferences": Bell,
   Inbox: MessageCircle,
   "Send Message": Send,
   Reports: Gauge,
@@ -328,6 +331,7 @@ function SidebarContent({
 export function DashboardShell({
   children,
   companyName,
+  notificationBadge,
   userName,
   userRole,
 }: DashboardShellProps) {
@@ -457,14 +461,7 @@ export function DashboardShell({
               </kbd>
             </div>
 
-            <button
-              type="button"
-              className="relative grid h-10 w-10 place-items-center rounded-lg border border-[#D8E6F3] bg-white text-[#526173] transition hover:bg-[#F0F8FF] hover:text-[#0052CC]"
-              title="Notifications"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#F8C830] ring-2 ring-white" />
-            </button>
+            {notificationBadge}
 
             <div className="rounded-full border border-[#D8E6F3] bg-white p-1">
               <UserButton />
