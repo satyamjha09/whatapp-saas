@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { assertTenantEntityAccess } from "@/server/auth/tenant-guard";
 import { createAuditLog } from "@/server/services/audit.service";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
 import { enqueueDeveloperWebhookOutboxEvent } from "@/server/services/developer-webhook-outbox.service";
@@ -9,6 +10,7 @@ import {
   enforceApiRateLimit,
   isRateLimitResponse,
 } from "@/server/utils/api-rate-limit";
+import { createTenantErrorResponse } from "@/server/utils/api-tenant-error";
 
 type RetryOutboxRouteContext = {
   params: Promise<{ outboxEventId: string }>;
@@ -51,6 +53,18 @@ export async function POST(
     const companyId = context.membership.companyId;
     await assertCompanyFeature(companyId, "DEVELOPER_WEBHOOKS");
     const { outboxEventId } = await params;
+
+    try {
+      await assertTenantEntityAccess({
+        request,
+        companyId,
+        entityType: "DeveloperWebhookOutboxEvent",
+        entityId: outboxEventId,
+      });
+    } catch (error) {
+      return createTenantErrorResponse(error);
+    }
+
     const event = await prisma.developerWebhookOutbox.findFirst({
       where: { id: outboxEventId, companyId },
     });

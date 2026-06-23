@@ -9,6 +9,26 @@ import {
   enforceApiRateLimit,
   isRateLimitResponse,
 } from "@/server/utils/api-rate-limit";
+import {
+  createRequestBodyErrorResponse,
+  InvalidRequestBodyError,
+  readRequestTextWithLimit,
+  REQUEST_BODY_LIMITS,
+} from "@/server/utils/request-body-guard";
+import {
+  detectWebhookReplay,
+  recordWebhookSignatureFailure,
+  verifyMetaWebhookSignature,
+  WebhookReplayError,
+  WebhookSignatureError,
+} from "@/server/services/webhook-signature.service";
+import {
+  completeProviderWebhookEvent,
+  failProviderWebhookEvent,
+  getMetaWebhookEventId,
+  getMetaWebhookEventType,
+  startProviderWebhookEvent,
+} from "@/server/services/provider-webhook-event.service";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -88,30 +108,129 @@ export async function POST(request: Request) {
   }
 
   try {
-    const payload: unknown = await request.json();
+    let rawBody = "";
+    let payload: unknown;
 
-    const dedupeKey = createPayloadDedupeKey(payload);
-    const eventType = getWebhookEventType(payload);
-    const phoneNumberId = getPhoneNumberIdFromPayload(payload);
+    try {
+      rawBody = await readRequestTextWithLimit({
+        request,
+        maxBytes: REQUEST_BODY_LIMITS.webhook(),
+      });
 
-    const companyId = phoneNumberId
-      ? await findCompanyByPhoneNumberId(phoneNumberId)
-      : null;
+      verifyMetaWebhookSignature({
+        rawBody,
+        signatureHeader: request.headers.get("x-hub-signature-256"),
+        appSecret: process.env.META_APP_SECRET,
+      });
 
-    const result = await createWebhookEvent({
-      payload,
-      eventType,
-      companyId,
-      dedupeKey,
+      payload = JSON.parse(rawBody);
+
+      const replayKey =
+        request.headers.get("x-hub-signature-256") ?? crypto.randomUUID();
+
+      await detectWebhookReplay({
+        provider: "META",
+        replayKey,
+        request,
+      });
+    } catch (error) {
+      if (error instanceof WebhookSignatureError) {
+        await recordWebhookSignatureFailure({
+          request,
+          provider: "META",
+          reason: error.message,
+        });
+
+        return Response.json(
+          {
+            message: "Invalid webhook signature",
+          },
+          {
+            status: 401,
+          },
+        );
+      }
+
+      if (error instanceof WebhookReplayError) {
+        return Response.json(
+          {
+            message: "Webhook replay blocked",
+          },
+          {
+            status: 409,
+          },
+        );
+      }
+
+      if (error instanceof SyntaxError) {
+        return createRequestBodyErrorResponse({
+          request,
+          error: new InvalidRequestBodyError("Webhook body must be valid JSON"),
+          source: "whatsapp-webhook",
+        });
+      }
+
+      return createRequestBodyErrorResponse({
+        request,
+        error,
+        source: "whatsapp-webhook",
+      });
+    }
+
+    const providerWebhookEvent = await startProviderWebhookEvent({
+      provider: "META",
+      providerEventId: getMetaWebhookEventId(payload),
+      eventType: getMetaWebhookEventType(payload),
+      rawBody,
+      metadata: {
+        source: "whatsapp-webhook",
+        signaturePresent: Boolean(request.headers.get("x-hub-signature-256")),
+      },
     });
 
-    return NextResponse.json(
-      {
-        received: true,
-        duplicate: result.isDuplicate,
-      },
-      { status: 200 },
-    );
+    if (!providerWebhookEvent.shouldProcess) {
+      return Response.json({
+        ok: true,
+        duplicate: true,
+      });
+    }
+
+    try {
+      const dedupeKey = createPayloadDedupeKey(payload);
+      const eventType = getWebhookEventType(payload);
+      const phoneNumberId = getPhoneNumberIdFromPayload(payload);
+
+      const companyId = phoneNumberId
+        ? await findCompanyByPhoneNumberId(phoneNumberId)
+        : null;
+
+      const result = await createWebhookEvent({
+        payload,
+        eventType,
+        companyId,
+        dedupeKey,
+      });
+
+      await completeProviderWebhookEvent({
+        eventId: providerWebhookEvent.event.id,
+      });
+
+      return NextResponse.json(
+        {
+          received: true,
+          duplicate: result.isDuplicate,
+        },
+        { status: 200 },
+      );
+    } catch (error) {
+      await failProviderWebhookEvent({
+        eventId: providerWebhookEvent.event.id,
+        errorMessage:
+          error instanceof Error ? error.message : "Unknown WhatsApp webhook error",
+      });
+
+      throw error;
+    }
   } catch (error) {
     console.error("WHATSAPP_WEBHOOK_ERROR:", error);
 

@@ -6,6 +6,11 @@ import {
 import { createAuditLog } from "@/server/services/audit.service";
 import { createQueuedPublicTemplateMessage } from "@/server/services/message.service";
 import { publicSendTemplateMessageSchema } from "@/server/validators/public-message.validator";
+import {
+  createRequestBodyErrorResponse,
+  readRequestJsonWithLimit,
+  REQUEST_BODY_LIMITS,
+} from "@/server/utils/request-body-guard";
 
 export async function POST(request: Request) {
   try {
@@ -26,7 +31,20 @@ export async function POST(request: Request) {
       return scopeResponse;
     }
 
-    const body: unknown = await request.json();
+    let body: unknown;
+
+    try {
+      body = await readRequestJsonWithLimit({
+        request,
+        maxBytes: REQUEST_BODY_LIMITS.publicApi(),
+      });
+    } catch (error) {
+      return createRequestBodyErrorResponse({
+        request,
+        error,
+        source: "public-api-send-template",
+      });
+    }
 
     const validation = publicSendTemplateMessageSchema.safeParse(body);
 

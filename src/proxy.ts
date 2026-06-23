@@ -20,6 +20,8 @@ function applyCorsHeaders(response: NextResponse, request: NextRequest) {
 }
 
 export default clerkMiddleware(async (auth, request) => {
+  const requestIdHeader = process.env.APP_REQUEST_ID_HEADER ?? "x-request-id";
+  const requestId = request.headers.get(requestIdHeader) ?? crypto.randomUUID();
   const pathname = request.nextUrl.pathname;
   const shouldHandleCors = shouldApplyPublicApiCors(pathname);
 
@@ -38,6 +40,7 @@ export default clerkMiddleware(async (auth, request) => {
 
     setSecurityHeaders(response.headers);
     response.headers.set("X-CSRF-Origin-Guard", "blocked");
+    response.headers.set(requestIdHeader, requestId);
 
     return response;
   }
@@ -47,9 +50,10 @@ export default clerkMiddleware(async (auth, request) => {
       status: 204,
     });
     setSecurityHeaders(response.headers);
+    response.headers.set(requestIdHeader, requestId);
     const corsAllowed = applyCorsHeaders(response, request);
     if (!corsAllowed && request.headers.get("origin")) {
-      return NextResponse.json(
+      const deniedResponse = NextResponse.json(
         {
           message: "CORS origin is not allowed",
         },
@@ -57,12 +61,18 @@ export default clerkMiddleware(async (auth, request) => {
           status: 403,
         },
       );
+
+      setSecurityHeaders(deniedResponse.headers);
+      deniedResponse.headers.set(requestIdHeader, requestId);
+
+      return deniedResponse;
     }
     return response;
   }
 
   const response = NextResponse.next();
   setSecurityHeaders(response.headers);
+  response.headers.set(requestIdHeader, requestId);
 
   if (shouldHandleCors) {
     applyCorsHeaders(response, request);

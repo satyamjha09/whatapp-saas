@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { createAuditLogWithClient } from "@/server/services/audit.service";
 import { getBillingPlanConfig } from "@/server/config/billing-plans";
 import { addOneMonth } from "@/server/services/subscription.service";
 
@@ -121,17 +122,15 @@ export async function applyDueSubscriptionCancellations({
 
       if (claimed.count === 0) return false;
 
-      await tx.auditLog.create({
-        data: {
-          companyId: company.id,
-          action: "billing.subscription.canceled_at_period_end",
-          entityType: "Company",
-          entityId: company.id,
-          metadata: {
-            previousPlan: company.billingPlan,
-            previousPeriodEnd: company.currentPeriodEnd?.toISOString() ?? null,
-            newPlan: "FREE",
-          },
+      await createAuditLogWithClient(tx, {
+        companyId: company.id,
+        action: "billing.subscription.canceled_at_period_end",
+        entityType: "Company",
+        entityId: company.id,
+        metadata: {
+          previousPlan: company.billingPlan,
+          previousPeriodEnd: company.currentPeriodEnd?.toISOString() ?? null,
+          newPlan: "FREE",
         },
       });
       return true;

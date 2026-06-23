@@ -12,6 +12,11 @@ import {
   enforceApiRateLimit,
   isRateLimitResponse,
 } from "@/server/utils/api-rate-limit";
+import {
+  createRequestBodyErrorResponse,
+  readRequestJsonWithLimit,
+  REQUEST_BODY_LIMITS,
+} from "@/server/utils/request-body-guard";
 
 export async function POST(request: Request) {
   const rateLimit = await enforceApiRateLimit({
@@ -37,9 +42,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const validation = createRazorpaySubscriptionOrderSchema.safeParse(
-      await request.json(),
-    );
+    let body: unknown;
+
+    try {
+      body = await readRequestJsonWithLimit({
+        request,
+        maxBytes: REQUEST_BODY_LIMITS.json(),
+      });
+    } catch (error) {
+      return createRequestBodyErrorResponse({
+        request,
+        error,
+        source: "subscription-order-create",
+      });
+    }
+
+    const validation = createRazorpaySubscriptionOrderSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         { message: "Invalid subscription plan", errors: validation.error.flatten().fieldErrors },

@@ -5,7 +5,6 @@ import {
   markRazorpayCreditPurchaseFailedFromWebhook,
   markRazorpayCreditPurchasePaidFromWebhook,
   type RazorpayWebhookPayload,
-  verifyRazorpayWebhookSignature,
 } from "@/server/services/razorpay-credit.service";
 import { createAuditLog } from "@/server/services/audit.service";
 import {
@@ -13,6 +12,26 @@ import {
   markRazorpaySubscriptionPaymentPaidFromWebhook,
 } from "@/server/services/razorpay-subscription.service";
 import { NextResponse } from "next/server";
+import {
+  createRequestBodyErrorResponse,
+  InvalidRequestBodyError,
+  readRequestTextWithLimit,
+  REQUEST_BODY_LIMITS,
+} from "@/server/utils/request-body-guard";
+import {
+  detectWebhookReplay,
+  recordWebhookSignatureFailure,
+  verifyRazorpayWebhookSignature,
+  WebhookReplayError,
+  WebhookSignatureError,
+} from "@/server/services/webhook-signature.service";
+import {
+  completeProviderWebhookEvent,
+  failProviderWebhookEvent,
+  getRazorpayWebhookEventId,
+  getRazorpayWebhookEventType,
+  startProviderWebhookEvent,
+} from "@/server/services/provider-webhook-event.service";
 
 const handledEvents = new Set([
   "payment.captured",
@@ -43,26 +62,115 @@ async function markEvent({
 }
 
 export async function POST(request: Request) {
-  const rawBody = await request.text();
-  const signature = request.headers.get("x-razorpay-signature");
+  let rawBody = "";
+  let payload: RazorpayWebhookPayload;
   let eventRecordId: string | undefined;
+  let providerWebhookEventId: string | undefined;
 
-  if (!signature) {
-    return NextResponse.json(
-      { message: "Missing Razorpay signature" },
-      { status: 400 },
-    );
+  async function completeAndRespond(
+    body: Parameters<typeof NextResponse.json>[0],
+    init?: Parameters<typeof NextResponse.json>[1],
+  ) {
+    if (providerWebhookEventId) {
+      await completeProviderWebhookEvent({
+        eventId: providerWebhookEventId,
+      });
+    }
+
+    return NextResponse.json(body, init);
   }
 
   try {
-    if (!verifyRazorpayWebhookSignature({ rawBody, signature })) {
-      return NextResponse.json(
-        { message: "Invalid Razorpay webhook signature" },
-        { status: 400 },
-      );
+    try {
+      rawBody = await readRequestTextWithLimit({
+        request,
+        maxBytes: REQUEST_BODY_LIMITS.webhook(),
+      });
+
+      verifyRazorpayWebhookSignature({
+        rawBody,
+        signatureHeader: request.headers.get("x-razorpay-signature"),
+        webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
+      });
+
+      payload = JSON.parse(rawBody) as RazorpayWebhookPayload;
+
+      const replayKey =
+        request.headers.get("x-razorpay-event-id") ??
+        request.headers.get("x-razorpay-signature");
+
+      await detectWebhookReplay({
+        provider: "RAZORPAY",
+        replayKey,
+        request,
+      });
+    } catch (error) {
+      if (error instanceof WebhookSignatureError) {
+        await recordWebhookSignatureFailure({
+          request,
+          provider: "RAZORPAY",
+          reason: error.message,
+        });
+
+        return Response.json(
+          {
+            message: "Invalid webhook signature",
+          },
+          {
+            status: 401,
+          },
+        );
+      }
+
+      if (error instanceof WebhookReplayError) {
+        return Response.json(
+          {
+            message: "Webhook replay blocked",
+          },
+          {
+            status: 409,
+          },
+        );
+      }
+
+      if (error instanceof SyntaxError) {
+        return createRequestBodyErrorResponse({
+          request,
+          error: new InvalidRequestBodyError("Webhook body must be valid JSON"),
+          source: "razorpay-webhook",
+        });
+      }
+
+      return createRequestBodyErrorResponse({
+        request,
+        error,
+        source: "razorpay-webhook",
+      });
     }
 
-    const payload = JSON.parse(rawBody) as RazorpayWebhookPayload;
+    const providerWebhookEvent = await startProviderWebhookEvent({
+      provider: "RAZORPAY",
+      providerEventId: getRazorpayWebhookEventId({
+        body: payload,
+        eventIdHeader: request.headers.get("x-razorpay-event-id"),
+      }),
+      eventType: getRazorpayWebhookEventType(payload),
+      rawBody,
+      metadata: {
+        source: "razorpay-webhook",
+        signaturePresent: Boolean(request.headers.get("x-razorpay-signature")),
+      },
+    });
+
+    providerWebhookEventId = providerWebhookEvent.event.id;
+
+    if (!providerWebhookEvent.shouldProcess) {
+      return Response.json({
+        ok: true,
+        duplicate: true,
+      });
+    }
+
     const eventType = payload.event ?? "unknown";
     const razorpayEventId =
       request.headers.get("x-razorpay-event-id") ??
@@ -80,7 +188,7 @@ export async function POST(request: Request) {
         existingEvent?.status === "PROCESSED" ||
         existingEvent?.status === "IGNORED"
       ) {
-        return NextResponse.json({ message: "Webhook already processed" });
+        return completeAndRespond({ message: "Webhook already processed" });
       }
 
       if (existingEvent) {
@@ -131,7 +239,7 @@ export async function POST(request: Request) {
         errorMessage: `Unhandled event type: ${eventType}`,
       });
 
-      return NextResponse.json({ message: "Webhook ignored" });
+      return completeAndRespond({ message: "Webhook ignored" });
     }
 
     const paymentData = extractCreditPaymentFromWebhook(payload);
@@ -147,7 +255,7 @@ export async function POST(request: Request) {
         errorMessage: "Webhook does not contain required payment IDs",
       });
 
-      return NextResponse.json({ message: "Webhook ignored" });
+      return completeAndRespond({ message: "Webhook ignored" });
     }
 
     const [matchedPurchase, matchedSubscription] = await Promise.all([
@@ -167,7 +275,7 @@ export async function POST(request: Request) {
         status: "IGNORED",
         errorMessage: "No matching TallyKonnect payment order",
       });
-      return NextResponse.json({ message: "Webhook ignored" });
+      return completeAndRespond({ message: "Webhook ignored" });
     }
 
     const matchedCompanyId =
@@ -186,7 +294,9 @@ export async function POST(request: Request) {
             companyId: matchedCompanyId,
             status: "PROCESSED",
           });
-          return NextResponse.json({ message: "Razorpay subscription failure processed" });
+          return completeAndRespond({
+            message: "Razorpay subscription failure processed",
+          });
         }
 
         const subscriptionResult = await markRazorpaySubscriptionPaymentPaidFromWebhook({
@@ -215,7 +325,7 @@ export async function POST(request: Request) {
           companyId: matchedCompanyId,
           status: "PROCESSED",
         });
-        return NextResponse.json({ message: "Razorpay subscription processed" });
+        return completeAndRespond({ message: "Razorpay subscription processed" });
       }
 
       if (eventType === "payment.failed") {
@@ -230,7 +340,7 @@ export async function POST(request: Request) {
           status: "PROCESSED",
         });
 
-        return NextResponse.json({
+        return completeAndRespond({
           message: "Razorpay payment failure processed",
         });
       }
@@ -247,7 +357,7 @@ export async function POST(request: Request) {
         status: "PROCESSED",
       });
 
-      return NextResponse.json({
+      return completeAndRespond({
         message: "Razorpay credit purchase processed",
       });
     } catch (error) {
@@ -262,7 +372,7 @@ export async function POST(request: Request) {
           status: "IGNORED",
           errorMessage: "No matching TallyKonnect payment order",
         });
-        return NextResponse.json({ message: "Webhook ignored" });
+        return completeAndRespond({ message: "Webhook ignored" });
       }
 
       if (
@@ -276,7 +386,7 @@ export async function POST(request: Request) {
           status: "FAILED",
           errorMessage: message,
         });
-        return NextResponse.json({ message: "Webhook rejected" });
+        return completeAndRespond({ message: "Webhook rejected" });
       }
 
       throw error;
@@ -294,6 +404,18 @@ export async function POST(request: Request) {
         });
       } catch {
         // The original processing error is the useful failure to retry.
+      }
+    }
+
+    if (providerWebhookEventId) {
+      try {
+        await failProviderWebhookEvent({
+          eventId: providerWebhookEventId,
+          errorMessage:
+            error instanceof Error ? error.message : "Unknown Razorpay webhook error",
+        });
+      } catch {
+        // Preserve the original route failure.
       }
     }
 

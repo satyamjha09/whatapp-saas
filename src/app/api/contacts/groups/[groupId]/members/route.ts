@@ -9,6 +9,11 @@ import {
   enforceApiRateLimit,
   isRateLimitResponse,
 } from "@/server/utils/api-rate-limit";
+import {
+  createRequestBodyErrorResponse,
+  readRequestJsonWithLimit,
+  REQUEST_BODY_LIMITS,
+} from "@/server/utils/request-body-guard";
 
 export async function POST(
   request: Request,
@@ -50,9 +55,22 @@ export async function POST(
       "CONTACT_GROUPS",
     );
 
-    const validation = importContactsToGroupSchema.safeParse(
-      (await request.json()) as unknown,
-    );
+    let body: unknown;
+
+    try {
+      body = await readRequestJsonWithLimit({
+        request,
+        maxBytes: REQUEST_BODY_LIMITS.contactImport(),
+      });
+    } catch (error) {
+      return createRequestBodyErrorResponse({
+        request,
+        error,
+        source: "contact-import",
+      });
+    }
+
+    const validation = importContactsToGroupSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         {

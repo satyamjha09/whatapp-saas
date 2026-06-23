@@ -1,6 +1,9 @@
 import { revalidateTag, unstable_cache } from "next/cache";
-import { encryptText } from "@/lib/encryption";
 import { prisma } from "@/lib/prisma";
+import {
+  encryptSecret,
+  getActiveEncryptionKeyId,
+} from "@/server/security/secret-encryption";
 import { SaveWhatsAppCredentialsInput } from "@/server/validators/whatsapp.validator";
 
 const WHATSAPP_ACCOUNT_CACHE_TAG = "whatsapp-account";
@@ -91,7 +94,12 @@ export async function saveWhatsAppCredentialsForCompany(
     },
     data: {
       wabaId: input.wabaId,
-      accessToken: encryptText(input.accessToken),
+      accessToken: encryptSecret({
+        plaintext: input.accessToken,
+        purpose: "whatsapp_access_token",
+      }),
+      accessTokenKeyId: getActiveEncryptionKeyId(),
+      accessTokenEncryptedAt: new Date(),
       status: "CONNECTED",
       phoneNumbers: {
         create: {

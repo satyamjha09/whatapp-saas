@@ -660,6 +660,106 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/health",
         }),
         buildItem({
+          id: "request-body-size-guard",
+          title: "Request body size guard enabled",
+          description:
+            "Sensitive JSON, webhook, CSP report, campaign, and import endpoints reject oversized payloads before parsing and record security events.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "webhook-signature-verification",
+          title: "Webhook signature verification enabled",
+          description:
+            "Meta and Razorpay webhook payloads are verified using raw-body HMAC signatures, replay attempts are detected, and signature failures are logged as security events.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "provider-webhook-idempotency",
+          title: "Provider webhook idempotency enabled",
+          description:
+            "Meta and Razorpay webhook events are stored in an idempotency ledger so provider retries cannot duplicate messages, wallet credits, or subscription updates.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "safe-structured-logging",
+          title: "Safe structured logging enabled",
+          description:
+            "Application logs and stored security metadata redact secrets, include request correlation IDs, and support JSON production logging.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "audit-log-integrity",
+          title: "Tamper-evident audit logs enabled",
+          description:
+            "Audit logs are protected with a hash chain and can be verified from System Health to detect unauthorized database edits.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "multi-tenant-data-isolation",
+          title: "Multi-tenant data isolation guard enabled",
+          description:
+            "Dynamic company-owned API resources are protected with tenant ownership checks so one company cannot access another company's data.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "secret-encryption-key-rotation",
+          title: "Secret encryption key rotation enabled",
+          description:
+            "WhatsApp tokens and developer webhook secrets use versioned AES-256-GCM encryption with active key tracking and safe rotation.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "platform-admin-console",
+          title: "Platform admin console enabled",
+          description:
+            "Internal platform admins can view all companies, billing status, WhatsApp connection status, usage, webhook failures, and audit history through a protected read-only ops console.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Platform Admin",
+          actionHref: "/dashboard/platform",
+        }),
+        buildItem({
+          id: "incident-management-system",
+          title: "Incident management system enabled",
+          description:
+            "Production-impacting security, worker, webhook, backup, billing, and platform failures can be tracked as incidents with acknowledgement, resolution, and timeline history.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Incidents",
+          actionHref: "/dashboard/incidents",
+        }),
+        buildItem({
+          id: "dead-letter-queue-ui",
+          title: "Dead letter queue UI enabled",
+          description:
+            "Failed BullMQ jobs are synced into a database-backed dead letter queue with dashboard inspection, retry, ignore, audit logs, and incident integration.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Dead Letter Queue",
+          actionHref: "/dashboard/system/dead-letter-queue",
+        }),
+        buildItem({
           id: "subscription-expiry-guard",
           title: "Subscription expiry guard enabled",
           description:

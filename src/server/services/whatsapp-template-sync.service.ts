@@ -1,6 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { decryptText } from "@/lib/encryption";
 import { prisma } from "@/lib/prisma";
+import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
 
 type MetaTemplateComponent = {
   type: string;
@@ -156,7 +156,7 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
     throw new Error("WhatsApp account is not connected");
   }
 
-  const accessToken = decryptText(account.accessToken);
+  const accessToken = await getWhatsAppAccessToken({ companyId });
   const templates: MetaTemplate[] = [];
   const seenCursors = new Set<string>();
   let after: string | undefined;

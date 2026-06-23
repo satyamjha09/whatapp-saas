@@ -1,5 +1,8 @@
-import { encryptText } from "@/lib/encryption";
 import { prisma } from "@/lib/prisma";
+import {
+  encryptSecret,
+  getActiveEncryptionKeyId,
+} from "@/server/security/secret-encryption";
 import type { CompleteWhatsAppEmbeddedSignupInput } from "@/server/validators/whatsapp-embedded-signup.validator";
 
 type MetaError = {
@@ -196,7 +199,12 @@ export async function completeWhatsAppEmbeddedSignup(
     accessToken,
     input.wabaId,
   );
-  const encryptedAccessToken = encryptText(accessToken);
+  const encryptedAccessToken = encryptSecret({
+    plaintext: accessToken,
+    purpose: "whatsapp_access_token",
+  });
+  const accessTokenKeyId = getActiveEncryptionKeyId();
+  const accessTokenEncryptedAt = new Date();
 
   const result = await prisma.$transaction(async (tx) => {
     const existingAccount = await tx.whatsAppAccount.findFirst({
@@ -215,6 +223,8 @@ export async function completeWhatsAppEmbeddedSignup(
           data: {
             wabaId: input.wabaId,
             accessToken: encryptedAccessToken,
+            accessTokenKeyId,
+            accessTokenEncryptedAt,
             status: "CONNECTED",
           },
         })
@@ -223,6 +233,8 @@ export async function completeWhatsAppEmbeddedSignup(
             companyId,
             wabaId: input.wabaId,
             accessToken: encryptedAccessToken,
+            accessTokenKeyId,
+            accessTokenEncryptedAt,
             status: "CONNECTED",
           },
         });

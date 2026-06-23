@@ -12,6 +12,11 @@ import {
   enforceApiRateLimit,
   isRateLimitResponse,
 } from "@/server/utils/api-rate-limit";
+import {
+  createRequestBodyErrorResponse,
+  readRequestJsonWithLimit,
+  REQUEST_BODY_LIMITS,
+} from "@/server/utils/request-body-guard";
 
 export async function POST(request: Request) {
   const rateLimit = await enforceApiRateLimit({
@@ -47,7 +52,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const body: unknown = await request.json();
+    let body: unknown;
+
+    try {
+      body = await readRequestJsonWithLimit({
+        request,
+        maxBytes: REQUEST_BODY_LIMITS.bulkMessage(),
+      });
+    } catch (error) {
+      return createRequestBodyErrorResponse({
+        request,
+        error,
+        source: "bulk-message-create",
+      });
+    }
+
     const validation = sendBulkTemplateMessageSchema.safeParse(body);
 
     if (!validation.success) {

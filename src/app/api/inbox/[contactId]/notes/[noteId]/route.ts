@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { assertTenantEntityAccess } from "@/server/auth/tenant-guard";
 import { createAuditLog } from "@/server/services/audit.service";
 import {
   deleteInboxNote,
   updateInboxNote,
 } from "@/server/services/inbox.service";
+import { createTenantErrorResponse } from "@/server/utils/api-tenant-error";
 import { updateInboxNoteSchema } from "@/server/validators/inbox-note.validator";
 
 type InboxNoteRouteContext = {
@@ -46,6 +48,23 @@ export async function PATCH(
     }
 
     const { contactId, noteId } = await params;
+    try {
+      await assertTenantEntityAccess({
+        request,
+        companyId: context.membership.companyId,
+        entityType: "Contact",
+        entityId: contactId,
+      });
+
+      await assertTenantEntityAccess({
+        request,
+        companyId: context.membership.companyId,
+        entityType: "InboxNote",
+        entityId: noteId,
+      });
+    } catch (error) {
+      return createTenantErrorResponse(error);
+    }
 
     const note = await updateInboxNote(
       context.membership.companyId,
@@ -84,7 +103,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: InboxNoteRouteContext,
 ) {
   try {
@@ -102,6 +121,23 @@ export async function DELETE(
     }
 
     const { contactId, noteId } = await params;
+    try {
+      await assertTenantEntityAccess({
+        request,
+        companyId: context.membership.companyId,
+        entityType: "Contact",
+        entityId: contactId,
+      });
+
+      await assertTenantEntityAccess({
+        request,
+        companyId: context.membership.companyId,
+        entityType: "InboxNote",
+        entityId: noteId,
+      });
+    } catch (error) {
+      return createTenantErrorResponse(error);
+    }
 
     const note = await deleteInboxNote(
       context.membership.companyId,

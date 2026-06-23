@@ -311,6 +311,211 @@ export function getProductionEnvAudit() {
     required: true,
   });
 
+  items.push({
+    id: "request-body-guard-enabled",
+    title: "Request body guard enabled",
+    severity:
+      process.env.REQUEST_BODY_GUARD_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.REQUEST_BODY_GUARD_ENABLED !== "false"
+        ? "Oversized payload guard is enabled"
+        : "REQUEST_BODY_GUARD_ENABLED must not be false in production",
+    required: true,
+  });
+
+  const maxJsonBodyBytes = Number(process.env.MAX_JSON_BODY_BYTES ?? 1048576);
+  const isJsonBodyLimitSafe =
+    Number.isFinite(maxJsonBodyBytes) &&
+    maxJsonBodyBytes > 0 &&
+    maxJsonBodyBytes <= 5 * 1024 * 1024;
+
+  items.push({
+    id: "request-body-json-limit-safe",
+    title: "JSON body size limit",
+    severity: isJsonBodyLimitSafe ? "PASS" : "FAIL",
+    message: isJsonBodyLimitSafe
+      ? "JSON body size limit is within safe range"
+      : "MAX_JSON_BODY_BYTES should be between 1 byte and 5 MB",
+    required: true,
+  });
+
+  items.push({
+    id: "webhook-signature-verification-enabled",
+    title: "Webhook signature verification enabled",
+    severity:
+      process.env.WEBHOOK_SIGNATURE_VERIFICATION_ENABLED !== "false"
+        ? "PASS"
+        : "FAIL",
+    message:
+      process.env.WEBHOOK_SIGNATURE_VERIFICATION_ENABLED !== "false"
+        ? "Webhook signature verification is enabled"
+        : "WEBHOOK_SIGNATURE_VERIFICATION_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "meta-app-secret-configured",
+    title: "Meta app secret configured",
+    severity: exists(process.env.META_APP_SECRET) ? "PASS" : "FAIL",
+    message: exists(process.env.META_APP_SECRET)
+      ? "META_APP_SECRET is configured"
+      : "META_APP_SECRET is required to verify WhatsApp webhook signatures",
+    required: true,
+  });
+
+  items.push({
+    id: "razorpay-webhook-secret-configured",
+    title: "Razorpay webhook secret configured",
+    severity: exists(process.env.RAZORPAY_WEBHOOK_SECRET) ? "PASS" : "FAIL",
+    message: exists(process.env.RAZORPAY_WEBHOOK_SECRET)
+      ? "RAZORPAY_WEBHOOK_SECRET is configured"
+      : "RAZORPAY_WEBHOOK_SECRET is required to verify payment webhook signatures",
+    required: true,
+  });
+
+  items.push({
+    id: "webhook-replay-mode-safe",
+    title: "Webhook replay guard mode",
+    severity: ["log", "block", undefined].includes(
+      process.env.WEBHOOK_REPLAY_GUARD_MODE as
+        | "log"
+        | "block"
+        | undefined,
+    )
+      ? "PASS"
+      : "FAIL",
+    message:
+      process.env.WEBHOOK_REPLAY_GUARD_MODE === "block"
+        ? "Webhook replay guard is in blocking mode"
+        : "Webhook replay guard is in logging mode",
+    required: true,
+  });
+
+  items.push({
+    id: "safe-log-redaction-enabled",
+    title: "Safe log redaction enabled",
+    severity:
+      process.env.APP_LOG_REDACTION_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.APP_LOG_REDACTION_ENABLED !== "false"
+        ? "Sensitive log redaction is enabled"
+        : "APP_LOG_REDACTION_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "production-json-logs",
+    title: "Production log format",
+    severity:
+      !isProduction() || process.env.APP_LOG_FORMAT === "json"
+        ? "PASS"
+        : "WARNING",
+    message:
+      !isProduction() || process.env.APP_LOG_FORMAT === "json"
+        ? "Production logs are configured for structured JSON"
+        : "Use APP_LOG_FORMAT=json in production for easier log aggregation",
+    required: false,
+  });
+
+  items.push({
+    id: "audit-log-hash-secret",
+    title: "Audit log hash secret configured",
+    severity:
+      exists(process.env.AUDIT_LOG_HASH_SECRET) &&
+      (process.env.AUDIT_LOG_HASH_SECRET?.length ?? 0) >= 32
+        ? "PASS"
+        : "FAIL",
+    message:
+      exists(process.env.AUDIT_LOG_HASH_SECRET) &&
+      (process.env.AUDIT_LOG_HASH_SECRET?.length ?? 0) >= 32
+        ? "AUDIT_LOG_HASH_SECRET is configured"
+        : "AUDIT_LOG_HASH_SECRET must be at least 32 characters",
+    required: true,
+  });
+
+  items.push({
+    id: "tenant-guard-enabled",
+    title: "Multi-tenant data isolation guard enabled",
+    severity: process.env.TENANT_GUARD_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.TENANT_GUARD_ENABLED !== "false"
+        ? "Tenant guard is enabled"
+        : "TENANT_GUARD_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "secret-encryption-v2-enabled",
+    title: "Secret encryption v2 enabled",
+    severity:
+      process.env.SECRET_ENCRYPTION_V2_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.SECRET_ENCRYPTION_V2_ENABLED !== "false"
+        ? "Secret encryption v2 is enabled"
+        : "SECRET_ENCRYPTION_V2_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "encryption-active-key-id",
+    title: "Active encryption key ID configured",
+    severity: exists(process.env.ENCRYPTION_ACTIVE_KEY_ID) ? "PASS" : "FAIL",
+    message: exists(process.env.ENCRYPTION_ACTIVE_KEY_ID)
+      ? "ENCRYPTION_ACTIVE_KEY_ID is configured"
+      : "ENCRYPTION_ACTIVE_KEY_ID is required for key rotation",
+    required: true,
+  });
+
+  items.push({
+    id: "encryption-keyring-configured",
+    title: "Encryption keyring configured",
+    severity: exists(process.env.ENCRYPTION_KEYS_JSON) ? "PASS" : "FAIL",
+    message: exists(process.env.ENCRYPTION_KEYS_JSON)
+      ? "ENCRYPTION_KEYS_JSON is configured"
+      : "ENCRYPTION_KEYS_JSON is required for versioned secret encryption",
+    required: true,
+  });
+
+  items.push({
+    id: "platform-admin-enabled",
+    title: "Platform admin console enabled",
+    severity:
+      process.env.PLATFORM_ADMIN_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.PLATFORM_ADMIN_ENABLED !== "false"
+        ? "Platform admin console is enabled"
+        : "PLATFORM_ADMIN_ENABLED must not be false in production",
+    required: true,
+  });
+
+  const platformAdminEmails = (process.env.PLATFORM_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim())
+    .filter(Boolean);
+
+  items.push({
+    id: "platform-admin-emails-configured",
+    title: "Platform admin emails configured",
+    severity: platformAdminEmails.length > 0 ? "PASS" : "FAIL",
+    message:
+      platformAdminEmails.length > 0
+        ? `${platformAdminEmails.length} platform admin email(s) configured`
+        : "PLATFORM_ADMIN_EMAILS must include at least one admin email",
+    required: true,
+  });
+
+  items.push({
+    id: "dead-letter-queue-enabled",
+    title: "Dead letter queue enabled",
+    severity:
+      process.env.DEAD_LETTER_QUEUE_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.DEAD_LETTER_QUEUE_ENABLED !== "false"
+        ? "Dead letter queue monitoring is enabled"
+        : "DEAD_LETTER_QUEUE_ENABLED must not be false in production",
+    required: true,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

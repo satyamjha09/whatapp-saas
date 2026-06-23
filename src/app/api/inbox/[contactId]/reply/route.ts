@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { assertTenantEntityAccess } from "@/server/auth/tenant-guard";
 import { createAuditLog } from "@/server/services/audit.service";
 import { createQueuedInboxReply } from "@/server/services/message.service";
 import {
   assertSystemWritesAllowed,
   SystemMaintenanceModeError,
 } from "@/server/services/system-maintenance-mode.service";
+import { createTenantErrorResponse } from "@/server/utils/api-tenant-error";
 import { createInboxReplySchema } from "@/server/validators/inbox-reply.validator";
 
 type InboxReplyRouteContext = {
@@ -50,6 +52,17 @@ export async function POST(
     });
 
     const { contactId } = await params;
+    try {
+      await assertTenantEntityAccess({
+        request,
+        companyId: context.membership.companyId,
+        entityType: "Contact",
+        entityId: contactId,
+      });
+    } catch (error) {
+      return createTenantErrorResponse(error);
+    }
+
     const message = await createQueuedInboxReply(
       context.membership.companyId,
       contactId,

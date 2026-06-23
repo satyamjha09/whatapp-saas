@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
+import {
+  createRequestBodyErrorResponse,
+  readRequestJsonWithLimit,
+  readRequestTextWithLimit,
+  REQUEST_BODY_LIMITS,
+} from "@/server/utils/request-body-guard";
+import { logger } from "@/server/utils/safe-logger";
 
 export const dynamic = "force-dynamic";
 
@@ -8,9 +15,38 @@ export async function POST(request: Request) {
   try {
     const contentType = request.headers.get("content-type") || "";
     let report: Record<string, unknown> | null = null;
+    let rawBody: unknown;
 
-    if (contentType.includes("application/csp-report") || contentType.includes("application/json")) {
-      const body = await request.json().catch(() => ({}));
+    try {
+      rawBody =
+        contentType.includes("json") || contentType.includes("csp-report")
+          ? await readRequestJsonWithLimit({
+              request,
+              maxBytes: REQUEST_BODY_LIMITS.cspReport(),
+            })
+          : {
+              raw: await readRequestTextWithLimit({
+                request,
+                maxBytes: REQUEST_BODY_LIMITS.cspReport(),
+              }),
+            };
+    } catch (error) {
+      return createRequestBodyErrorResponse({
+        request,
+        error,
+        source: "csp-report-endpoint",
+      });
+    }
+
+    if (
+      contentType.includes("application/csp-report") ||
+      contentType.includes("application/json")
+    ) {
+      const body =
+        rawBody && typeof rawBody === "object"
+          ? (rawBody as Record<string, unknown>)
+          : {};
+
       report = (body["csp-report"] as Record<string, unknown>) || null;
     }
 
@@ -57,7 +93,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ message: "Report received", id: event.id });
   } catch (error) {
-    console.error("CSP_REPORT_ERROR:", error);
+    logger.error("CSP report processing failed", {
+      error,
+      path: new URL(request.url).pathname,
+    });
     return NextResponse.json({ message: "Error processing report" }, { status: 500 });
   }
 }

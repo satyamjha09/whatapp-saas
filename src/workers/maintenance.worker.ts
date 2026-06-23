@@ -28,6 +28,14 @@ import {
   DATABASE_BACKUP_JOB,
   runDatabaseBackupJob,
 } from "@/server/jobs/database-backup.job";
+import {
+  PROVIDER_WEBHOOK_EVENT_RETENTION_JOB,
+  runProviderWebhookEventRetentionJob,
+} from "@/server/jobs/provider-webhook-event-retention.job";
+import {
+  DEAD_LETTER_QUEUE_SYNC_JOB,
+  runDeadLetterQueueSyncJob,
+} from "@/server/jobs/dead-letter-queue-sync.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -105,6 +113,28 @@ async function ensureRepeatableJobs() {
       removeOnFail: { age: 7 * 24 * 60 * 60, count: 200 },
     },
   );
+  await getMaintenanceQueue().add(
+    PROVIDER_WEBHOOK_EVENT_RETENTION_JOB,
+    {},
+    {
+      repeat: {
+        pattern: "45 3 * * *",
+      },
+      jobId: PROVIDER_WEBHOOK_EVENT_RETENTION_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
+  await getMaintenanceQueue().add(
+    DEAD_LETTER_QUEUE_SYNC_JOB,
+    {},
+    {
+      repeat: { pattern: "*/10 * * * *" },
+      jobId: DEAD_LETTER_QUEUE_SYNC_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -149,6 +179,18 @@ const worker = new Worker(
     if (job.name === DATABASE_BACKUP_JOB) {
       const result = await runDatabaseBackupJob();
       console.log("Database backup job completed", result);
+      return result;
+    }
+
+    if (job.name === PROVIDER_WEBHOOK_EVENT_RETENTION_JOB) {
+      const result = await runProviderWebhookEventRetentionJob();
+      console.log("Provider webhook event retention completed", result);
+      return result;
+    }
+
+    if (job.name === DEAD_LETTER_QUEUE_SYNC_JOB) {
+      const result = await runDeadLetterQueueSyncJob();
+      console.log("Dead letter queue sync completed", result);
       return result;
     }
 

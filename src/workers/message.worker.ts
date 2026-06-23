@@ -1,6 +1,5 @@
 import "dotenv/config";
 import { Worker } from "bullmq";
-import { decryptText } from "@/lib/encryption";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { getRedisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
@@ -17,6 +16,7 @@ import {
   isSystemMaintenanceModeEnabled,
   SystemMaintenanceModeError,
 } from "@/server/services/system-maintenance-mode.service";
+import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -315,7 +315,7 @@ const worker = new Worker<SendMessageJobData>(
         return;
       }
 
-      const decryptedAccessToken = decryptText(whatsAppAccount!.accessToken!);
+      const decryptedAccessToken = await getWhatsAppAccessToken({ companyId });
 
       const result = message.template
         ? await sendWhatsAppTemplateMessage({

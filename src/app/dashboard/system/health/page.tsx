@@ -11,11 +11,21 @@ import { getProductionEnvAudit } from "@/server/services/production-env-audit.se
 import { getRateLimitHealth } from "@/server/services/rate-limit-health.service";
 import { getSecurityHeaderHealth } from "@/server/services/security-header-health.service";
 import { getCsrfOriginGuardHealth } from "@/server/services/csrf-origin-guard-health.service";
+import { getRequestBodyGuardHealth } from "@/server/services/request-body-guard-health.service";
+import { getWebhookSignatureSecurityHealth } from "@/server/services/webhook-signature-health.service";
+import { getProviderWebhookEventHealth } from "@/server/services/provider-webhook-event.service";
+import { getSafeLoggerHealth } from "@/server/services/safe-logger-health.service";
+import { getTenantGuardHealth } from "@/server/services/tenant-guard-health.service";
+import { getSecretEncryptionHealth } from "@/server/services/secret-encryption-health.service";
+import { getPlatformAdminHealth } from "@/server/services/platform-admin-health.service";
+import { getIncidentHealth } from "@/server/services/incident-health.service";
+import { getDeadLetterQueueSummary } from "@/server/services/dead-letter-queue.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
 import VerifyLatestBackupButton from "./verify-latest-backup-button";
 import ForceReleaseOperationLockButton from "./force-release-operation-lock-button";
+import VerifyAuditIntegrityButton from "./verify-audit-integrity-button";
 
 function statusClass(ok: boolean) {
   return ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700";
@@ -55,6 +65,15 @@ export default async function SystemHealthPage() {
     securityHeaders,
     securityEvents,
     csrfGuard,
+    bodyGuard,
+    webhookSignatures,
+    providerWebhooks,
+    safeLogger,
+    tenantGuard,
+    secretEncryption,
+    platformAdmin,
+    incidents,
+    deadLetterQueue,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -72,6 +91,15 @@ export default async function SystemHealthPage() {
       take: 10,
     }),
     getCsrfOriginGuardHealth(),
+    getRequestBodyGuardHealth(),
+    getWebhookSignatureSecurityHealth(),
+    getProviderWebhookEventHealth(),
+    getSafeLoggerHealth(),
+    getTenantGuardHealth(),
+    getSecretEncryptionHealth(),
+    getPlatformAdminHealth(),
+    getIncidentHealth(),
+    getDeadLetterQueueSummary(),
   ]);
 
   return (
@@ -86,6 +114,273 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Dead Letter Queue
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Failed BullMQ jobs that need retry, investigation, or dismissal.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                deadLetterQueue.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {deadLetterQueue.isHealthy ? "Healthy" : "Failed Jobs"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            {[
+              ["Failed", deadLetterQueue.failed],
+              ["Retried", deadLetterQueue.retried],
+              ["Ignored", deadLetterQueue.ignored],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/system/dead-letter-queue"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open dead letter queue
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Audit Log Integrity
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Audit logs are hash-chained so unauthorized edits become detectable.
+              </p>
+            </div>
+
+            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+              Enabled
+            </span>
+          </div>
+
+          <div className="mt-5">
+            <VerifyAuditIntegrityButton />
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Incident Management
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Tracks production incidents from security, workers, backups, webhooks, and platform events.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                incidents.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {incidents.isHealthy ? "Healthy" : "Active Incidents"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Open</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {incidents.open}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Acknowledged</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {incidents.acknowledged}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Critical Open</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {incidents.criticalOpen}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">High Open</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {incidents.highOpen}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/incidents"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open incidents
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Platform Admin Console
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Internal super-admin console for cross-company operations visibility.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                platformAdmin.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {platformAdmin.enabled ? "Enabled" : "Disabled"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Configured Admins</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {platformAdmin.configuredAdminCount}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Console URL</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                /dashboard/platform
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Sensitive Secret Encryption
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Versioned AES-256-GCM encryption with active key tracking and rotation.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                secretEncryption.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {secretEncryption.isHealthy ? "Healthy" : "Needs Rotation"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Active Key</p>
+              <p className="mt-1 break-all font-semibold text-gray-900">
+                {secretEncryption.activeKeyId}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Key Count</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {secretEncryption.keyCount}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">WA Unrotated</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {secretEncryption.whatsapp.unrotated}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Webhook Unrotated</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {secretEncryption.developerWebhooks.unrotated}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Multi-tenant Data Isolation Guard
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Prevents users from accessing resources that belong to another company.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                tenantGuard.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {tenantGuard.enabled ? "Enabled" : "Disabled"}
+            </span>
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-xl border">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Protected Entity</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y">
+                {tenantGuard.protectedEntities.map((entity) => (
+                  <tr key={entity}>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {entity}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -172,6 +467,285 @@ export default async function SystemHealthPage() {
 
                     <td className="px-4 py-3 text-gray-600">
                       {item.message}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Safe Logging
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Structured logs with automatic secret redaction and request correlation.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                safeLogger.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {safeLogger.redactionEnabled ? "Redaction On" : "Redaction Off"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Level</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {safeLogger.level}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Format</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {safeLogger.format}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Request ID Header</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {safeLogger.requestIdHeader}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Redaction Rules</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {safeLogger.sensitiveKeywordCount}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Provider Webhook Processing
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Idempotency and processing ledger for Meta and Razorpay webhook events.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                providerWebhooks.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {providerWebhooks.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Events / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {providerWebhooks.total24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {providerWebhooks.failed24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Stale Processing</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {providerWebhooks.processingStale}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Duplicates / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {providerWebhooks.duplicateSeen24h}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-xl border">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Provider</th>
+                  <th className="px-4 py-3">Event</th>
+                  <th className="px-4 py-3">Attempts</th>
+                  <th className="px-4 py-3">Received</th>
+                  <th className="px-4 py-3">Error</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y">
+                {providerWebhooks.recentEvents.map((event) => (
+                  <tr key={event.id}>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-medium ${
+                          event.status === "SUCCEEDED"
+                            ? "bg-green-50 text-green-700"
+                            : event.status === "FAILED"
+                              ? "bg-red-50 text-red-700"
+                              : "bg-yellow-50 text-yellow-700"
+                        }`}
+                      >
+                        {event.status}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {event.provider}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900">
+                        {event.eventType ?? "-"}
+                      </div>
+                      <div className="max-w-xs truncate font-mono text-xs text-gray-500">
+                        {event.providerEventId ?? event.bodySha256}
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3 text-gray-600">
+                      {event.attempts}
+                    </td>
+
+                    <td className="px-4 py-3 text-gray-600">
+                      {event.receivedAt.toLocaleString()}
+                    </td>
+
+                    <td className="max-w-xs truncate px-4 py-3 text-gray-600">
+                      {event.lastErrorMessage ?? "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Webhook Signature Verification
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Verifies Meta and Razorpay webhook signatures before processing payloads.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                webhookSignatures.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {webhookSignatures.isHealthy ? "Healthy" : "Needs Config"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Verification</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {webhookSignatures.enabled ? "Enabled" : "Disabled"}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Meta Secret</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {webhookSignatures.meta.configured ? "Configured" : "Missing"}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Razorpay Secret</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {webhookSignatures.razorpay.configured
+                  ? "Configured"
+                  : "Missing"}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Replay Mode</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {webhookSignatures.replayGuardMode}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Request Body Guard
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Blocks oversized JSON, webhook, CSP report, campaign, and import
+                payloads before they can consume app memory.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                bodyGuard.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {bodyGuard.enabled ? "Enabled" : "Disabled"}
+            </span>
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-xl border">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Payload Type</th>
+                  <th className="px-4 py-3">Max Bytes</th>
+                  <th className="px-4 py-3">Approx MB</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y">
+                {Object.entries(bodyGuard.limits).map(([name, bytes]) => (
+                  <tr key={name}>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {name}
+                    </td>
+
+                    <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                      {bytes}
+                    </td>
+
+                    <td className="px-4 py-3 text-gray-600">
+                      {(bytes / 1024 / 1024).toFixed(2)} MB
                     </td>
                   </tr>
                 ))}

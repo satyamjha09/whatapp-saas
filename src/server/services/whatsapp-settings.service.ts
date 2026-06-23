@@ -1,6 +1,11 @@
 import axios from "axios";
-import { decryptText, encryptText } from "@/lib/encryption";
 import { prisma } from "@/lib/prisma";
+import {
+  decryptSecret,
+  encryptSecret,
+  getActiveEncryptionKeyId,
+} from "@/server/security/secret-encryption";
+import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
 import { subscribeAppToWabaWebhooks } from "@/server/services/whatsapp-embedded-signup.service";
 import { UpdateWhatsAppSettingsInput } from "@/server/validators/whatsapp-settings.validator";
 
@@ -103,8 +108,13 @@ export async function updateWhatsAppSettings(
   }
 
   const encryptedToken = input.accessToken
-    ? encryptText(input.accessToken)
+    ? encryptSecret({
+        plaintext: input.accessToken,
+        purpose: "whatsapp_access_token",
+      })
     : undefined;
+  const accessTokenKeyId = encryptedToken ? getActiveEncryptionKeyId() : undefined;
+  const accessTokenEncryptedAt = encryptedToken ? new Date() : undefined;
 
   await prisma.$transaction(async (tx) => {
     const account = existingAccount
@@ -118,6 +128,8 @@ export async function updateWhatsAppSettings(
             ...(encryptedToken
               ? {
                   accessToken: encryptedToken,
+                  accessTokenKeyId,
+                  accessTokenEncryptedAt,
                 }
               : {}),
           },
@@ -128,6 +140,8 @@ export async function updateWhatsAppSettings(
             wabaId: input.wabaId,
             status: "CONNECTED",
             accessToken: encryptedToken,
+            accessTokenKeyId,
+            accessTokenEncryptedAt,
           },
         });
 
@@ -186,7 +200,10 @@ export async function testWhatsAppConnection(companyId: string) {
         fields: "id,display_phone_number,verified_name,quality_rating",
       },
       headers: {
-        Authorization: `Bearer ${decryptText(account.accessToken)}`,
+        Authorization: `Bearer ${decryptSecret({
+          encrypted: account.accessToken,
+          purpose: "whatsapp_access_token",
+        })}`,
       },
     },
   );
@@ -230,7 +247,7 @@ export async function subscribeCurrentWhatsAppAccountToWebhooks(
   }
 
   await subscribeAppToWabaWebhooks(
-    decryptText(account.accessToken),
+    await getWhatsAppAccessToken({ companyId }),
     account.wabaId,
   );
 

@@ -1,8 +1,8 @@
 import crypto from "crypto";
 import {
-  decryptSecret,
-  encryptSecret,
-} from "@/server/utils/secret-encryption";
+  decryptDeveloperWebhookSigningSecret as decryptDeveloperWebhookSigningSecretV2,
+  encryptDeveloperWebhookSigningSecret as encryptDeveloperWebhookSigningSecretV2,
+} from "@/server/services/developer-webhook-secret.service";
 
 export function generateDeveloperWebhookSigningSecret() {
   return `tk_whsec_${crypto.randomBytes(32).toString("hex")}`;
@@ -13,11 +13,11 @@ export function getSecretPreview(secret: string) {
 }
 
 export function encryptDeveloperWebhookSigningSecret(secret: string) {
-  return encryptSecret(secret);
+  return encryptDeveloperWebhookSigningSecretV2(secret);
 }
 
 export function decryptDeveloperWebhookSigningSecret(encryptedSecret: string) {
-  return decryptSecret(encryptedSecret);
+  return decryptDeveloperWebhookSigningSecretV2(encryptedSecret);
 }
 
 export function createDeveloperWebhookSignature({

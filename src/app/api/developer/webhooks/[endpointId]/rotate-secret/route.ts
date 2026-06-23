@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
+import { getActiveEncryptionKeyId } from "@/server/security/secret-encryption";
 import {
   encryptDeveloperWebhookSigningSecret,
   generateDeveloperWebhookSigningSecret,
@@ -78,6 +79,8 @@ export async function POST(
       data: {
         signingSecretEncrypted:
           encryptDeveloperWebhookSigningSecret(signingSecret),
+        signingSecretKeyId: getActiveEncryptionKeyId(),
+        signingSecretEncryptedAt: new Date(),
         secretPrefix: signingSecret.slice(0, 10),
         secretLast4: signingSecret.slice(-4),
         signingSecretPreview: getSecretPreview(signingSecret),

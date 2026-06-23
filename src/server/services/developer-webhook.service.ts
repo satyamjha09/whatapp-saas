@@ -12,6 +12,7 @@ import {
   generateDeveloperWebhookSigningSecret,
   getSecretPreview,
 } from "@/server/services/developer-webhook-signature.service";
+import { getActiveEncryptionKeyId } from "@/server/security/secret-encryption";
 import { publishMessageDeveloperWebhookEvent } from "@/server/services/developer-webhook-event-publisher.service";
 
 export async function getDeveloperWebhookEndpointsByCompany(
@@ -63,6 +64,8 @@ export async function createDeveloperWebhookEndpointForCompany(
       payloadVersion: input.payloadVersion,
       signingSecretEncrypted:
         encryptDeveloperWebhookSigningSecret(signingSecret),
+      signingSecretKeyId: getActiveEncryptionKeyId(),
+      signingSecretEncryptedAt: new Date(),
       secretPrefix: signingSecret.slice(0, 10),
       secretLast4: signingSecret.slice(-4),
       signingSecretPreview: getSecretPreview(signingSecret),

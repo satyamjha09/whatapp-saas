@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { assertTenantEntityAccess } from "@/server/auth/tenant-guard";
 import { createAuditLog } from "@/server/services/audit.service";
 import { removeContactFromGroup } from "@/server/services/contact-group.service";
+import { createTenantErrorResponse } from "@/server/utils/api-tenant-error";
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   {
     params,
   }: { params: Promise<{ groupId: string; memberId: string }> },
@@ -29,6 +31,24 @@ export async function DELETE(
         { message: "Only owners and admins can remove group members" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertTenantEntityAccess({
+        request,
+        companyId: context.membership.companyId,
+        entityType: "ContactGroup",
+        entityId: groupId,
+      });
+
+      await assertTenantEntityAccess({
+        request,
+        companyId: context.membership.companyId,
+        entityType: "ContactGroupMember",
+        entityId: memberId,
+      });
+    } catch (error) {
+      return createTenantErrorResponse(error);
     }
 
     const result = await removeContactFromGroup(

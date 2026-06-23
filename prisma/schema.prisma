@@ -196,6 +196,59 @@ enum DatabaseBackupVerificationStatus {
   FAILED
 }
 
+enum ProviderWebhookProvider {
+  META
+  RAZORPAY
+}
+
+enum ProviderWebhookEventStatus {
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  SKIPPED_DUPLICATE
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum IncidentSource {
+  SYSTEM
+  SECURITY
+  WORKER
+  BACKUP
+  WEBHOOK
+  BILLING
+  DEPLOYMENT
+  DATABASE_RESTORE
+  PLATFORM
+}
+
+enum IncidentTimelineType {
+  CREATED
+  ACKNOWLEDGED
+  RESOLVED
+  REOPENED
+  COMMENT
+  SYSTEM_UPDATE
+}
+
+enum DeadLetterJobStatus {
+  FAILED
+  RETRIED
+  IGNORED
+  RESOLVED
+}
+
 enum SystemWorkerHeartbeatStatus {
   RUNNING
   STOPPED
@@ -262,18 +315,18 @@ model User {
   name        String?
   imageUrl    String?
 
-  companies                 CompanyUser[]
-  assignedContacts          Contact[]          @relation("ContactAssignee")
-  inboxNotes                InboxNote[]        @relation("InboxNoteAuthor")
-  createdQuickReplies       QuickReply[]       @relation("QuickReplyCreator")
-  sentCompanyInvites        CompanyInvite[]    @relation("SentCompanyInvites")
-  acceptedCompanyInvites    CompanyInvite[]    @relation("AcceptedCompanyInvites")
-  auditLogs                 AuditLog[]
-  createdApiKeys            ApiKey[]
-  createdBulkMessageBatches BulkMessageBatch[]
-  companyNotificationRecipients       CompanyNotificationRecipient[]
-  companyNotificationPreferences      CompanyNotificationPreference[]
-  companyNotificationEmailDeliveries  CompanyNotificationEmailDelivery[]
+  companies                          CompanyUser[]
+  assignedContacts                   Contact[]                          @relation("ContactAssignee")
+  inboxNotes                         InboxNote[]                        @relation("InboxNoteAuthor")
+  createdQuickReplies                QuickReply[]                       @relation("QuickReplyCreator")
+  sentCompanyInvites                 CompanyInvite[]                    @relation("SentCompanyInvites")
+  acceptedCompanyInvites             CompanyInvite[]                    @relation("AcceptedCompanyInvites")
+  auditLogs                          AuditLog[]
+  createdApiKeys                     ApiKey[]
+  createdBulkMessageBatches          BulkMessageBatch[]
+  companyNotificationRecipients      CompanyNotificationRecipient[]
+  companyNotificationPreferences     CompanyNotificationPreference[]
+  companyNotificationEmailDeliveries CompanyNotificationEmailDelivery[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -288,13 +341,13 @@ model Company {
   productionChecklistNotes       String?
   productionChecklistUpdatedAt   DateTime?
 
-  billingPlan         BillingPlan        @default(FREE)
-  subscriptionStatus  SubscriptionStatus @default(TRIALING)
-  trialEndsAt         DateTime?
-  currentPeriodStart  DateTime?
-  currentPeriodEnd    DateTime?
-  monthlyMessageLimit Int                @default(100)
-  cancelAtPeriodEnd   Boolean            @default(false)
+  billingPlan            BillingPlan        @default(FREE)
+  subscriptionStatus     SubscriptionStatus @default(TRIALING)
+  trialEndsAt            DateTime?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  monthlyMessageLimit    Int                @default(100)
+  cancelAtPeriodEnd      Boolean            @default(false)
   subscriptionCanceledAt DateTime?
 
   users                      CompanyUser[]
@@ -441,10 +494,12 @@ model WhatsAppAccount {
   id        String @id @default(cuid())
   companyId String
 
-  wabaId       String?               @unique
-  businessName String?
-  accessToken  String?
-  status       WhatsAppAccountStatus @default(PENDING)
+  wabaId                 String?               @unique
+  businessName           String?
+  accessToken            String?
+  accessTokenKeyId       String?
+  accessTokenEncryptedAt DateTime?
+  status                 WhatsAppAccountStatus @default(PENDING)
 
   company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   phoneNumbers WhatsAppPhoneNumber[]
@@ -453,6 +508,7 @@ model WhatsAppAccount {
   updatedAt DateTime @updatedAt
 
   @@index([companyId])
+  @@index([accessTokenKeyId])
 }
 
 model WhatsAppPhoneNumber {
@@ -507,13 +563,13 @@ model Contact {
   companyId        String
   assignedToUserId String?
 
-  name        String?
-  phoneNumber String
-  countryCode String  @default("91")
-  source      String  @default("MANUAL")
-  isBlocked   Boolean @default(false)
-  blockedAt   DateTime?
-  optedOutAt  DateTime?
+  name         String?
+  phoneNumber  String
+  countryCode  String    @default("91")
+  source       String    @default("MANUAL")
+  isBlocked    Boolean   @default(false)
+  blockedAt    DateTime?
+  optedOutAt   DateTime?
   optOutReason String?
   optOutSource String?
 
@@ -874,29 +930,29 @@ model WalletTransaction {
   type   WalletTransactionType
   status WalletTransactionStatus @default(SUCCESS)
 
-  amountPaise Int
+  amountPaise       Int
   balanceAfterPaise Int?
   description       String?
 
-  referenceType String?
-  referenceId   String?
+  referenceType   String?
+  referenceId     String?
   createdByUserId String?
 
-  reservedAt DateTime?
+  reservedAt  DateTime?
   completedAt DateTime?
-  refundedAt DateTime?
-  failedAt DateTime?
+  refundedAt  DateTime?
+  failedAt    DateTime?
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
+  @@unique([companyId, referenceType, referenceId, type])
   @@index([companyId])
   @@index([type])
   @@index([status])
   @@index([createdAt])
   @@index([status, reservedAt])
-  @@unique([companyId, referenceType, referenceId, type])
 }
 
 model CreditPurchase {
@@ -907,15 +963,15 @@ model CreditPurchase {
   packId      String
   credits     Int
   amountPaise Int
-  currency    String @default("INR")
+  currency    String               @default("INR")
   status      CreditPurchaseStatus @default(CREATED)
 
   razorpayOrderId   String  @unique
   razorpayPaymentId String? @unique
   razorpaySignature String?
 
-  paidAt       DateTime?
-  failedAt     DateTime?
+  paidAt        DateTime?
+  failedAt      DateTime?
   failureReason String?
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -936,13 +992,13 @@ model SubscriptionPayment {
 
   plan        BillingPlan
   amountPaise Int
-  currency    String @default("INR")
+  currency    String                    @default("INR")
   status      SubscriptionPaymentStatus @default(CREATED)
 
   billingPeriodStart DateTime?
   billingPeriodEnd   DateTime?
-  razorpayOrderId    String  @unique
-  razorpayPaymentId  String? @unique
+  razorpayOrderId    String    @unique
+  razorpayPaymentId  String?   @unique
   razorpaySignature  String?
   paidAt             DateTime?
   failedAt           DateTime?
@@ -980,15 +1036,15 @@ model RazorpayWebhookEvent {
 }
 
 model MaintenanceJobRun {
-  id        String  @id @default(cuid())
+  id        String                  @id @default(cuid())
   companyId String?
   jobName   String
   status    MaintenanceJobRunStatus @default(RUNNING)
 
-  checkedCount   Int @default(0)
-  recoveredCount Int @default(0)
+  checkedCount   Int       @default(0)
+  recoveredCount Int       @default(0)
   errorMessage   String?
-  startedAt      DateTime @default(now())
+  startedAt      DateTime  @default(now())
   completedAt    DateTime?
 
   company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
@@ -1000,13 +1056,13 @@ model MaintenanceJobRun {
 }
 
 model DatabaseBackupRun {
-  id             String               @id @default(cuid())
-  status         DatabaseBackupStatus @default(RUNNING)
-  fileName       String?
-  filePath       String?
-  sizeBytes      Int?
-  checksumSha256 String?
-  remoteStorageEnabled Boolean        @default(false)
+  id                   String                           @id @default(cuid())
+  status               DatabaseBackupStatus             @default(RUNNING)
+  fileName             String?
+  filePath             String?
+  sizeBytes            Int?
+  checksumSha256       String?
+  remoteStorageEnabled Boolean                          @default(false)
   remoteBucket         String?
   remoteKey            String?
   remoteUploadedAt     DateTime?
@@ -1014,11 +1070,11 @@ model DatabaseBackupRun {
   verificationStatus   DatabaseBackupVerificationStatus @default(NOT_VERIFIED)
   verifiedAt           DateTime?
   verificationError    String?
-  errorMessage   String?
-  startedAt      DateTime             @default(now())
-  completedAt    DateTime?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  errorMessage         String?
+  startedAt            DateTime                         @default(now())
+  completedAt          DateTime?
+  createdAt            DateTime                         @default(now())
+  updatedAt            DateTime                         @updatedAt
 
   @@index([status])
   @@index([startedAt])
@@ -1045,16 +1101,46 @@ model SystemWorkerHeartbeat {
 }
 
 model SystemMaintenanceMode {
-  id              String   @id
-  enabled         Boolean  @default(false)
+  id              String    @id
+  enabled         Boolean   @default(false)
   message         String?
   startedAt       DateTime?
   endedAt         DateTime?
   updatedByUserId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([enabled])
+}
+
+model ProviderWebhookEvent {
+  id String @id @default(cuid())
+
+  provider ProviderWebhookProvider
+  status   ProviderWebhookEventStatus @default(PROCESSING)
+
+  providerEventId String?
+  eventType       String?
+  bodySha256      String
+
+  attempts Int @default(1)
+
+  receivedAt          DateTime  @default(now())
+  processingStartedAt DateTime?
+  processedAt         DateTime?
+  lastDuplicateSeenAt DateTime?
+  lastErrorMessage    String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, bodySha256])
+  @@unique([provider, providerEventId])
+  @@index([provider])
+  @@index([status])
+  @@index([receivedAt])
 }
 
 model CompanyInvite {
@@ -1099,6 +1185,10 @@ model AuditLog {
 
   metadata Json?
 
+  integrityHash         String?
+  previousIntegrityHash String?
+  integrityVersion      Int     @default(1)
+
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actor   User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
@@ -1108,6 +1198,84 @@ model AuditLog {
   @@index([actorUserId])
   @@index([action])
   @@index([entityType])
+  @@index([integrityHash])
+  @@index([previousIntegrityHash])
+}
+
+model PlatformAuditLog {
+  id String @id @default(cuid())
+
+  actorUserId String?
+  actorEmail  String?
+
+  action     String
+  entityType String
+  entityId   String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([actorUserId])
+  @@index([actorEmail])
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+model Incident {
+  id String @id @default(cuid())
+
+  companyId String?
+
+  title       String
+  description String?
+  source      IncidentSource
+  severity    IncidentSeverity @default(MEDIUM)
+  status      IncidentStatus   @default(OPEN)
+
+  idempotencyKey String?
+
+  openedAt       DateTime  @default(now())
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+
+  acknowledgedByUserId String?
+  resolvedByUserId     String?
+
+  metadata Json?
+
+  timeline IncidentTimeline[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([idempotencyKey])
+  @@index([companyId])
+  @@index([source])
+  @@index([severity])
+  @@index([status])
+  @@index([openedAt])
+}
+
+model IncidentTimeline {
+  id String @id @default(cuid())
+
+  incidentId  String
+  actorUserId String?
+
+  type     IncidentTimelineType
+  message  String?
+  metadata Json?
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([incidentId])
+  @@index([actorUserId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model ApiKey {
@@ -1116,10 +1284,10 @@ model ApiKey {
 
   name String
 
-  keyHash   String @unique
-  keyPrefix String
-  keyLast4  String
-  scopes    String[] @default([])
+  keyHash    String   @unique
+  keyPrefix  String
+  keyLast4   String
+  scopes     String[] @default([])
   allowedIps String[] @default([])
 
   status ApiKeyStatus @default(ACTIVE)
@@ -1130,8 +1298,8 @@ model ApiKey {
 
   createdByUserId String?
 
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  company     Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy   User?                    @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
   requestLogs DeveloperApiRequestLog[]
 
   createdAt DateTime @default(now())
@@ -1144,11 +1312,11 @@ model ApiKey {
 }
 
 model DeveloperApiUsage {
-  id        String @id @default(cuid())
+  id        String   @id @default(cuid())
   companyId String
-  apiKeyId  String @default("unknown")
+  apiKeyId  String   @default("unknown")
   date      DateTime
-  count     Int @default(0)
+  count     Int      @default(0)
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -1162,7 +1330,7 @@ model DeveloperApiUsage {
 }
 
 model DeveloperApiRequestLog {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   companyId String
   apiKeyId  String?
 
@@ -1170,12 +1338,12 @@ model DeveloperApiRequestLog {
   path   String
   status DeveloperApiRequestLogStatus
 
-  statusCode   Int?
-  errorMessage String?
+  statusCode    Int?
+  errorMessage  String?
   requiredScope String?
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  apiKey  ApiKey?  @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  apiKey  ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -1189,20 +1357,22 @@ model DeveloperWebhookEndpoint {
   id        String @id @default(cuid())
   companyId String
 
-  name String
-  url  String
+  name           String
+  url            String
   events         String[] @default([])
   payloadVersion String   @default("2026-06-01")
 
-  signingSecretEncrypted String
-  secretPrefix           String
-  secretLast4            String
-  signingSecretPreview   String?
-  signingSecretRotatedAt DateTime?
+  signingSecretEncrypted   String
+  signingSecretKeyId       String?
+  signingSecretEncryptedAt DateTime?
+  secretPrefix             String
+  secretLast4              String
+  signingSecretPreview     String?
+  signingSecretRotatedAt   DateTime?
 
   status DeveloperWebhookEndpointStatus @default(ACTIVE)
 
-  consecutiveFailureCount Int @default(0)
+  consecutiveFailureCount Int       @default(0)
   lastSuccessAt           DateTime?
   lastFailureAt           DateTime?
   autoDisabledAt          DateTime?
@@ -1215,14 +1385,15 @@ model DeveloperWebhookEndpoint {
   updatedAt DateTime @updatedAt
 
   @@index([companyId])
+  @@index([signingSecretKeyId])
   @@index([status])
   @@index([autoDisabledAt])
 }
 
 model DeveloperWebhookDelivery {
-  id         String @id @default(cuid())
-  companyId  String
-  endpointId String
+  id            String  @id @default(cuid())
+  companyId     String
+  endpointId    String
   outboxEventId String?
 
   eventType String
@@ -1238,9 +1409,9 @@ model DeveloperWebhookDelivery {
 
   deliveredAt DateTime?
 
-  company  Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  endpoint DeveloperWebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
-  outboxEvent DeveloperWebhookOutbox? @relation(fields: [outboxEventId], references: [id], onDelete: SetNull)
+  company     Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  endpoint    DeveloperWebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  outboxEvent DeveloperWebhookOutbox?  @relation(fields: [outboxEventId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1253,7 +1424,7 @@ model DeveloperWebhookDelivery {
 }
 
 model DeveloperWebhookOutbox {
-  id             String @id @default(cuid())
+  id             String  @id @default(cuid())
   companyId      String
   eventType      String
   payload        Json
@@ -1265,7 +1436,7 @@ model DeveloperWebhookOutbox {
   lockedAt    DateTime?
   processedAt DateTime?
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company    Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   deliveries DeveloperWebhookDelivery[]
 
   createdAt DateTime @default(now())
@@ -1285,8 +1456,8 @@ enum ProductionDeploymentStatus {
 }
 
 model ProductionDeployment {
-  id        String                     @id @default(cuid())
-  status    ProductionDeploymentStatus @default(RUNNING)
+  id     String                     @id @default(cuid())
+  status ProductionDeploymentStatus @default(RUNNING)
 
   commitSha     String?
   commitMessage String?
@@ -1295,15 +1466,15 @@ model ProductionDeployment {
 
   backupRunId String?
 
-  maintenanceEnabledAt  DateTime?
-  backupCompletedAt     DateTime?
-  migrationCompletedAt  DateTime?
-  prismaGeneratedAt     DateTime?
-  buildCompletedAt      DateTime?
-  pm2RestartedAt        DateTime?
-  healthCheckPassedAt   DateTime?
+  maintenanceEnabledAt    DateTime?
+  backupCompletedAt       DateTime?
+  migrationCompletedAt    DateTime?
+  prismaGeneratedAt       DateTime?
+  buildCompletedAt        DateTime?
+  pm2RestartedAt          DateTime?
+  healthCheckPassedAt     DateTime?
   deepHealthCheckPassedAt DateTime?
-  maintenanceDisabledAt DateTime?
+  maintenanceDisabledAt   DateTime?
 
   errorStage   String?
   errorMessage String?
@@ -1325,8 +1496,8 @@ enum ProductionRollbackStatus {
 }
 
 model ProductionRollback {
-  id        String                     @id @default(cuid())
-  status    ProductionRollbackStatus @default(RUNNING)
+  id     String                   @id @default(cuid())
+  status ProductionRollbackStatus @default(RUNNING)
 
   fromCommitSha String?
   toCommitSha   String?
@@ -1336,16 +1507,16 @@ model ProductionRollback {
 
   backupRunId String?
 
-  maintenanceEnabledAt  DateTime?
-  backupCompletedAt     DateTime?
-  checkoutCompletedAt   DateTime?
-  installCompletedAt    DateTime?
-  prismaGeneratedAt     DateTime?
-  buildCompletedAt      DateTime?
-  pm2RestartedAt        DateTime?
-  healthCheckPassedAt   DateTime?
+  maintenanceEnabledAt    DateTime?
+  backupCompletedAt       DateTime?
+  checkoutCompletedAt     DateTime?
+  installCompletedAt      DateTime?
+  prismaGeneratedAt       DateTime?
+  buildCompletedAt        DateTime?
+  pm2RestartedAt          DateTime?
+  healthCheckPassedAt     DateTime?
   deepHealthCheckPassedAt DateTime?
-  maintenanceDisabledAt DateTime?
+  maintenanceDisabledAt   DateTime?
 
   errorStage   String?
   errorMessage String?
@@ -1400,7 +1571,7 @@ model DatabaseRestoreRun {
   preRestoreBackupRunId String?
 
   operationLockOwner String?
-  localLogPath        String?
+  localLogPath       String?
 
   maintenanceEnabledAt      DateTime?
   preRestoreBackupCreatedAt DateTime?
@@ -1428,11 +1599,11 @@ model DatabaseRestoreRun {
 }
 
 model SecurityEvent {
-  id        String   @id @default(cuid())
-  type      String   // e.g., "CSP_VIOLATION" or "UNAUTHORIZED_ACCESS"
-  source    String   // e.g., "browser" or "middleware"
+  id        String  @id @default(cuid())
+  type      String // e.g., "CSP_VIOLATION" or "UNAUTHORIZED_ACCESS"
+  source    String // e.g., "browser" or "middleware"
   summary   String
-  severity  String   // e.g., "CRITICAL", "HIGH", "MEDIUM", "LOW"
+  severity  String // e.g., "CRITICAL", "HIGH", "MEDIUM", "LOW"
   path      String?
   method    String?
   ipAddress String?
@@ -1443,14 +1614,46 @@ model SecurityEvent {
   resolvedByUserId String?
   resolutionNote   String?
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([severity])
   @@index([resolvedAt])
 }
 
+model DeadLetterJob {
+  id String @id @default(cuid())
 
+  queueName String
+  jobId     String
+  jobName   String?
 
+  status DeadLetterJobStatus @default(FAILED)
 
+  attemptsMade Int      @default(0)
+  failedReason String?
+  stacktrace   String[] @default([])
 
+  payload     Json?
+  returnValue Json?
+
+  firstFailedAt DateTime @default(now())
+  lastFailedAt  DateTime @default(now())
+
+  retriedAt       DateTime?
+  retriedByUserId String?
+
+  ignoredAt       DateTime?
+  ignoredByUserId String?
+  ignoreReason    String?
+
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([queueName, jobId])
+  @@index([queueName])
+  @@index([status])
+  @@index([lastFailedAt])
+}
