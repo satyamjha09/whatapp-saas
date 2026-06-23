@@ -565,6 +565,18 @@ export function getProductionEnvAudit() {
     required: true,
   });
 
+  items.push({
+    id: "campaign-analytics-v2-enabled",
+    title: "Campaign Analytics v2 enabled",
+    severity:
+      process.env.CAMPAIGN_ANALYTICS_V2_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.CAMPAIGN_ANALYTICS_V2_ENABLED !== "false"
+        ? "Campaign Analytics v2 is enabled"
+        : "CAMPAIGN_ANALYTICS_V2_ENABLED must not be false in production",
+    required: false,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

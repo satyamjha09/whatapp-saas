@@ -30,6 +30,10 @@ export const dashboardNavigation: DashboardNavGroup[] = [
     items: [
       { label: "Messages", href: "/dashboard/reports/messages" },
       { label: "Campaigns", href: "/dashboard/reports/campaigns" },
+      {
+        label: "Campaign Analytics",
+        href: "/dashboard/analytics/campaigns",
+      },
       { label: "Calling Reports", href: "/dashboard/reports/calling" },
       { label: "Chatbot Executions", href: "/dashboard/reports/chatbots" },
       { label: "Catalog Orders", href: "/dashboard/reports/catalog-orders" },

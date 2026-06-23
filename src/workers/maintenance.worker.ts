@@ -44,6 +44,10 @@ import {
   PUBLIC_API_IDEMPOTENCY_RETENTION_JOB,
   runPublicApiIdempotencyRetentionJob,
 } from "@/server/jobs/public-api-idempotency-retention.job";
+import {
+  CAMPAIGN_ANALYTICS_V2_JOB,
+  runCampaignAnalyticsV2Job,
+} from "@/server/jobs/campaign-analytics-v2.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -163,6 +167,16 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    CAMPAIGN_ANALYTICS_V2_JOB,
+    {},
+    {
+      repeat: { pattern: "*/15 * * * *" },
+      jobId: CAMPAIGN_ANALYTICS_V2_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -231,6 +245,12 @@ const worker = new Worker(
     if (job.name === PUBLIC_API_IDEMPOTENCY_RETENTION_JOB) {
       const result = await runPublicApiIdempotencyRetentionJob();
       console.log("Public API idempotency retention completed", result);
+      return result;
+    }
+
+    if (job.name === CAMPAIGN_ANALYTICS_V2_JOB) {
+      const result = await runCampaignAnalyticsV2Job();
+      console.log("Campaign analytics v2 sync completed", result);
       return result;
     }
 

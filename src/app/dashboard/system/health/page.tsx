@@ -23,6 +23,7 @@ import { getDeadLetterQueueSummary } from "@/server/services/dead-letter-queue.s
 import { getBillingReconciliationHealth } from "@/server/services/billing-reconciliation.service";
 import { getPublicApiV1Health } from "@/server/services/public-api-v1-health.service";
 import { getInboxCrmHealth } from "@/server/services/inbox-crm-health.service";
+import { getCampaignAnalyticsHealth } from "@/server/services/campaign-analytics-v2.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -80,6 +81,7 @@ export default async function SystemHealthPage() {
     billingReconciliation,
     publicApiV1,
     inboxCrm,
+    campaignAnalytics,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -109,6 +111,7 @@ export default async function SystemHealthPage() {
     getBillingReconciliationHealth(),
     getPublicApiV1Health(),
     getInboxCrmHealth(),
+    getCampaignAnalyticsHealth(),
   ]);
 
   return (
@@ -162,6 +165,62 @@ export default async function SystemHealthPage() {
                 {inboxCrm.contactsWithLifecycle}
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Campaign Analytics v2
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Funnel, reply, opt-out, and cost snapshots for campaigns.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                campaignAnalytics.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {campaignAnalytics.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Synced / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignAnalytics.synced24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed Snapshots</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignAnalytics.failedSnapshots}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Stale Snapshots</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignAnalytics.staleSnapshots}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/analytics/campaigns"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open campaign analytics
+            </Link>
           </div>
         </section>
 

@@ -12,6 +12,7 @@ export type TenantEntityType =
   | "InboxNote"
   | "InboxQuickReply"
   | "InboxTag"
+  | "Campaign"
   | "BulkMessageBatch"
   | "BulkMessageRecipient"
   | "DeveloperApiKey"
@@ -30,6 +31,7 @@ const PROTECTED_ENTITIES = [
   "InboxNote",
   "InboxQuickReply",
   "InboxTag",
+  "Campaign",
   "BulkMessageBatch",
   "BulkMessageRecipient",
   "DeveloperApiKey",
@@ -207,6 +209,14 @@ async function tenantEntityExists({
     case "InboxTag":
       return Boolean(
         await prisma.inboxTag.findFirst({
+          where: { id: entityId, companyId },
+          select: { id: true },
+        }),
+      );
+
+    case "Campaign":
+      return Boolean(
+        await prisma.campaign.findFirst({
           where: { id: entityId, companyId },
           select: { id: true },
         }),

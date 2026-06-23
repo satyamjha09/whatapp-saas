@@ -790,6 +790,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/inbox",
         }),
         buildItem({
+          id: "campaign-analytics-v2",
+          title: "Campaign Analytics v2 enabled",
+          description:
+            "Campaigns have funnel analytics, reply attribution, opt-out tracking, usage cost, snapshots, scheduled sync, CSV export, and dashboard detail pages.",
+          status: "complete",
+          required: false,
+          actionLabel: "Open Campaign Analytics",
+          actionHref: "/dashboard/analytics/campaigns",
+        }),
+        buildItem({
           id: "subscription-expiry-guard",
           title: "Subscription expiry guard enabled",
           description:
