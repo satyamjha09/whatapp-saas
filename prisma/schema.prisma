@@ -1044,6 +1044,19 @@ model SystemWorkerHeartbeat {
   @@index([lastHeartbeatAt])
 }
 
+model SystemMaintenanceMode {
+  id              String   @id
+  enabled         Boolean  @default(false)
+  message         String?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([enabled])
+}
+
 model CompanyInvite {
   id        String @id @default(cuid())
   companyId String

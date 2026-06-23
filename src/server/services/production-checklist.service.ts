@@ -540,6 +540,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/health",
         }),
         buildItem({
+          id: "system-maintenance-mode",
+          title: "System maintenance mode enabled",
+          description:
+            "Owners can enable maintenance mode to show a dashboard banner and block critical write actions during incidents or restores.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
           id: "subscription-expiry-guard",
           title: "Subscription expiry guard enabled",
           description:

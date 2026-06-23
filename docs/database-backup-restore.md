@@ -120,6 +120,20 @@ psql "postgresql://postgres:password@localhost:5432/tallykonnect_restore_test" \
 7. Open `/dashboard/system/health`.
 8. Verify WhatsApp send, webhook receive, billing, and inbox access.
 
+## Maintenance mode before restore
+
+Before a production restore:
+
+1. Open `/dashboard/system/health`.
+2. Enable Maintenance Mode.
+3. Confirm message sending and billing write actions are blocked.
+4. Stop PM2 workers if needed.
+5. Create one final backup.
+6. Restore the selected backup.
+7. Start PM2 workers.
+8. Verify `/dashboard/system/health`.
+9. Disable Maintenance Mode.
+
 ## Important
 
 Store production backups outside the application server when possible. Local backups are helpful, but off-server storage is safer.

@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { sendBulkTemplateMessages } from "@/server/services/bulk-message.service";
+import {
+  assertSystemWritesAllowed,
+  SystemMaintenanceModeError,
+} from "@/server/services/system-maintenance-mode.service";
 import { sendBulkTemplateMessageSchema } from "@/server/validators/bulk-message.validator";
 
 export async function POST(request: Request) {
@@ -41,6 +45,10 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    await assertSystemWritesAllowed({
+      operation: "Sending bulk messages",
+    });
 
     const result = await sendBulkTemplateMessages(
       context.membership.companyId,
@@ -92,6 +100,10 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("SEND_BULK_TEMPLATE_MESSAGE_ERROR:", error);
+
+    if (error instanceof SystemMaintenanceModeError) {
+      return NextResponse.json({ message: error.message }, { status: 503 });
+    }
 
     if (
       error instanceof Error &&

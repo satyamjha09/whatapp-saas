@@ -13,6 +13,10 @@ import { publishCampaignDeveloperWebhookEvent } from "@/server/services/develope
 import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
 import { refundWalletForMessage } from "@/server/services/wallet.service";
 import type { SendMessageJobData } from "@/lib/queue";
+import {
+  isSystemMaintenanceModeEnabled,
+  SystemMaintenanceModeError,
+} from "@/server/services/system-maintenance-mode.service";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -179,6 +183,12 @@ const worker = new Worker<SendMessageJobData>(
 
     try {
       console.log("Processing message job:", job.id, messageId);
+
+      if (await isSystemMaintenanceModeEnabled()) {
+        throw new SystemMaintenanceModeError(
+          "System maintenance mode is enabled. Message send will retry later.",
+        );
+      }
 
       const message = await prisma.message.findFirst({
         where: {
@@ -361,6 +371,10 @@ const worker = new Worker<SendMessageJobData>(
         error instanceof Error ? error.message : "Unknown worker error";
 
       console.error("MESSAGE_WORKER_PROCESSING_ERROR:", reason);
+
+      if (error instanceof SystemMaintenanceModeError) {
+        throw error;
+      }
 
       await markMessageAsFailed(messageId, companyId, reason);
 

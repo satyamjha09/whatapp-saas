@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { createRazorpaySubscriptionOrder } from "@/server/services/razorpay-subscription.service";
+import {
+  assertSystemWritesAllowed,
+  SystemMaintenanceModeError,
+} from "@/server/services/system-maintenance-mode.service";
 import { createRazorpaySubscriptionOrderSchema } from "@/server/validators/razorpay-subscription.validator";
 
 export async function POST(request: Request) {
@@ -28,6 +32,10 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    await assertSystemWritesAllowed({
+      operation: "Creating billing orders",
+    });
 
     const result = await createRazorpaySubscriptionOrder({
       companyId: context.membership.companyId,
@@ -57,6 +65,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("CREATE_SUBSCRIPTION_ORDER_ERROR:", error);
+    if (error instanceof SystemMaintenanceModeError) {
+      return NextResponse.json({ message: error.message }, { status: 503 });
+    }
     const message = error instanceof Error ? error.message : "";
 
     if (["Invalid billing plan", "Free plan does not require payment", "Razorpay credentials are not configured"].includes(message)) {

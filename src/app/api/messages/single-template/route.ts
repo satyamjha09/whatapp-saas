@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { sendSingleTemplateMessage } from "@/server/services/single-message.service";
+import {
+  assertSystemWritesAllowed,
+  SystemMaintenanceModeError,
+} from "@/server/services/system-maintenance-mode.service";
 import { sendSingleTemplateMessageSchema } from "@/server/validators/single-message.validator";
 
 export async function POST(request: Request) {
@@ -31,6 +35,10 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    await assertSystemWritesAllowed({
+      operation: "Sending messages",
+    });
 
     const result = await sendSingleTemplateMessage(
       context.membership.companyId,
@@ -62,6 +70,10 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("SEND_SINGLE_TEMPLATE_MESSAGE_ERROR:", error);
+
+    if (error instanceof SystemMaintenanceModeError) {
+      return NextResponse.json({ message: error.message }, { status: 503 });
+    }
 
     if (
       error instanceof Error &&

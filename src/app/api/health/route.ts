@@ -3,13 +3,15 @@ import {
   getDatabaseHealth,
   getRedisHealth,
 } from "@/server/services/operations-health.service";
+import { getSystemMaintenanceMode } from "@/server/services/system-maintenance-mode.service";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const [database, redis] = await Promise.all([
+  const [database, redis, maintenanceMode] = await Promise.all([
     getDatabaseHealth(),
     getRedisHealth(),
+    getSystemMaintenanceMode(),
   ]);
 
   const ok = database.ok && redis.ok;
@@ -20,6 +22,7 @@ export async function GET() {
       service: "tallykonnect",
       database: database.ok ? "ok" : "error",
       redis: redis.ok ? "ok" : "error",
+      maintenanceMode: maintenanceMode.enabled,
       timestamp: new Date().toISOString(),
     },
     {

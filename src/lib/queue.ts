@@ -9,6 +9,21 @@ let maintenanceQueue: Queue | undefined;
 export function getMessageQueue() {
   messageQueue ??= new Queue("message-queue", {
     connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: 10,
+      backoff: {
+        type: "exponential",
+        delay: 60_000,
+      },
+      removeOnComplete: {
+        age: 24 * 60 * 60,
+        count: 1000,
+      },
+      removeOnFail: {
+        age: 7 * 24 * 60 * 60,
+        count: 1000,
+      },
+    },
   });
 
   return messageQueue;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOperationsHealth } from "@/server/services/operations-health.service";
+import { getSystemMaintenanceMode } from "@/server/services/system-maintenance-mode.service";
 import { assertHealthcheckToken } from "@/server/utils/healthcheck-auth";
 
 export const dynamic = "force-dynamic";
@@ -9,11 +10,13 @@ export async function GET() {
     await assertHealthcheckToken();
 
     const health = await getOperationsHealth();
+    const maintenanceMode = await getSystemMaintenanceMode();
 
     return NextResponse.json(
       {
         ok: health.isHealthy,
         timestamp: new Date().toISOString(),
+        maintenanceMode,
         redis: health.redis,
         database: health.database,
         databaseBackups: health.databaseBackups,

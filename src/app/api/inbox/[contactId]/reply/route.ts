@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { createQueuedInboxReply } from "@/server/services/message.service";
+import {
+  assertSystemWritesAllowed,
+  SystemMaintenanceModeError,
+} from "@/server/services/system-maintenance-mode.service";
 import { createInboxReplySchema } from "@/server/validators/inbox-reply.validator";
 
 type InboxReplyRouteContext = {
@@ -41,6 +45,10 @@ export async function POST(
       );
     }
 
+    await assertSystemWritesAllowed({
+      operation: "Sending replies",
+    });
+
     const { contactId } = await params;
     const message = await createQueuedInboxReply(
       context.membership.companyId,
@@ -68,6 +76,10 @@ export async function POST(
     );
   } catch (error) {
     console.error("CREATE_INBOX_REPLY_ERROR:", error);
+
+    if (error instanceof SystemMaintenanceModeError) {
+      return NextResponse.json({ message: error.message }, { status: 503 });
+    }
 
     if (error instanceof Error && error.message === "Contact not found") {
       return NextResponse.json({ message: error.message }, { status: 404 });

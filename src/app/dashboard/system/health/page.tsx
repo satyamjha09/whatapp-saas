@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getOperationsHealth } from "@/server/services/operations-health.service";
+import { getSystemMaintenanceMode } from "@/server/services/system-maintenance-mode.service";
+import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
 import VerifyLatestBackupButton from "./verify-latest-backup-button";
 
@@ -30,7 +32,10 @@ export default async function SystemHealthPage() {
     redirect("/dashboard");
   }
 
-  const health = await getOperationsHealth();
+  const [health, maintenanceMode] = await Promise.all([
+    getOperationsHealth(),
+    getSystemMaintenanceMode(),
+  ]);
 
   return (
     <main className="p-8">
@@ -42,6 +47,8 @@ export default async function SystemHealthPage() {
             Monitor database, Redis, queues, and maintenance jobs.
           </p>
         </div>
+
+        <MaintenanceModeCard maintenanceMode={maintenanceMode} />
 
         <section className="mb-6 rounded-2xl border bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">

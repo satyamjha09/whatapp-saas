@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { cancelScheduledCampaign } from "@/server/services/campaign-cancel.service";
+import {
+  assertSystemWritesAllowed,
+  SystemMaintenanceModeError,
+} from "@/server/services/system-maintenance-mode.service";
 
 type RouteContext = {
   params: Promise<{ campaignId: string }>;
@@ -28,6 +32,10 @@ export async function POST(_request: Request, { params }: RouteContext) {
       );
     }
 
+    await assertSystemWritesAllowed({
+      operation: "Canceling campaigns",
+    });
+
     const result = await cancelScheduledCampaign(
       context.membership.companyId,
       campaignId,
@@ -47,6 +55,10 @@ export async function POST(_request: Request, { params }: RouteContext) {
     });
   } catch (error) {
     console.error("CANCEL_SCHEDULED_CAMPAIGN_ERROR:", error);
+
+    if (error instanceof SystemMaintenanceModeError) {
+      return NextResponse.json({ message: error.message }, { status: 503 });
+    }
 
     if (
       error instanceof Error &&

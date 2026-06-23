@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/app/dashboard/dashboard-shell";
+import MaintenanceModeBanner from "@/app/dashboard/maintenance-mode-banner";
 import NotificationBadge from "@/app/dashboard/notification-badge";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 
@@ -30,6 +31,7 @@ export default async function DashboardLayout({
         />
       }
     >
+      <MaintenanceModeBanner />
       {children}
     </DashboardShell>
   );
