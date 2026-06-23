@@ -24,13 +24,18 @@ type PublicApiAuthResult =
 export async function authenticatePublicApiRequest(
   request: Request,
 ): Promise<PublicApiAuthResult> {
-  const apiKey = request.headers.get("x-api-key");
+  const authorization = request.headers.get("authorization");
+  const bearerApiKey = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  const apiKey = bearerApiKey || request.headers.get("x-api-key");
 
   if (!apiKey) {
     return {
       success: false,
       response: NextResponse.json(
-        { success: false, message: "Missing x-api-key header" },
+        {
+          success: false,
+          message: "Missing Authorization Bearer token or x-api-key header",
+        },
         { status: 401 },
       ),
     };

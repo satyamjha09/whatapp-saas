@@ -275,6 +275,12 @@ enum BillingReconciliationIssueSeverity {
   CRITICAL
 }
 
+enum PublicApiIdempotencyStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 enum SystemWorkerHeartbeatStatus {
   RUNNING
   STOPPED
@@ -376,36 +382,37 @@ model Company {
   cancelAtPeriodEnd      Boolean            @default(false)
   subscriptionCanceledAt DateTime?
 
-  users                      CompanyUser[]
-  whatsAppAccounts           WhatsAppAccount[]
-  whatsAppPhoneNumbers       WhatsAppPhoneNumber[]
-  templates                  Template[]
-  contacts                   Contact[]
-  messages                   Message[]
-  messageEvents              MessageEvent[]
-  webhookEvents              WebhookEvent[]
-  campaigns                  Campaign[]
-  campaignContacts           CampaignContact[]
-  wallet                     Wallet?
-  walletTransactions         WalletTransaction[]
-  invites                    CompanyInvite[]
-  auditLogs                  AuditLog[]
-  inboxNotes                 InboxNote[]
-  inboxTags                  InboxTag[]
-  contactInboxTags           ContactInboxTag[]
-  quickReplies               QuickReply[]
-  apiKeys                    ApiKey[]
-  developerWebhookEndpoints  DeveloperWebhookEndpoint[]
-  developerWebhookDeliveries DeveloperWebhookDelivery[]
-  developerWebhookOutbox     DeveloperWebhookOutbox[]
-  bulkMessageBatches         BulkMessageBatch[]
-  contactGroups              ContactGroup[]
-  creditPurchases            CreditPurchase[]
-  subscriptionPayments       SubscriptionPayment[]
-  razorpayWebhookEvents      RazorpayWebhookEvent[]
-  maintenanceJobRuns         MaintenanceJobRun[]
-  developerApiUsage          DeveloperApiUsage[]
-  developerApiRequestLogs    DeveloperApiRequestLog[]
+  users                       CompanyUser[]
+  whatsAppAccounts            WhatsAppAccount[]
+  whatsAppPhoneNumbers        WhatsAppPhoneNumber[]
+  templates                   Template[]
+  contacts                    Contact[]
+  messages                    Message[]
+  messageEvents               MessageEvent[]
+  webhookEvents               WebhookEvent[]
+  campaigns                   Campaign[]
+  campaignContacts            CampaignContact[]
+  wallet                      Wallet?
+  walletTransactions          WalletTransaction[]
+  invites                     CompanyInvite[]
+  auditLogs                   AuditLog[]
+  inboxNotes                  InboxNote[]
+  inboxTags                   InboxTag[]
+  contactInboxTags            ContactInboxTag[]
+  quickReplies                QuickReply[]
+  apiKeys                     ApiKey[]
+  developerWebhookEndpoints   DeveloperWebhookEndpoint[]
+  developerWebhookDeliveries  DeveloperWebhookDelivery[]
+  developerWebhookOutbox      DeveloperWebhookOutbox[]
+  bulkMessageBatches          BulkMessageBatch[]
+  contactGroups               ContactGroup[]
+  creditPurchases             CreditPurchase[]
+  subscriptionPayments        SubscriptionPayment[]
+  razorpayWebhookEvents       RazorpayWebhookEvent[]
+  maintenanceJobRuns          MaintenanceJobRun[]
+  developerApiUsage           DeveloperApiUsage[]
+  developerApiRequestLogs     DeveloperApiRequestLog[]
+  publicApiIdempotencyRecords PublicApiIdempotencyRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1326,9 +1333,10 @@ model ApiKey {
 
   createdByUserId String?
 
-  company     Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy   User?                    @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
-  requestLogs DeveloperApiRequestLog[]
+  company                     Company                      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy                   User?                        @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  requestLogs                 DeveloperApiRequestLog[]
+  publicApiIdempotencyRecords PublicApiIdempotencyRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1765,5 +1773,40 @@ model BillingReconciliationIssue {
   @@index([type])
   @@index([severity])
   @@index([resolvedAt])
+  @@index([createdAt])
+}
+
+model PublicApiIdempotencyRecord {
+  id String @id @default(cuid())
+
+  companyId String
+  apiKeyId  String?
+
+  idempotencyKey String
+  method         String
+  path           String
+  requestHash    String
+
+  status PublicApiIdempotencyStatus @default(PROCESSING)
+
+  responseStatus Int?
+  responseBody   Json?
+
+  lockedUntil DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  expiresAt   DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  apiKey  ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId])
+  @@index([apiKeyId])
+  @@index([status])
+  @@index([expiresAt])
   @@index([createdAt])
 }

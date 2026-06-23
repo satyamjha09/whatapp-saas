@@ -528,6 +528,43 @@ export function getProductionEnvAudit() {
     required: true,
   });
 
+  items.push({
+    id: "public-api-v1-enabled",
+    title: "Public API v1 enabled",
+    severity: process.env.PUBLIC_API_V1_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.PUBLIC_API_V1_ENABLED !== "false"
+        ? "Public API v1 is enabled"
+        : "PUBLIC_API_V1_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "public-api-idempotency-enabled",
+    title: "Public API idempotency enabled",
+    severity:
+      process.env.PUBLIC_API_IDEMPOTENCY_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.PUBLIC_API_IDEMPOTENCY_ENABLED !== "false"
+        ? "Public API idempotency is enabled"
+        : "PUBLIC_API_IDEMPOTENCY_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "public-api-idempotency-required",
+    title: "Public API idempotency required for mutations",
+    severity:
+      process.env.PUBLIC_API_REQUIRE_IDEMPOTENCY_FOR_MUTATIONS !== "false"
+        ? "PASS"
+        : "FAIL",
+    message:
+      process.env.PUBLIC_API_REQUIRE_IDEMPOTENCY_FOR_MUTATIONS !== "false"
+        ? "Mutating public API requests require Idempotency-Key"
+        : "PUBLIC_API_REQUIRE_IDEMPOTENCY_FOR_MUTATIONS must not be false in production",
+    required: true,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

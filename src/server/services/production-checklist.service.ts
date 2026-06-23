@@ -770,6 +770,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/billing-reconciliation",
         }),
         buildItem({
+          id: "public-api-v1-stability-layer",
+          title: "Public API v1 stability layer enabled",
+          description:
+            "Customer-facing API v1 uses standardized responses, OpenAPI docs, request IDs, idempotent mutations, and duplicate retry protection.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open API v1 Docs",
+          actionHref: "/dashboard/developer/api-v1",
+        }),
+        buildItem({
           id: "subscription-expiry-guard",
           title: "Subscription expiry guard enabled",
           description:

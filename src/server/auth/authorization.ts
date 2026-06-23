@@ -39,3 +39,20 @@ export async function requireAdmin({
     membership: context.membership,
   };
 }
+
+export async function requireMember() {
+  const context = await getCurrentWorkspaceContext();
+
+  if (!context) {
+    throw new AuthorizationError("Unauthorized", 401);
+  }
+
+  if (!context.membership) {
+    throw new AuthorizationError("Complete company onboarding first", 403);
+  }
+
+  return {
+    user: context.user,
+    membership: context.membership,
+  };
+}

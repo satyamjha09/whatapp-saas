@@ -21,6 +21,7 @@ import { getPlatformAdminHealth } from "@/server/services/platform-admin-health.
 import { getIncidentHealth } from "@/server/services/incident-health.service";
 import { getDeadLetterQueueSummary } from "@/server/services/dead-letter-queue.service";
 import { getBillingReconciliationHealth } from "@/server/services/billing-reconciliation.service";
+import { getPublicApiV1Health } from "@/server/services/public-api-v1-health.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -76,6 +77,7 @@ export default async function SystemHealthPage() {
     incidents,
     deadLetterQueue,
     billingReconciliation,
+    publicApiV1,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -103,6 +105,7 @@ export default async function SystemHealthPage() {
     getIncidentHealth(),
     getDeadLetterQueueSummary(),
     getBillingReconciliationHealth(),
+    getPublicApiV1Health(),
   ]);
 
   return (
@@ -117,6 +120,49 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Public API v1</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Stable developer API with standardized errors and idempotent mutations.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                publicApiV1.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {publicApiV1.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            {[
+              ["API v1", publicApiV1.enabled ? "Enabled" : "Disabled"],
+              ["Idempotency", publicApiV1.idempotencyEnabled ? "Enabled" : "Disabled"],
+              ["Completed / 24h", publicApiV1.completed24h],
+              ["Stale Processing", publicApiV1.processingStale],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="mt-1 font-semibold text-gray-900">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 flex gap-4">
+            <Link href="/dashboard/developer/api-v1" className="text-sm font-medium text-gray-900 underline">
+              Open API docs
+            </Link>
+            <a href="/api/v1/openapi.json" className="text-sm font-medium text-gray-900 underline">
+              OpenAPI JSON
+            </a>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">

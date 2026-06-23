@@ -40,6 +40,10 @@ import {
   BILLING_RECONCILIATION_JOB,
   runBillingReconciliationJob,
 } from "@/server/jobs/billing-reconciliation.job";
+import {
+  PUBLIC_API_IDEMPOTENCY_RETENTION_JOB,
+  runPublicApiIdempotencyRetentionJob,
+} from "@/server/jobs/public-api-idempotency-retention.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -149,6 +153,16 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    PUBLIC_API_IDEMPOTENCY_RETENTION_JOB,
+    {},
+    {
+      repeat: { pattern: "25 3 * * *" },
+      jobId: PUBLIC_API_IDEMPOTENCY_RETENTION_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -211,6 +225,12 @@ const worker = new Worker(
     if (job.name === BILLING_RECONCILIATION_JOB) {
       const result = await runBillingReconciliationJob();
       console.log("Billing reconciliation completed", result);
+      return result;
+    }
+
+    if (job.name === PUBLIC_API_IDEMPOTENCY_RETENTION_JOB) {
+      const result = await runPublicApiIdempotencyRetentionJob();
+      console.log("Public API idempotency retention completed", result);
       return result;
     }
 
