@@ -137,3 +137,39 @@ Before a production restore:
 ## Important
 
 Store production backups outside the application server when possible. Local backups are helpful, but off-server storage is safer.
+
+## Safe production restore script
+
+Use this only when you intentionally want to replace the production database.
+
+```bash
+RESTORE_CONFIRMATION=RESTORE_PRODUCTION_DATABASE \
+RESTORE_BACKUP_FILE="./backups/postgres/your-backup.dump" \
+RESTORE_BACKUP_SHA256="expected-sha256" \
+npm run restore:production
+```
+
+The restore script:
+
+- Acquires a filesystem operation lock.
+- Acquires the database operation lock.
+- Enables maintenance mode.
+- Creates a pre-restore emergency backup.
+- Verifies the restore backup checksum.
+- Stops PM2 web and worker processes.
+- Runs pg_restore --clean --if-exists.
+- Runs Prisma migrations.
+- Generates Prisma client.
+- Restarts PM2.
+- Runs public and deep health checks.
+- Disables maintenance mode only after success.
+- Records restore history in System Health.
+
+If restore fails, maintenance mode remains enabled by default.
+
+Local restore logs are written to:
+
+```txt
+logs/restores
+```
+

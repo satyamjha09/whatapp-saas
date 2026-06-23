@@ -130,3 +130,27 @@ You can inspect the current lock here:
 `/dashboard/system/health`
 
 Only force release the lock if you are sure no deploy or rollback process is still running.
+
+## Production doctor
+
+Before every production deploy, run:
+
+```bash
+npm run doctor:production
+```
+
+The doctor checks:
+
+- required database and Redis env vars
+- public HTTPS app URL
+- encryption key length
+- healthcheck token strength
+- suspicious NEXT_PUBLIC_* secret leakage
+- dummy-looking production secrets
+- Razorpay completeness
+- SMTP completeness
+- database backup config
+- remote backup config
+
+Deploy, rollback, and restore scripts should refuse to continue if the doctor fails.
+

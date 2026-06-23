@@ -4,6 +4,11 @@ import {
   createWebhookEvent,
   findCompanyByPhoneNumberId,
 } from "@/server/services/webhook.service";
+import { RATE_LIMIT_RULES } from "@/server/config/rate-limits";
+import {
+  enforceApiRateLimit,
+  isRateLimitResponse,
+} from "@/server/utils/api-rate-limit";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -73,6 +78,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = await enforceApiRateLimit({
+    request,
+    rule: RATE_LIMIT_RULES.whatsappWebhook,
+  });
+
+  if (isRateLimitResponse(rateLimit)) {
+    return rateLimit;
+  }
+
   try {
     const payload: unknown = await request.json();
 

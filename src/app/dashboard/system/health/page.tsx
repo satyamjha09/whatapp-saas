@@ -6,6 +6,9 @@ import { getSystemMaintenanceMode } from "@/server/services/system-maintenance-m
 import { getProductionDeploymentHistory } from "@/server/services/production-deployment.service";
 import { getProductionRollbackHistory } from "@/server/services/production-rollback.service";
 import { getActiveProductionOperationLock } from "@/server/services/production-operation-lock.service";
+import { getDatabaseRestoreHistory } from "@/server/services/database-restore.service";
+import { getProductionEnvAudit } from "@/server/services/production-env-audit.service";
+import { getRateLimitHealth } from "@/server/services/rate-limit-health.service";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
 import VerifyLatestBackupButton from "./verify-latest-backup-button";
@@ -37,14 +40,25 @@ export default async function SystemHealthPage() {
     redirect("/dashboard");
   }
 
-  const [health, maintenanceMode, deployments, rollbacks, operationLock] =
-    await Promise.all([
-      getOperationsHealth(),
-      getSystemMaintenanceMode(),
-      getProductionDeploymentHistory({ limit: 10 }),
-      getProductionRollbackHistory({ limit: 10 }),
-      getActiveProductionOperationLock(),
-    ]);
+  const [
+    health,
+    maintenanceMode,
+    deployments,
+    rollbacks,
+    operationLock,
+    restoreRuns,
+    envAudit,
+    rateLimits,
+  ] = await Promise.all([
+    getOperationsHealth(),
+    getSystemMaintenanceMode(),
+    getProductionDeploymentHistory({ limit: 10 }),
+    getProductionRollbackHistory({ limit: 10 }),
+    getActiveProductionOperationLock(),
+    getDatabaseRestoreHistory({ limit: 10 }),
+    getProductionEnvAudit(),
+    getRateLimitHealth(),
+  ]);
 
   return (
     <main className="p-8">
@@ -58,6 +72,147 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Production Environment Doctor
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Validates required secrets, unsafe public variables, backup config,
+                payment config, and healthcheck token strength.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                envAudit.isHealthy ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+              }`}
+            >
+              {envAudit.isHealthy ? "Healthy" : "Needs Attention"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Passed</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {envAudit.passedCount}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Warnings</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {envAudit.warningCount}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {envAudit.failedCount}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Mode</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {envAudit.isProduction ? "Production" : "Non-prod"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-xl border">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Check</th>
+                  <th className="px-4 py-3">Message</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y">
+                {envAudit.items.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-medium ${
+                          item.severity === "PASS"
+                            ? "bg-green-50 text-green-700"
+                            : item.severity === "WARNING"
+                              ? "bg-yellow-50 text-yellow-700"
+                              : "bg-red-50 text-red-700"
+                        }`}
+                      >
+                        {item.severity}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {item.title}
+                    </td>
+
+                    <td className="px-4 py-3 text-gray-600">
+                      {item.message}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Global Rate Limits
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Redis-backed IP limits for sensitive write and webhook endpoints.
+              </p>
+            </div>
+
+            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+              Enabled
+            </span>
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-xl border">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Rule</th>
+                  <th className="px-4 py-3">Window</th>
+                  <th className="px-4 py-3">Limit</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y">
+                {rateLimits.rules.map((rule) => (
+                  <tr key={rule.id}>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {rule.id}
+                    </td>
+
+                    <td className="px-4 py-3 text-gray-600">
+                      {rule.windowSeconds}s
+                    </td>
+
+                    <td className="px-4 py-3 text-gray-600">
+                      {rule.maxRequests} requests
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -308,6 +463,101 @@ export default async function SystemHealthPage() {
           )}
         </section>
 
+        <section className="mb-6 overflow-hidden rounded-2xl border bg-white shadow-sm">
+          <div className="border-b bg-gray-50 px-6 py-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Database Restore Runs
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Latest production database restore attempts and failure stages.
+            </p>
+          </div>
+
+          {restoreRuns.length === 0 ? (
+            <div className="p-6 text-sm text-gray-600">
+              No database restore runs recorded yet.
+            </div>
+          ) : (
+            <div className="overflow-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                  <tr>
+                    <th className="px-6 py-3">Status</th>
+                    <th className="px-6 py-3">Backup File</th>
+                    <th className="px-6 py-3">Checksum</th>
+                    <th className="px-6 py-3">Started</th>
+                    <th className="px-6 py-3">Completed</th>
+                    <th className="px-6 py-3">Failure</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y">
+                  {restoreRuns.map((restoreRun) => (
+                    <tr key={restoreRun.id}>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${
+                            restoreRun.status === "SUCCEEDED"
+                              ? "bg-green-50 text-green-700"
+                              : restoreRun.status === "FAILED"
+                                ? "bg-red-50 text-red-700"
+                                : "bg-yellow-50 text-yellow-700"
+                          }`}
+                        >
+                          {restoreRun.status}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900">
+                          {restoreRun.sourceFileName ?? "-"}
+                        </div>
+                        {restoreRun.sourceFilePath && (
+                          <div className="max-w-xs truncate text-xs text-gray-500">
+                            {restoreRun.sourceFilePath}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-xs">
+                          {restoreRun.checksumSha256
+                            ? restoreRun.checksumSha256.slice(0, 16)
+                            : "-"}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        {restoreRun.startedAt.toLocaleString()}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        {restoreRun.completedAt
+                          ? restoreRun.completedAt.toLocaleString()
+                          : "-"}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        {restoreRun.errorStage ? (
+                          <div>
+                            <div className="font-medium text-red-700">
+                              {restoreRun.errorStage}
+                            </div>
+                            <div className="max-w-md truncate text-xs text-gray-500">
+                              {restoreRun.errorMessage}
+                            </div>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">

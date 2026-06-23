@@ -4,11 +4,25 @@ import { createAuditLog } from "@/server/services/audit.service";
 import { importContactsToGroup } from "@/server/services/contact-group.service";
 import { importContactsToGroupSchema } from "@/server/validators/contact-group.validator";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
+import { RATE_LIMIT_RULES } from "@/server/config/rate-limits";
+import {
+  enforceApiRateLimit,
+  isRateLimitResponse,
+} from "@/server/utils/api-rate-limit";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ groupId: string }> },
 ) {
+  const rateLimit = await enforceApiRateLimit({
+    request,
+    rule: RATE_LIMIT_RULES.contactImport,
+  });
+
+  if (isRateLimitResponse(rateLimit)) {
+    return rateLimit;
+  }
+
   try {
     const { groupId } = await params;
     const context = await getCurrentWorkspaceContext();

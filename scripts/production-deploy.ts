@@ -16,6 +16,7 @@ import {
   acquireProductionOperationLock,
   releaseProductionOperationLock,
 } from "@/server/services/production-operation-lock.service";
+import { getProductionEnvAudit } from "@/server/services/production-env-audit.service";
 
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
@@ -172,6 +173,22 @@ async function restartPm2() {
   }
 }
 
+function assertProductionEnvAuditPassed() {
+  const audit = getProductionEnvAudit();
+
+  if (audit.isHealthy) {
+    console.log("Production environment audit passed");
+    return;
+  }
+
+  console.error("Production environment audit failed:");
+  for (const item of audit.items.filter((auditItem) => auditItem.severity === "FAIL")) {
+    console.error(`- ${item.title}: ${item.message}`);
+  }
+
+  throw new Error("Production environment audit failed");
+}
+
 async function main() {
   const startedAt = Date.now();
 
@@ -201,6 +218,9 @@ async function main() {
   let currentStage = "starting";
 
   try {
+    currentStage = "production_env_audit";
+    assertProductionEnvAuditPassed();
+
     currentStage = "operation_lock";
 
     await acquireProductionOperationLock({

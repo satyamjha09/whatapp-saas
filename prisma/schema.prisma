@@ -1383,5 +1383,50 @@ model ProductionOperationLock {
   @@index([expiresAt])
 }
 
+enum DatabaseRestoreRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model DatabaseRestoreRun {
+  id     String                   @id @default(cuid())
+  status DatabaseRestoreRunStatus @default(RUNNING)
+
+  sourceFileName String?
+  sourceFilePath String?
+  checksumSha256 String?
+
+  preRestoreBackupRunId String?
+
+  operationLockOwner String?
+  localLogPath        String?
+
+  maintenanceEnabledAt      DateTime?
+  preRestoreBackupCreatedAt DateTime?
+  checksumVerifiedAt        DateTime?
+  pm2StoppedAt              DateTime?
+  restoreStartedAt          DateTime?
+  restoreCompletedAt        DateTime?
+  migrationCompletedAt      DateTime?
+  prismaGeneratedAt         DateTime?
+  pm2RestartedAt            DateTime?
+  healthCheckPassedAt       DateTime?
+  deepHealthCheckPassedAt   DateTime?
+  maintenanceDisabledAt     DateTime?
+
+  errorStage   String?
+  errorMessage String?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@index([startedAt])
+}
+
+
 
 

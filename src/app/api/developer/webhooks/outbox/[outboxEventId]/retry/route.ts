@@ -4,15 +4,29 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
 import { enqueueDeveloperWebhookOutboxEvent } from "@/server/services/developer-webhook-outbox.service";
+import { RATE_LIMIT_RULES } from "@/server/config/rate-limits";
+import {
+  enforceApiRateLimit,
+  isRateLimitResponse,
+} from "@/server/utils/api-rate-limit";
 
 type RetryOutboxRouteContext = {
   params: Promise<{ outboxEventId: string }>;
 };
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: RetryOutboxRouteContext,
 ) {
+  const rateLimit = await enforceApiRateLimit({
+    request,
+    rule: RATE_LIMIT_RULES.developerWebhookRetry,
+  });
+
+  if (isRateLimitResponse(rateLimit)) {
+    return rateLimit;
+  }
+
   try {
     const context = await getCurrentWorkspaceContext();
     if (!context) {

@@ -510,6 +510,36 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/health",
         }),
         buildItem({
+          id: "safe-production-database-restore",
+          title: "Safe production database restore configured",
+          description:
+            "Production database restores require explicit confirmation, verify backup checksum, create a pre-restore backup, stop PM2, run pg_restore, restart services, verify health, and record restore history.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "production-env-doctor",
+          title: "Production environment doctor enabled",
+          description:
+            "Required secrets, unsafe public variables, dummy production credentials, payment config, SMTP config, and backup settings are audited before risky production operations.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "global-rate-limits",
+          title: "Global abuse protection enabled",
+          description:
+            "Sensitive webhook, billing, campaign, contact import, and developer endpoints are protected by Redis-backed IP rate limits.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
           id: "production-operation-lock",
           title: "Production operation lock enabled",
           description:
