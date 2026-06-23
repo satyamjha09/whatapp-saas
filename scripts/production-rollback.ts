@@ -22,7 +22,7 @@ function run(command: string, args: string[]) {
 
     const child = spawn(command, args, {
       stdio: "inherit",
-      shell: false,
+      shell: process.platform === "win32",
       env: process.env,
     });
 
