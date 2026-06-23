@@ -480,6 +480,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/health",
         }),
         buildItem({
+          id: "safe-production-deploy-script",
+          title: "Safe production deploy script configured",
+          description:
+            "Production deploys enable maintenance mode, create and verify a database backup, run migrations, build the app, restart PM2, and verify health before resuming writes.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
           id: "worker-heartbeats",
           title: "Worker heartbeats enabled",
           description:
