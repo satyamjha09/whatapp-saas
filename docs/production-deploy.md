@@ -113,4 +113,20 @@ Each deploy records these steps:
 *   public healthcheck passed
 *   deep healthcheck passed
 *   maintenance mode disabled
+## Production operation lock
 
+Deploys use a global production operation lock.
+
+This prevents multiple risky operations from running at the same time:
+- deploy
+- rollback
+- backup
+- restore
+- maintenance operation
+
+If a deploy crashes, the lock expires automatically after its TTL.
+
+You can inspect the current lock here:
+`/dashboard/system/health`
+
+Only force release the lock if you are sure no deploy or rollback process is still running.

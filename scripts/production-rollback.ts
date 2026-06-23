@@ -12,6 +12,10 @@ import {
   startProductionRollback,
 } from "@/server/services/production-rollback.service";
 import { setSystemMaintenanceMode } from "@/server/services/system-maintenance-mode.service";
+import {
+  acquireProductionOperationLock,
+  releaseProductionOperationLock,
+} from "@/server/services/production-operation-lock.service";
 
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
@@ -199,9 +203,28 @@ async function main() {
     appUrl: getAppUrl(),
   });
 
+  let operationLockAcquired = false;
   let currentStage = "starting";
 
   try {
+    currentStage = "operation_lock";
+
+    await acquireProductionOperationLock({
+      operationType: "ROLLBACK",
+      lockOwner: targetRef,
+      ttlMinutes: 120,
+      metadata: {
+        fromCommitSha,
+        toCommitSha,
+        targetRef,
+        branch,
+        appUrl: getAppUrl(),
+        startedBy: "scripts/production-rollback.ts",
+      },
+    });
+
+    operationLockAcquired = true;
+
     currentStage = "maintenance_mode_enable";
     await enableMaintenanceMode();
     await markProductionRollbackStep({
@@ -321,6 +344,13 @@ async function main() {
 
     process.exitCode = 1;
   } finally {
+    if (operationLockAcquired) {
+      await releaseProductionOperationLock({
+        operationType: "ROLLBACK",
+      }).catch((error) => {
+        console.error("Unable to release production operation lock:", error);
+      });
+    }
     await prisma.$disconnect();
   }
 }

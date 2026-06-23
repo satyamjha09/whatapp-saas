@@ -510,6 +510,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/health",
         }),
         buildItem({
+          id: "production-operation-lock",
+          title: "Production operation lock enabled",
+          description:
+            "Deploys, rollbacks, backups, restores, and maintenance operations are protected from running concurrently with a global expiring lock.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
           id: "worker-heartbeats",
           title: "Worker heartbeats enabled",
           description:

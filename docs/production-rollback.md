@@ -64,3 +64,15 @@ ROLLBACK_REQUIRE_BACKUP="true"
 ROLLBACK_DISABLE_MAINTENANCE_ON_FAILURE="false"
 ROLLBACK_ALLOW_DIRTY="false"
 ```
+
+## Operation lock
+
+Rollback uses the same global production operation lock as deploy.
+
+If another deploy or rollback is running, rollback will refuse to start.
+
+If a previous operation crashed, check:
+`/dashboard/system/health`
+
+Only force release the lock after confirming no production script is still running.
+

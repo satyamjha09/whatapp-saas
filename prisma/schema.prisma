@@ -1361,4 +1361,27 @@ model ProductionRollback {
   @@index([startedAt])
 }
 
+enum ProductionOperationType {
+  DEPLOY
+  ROLLBACK
+  BACKUP
+  RESTORE
+  MAINTENANCE
+}
+
+model ProductionOperationLock {
+  id            String                  @id
+  operationType ProductionOperationType
+  lockOwner     String?
+  lockedAt      DateTime                @default(now())
+  expiresAt     DateTime
+  metadata      Json?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  @@index([operationType])
+  @@index([expiresAt])
+}
+
+
 

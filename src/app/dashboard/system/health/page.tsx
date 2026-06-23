@@ -5,9 +5,11 @@ import { getOperationsHealth } from "@/server/services/operations-health.service
 import { getSystemMaintenanceMode } from "@/server/services/system-maintenance-mode.service";
 import { getProductionDeploymentHistory } from "@/server/services/production-deployment.service";
 import { getProductionRollbackHistory } from "@/server/services/production-rollback.service";
+import { getActiveProductionOperationLock } from "@/server/services/production-operation-lock.service";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
 import VerifyLatestBackupButton from "./verify-latest-backup-button";
+import ForceReleaseOperationLockButton from "./force-release-operation-lock-button";
 
 function statusClass(ok: boolean) {
   return ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700";
@@ -35,12 +37,14 @@ export default async function SystemHealthPage() {
     redirect("/dashboard");
   }
 
-  const [health, maintenanceMode, deployments, rollbacks] = await Promise.all([
-    getOperationsHealth(),
-    getSystemMaintenanceMode(),
-    getProductionDeploymentHistory({ limit: 10 }),
-    getProductionRollbackHistory({ limit: 10 }),
-  ]);
+  const [health, maintenanceMode, deployments, rollbacks, operationLock] =
+    await Promise.all([
+      getOperationsHealth(),
+      getSystemMaintenanceMode(),
+      getProductionDeploymentHistory({ limit: 10 }),
+      getProductionRollbackHistory({ limit: 10 }),
+      getActiveProductionOperationLock(),
+    ]);
 
   return (
     <main className="p-8">
@@ -54,6 +58,79 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Production Operation Lock
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Prevents deploys, rollbacks, backups, and maintenance operations from
+                running at the same time.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                operationLock && !operationLock.isExpired
+                  ? "bg-yellow-50 text-yellow-700"
+                  : operationLock?.isExpired
+                    ? "bg-red-50 text-red-700"
+                    : "bg-green-50 text-green-700"
+              }`}
+            >
+              {operationLock
+                ? operationLock.isExpired
+                  ? "Expired Lock"
+                  : "Locked"
+                : "Available"}
+            </span>
+          </div>
+
+          {operationLock ? (
+            <dl className="mt-5 grid gap-4 md:grid-cols-4">
+              <div className="rounded-xl bg-gray-50 p-4">
+                <dt className="text-sm text-gray-500">Operation</dt>
+                <dd className="mt-1 font-semibold text-gray-900">
+                  {operationLock.operationType}
+                </dd>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-4">
+                <dt className="text-sm text-gray-500">Owner</dt>
+                <dd className="mt-1 break-all font-semibold text-gray-900">
+                  {operationLock.lockOwner ?? "-"}
+                </dd>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-4">
+                <dt className="text-sm text-gray-500">Locked At</dt>
+                <dd className="mt-1 font-semibold text-gray-900">
+                  {operationLock.lockedAt.toLocaleString()}
+                </dd>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-4">
+                <dt className="text-sm text-gray-500">Expires At</dt>
+                <dd className="mt-1 font-semibold text-gray-900">
+                  {operationLock.expiresAt.toLocaleString()}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="mt-4 text-sm text-gray-600">
+              No production operation is currently running.
+            </p>
+          )}
+
+          {operationLock && (
+            <div className="mt-5">
+              <ForceReleaseOperationLockButton />
+            </div>
+          )}
+        </section>
 
         <section className="mb-6 overflow-hidden rounded-2xl border bg-white shadow-sm">
           <div className="border-b bg-gray-50 px-6 py-4">
