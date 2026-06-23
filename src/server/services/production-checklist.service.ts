@@ -470,6 +470,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/health",
         }),
         buildItem({
+          id: "github-actions-ci",
+          title: "GitHub Actions CI enabled",
+          description:
+            "Every push and pull request validates Prisma, applies migrations to a CI database, runs checks, and builds the app.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
           id: "worker-heartbeats",
           title: "Worker heartbeats enabled",
           description:

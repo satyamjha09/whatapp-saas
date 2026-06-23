@@ -1,0 +1,101 @@
+name: CI
+
+on:
+ push:
+   branches:
+     - main
+ pull_request:
+   branches:
+     - main
+
+concurrency:
+ group: ci-${{ github.ref }}
+ cancel-in-progress: true
+
+jobs:
+ validate-build:
+   name: Validate, Migrate, Typecheck, Build
+   runs-on: ubuntu-latest
+
+   services:
+     postgres:
+       image: postgres:16
+       env:
+         POSTGRES_USER: postgres
+         POSTGRES_PASSWORD: postgres
+         POSTGRES_DB: whatsapp_saas
+       ports:
+         - 5432:5432
+       options: >-
+         --health-cmd="pg_isready -U postgres -d whatsapp_saas"
+         --health-interval=10s
+         --health-timeout=5s
+         --health-retries=10
+
+     redis:
+       image: redis:7
+       ports:
+         - 6379:6379
+       options: >-
+         --health-cmd="redis-cli ping"
+         --health-interval=10s
+         --health-timeout=5s
+         --health-retries=10
+
+   env:
+     NODE_ENV: test
+
+     DATABASE_URL: postgresql://postgres:postgres@localhost:5432/whatsapp_saas?schema=public
+
+     REDIS_URL: redis://localhost:6379
+     REDIS_HOST: localhost
+     REDIS_PORT: "6379"
+
+     NEXT_PUBLIC_APP_URL: http://localhost:3000
+     APP_URL: http://localhost:3000
+
+     ENCRYPTION_KEY: "12345678901234567890123456789012"
+
+     WHATSAPP_API_VERSION: v25.0
+     WHATSAPP_WEBHOOK_VERIFY_TOKEN: ci_verify_token
+
+     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_dummy
+     CLERK_SECRET_KEY: sk_test_dummy
+
+     RAZORPAY_KEY_ID: rzp_test_dummy
+     RAZORPAY_KEY_SECRET: dummy
+     RAZORPAY_WEBHOOK_SECRET: dummy
+
+     HEALTHCHECK_TOKEN: ci_healthcheck_token
+
+     NOTIFICATION_EMAILS_ENABLED: "false"
+     DATABASE_BACKUPS_ENABLED: "false"
+     DATABASE_BACKUP_REMOTE_STORAGE_ENABLED: "false"
+
+   steps:
+     - name: Checkout
+       uses: actions/checkout@v4
+
+     - name: Setup Node
+       uses: actions/setup-node@v4
+       with:
+         node-version: 22
+         cache: npm
+
+     - name: Install dependencies
+       run: npm install
+
+     - name: Generate Prisma client
+       run: npx prisma generate
+
+     - name: Validate Prisma schema
+       run: npx prisma validate
+
+     - name: Apply migrations to CI database
+       run: npx prisma migrate deploy
+
+     - name: Run project checks
+       run: npm run check
+
+     - name: Build app
+       run: npm run build

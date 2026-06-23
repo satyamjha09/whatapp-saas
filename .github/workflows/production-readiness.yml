@@ -1,0 +1,25 @@
+name: Production Readiness
+
+on:
+ workflow_dispatch:
+
+jobs:
+ readiness:
+   name: Production Readiness Checklist
+   runs-on: ubuntu-latest
+
+   steps:
+     - name: Checklist
+       run: |
+         echo "Before production deploy, confirm:"
+         echo ""
+         echo "1. npm run check passes locally"
+         echo "2. npm run build passes locally"
+         echo "3. npx prisma migrate deploy was tested"
+         echo "4. .env production secrets are configured"
+         echo "5. Redis and PostgreSQL are running"
+         echo "6. PM2 processes are configured"
+         echo "7. /api/health returns 200"
+         echo "8. /api/health/deep returns 200 with token"
+         echo "9. /dashboard/system/health shows all required workers running"
+         echo "10. Database backup has completed and verified"
