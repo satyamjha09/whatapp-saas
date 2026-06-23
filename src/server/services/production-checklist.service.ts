@@ -540,6 +540,26 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/health",
         }),
         buildItem({
+          id: "security-headers-csp-cors",
+          title: "Security headers, CSP, and API CORS enabled",
+          description:
+            "The app sends browser hardening headers, starts CSP in report-only mode, blocks iframe embedding, and limits public API CORS to approved origins.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
+          id: "security-event-resolution-workflow",
+          title: "Security event resolution workflow enabled",
+          description:
+            "Security events can be opened, resolved with notes, reopened, and audited from System Health.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
           id: "production-operation-lock",
           title: "Production operation lock enabled",
           description:

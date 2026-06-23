@@ -153,13 +153,21 @@ export async function getOperationsHealth() {
         }),
       ]);
 
+    const unresolvedHighEventsCount = await prisma.securityEvent.count({
+      where: {
+        severity: { in: ["HIGH", "CRITICAL"] },
+        resolvedAt: null,
+      },
+    });
+
     const isHealthy =
       redis.ok &&
       database.ok &&
       databaseBackups.isHealthy &&
       queueHealth.every((queue) => queue.isHealthy) &&
       workerHeartbeats.unhealthyWorkers.length === 0 &&
-      recentJobs.filter((job) => job.status === "FAILED").length < 5;
+      recentJobs.filter((job) => job.status === "FAILED").length < 5 &&
+      unresolvedHighEventsCount === 0;
 
     return {
       isHealthy,
@@ -169,6 +177,7 @@ export async function getOperationsHealth() {
       queues: queueHealth,
       workerHeartbeats,
       recentJobs,
+      unresolvedHighEventsCount,
     };
   } finally {
     await Promise.allSettled(queues.map((queue) => queue.close()));

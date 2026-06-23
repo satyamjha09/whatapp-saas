@@ -249,6 +249,24 @@ export function getProductionEnvAudit() {
     required: remoteBackupEnabled,
   });
 
+  items.push({
+    id: "security-headers-enabled",
+    title: "Security headers enabled",
+    severity: process.env.SECURITY_HEADERS_ENABLED !== "false" ? "PASS" : "FAIL",
+    message: process.env.SECURITY_HEADERS_ENABLED !== "false" ? "Security headers are enabled" : "SECURITY_HEADERS_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "csp-report-only-first",
+    title: "CSP mode configured",
+    severity: ["report-only", "enforce", undefined].includes(
+      process.env.SECURITY_CSP_MODE as "report-only" | "enforce" | undefined
+    ) ? "PASS" : "FAIL",
+    message: process.env.SECURITY_CSP_MODE === "enforce" ? "CSP is enforced" : "CSP is in report-only mode",
+    required: true,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

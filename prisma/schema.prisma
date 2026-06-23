@@ -1427,6 +1427,30 @@ model DatabaseRestoreRun {
   @@index([startedAt])
 }
 
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  type      String   // e.g., "CSP_VIOLATION" or "UNAUTHORIZED_ACCESS"
+  source    String   // e.g., "browser" or "middleware"
+  summary   String
+  severity  String   // e.g., "CRITICAL", "HIGH", "MEDIUM", "LOW"
+  path      String?
+  method    String?
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+
+  resolvedAt       DateTime?
+  resolvedByUserId String?
+  resolutionNote   String?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([severity])
+  @@index([resolvedAt])
+}
+
+
 
 
 

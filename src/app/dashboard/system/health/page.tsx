@@ -9,6 +9,8 @@ import { getActiveProductionOperationLock } from "@/server/services/production-o
 import { getDatabaseRestoreHistory } from "@/server/services/database-restore.service";
 import { getProductionEnvAudit } from "@/server/services/production-env-audit.service";
 import { getRateLimitHealth } from "@/server/services/rate-limit-health.service";
+import { getSecurityHeaderHealth } from "@/server/services/security-header-health.service";
+import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
 import VerifyLatestBackupButton from "./verify-latest-backup-button";
@@ -49,6 +51,8 @@ export default async function SystemHealthPage() {
     restoreRuns,
     envAudit,
     rateLimits,
+    securityHeaders,
+    securityEvents,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -58,6 +62,13 @@ export default async function SystemHealthPage() {
     getDatabaseRestoreHistory({ limit: 10 }),
     getProductionEnvAudit(),
     getRateLimitHealth(),
+    getSecurityHeaderHealth(),
+    prisma.securityEvent.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 10,
+    }),
   ]);
 
   return (
@@ -211,6 +222,102 @@ export default async function SystemHealthPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Security Headers
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Browser hardening headers, CSP mode, HSTS, and public API CORS settings.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                securityHeaders.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {securityHeaders.isHealthy ? "Enabled" : "Disabled"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">CSP Mode</p>
+
+              <p className="mt-1 text-xl font-bold text-gray-900">
+                {securityHeaders.cspMode}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">HSTS</p>
+
+              <p className="mt-1 text-xl font-bold text-gray-900">
+                {securityHeaders.hstsEnabled ? "Enabled" : "Off"}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Headers</p>
+
+              <p className="mt-1 text-xl font-bold text-gray-900">
+                {securityHeaders.headerCount}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">CORS Prefixes</p>
+
+              <p className="mt-1 text-xl font-bold text-gray-900">
+                {securityHeaders.corsPathPrefixes.length}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-xl border">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Header</th>
+
+                  <th className="px-4 py-3">Value Preview</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y">
+                {securityHeaders.headers.map((header) => (
+                  <tr key={header.name}>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {header.name}
+                    </td>
+
+                    <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                      {header.valuePreview}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-5 rounded-xl bg-gray-50 p-4">
+            <p className="text-sm font-medium text-gray-900">
+              Allowed CORS Origins
+            </p>
+
+            <p className="mt-1 break-all text-sm text-gray-600">
+              {securityHeaders.allowedCorsOrigins.length > 0
+                ? securityHeaders.allowedCorsOrigins.join(", ")
+                : "No browser origins configured for public API CORS."}
+            </p>
           </div>
         </section>
 
@@ -927,6 +1034,80 @@ export default async function SystemHealthPage() {
 
                       <td className="max-w-md px-6 py-4 text-gray-600">
                         {worker.lastError ?? "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section className="mb-6 overflow-hidden rounded-2xl border bg-white shadow-sm">
+          <div className="border-b bg-gray-50 px-6 py-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 font-medium">Security Events</h2>
+            <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+              health.unresolvedHighEventsCount === 0
+                ? "bg-green-50 text-green-700"
+                : "bg-red-50 text-red-700"
+            }`}>
+              {health.unresolvedHighEventsCount === 0 ? "All Resolved" : `${health.unresolvedHighEventsCount} Open High/Critical`}
+            </span>
+          </div>
+
+          {securityEvents.length === 0 ? (
+            <div className="p-8 text-sm text-gray-600">No security events found.</div>
+          ) : (
+            <div className="overflow-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                  <tr>
+                    <th className="px-6 py-3 font-medium text-gray-900">Created</th>
+                    <th className="px-6 py-3 font-medium text-gray-900">Severity</th>
+                    <th className="px-6 py-3 font-medium text-gray-900">Summary</th>
+                    <th className="px-6 py-3 font-medium text-gray-900">Type</th>
+                    <th className="px-6 py-3 font-medium text-gray-900">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {securityEvents.map((event) => (
+                    <tr key={event.id}>
+                      <td className="px-6 py-4 text-gray-600">
+                        {event.createdAt.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                          event.severity === "CRITICAL" || event.severity === "HIGH"
+                            ? "bg-red-50 text-red-700"
+                            : event.severity === "MEDIUM"
+                              ? "bg-yellow-50 text-yellow-700"
+                              : "bg-green-50 text-green-700"
+                        }`}>
+                          {event.severity}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Link
+                          href={`/dashboard/system/security-events/${event.id}`}
+                          className="font-medium text-gray-900 hover:underline"
+                        >
+                          {event.summary}
+                        </Link>
+                        {event.resolvedAt && (
+                          <div className="mt-1 text-xs text-green-700">
+                            Resolved {event.resolvedAt.toLocaleString()}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">{event.type}</td>
+                      <td className="px-6 py-4">
+                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                          event.resolvedAt
+                            ? "bg-green-50 text-green-700"
+                            : "bg-yellow-50 text-yellow-700"
+                        }`}>
+                          {event.resolvedAt ? "Resolved" : "Open"}
+                        </span>
                       </td>
                     </tr>
                   ))}
