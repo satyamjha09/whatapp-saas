@@ -577,6 +577,38 @@ export function getProductionEnvAudit() {
     required: false,
   });
 
+  items.push({
+    id: "uptime-monitoring-enabled",
+    title: "Uptime monitoring enabled",
+    severity:
+      process.env.UPTIME_MONITORING_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.UPTIME_MONITORING_ENABLED !== "false"
+        ? "Uptime monitoring is enabled"
+        : "UPTIME_MONITORING_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "uptime-monitor-public-url-configured",
+    title: "Uptime monitor public URL configured",
+    severity: exists(process.env.UPTIME_MONITOR_PUBLIC_URL) ? "PASS" : "WARNING",
+    message: exists(process.env.UPTIME_MONITOR_PUBLIC_URL)
+      ? "UPTIME_MONITOR_PUBLIC_URL is configured"
+      : "UPTIME_MONITOR_PUBLIC_URL should be configured",
+    required: false,
+  });
+
+  items.push({
+    id: "uptime-monitor-health-url-configured",
+    title: "Uptime monitor health URL configured",
+    severity: exists(process.env.UPTIME_MONITOR_HEALTH_URL) ? "PASS" : "WARNING",
+    message: exists(process.env.UPTIME_MONITOR_HEALTH_URL)
+      ? "UPTIME_MONITOR_HEALTH_URL is configured"
+      : "UPTIME_MONITOR_HEALTH_URL should be configured",
+    required: false,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

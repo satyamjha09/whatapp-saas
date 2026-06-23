@@ -48,6 +48,16 @@ import {
   CAMPAIGN_ANALYTICS_V2_JOB,
   runCampaignAnalyticsV2Job,
 } from "@/server/jobs/campaign-analytics-v2.job";
+import {
+  UPTIME_MONITORING_JOB,
+  UPTIME_MONITORING_RETENTION_JOB,
+  runUptimeMonitoringJob,
+  runUptimeMonitoringRetentionJob,
+} from "@/server/jobs/uptime-monitoring.job";
+import {
+  STATUS_PAGE_SYNC_JOB,
+  runStatusPageSyncJob,
+} from "@/server/jobs/status-page-sync.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -177,6 +187,36 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    UPTIME_MONITORING_JOB,
+    {},
+    {
+      repeat: { pattern: "* * * * *" },
+      jobId: UPTIME_MONITORING_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
+  await getMaintenanceQueue().add(
+    UPTIME_MONITORING_RETENTION_JOB,
+    {},
+    {
+      repeat: { pattern: "40 3 * * *" },
+      jobId: UPTIME_MONITORING_RETENTION_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
+  await getMaintenanceQueue().add(
+    STATUS_PAGE_SYNC_JOB,
+    {},
+    {
+      repeat: { pattern: "*/5 * * * *" },
+      jobId: STATUS_PAGE_SYNC_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -251,6 +291,24 @@ const worker = new Worker(
     if (job.name === CAMPAIGN_ANALYTICS_V2_JOB) {
       const result = await runCampaignAnalyticsV2Job();
       console.log("Campaign analytics v2 sync completed", result);
+      return result;
+    }
+
+    if (job.name === UPTIME_MONITORING_JOB) {
+      const result = await runUptimeMonitoringJob();
+      console.log("Uptime monitoring job completed", result);
+      return result;
+    }
+
+    if (job.name === UPTIME_MONITORING_RETENTION_JOB) {
+      const result = await runUptimeMonitoringRetentionJob();
+      console.log("Uptime monitoring retention completed", result);
+      return result;
+    }
+
+    if (job.name === STATUS_PAGE_SYNC_JOB) {
+      const result = await runStatusPageSyncJob();
+      console.log("Status page sync completed", result);
       return result;
     }
 

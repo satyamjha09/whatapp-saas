@@ -1997,3 +1997,219 @@ model PublicApiIdempotencyRecord {
   @@index([expiresAt])
   @@index([createdAt])
 }
+
+enum UptimeMonitorStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+
+enum UptimeCheckStatus {
+  UP
+  DOWN
+  DEGRADED
+}
+
+enum UptimeIncidentState {
+  OPEN
+  RESOLVED
+}
+
+model UptimeMonitor {
+  id String @id @default(cuid())
+
+  name String
+  url  String
+
+  method         String @default("GET")
+  expectedStatus Int   @default(200)
+  timeoutMs      Int   @default(10000)
+
+  intervalMinutes Int @default(5)
+
+  status UptimeMonitorStatus @default(ACTIVE)
+
+  failureThreshold  Int @default(3)
+  recoveryThreshold Int @default(2)
+
+  consecutiveFailures  Int @default(0)
+  consecutiveSuccesses Int @default(0)
+
+  lastStatus    UptimeCheckStatus?
+  lastStatusCode Int?
+  lastLatencyMs  Int?
+
+  lastCheckedAt DateTime?
+  lastSuccessAt DateTime?
+  lastFailureAt DateTime?
+
+  openIncidentState UptimeIncidentState?
+  openIncidentId    String?
+
+  metadata Json?
+
+  checks UptimeCheck[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([lastStatus])
+  @@index([lastCheckedAt])
+  @@index([openIncidentState])
+}
+
+model UptimeCheck {
+  id String @id @default(cuid())
+
+  monitorId String
+
+  status     UptimeCheckStatus
+  statusCode Int?
+  latencyMs  Int?
+
+  errorMessage String?
+  responseSnippet String?
+
+  checkedAt DateTime @default(now())
+
+  monitor UptimeMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([monitorId])
+  @@index([status])
+  @@index([checkedAt])
+}
+
+enum StatusPageVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum StatusPageComponentStatus {
+  OPERATIONAL
+  DEGRADED
+  PARTIAL_OUTAGE
+  MAJOR_OUTAGE
+  MAINTENANCE
+}
+
+enum StatusPageIncidentStatus {
+  INVESTIGATING
+  IDENTIFIED
+  MONITORING
+  RESOLVED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum StatusPageIncidentImpact {
+  NONE
+  MINOR
+  MAJOR
+  CRITICAL
+  MAINTENANCE
+}
+
+model StatusPage {
+  id String @id @default(cuid())
+
+  slug String @unique
+  name String
+
+  visibility StatusPageVisibility @default(PUBLIC)
+
+  supportEmail String?
+  description  String?
+
+  isDefault Boolean @default(false)
+
+  components StatusPageComponent[]
+  incidents  StatusPageIncident[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([visibility])
+  @@index([isDefault])
+}
+
+model StatusPageComponent {
+  id String @id @default(cuid())
+
+  statusPageId String
+
+  name        String
+  description String?
+
+  status StatusPageComponentStatus @default(OPERATIONAL)
+
+  uptimeMonitorId String?
+
+  sortOrder Int @default(0)
+
+  lastCheckedAt DateTime?
+  lastSyncedAt  DateTime?
+
+  statusPage StatusPage @relation(fields: [statusPageId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statusPageId])
+  @@index([status])
+  @@index([uptimeMonitorId])
+  @@index([sortOrder])
+}
+
+model StatusPageIncident {
+  id String @id @default(cuid())
+
+  statusPageId String
+
+  title String
+  body  String?
+
+  status StatusPageIncidentStatus @default(INVESTIGATING)
+  impact StatusPageIncidentImpact @default(MINOR)
+
+  startedAt  DateTime @default(now())
+  resolvedAt DateTime?
+
+  createdByUserId String?
+  updatedByUserId String?
+
+  statusPage StatusPage @relation(fields: [statusPageId], references: [id], onDelete: Cascade)
+  updates    StatusPageIncidentUpdate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([statusPageId])
+  @@index([status])
+  @@index([impact])
+  @@index([startedAt])
+  @@index([resolvedAt])
+}
+
+model StatusPageIncidentUpdate {
+  id String @id @default(cuid())
+
+  incidentId String
+
+  status StatusPageIncidentStatus
+  message String
+
+  createdByUserId String?
+
+  incident StatusPageIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([incidentId])
+  @@index([status])
+  @@index([createdAt])
+}
+

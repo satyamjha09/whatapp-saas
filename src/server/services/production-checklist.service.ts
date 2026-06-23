@@ -800,6 +800,26 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/analytics/campaigns",
         }),
         buildItem({
+          id: "uptime-monitoring-alerts",
+          title: "Uptime monitoring and alert escalation enabled",
+          description:
+            "Production URLs and health endpoints are monitored for uptime, latency, failures, and recovery with incident creation and dashboard visibility.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Uptime Monitors",
+          actionHref: "/dashboard/system/uptime-monitors",
+        }),
+        buildItem({
+          id: "public-status-page",
+          title: "Public status page enabled",
+          description:
+            "Uptime monitoring components status and incident updates are visible on the public status page.",
+          status: "complete",
+          required: true,
+          actionLabel: "Manage Status Page",
+          actionHref: "/dashboard/system/status-page",
+        }),
+        buildItem({
           id: "subscription-expiry-guard",
           title: "Subscription expiry guard enabled",
           description:

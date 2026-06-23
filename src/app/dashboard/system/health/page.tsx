@@ -24,6 +24,8 @@ import { getBillingReconciliationHealth } from "@/server/services/billing-reconc
 import { getPublicApiV1Health } from "@/server/services/public-api-v1-health.service";
 import { getInboxCrmHealth } from "@/server/services/inbox-crm-health.service";
 import { getCampaignAnalyticsHealth } from "@/server/services/campaign-analytics-v2.service";
+import { getUptimeMonitoringHealth } from "@/server/services/uptime-monitoring.service";
+import { getStatusPageHealth } from "@/server/services/status-page.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -82,6 +84,8 @@ export default async function SystemHealthPage() {
     publicApiV1,
     inboxCrm,
     campaignAnalytics,
+    uptimeMonitoring,
+    statusPage,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -112,6 +116,8 @@ export default async function SystemHealthPage() {
     getPublicApiV1Health(),
     getInboxCrmHealth(),
     getCampaignAnalyticsHealth(),
+    getUptimeMonitoringHealth(),
+    getStatusPageHealth(),
   ]);
 
   return (
@@ -126,6 +132,139 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Uptime Monitoring
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Public URL, health endpoint, deep health endpoint, latency, and downtime checks.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                uptimeMonitoring.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {uptimeMonitoring.isHealthy ? "Healthy" : "Down/Incident"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Active Monitors</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {uptimeMonitoring.activeMonitors}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Down</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {uptimeMonitoring.downMonitors}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed Checks / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {uptimeMonitoring.failedChecks24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Open Incidents</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {uptimeMonitoring.openIncidentMonitors}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/system/uptime-monitors"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open uptime monitors
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Public Status Page
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Customer-facing trust page for uptime, components, incidents, and maintenance.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                statusPage.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-yellow-50 text-yellow-700"
+              }`}
+            >
+              {statusPage.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Configured</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {statusPage.configured ? "Yes" : "No"}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Active Incidents</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {statusPage.activeIncidents}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Degraded</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {statusPage.degradedComponents}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Outages</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {statusPage.outageComponents}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-4">
+            <a
+              href="/status"
+              target="_blank"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open status page
+            </a>
+            <Link
+              href="/dashboard/system/status-page"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Manage status page
+            </Link>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
