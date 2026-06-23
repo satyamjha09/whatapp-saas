@@ -36,6 +36,10 @@ import {
   DEAD_LETTER_QUEUE_SYNC_JOB,
   runDeadLetterQueueSyncJob,
 } from "@/server/jobs/dead-letter-queue-sync.job";
+import {
+  BILLING_RECONCILIATION_JOB,
+  runBillingReconciliationJob,
+} from "@/server/jobs/billing-reconciliation.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -135,6 +139,16 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    BILLING_RECONCILIATION_JOB,
+    {},
+    {
+      repeat: { pattern: "15 4 * * *" },
+      jobId: BILLING_RECONCILIATION_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -191,6 +205,12 @@ const worker = new Worker(
     if (job.name === DEAD_LETTER_QUEUE_SYNC_JOB) {
       const result = await runDeadLetterQueueSyncJob();
       console.log("Dead letter queue sync completed", result);
+      return result;
+    }
+
+    if (job.name === BILLING_RECONCILIATION_JOB) {
+      const result = await runBillingReconciliationJob();
+      console.log("Billing reconciliation completed", result);
       return result;
     }
 

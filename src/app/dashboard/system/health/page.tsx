@@ -20,6 +20,7 @@ import { getSecretEncryptionHealth } from "@/server/services/secret-encryption-h
 import { getPlatformAdminHealth } from "@/server/services/platform-admin-health.service";
 import { getIncidentHealth } from "@/server/services/incident-health.service";
 import { getDeadLetterQueueSummary } from "@/server/services/dead-letter-queue.service";
+import { getBillingReconciliationHealth } from "@/server/services/billing-reconciliation.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -74,6 +75,7 @@ export default async function SystemHealthPage() {
     platformAdmin,
     incidents,
     deadLetterQueue,
+    billingReconciliation,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -100,6 +102,7 @@ export default async function SystemHealthPage() {
     getPlatformAdminHealth(),
     getIncidentHealth(),
     getDeadLetterQueueSummary(),
+    getBillingReconciliationHealth(),
   ]);
 
   return (
@@ -114,6 +117,58 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Billing Reconciliation
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Verifies wallet balances, message usage ledgers, and debit transactions.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                billingReconciliation.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {billingReconciliation.isHealthy ? "Healthy" : "Mismatch Found"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Latest Run</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {billingReconciliation.latest?.status ?? "Never Run"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Critical Issues</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingReconciliation.unresolvedCritical}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">High Issues</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingReconciliation.unresolvedHigh}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/system/billing-reconciliation"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open billing reconciliation
+            </Link>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">

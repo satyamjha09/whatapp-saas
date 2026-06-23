@@ -760,6 +760,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/dead-letter-queue",
         }),
         buildItem({
+          id: "billing-reconciliation-guard",
+          title: "Billing reconciliation guard enabled",
+          description:
+            "Wallet balances, usage ledgers, and wallet debit transactions are reconciled daily with dashboard visibility and incident creation for mismatches.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Billing Reconciliation",
+          actionHref: "/dashboard/system/billing-reconciliation",
+        }),
+        buildItem({
           id: "subscription-expiry-guard",
           title: "Subscription expiry guard enabled",
           description:

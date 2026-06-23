@@ -108,14 +108,25 @@ export async function sendSingleTemplateMessage(
       },
     });
 
-    await tx.walletTransaction.create({
+    const walletTransaction = await tx.walletTransaction.create({
       data: {
         companyId,
         type: "DEBIT",
         status: "SUCCESS",
         amountPaise: MESSAGE_PRICE_PAISE,
         description: "Single template message queued",
+        referenceType: "MESSAGE_USAGE",
         referenceId: message.id,
+      },
+    });
+
+    await tx.messageUsageLedger.create({
+      data: {
+        companyId,
+        messageId: message.id,
+        walletTransactionId: walletTransaction.id,
+        status: "CHARGED",
+        amountPaise: MESSAGE_PRICE_PAISE,
       },
     });
 

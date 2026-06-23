@@ -297,15 +297,26 @@ export async function sendBulkTemplateMessages(
         });
       }
 
-      await tx.walletTransaction.create({
+      const walletTransaction = await tx.walletTransaction.create({
         data: {
           companyId,
           type: "DEBIT",
           status: "SUCCESS",
           amountPaise: totalChargePaise,
           description: `${messages.length} bulk template message(s) queued`,
+          referenceType: "BULK_MESSAGE_USAGE",
           referenceId: batch.id,
         },
+      });
+
+      await tx.messageUsageLedger.createMany({
+        data: messages.map((message) => ({
+          companyId,
+          messageId: message.messageId,
+          walletTransactionId: walletTransaction.id,
+          status: "CHARGED" as const,
+          amountPaise: MESSAGE_PRICE_PAISE,
+        })),
       });
 
       return { batch, messages };

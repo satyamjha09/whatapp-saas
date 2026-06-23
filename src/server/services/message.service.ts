@@ -120,14 +120,25 @@ export async function createQueuedTemplateMessage(
       },
     });
 
-    await tx.walletTransaction.create({
+    const walletTransaction = await tx.walletTransaction.create({
       data: {
         companyId,
         type: "DEBIT",
         status: "SUCCESS",
         amountPaise: MESSAGE_PRICE_PAISE,
         description: "Template message queued",
+        referenceType: "MESSAGE_USAGE",
         referenceId: createdMessage.id,
+      },
+    });
+
+    await tx.messageUsageLedger.create({
+      data: {
+        companyId,
+        messageId: createdMessage.id,
+        walletTransactionId: walletTransaction.id,
+        status: "CHARGED",
+        amountPaise: MESSAGE_PRICE_PAISE,
       },
     });
 
@@ -350,14 +361,25 @@ export async function createQueuedPublicTemplateMessage(
       },
     });
 
-    await tx.walletTransaction.create({
+    const walletTransaction = await tx.walletTransaction.create({
       data: {
         companyId,
         type: "DEBIT",
         status: "SUCCESS",
         amountPaise: MESSAGE_PRICE_PAISE,
         description: "Template message queued via public API",
+        referenceType: "MESSAGE_USAGE",
         referenceId: createdMessage.id,
+      },
+    });
+
+    await tx.messageUsageLedger.create({
+      data: {
+        companyId,
+        messageId: createdMessage.id,
+        walletTransactionId: walletTransaction.id,
+        status: "CHARGED",
+        amountPaise: MESSAGE_PRICE_PAISE,
       },
     });
 

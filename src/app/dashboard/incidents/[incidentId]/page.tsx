@@ -39,6 +39,14 @@ export default async function IncidentDetailPage({
     )
       ? incidentMetadata.deadLetterQueueHref
       : null;
+  const billingReconciliationHref =
+    incidentMetadata &&
+    typeof incidentMetadata.billingReconciliationHref === "string" &&
+    incidentMetadata.billingReconciliationHref.startsWith(
+      "/dashboard/system/billing-reconciliation/",
+    )
+      ? incidentMetadata.billingReconciliationHref
+      : null;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-8">
@@ -81,6 +89,17 @@ export default async function IncidentDetailPage({
               className="text-sm font-medium text-gray-900 underline"
             >
               Inspect linked failed jobs
+            </Link>
+          </div>
+        )}
+
+        {billingReconciliationHref && (
+          <div className="mt-4">
+            <Link
+              href={billingReconciliationHref}
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Inspect billing reconciliation issues
             </Link>
           </div>
         )}

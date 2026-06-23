@@ -516,6 +516,18 @@ export function getProductionEnvAudit() {
     required: true,
   });
 
+  items.push({
+    id: "billing-reconciliation-enabled",
+    title: "Billing reconciliation enabled",
+    severity:
+      process.env.BILLING_RECONCILIATION_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.BILLING_RECONCILIATION_ENABLED !== "false"
+        ? "Billing reconciliation is enabled"
+        : "BILLING_RECONCILIATION_ENABLED must not be false in production",
+    required: true,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

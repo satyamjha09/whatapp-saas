@@ -236,14 +236,25 @@ export async function startCampaignForCompany(
         },
       });
 
-      await tx.walletTransaction.create({
+      const walletTransaction = await tx.walletTransaction.create({
         data: {
           companyId,
           type: "DEBIT",
           status: "SUCCESS",
           amountPaise: MESSAGE_PRICE_PAISE,
           description: "Campaign message queued",
+          referenceType: "MESSAGE_USAGE",
           referenceId: createdMessage.id,
+        },
+      });
+
+      await tx.messageUsageLedger.create({
+        data: {
+          companyId,
+          messageId: createdMessage.id,
+          walletTransactionId: walletTransaction.id,
+          status: "CHARGED",
+          amountPaise: MESSAGE_PRICE_PAISE,
         },
       });
 
