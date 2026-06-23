@@ -15,7 +15,7 @@ function tsxWorker({ name, script, env = {} }) {
   return {
     name,
     cwd,
-    script: "node_modules/.bin/tsx",
+    script: "node_modules/tsx/dist/cli.mjs",
     args: script,
     instances: 1,
     autorestart: true,
