@@ -80,6 +80,10 @@ import {
   runSubscriptionRenewalJob,
   SUBSCRIPTION_RENEWAL_JOB,
 } from "@/server/jobs/subscription-renewal.job";
+import {
+  runScheduledPlanChangeJob,
+  SCHEDULED_PLAN_CHANGE_JOB,
+} from "@/server/jobs/scheduled-plan-change.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -303,6 +307,18 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    SCHEDULED_PLAN_CHANGE_JOB,
+    {},
+    {
+      repeat: {
+        pattern: process.env.PLAN_CHANGE_SCHEDULER_CRON || "35 6 * * *",
+      },
+      jobId: SCHEDULED_PLAN_CHANGE_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -431,6 +447,12 @@ const worker = new Worker(
     if (job.name === SUBSCRIPTION_RENEWAL_JOB) {
       const result = await runSubscriptionRenewalJob();
       console.log("Subscription renewal scan completed", result);
+      return result;
+    }
+
+    if (job.name === SCHEDULED_PLAN_CHANGE_JOB) {
+      const result = await runScheduledPlanChangeJob();
+      console.log("Scheduled plan change scan completed", result);
       return result;
     }
 

@@ -40,6 +40,7 @@ import { getPlanUpgradeHealth } from "@/server/services/plan-upgrade.service";
 import { getUsageQuotaAlertHealth } from "@/server/services/usage-quota-alert.service";
 import { getUsageQuotaHealth } from "@/server/services/usage-quota.service";
 import { getSubscriptionRenewalHealth } from "@/server/services/subscription-renewal.service";
+import { getScheduledPlanChangeHealth } from "@/server/services/scheduled-plan-change.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -114,6 +115,7 @@ export default async function SystemHealthPage() {
     planUpgrades,
     billingInvoices,
     subscriptionRenewals,
+    scheduledPlanChanges,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -160,6 +162,7 @@ export default async function SystemHealthPage() {
     getPlanUpgradeHealth(),
     getBillingInvoiceHealth(),
     getSubscriptionRenewalHealth(),
+    getScheduledPlanChangeHealth(),
   ]);
 
   return (
@@ -203,6 +206,63 @@ export default async function SystemHealthPage() {
           <div className="mt-5">
             <Link href="/dashboard/system/entitlements" className="text-sm font-medium text-gray-900 underline">
               Open entitlements
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Scheduled Plan Changes
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Applies cancel-at-period-end, downgrades, and scheduled billing
+                plan changes.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                scheduledPlanChanges.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {scheduledPlanChanges.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Scheduled</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {scheduledPlanChanges.scheduled}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Applied / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {scheduledPlanChanges.applied24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {scheduledPlanChanges.failed24h}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/billing/subscription"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open subscription management
             </Link>
           </div>
         </section>

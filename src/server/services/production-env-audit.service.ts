@@ -878,6 +878,30 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "plan-change-scheduler-enabled",
+    title: "Plan change scheduler enabled",
+    severity:
+      process.env.PLAN_CHANGE_SCHEDULER_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.PLAN_CHANGE_SCHEDULER_ENABLED !== "false"
+        ? "Plan change scheduler is enabled"
+        : "PLAN_CHANGE_SCHEDULER_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "plan-change-free-limit-configured",
+    title: "Plan change free limit configured",
+    severity: process.env.PLAN_CHANGE_FREE_MONTHLY_MESSAGE_LIMIT
+      ? "PASS"
+      : "WARNING",
+    message: process.env.PLAN_CHANGE_FREE_MONTHLY_MESSAGE_LIMIT
+      ? "PLAN_CHANGE_FREE_MONTHLY_MESSAGE_LIMIT is configured"
+      : "Using default free monthly message limit after downgrade",
+    required: false,
+  });
+
+  items.push({
     id: "plan-upgrades-enabled",
     title: "Plan upgrades enabled",
     severity: process.env.PLAN_UPGRADES_ENABLED !== "false" ? "PASS" : "FAIL",

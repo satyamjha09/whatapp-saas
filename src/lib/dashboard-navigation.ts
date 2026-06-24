@@ -60,7 +60,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
     items: [
       { label: "Credit Center", href: "/dashboard/billing" },
       {
-        label: "Subscription Plan",
+        label: "Subscription",
         href: "/dashboard/billing/subscription",
       },
       { label: "Upgrade Plan", href: "/dashboard/billing/upgrade" },

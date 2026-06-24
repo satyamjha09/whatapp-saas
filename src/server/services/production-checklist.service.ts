@@ -920,6 +920,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/subscription-renewals",
         }),
         buildItem({
+          id: "scheduled-plan-changes",
+          title: "Scheduled plan changes enabled",
+          description:
+            "Customers can schedule cancellation or downgrade at period end, undo pending changes, and keep paid access until the current period ends.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Subscription",
+          actionHref: "/dashboard/billing/subscription",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

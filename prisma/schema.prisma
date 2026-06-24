@@ -632,6 +632,19 @@ enum SubscriptionRenewalEventStatus {
   SKIPPED
 }
 
+enum ScheduledPlanChangeType {
+  CANCEL_AT_PERIOD_END
+  DOWNGRADE_AT_PERIOD_END
+  PLAN_CHANGE_AT_PERIOD_END
+}
+
+enum ScheduledPlanChangeStatus {
+  SCHEDULED
+  APPLIED
+  CANCELLED
+  FAILED
+}
+
 enum PlanCheckoutStatus {
   CREATED
   PAID
@@ -700,6 +713,7 @@ model User {
   requestedPlanCheckouts             PlanCheckout[]
   companyPlanChanges                 CompanyPlanChange[]
   billingInvoices                    BillingInvoice[]
+  requestedScheduledPlanChanges      ScheduledPlanChange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -773,6 +787,7 @@ model Company {
   planChanges                 CompanyPlanChange[]
   billingInvoices             BillingInvoice[]
   subscriptionRenewalEvents   SubscriptionRenewalEvent[]
+  scheduledPlanChanges        ScheduledPlanChange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1724,6 +1739,46 @@ model SubscriptionRenewalEvent {
   @@index([status])
   @@index([billingPlan])
   @@index([subscriptionStatus])
+  @@index([createdAt])
+}
+
+model ScheduledPlanChange {
+  id String @id @default(cuid())
+
+  companyId         String
+  requestedByUserId String?
+
+  type   ScheduledPlanChangeType
+  status ScheduledPlanChangeStatus @default(SCHEDULED)
+
+  fromPlan BillingPlan
+  toPlan   BillingPlan?
+
+  currentPeriodEnd DateTime?
+  scheduledFor     DateTime
+
+  appliedAt   DateTime?
+  cancelledAt DateTime?
+  failedAt    DateTime?
+
+  failureReason String?
+  reason        String?
+
+  metadata Json?
+
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requestedBy User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([requestedByUserId])
+  @@index([type])
+  @@index([status])
+  @@index([fromPlan])
+  @@index([toPlan])
+  @@index([scheduledFor])
   @@index([createdAt])
 }
 
