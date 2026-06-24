@@ -35,6 +35,7 @@ import { getTrustCenterHealth } from "@/server/services/trust-center.service";
 import { getRbacV2Health } from "@/server/services/rbac-v2.service";
 import { getRbacPermissionAuditHealth } from "@/server/services/rbac-permission-audit.service";
 import { getFeatureEntitlementHealth } from "@/server/services/feature-entitlement.service";
+import { getUsageQuotaAlertHealth } from "@/server/services/usage-quota-alert.service";
 import { getUsageQuotaHealth } from "@/server/services/usage-quota.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
@@ -106,6 +107,7 @@ export default async function SystemHealthPage() {
     rbacPermissionAudit,
     featureEntitlements,
     usageQuotas,
+    usageQuotaAlerts,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -148,6 +150,7 @@ export default async function SystemHealthPage() {
     getRbacPermissionAuditHealth(),
     getFeatureEntitlementHealth(),
     getUsageQuotaHealth(),
+    getUsageQuotaAlertHealth(),
   ]);
 
   return (
@@ -251,6 +254,59 @@ export default async function SystemHealthPage() {
           <div className="mt-5">
             <Link href="/dashboard/billing/usage-quotas" className="text-sm font-medium text-gray-900 underline">
               Open usage quotas
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Usage Quota Alerts
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Warns companies before quota limits block contacts, campaigns, exports, or messages.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                usageQuotaAlerts.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {usageQuotaAlerts.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Active Alerts</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {usageQuotaAlerts.activeAlerts}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Critical</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {usageQuotaAlerts.criticalAlerts}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Created / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {usageQuotaAlerts.alerts24h}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link href="/dashboard/billing/usage-quotas" className="text-sm font-medium text-gray-900 underline">
+              Open quota alerts
             </Link>
           </div>
         </section>

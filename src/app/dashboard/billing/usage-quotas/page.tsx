@@ -1,5 +1,10 @@
 import { requireAuthenticatedWorkspace } from "@/server/auth/authorization";
+import { listCompanyUsageQuotaAlerts } from "@/server/services/usage-quota-alert.service";
 import { listCompanyUsageQuotas } from "@/server/services/usage-quota.service";
+import {
+  AcknowledgeQuotaAlertButton,
+  ScanQuotaAlertsButton,
+} from "./quota-alert-actions";
 
 function formatFeatureKey(value: string) {
   return value
@@ -11,19 +16,68 @@ function formatFeatureKey(value: string) {
 export default async function UsageQuotasPage() {
   const context = await requireAuthenticatedWorkspace();
 
-  const quotas = await listCompanyUsageQuotas({
-    companyId: context.membership.companyId,
-  });
+  const [quotas, alerts] = await Promise.all([
+    listCompanyUsageQuotas({
+      companyId: context.membership.companyId,
+    }),
+    listCompanyUsageQuotaAlerts({
+      companyId: context.membership.companyId,
+    }),
+  ]);
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
-      <div>
-        <p className="text-sm font-medium text-gray-500">Billing</p>
-        <h1 className="mt-1 text-3xl font-bold text-gray-900">Usage Quotas</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Current usage against plan limits.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-gray-500">Billing</p>
+          <h1 className="mt-1 text-3xl font-bold text-gray-900">
+            Usage Quotas
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Current usage against plan limits.
+          </p>
+        </div>
+
+        <ScanQuotaAlertsButton />
       </div>
+
+      {alerts.length > 0 && (
+        <section className="mt-6 space-y-3">
+          {alerts.map((alert) => (
+            <article
+              key={alert.id}
+              className={`rounded-lg border p-5 shadow-sm ${
+                alert.severity === "CRITICAL"
+                  ? "border-red-200 bg-red-50"
+                  : alert.severity === "WARNING"
+                    ? "border-yellow-200 bg-yellow-50"
+                    : "border-blue-200 bg-blue-50"
+              }`}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {formatFeatureKey(alert.featureKey)} quota alert
+                  </p>
+
+                  <p className="mt-1 text-sm text-gray-700">
+                    {alert.message}
+                  </p>
+
+                  <p className="mt-2 text-xs text-gray-500">
+                    Threshold {alert.thresholdPercent}% &middot; Status{" "}
+                    {alert.status}
+                  </p>
+                </div>
+
+                {alert.status === "ACTIVE" && (
+                  <AcknowledgeQuotaAlertButton alertId={alert.id} />
+                )}
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">
         {quotas.map((quota) => {

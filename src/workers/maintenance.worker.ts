@@ -72,6 +72,10 @@ import {
   COMPLIANCE_EVIDENCE_CLEANUP_JOB,
   runComplianceEvidenceCleanupJob,
 } from "@/server/jobs/compliance-evidence.job";
+import {
+  runUsageQuotaAlertJob,
+  USAGE_QUOTA_ALERT_JOB,
+} from "@/server/jobs/usage-quota-alert.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -271,6 +275,18 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    USAGE_QUOTA_ALERT_JOB,
+    {},
+    {
+      repeat: {
+        pattern: process.env.USAGE_QUOTA_ALERTS_SCAN_CRON || "25 5 * * *",
+      },
+      jobId: USAGE_QUOTA_ALERT_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -387,6 +403,12 @@ const worker = new Worker(
     if (job.name === COMPLIANCE_EVIDENCE_CLEANUP_JOB) {
       const result = await runComplianceEvidenceCleanupJob();
       console.log("Compliance evidence cleanup completed", result);
+      return result;
+    }
+
+    if (job.name === USAGE_QUOTA_ALERT_JOB) {
+      const result = await runUsageQuotaAlertJob();
+      console.log("Usage quota alert scan completed", result);
       return result;
     }
 

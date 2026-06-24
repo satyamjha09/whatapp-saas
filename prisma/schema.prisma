@@ -605,6 +605,18 @@ enum FeatureUsageEventStatus {
   FAILED
 }
 
+enum UsageQuotaAlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum UsageQuotaAlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
 enum CompanyEntitlementOverrideStatus {
   ACTIVE
   EXPIRED
@@ -707,6 +719,7 @@ model Company {
   entitlementCheckLogs        FeatureEntitlementCheckLog[]
   featureUsageCounters        FeatureUsageCounter[]
   featureUsageEvents          FeatureUsageEvent[]
+  usageQuotaAlerts            UsageQuotaAlert[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1462,6 +1475,7 @@ model FeatureUsageCounter {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   events FeatureUsageEvent[]
+  alerts UsageQuotaAlert[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1504,6 +1518,44 @@ model FeatureUsageEvent {
   @@index([companyId])
   @@index([counterId])
   @@index([featureKey])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model UsageQuotaAlert {
+  id String @id @default(cuid())
+
+  companyId String
+  counterId String
+
+  featureKey FeatureEntitlementKey
+
+  thresholdPercent Int
+  usedCount        Int
+  limitValue       Int
+  percentage       Float
+
+  severity UsageQuotaAlertSeverity
+  status   UsageQuotaAlertStatus   @default(ACTIVE)
+
+  message String
+
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+
+  metadata Json?
+
+  company Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  counter FeatureUsageCounter @relation(fields: [counterId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, counterId, thresholdPercent])
+  @@index([companyId])
+  @@index([counterId])
+  @@index([featureKey])
+  @@index([severity])
   @@index([status])
   @@index([createdAt])
 }

@@ -880,6 +880,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/usage-quotas",
         }),
         buildItem({
+          id: "usage-quota-alerts",
+          title: "Usage quota alerts enabled",
+          description:
+            "Companies receive 80/90/100 percent quota alerts, dashboard upgrade nudges, and notifications before feature usage is blocked.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Usage Quotas",
+          actionHref: "/dashboard/billing/usage-quotas",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

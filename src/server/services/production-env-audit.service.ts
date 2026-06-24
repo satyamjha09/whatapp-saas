@@ -834,6 +834,28 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "usage-quota-alerts-enabled",
+    title: "Usage quota alerts enabled",
+    severity:
+      process.env.USAGE_QUOTA_ALERTS_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.USAGE_QUOTA_ALERTS_ENABLED !== "false"
+        ? "Usage quota alerts are enabled"
+        : "USAGE_QUOTA_ALERTS_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "usage-quota-alert-thresholds",
+    title: "Usage quota alert thresholds configured",
+    severity: process.env.USAGE_QUOTA_ALERT_THRESHOLDS ? "PASS" : "WARNING",
+    message: process.env.USAGE_QUOTA_ALERT_THRESHOLDS
+      ? "USAGE_QUOTA_ALERT_THRESHOLDS is configured"
+      : "Using default alert thresholds: 80,90,100",
+    required: false,
+  });
+
+  items.push({
     id: "uptime-monitoring-enabled",
     title: "Uptime monitoring enabled",
     severity:

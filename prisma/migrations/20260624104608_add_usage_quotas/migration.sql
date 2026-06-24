@@ -1,2 +1,4 @@
--- RenameIndex
-ALTER INDEX "FeatureUsageCounter_companyId_featureKey_periodType_periodStart" RENAME TO "FeatureUsageCounter_companyId_featureKey_periodType_periodS_key";
+-- No-op.
+-- This migration was generated to normalize an auto-truncated index name after
+-- add_usage_quotas, but its timestamp sorted before the table creation
+-- migration. Keeping it empty preserves migration order for fresh databases.
