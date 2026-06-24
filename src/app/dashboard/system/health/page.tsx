@@ -27,6 +27,7 @@ import { getCampaignAnalyticsHealth } from "@/server/services/campaign-analytics
 import { getUptimeMonitoringHealth } from "@/server/services/uptime-monitoring.service";
 import { getStatusPageHealth } from "@/server/services/status-page.service";
 import { getPrivacyCenterHealth } from "@/server/services/privacy-center.service";
+import { getPublicPrivacyPortalHealth } from "@/server/services/public-privacy-portal.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -88,6 +89,7 @@ export default async function SystemHealthPage() {
     uptimeMonitoring,
     statusPage,
     privacyCenter,
+    publicPrivacyPortal,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -121,6 +123,7 @@ export default async function SystemHealthPage() {
     getUptimeMonitoringHealth(),
     getStatusPageHealth(),
     getPrivacyCenterHealth(),
+    getPublicPrivacyPortalHealth(),
   ]);
 
   return (
@@ -181,6 +184,63 @@ export default async function SystemHealthPage() {
               className="text-sm font-medium text-gray-900 underline"
             >
               Open Privacy Center
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Public Privacy Portal
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Public verified intake for contact export and deletion requests.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                publicPrivacyPortal.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {publicPrivacyPortal.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            {[
+              ["Pending Verifications", publicPrivacyPortal.pending],
+              ["Used / 24h", publicPrivacyPortal.used24h],
+              ["Failed / 24h", publicPrivacyPortal.failed24h],
+              ["Expired / 24h", publicPrivacyPortal.expired24h],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-4">
+            <a
+              href="/privacy"
+              target="_blank"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Public privacy page
+            </a>
+
+            <Link
+              href="/dashboard/system/privacy"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Privacy Center
             </Link>
           </div>
         </section>

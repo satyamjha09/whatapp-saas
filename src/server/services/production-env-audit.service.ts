@@ -587,6 +587,44 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "public-privacy-portal-enabled",
+    title: "Public Privacy Portal enabled",
+    severity:
+      process.env.PUBLIC_PRIVACY_PORTAL_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.PUBLIC_PRIVACY_PORTAL_ENABLED !== "false"
+        ? "Public Privacy Portal is enabled"
+        : "PUBLIC_PRIVACY_PORTAL_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "public-privacy-token-secret",
+    title: "Public privacy token secret configured",
+    severity:
+      exists(process.env.PUBLIC_PRIVACY_TOKEN_SECRET) &&
+      process.env.PUBLIC_PRIVACY_TOKEN_SECRET!.length >= 32
+        ? "PASS"
+        : "FAIL",
+    message:
+      exists(process.env.PUBLIC_PRIVACY_TOKEN_SECRET) &&
+      process.env.PUBLIC_PRIVACY_TOKEN_SECRET!.length >= 32
+        ? "PUBLIC_PRIVACY_TOKEN_SECRET is configured"
+        : "PUBLIC_PRIVACY_TOKEN_SECRET must be at least 32 characters",
+    required: true,
+  });
+
+  items.push({
+    id: "public-privacy-portal-url",
+    title: "Public privacy portal URL configured",
+    severity: exists(process.env.PUBLIC_PRIVACY_PORTAL_URL) ? "PASS" : "WARNING",
+    message: exists(process.env.PUBLIC_PRIVACY_PORTAL_URL)
+      ? "PUBLIC_PRIVACY_PORTAL_URL is configured"
+      : "PUBLIC_PRIVACY_PORTAL_URL should be configured",
+    required: false,
+  });
+
+  items.push({
     id: "campaign-analytics-v2-enabled",
     title: "Campaign Analytics v2 enabled",
     severity:

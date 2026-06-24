@@ -790,6 +790,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/privacy",
         }),
         buildItem({
+          id: "public-privacy-portal",
+          title: "Public Privacy Portal enabled",
+          description:
+            "Customers can submit verified data export and deletion requests from a public privacy page, with email confirmation and admin processing in Privacy Center.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Privacy Portal",
+          actionHref: "/privacy",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:
