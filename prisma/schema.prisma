@@ -548,6 +548,17 @@ enum CompanyAccessRoleStatus {
   DISABLED
 }
 
+enum RbacPermissionAuditRunStatus {
+  PASSED
+  FAILED
+}
+
+enum RbacPermissionAuditItemSeverity {
+  INFO
+  WARN
+  ERROR
+}
+
 model User {
   id          String  @id @default(cuid())
   clerkUserId String  @unique
@@ -1266,6 +1277,47 @@ model CompanyAccessRoleAssignment {
   @@index([companyId])
   @@index([userId])
   @@index([roleId])
+}
+
+model RbacPermissionAuditRun {
+  id String @id @default(cuid())
+
+  status RbacPermissionAuditRunStatus
+
+  totalRoutes     Int @default(0)
+  guardedRoutes   Int @default(0)
+  missingRegistry Int @default(0)
+  missingGuards   Int @default(0)
+
+  errorMessage String?
+  items        RbacPermissionAuditItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model RbacPermissionAuditItem {
+  id String @id @default(cuid())
+
+  runId String
+
+  routePath String
+  filePath  String
+
+  requiredPermission RbacPermission?
+  severity           RbacPermissionAuditItemSeverity
+  message            String
+
+  run RbacPermissionAuditRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([runId])
+  @@index([severity])
+  @@index([routePath])
+  @@index([createdAt])
 }
 
 model ContactActivity {

@@ -9,6 +9,7 @@ import {
   generateDeveloperWebhookSigningSecret,
   getSecretPreview,
 } from "@/server/services/developer-webhook-signature.service";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
 type RotateSecretRouteContext = {
   params: Promise<{
@@ -17,7 +18,7 @@ type RotateSecretRouteContext = {
 };
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: RotateSecretRouteContext,
 ) {
   try {
@@ -44,6 +45,11 @@ export async function POST(
       );
     }
 
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
+    }
     await assertCompanyFeature(
       context.membership.companyId,
       "DEVELOPER_WEBHOOKS",

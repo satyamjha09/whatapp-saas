@@ -6,8 +6,9 @@ import {
   updateWhatsAppSettings,
 } from "@/server/services/whatsapp-settings.service";
 import { updateWhatsAppSettingsSchema } from "@/server/validators/whatsapp-settings.validator";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const context = await getCurrentWorkspaceContext();
 
@@ -20,6 +21,12 @@ export async function GET() {
         { message: "Complete company onboarding first" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
     }
 
     const settings = await getWhatsAppSettingsByCompany(
@@ -60,6 +67,12 @@ export async function PATCH(request: Request) {
         { message: "Only owners and admins can update WhatsApp settings" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
     }
 
     const body: unknown = await request.json();

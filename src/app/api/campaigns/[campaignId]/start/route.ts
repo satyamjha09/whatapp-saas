@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { startCampaignForCompany } from "@/server/services/campaign.service";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
 type StartCampaignRouteContext = {
   params: Promise<{
@@ -9,7 +10,7 @@ type StartCampaignRouteContext = {
 };
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: StartCampaignRouteContext,
 ) {
   try {
@@ -34,6 +35,12 @@ export async function POST(
         { message: "You do not have permission to start campaigns" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
     }
 
     const { campaignId } = await params;

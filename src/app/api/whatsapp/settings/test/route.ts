@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { testWhatsAppConnection } from "@/server/services/whatsapp-settings.service";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const context = await getCurrentWorkspaceContext();
 
@@ -27,6 +28,12 @@ export async function POST() {
         { message: "Only owners and admins can test WhatsApp settings" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
     }
 
     const connection = await testWhatsAppConnection(

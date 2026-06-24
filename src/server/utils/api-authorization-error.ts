@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { AuthorizationError } from "@/server/auth/authorization";
+import { PermissionDeniedError } from "@/server/services/rbac-v2.service";
 
 export function createAuthorizationErrorResponse(error: unknown) {
   if (error instanceof AuthorizationError) {
@@ -10,6 +11,13 @@ export function createAuthorizationErrorResponse(error: unknown) {
       {
         status: error.status,
       },
+    );
+  }
+
+  if (error instanceof PermissionDeniedError) {
+    return NextResponse.json(
+      { ok: false, code: "PERMISSION_DENIED", message: error.message },
+      { status: 403 },
     );
   }
 

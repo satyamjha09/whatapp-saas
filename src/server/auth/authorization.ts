@@ -1,4 +1,5 @@
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { assertRoutePermission } from "@/server/auth/route-permission-guard";
 
 export class AuthorizationError extends Error {
   status: number;
@@ -34,10 +35,13 @@ export async function requireAdmin({
     throw new AuthorizationError("Only owners and admins can access this resource", 403);
   }
 
-  return {
+  const workspace = {
     user: context.user,
     membership: context.membership,
   };
+
+  if (request) await assertRoutePermission({ request, workspace });
+  return workspace;
 }
 
 export async function requireMember() {

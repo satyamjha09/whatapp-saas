@@ -7,8 +7,9 @@ import {
 import { createAuditLog } from "@/server/services/audit.service";
 import { createApiKeySchema } from "@/server/validators/api-key.validator";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const context = await getCurrentWorkspaceContext();
 
@@ -23,6 +24,11 @@ export async function GET() {
       );
     }
 
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
+    }
     await assertCompanyFeature(context.membership.companyId, "DEVELOPER_API");
 
     const apiKeys = await getApiKeysByCompany(context.membership.companyId);
@@ -73,6 +79,11 @@ export async function POST(request: Request) {
       );
     }
 
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
+    }
     await assertCompanyFeature(context.membership.companyId, "DEVELOPER_API");
 
     const body: unknown = await request.json();

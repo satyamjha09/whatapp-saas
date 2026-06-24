@@ -4,6 +4,7 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
 import { reEnableDeveloperWebhookEndpoint } from "@/server/services/developer-webhook-health.service";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
 type EnableWebhookRouteContext = {
   params: Promise<{
@@ -12,7 +13,7 @@ type EnableWebhookRouteContext = {
 };
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: EnableWebhookRouteContext,
 ) {
   try {
@@ -39,6 +40,11 @@ export async function POST(
       );
     }
 
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
+    }
     await assertCompanyFeature(
       context.membership.companyId,
       "DEVELOPER_WEBHOOKS",

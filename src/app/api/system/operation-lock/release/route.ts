@@ -5,10 +5,11 @@ import {
   forceReleaseProductionOperationLock,
   getActiveProductionOperationLock,
 } from "@/server/services/production-operation-lock.service";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const context = await getCurrentWorkspaceContext();
 
@@ -28,6 +29,12 @@ export async function POST() {
         { message: "Only owners can release production operation locks" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
     }
 
     const existingLock = await getActiveProductionOperationLock();

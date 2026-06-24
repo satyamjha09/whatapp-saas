@@ -3,6 +3,7 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { revokeApiKey } from "@/server/services/api-key.service";
 import { createAuditLog } from "@/server/services/audit.service";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
 type RevokeApiKeyRouteContext = {
   params: Promise<{
@@ -11,7 +12,7 @@ type RevokeApiKeyRouteContext = {
 };
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: RevokeApiKeyRouteContext,
 ) {
   try {
@@ -38,6 +39,11 @@ export async function POST(
       );
     }
 
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
+    }
     await assertCompanyFeature(context.membership.companyId, "DEVELOPER_API");
 
     const { apiKeyId } = await params;

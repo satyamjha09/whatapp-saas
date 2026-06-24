@@ -11,6 +11,7 @@ import {
   isRateLimitResponse,
 } from "@/server/utils/api-rate-limit";
 import { createTenantErrorResponse } from "@/server/utils/api-tenant-error";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
 type RetryOutboxRouteContext = {
   params: Promise<{ outboxEventId: string }>;
@@ -48,6 +49,12 @@ export async function POST(
         { message: "Only owners and admins can retry webhook events" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
     }
 
     const companyId = context.membership.companyId;

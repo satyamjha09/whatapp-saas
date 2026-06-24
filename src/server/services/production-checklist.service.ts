@@ -850,6 +850,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/team/roles",
         }),
         buildItem({
+          id: "rbac-permission-guard-audit",
+          title: "RBAC permission guard audit enabled",
+          description:
+            "Sensitive API routes are checked against a central permission registry so new endpoints cannot silently bypass RBAC enforcement.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

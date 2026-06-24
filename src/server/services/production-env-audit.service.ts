@@ -758,6 +758,31 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "rbac-permission-audit-enabled",
+    title: "RBAC permission audit enabled",
+    severity: process.env.RBAC_PERMISSION_AUDIT_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.RBAC_PERMISSION_AUDIT_ENABLED !== "false"
+        ? "RBAC permission audit is enabled"
+        : "RBAC_PERMISSION_AUDIT_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "rbac-permission-audit-fail-on-missing-guards",
+    title: "RBAC audit fails on missing guards",
+    severity:
+      process.env.RBAC_PERMISSION_AUDIT_FAIL_ON_MISSING_GUARDS !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.RBAC_PERMISSION_AUDIT_FAIL_ON_MISSING_GUARDS !== "false"
+        ? "RBAC audit fails when sensitive routes miss guards"
+        : "Missing route guards only warn; production should fail",
+    required: false,
+  });
+
+  items.push({
     id: "uptime-monitoring-enabled",
     title: "Uptime monitoring enabled",
     severity:

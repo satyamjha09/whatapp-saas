@@ -7,6 +7,7 @@ import {
 import { createAuditLog } from "@/server/services/audit.service";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
 import { updateApiKeySchema } from "@/server/validators/api-key.validator";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
 type RevokeApiKeyRouteContext = {
   params: Promise<{
@@ -53,6 +54,11 @@ export async function PATCH(
       );
     }
 
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
+    }
     await assertCompanyFeature(context.membership.companyId, "DEVELOPER_API");
 
     const body: unknown = await request.json();
@@ -122,7 +128,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: RevokeApiKeyRouteContext,
 ) {
   try {
@@ -147,6 +153,12 @@ export async function DELETE(
         { message: "You do not have permission to revoke API keys" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
     }
 
     const { apiKeyId } = await params;

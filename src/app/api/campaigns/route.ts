@@ -5,6 +5,7 @@ import {
   getCampaignsByCompany,
 } from "@/server/services/campaign.service";
 import { createCampaignSchema } from "@/server/validators/campaign.validator";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
 export async function GET() {
   try {
@@ -61,6 +62,12 @@ export async function POST(request: Request) {
         { message: "You do not have permission to create campaigns" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
     }
 
     const body: unknown = await request.json();

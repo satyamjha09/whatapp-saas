@@ -7,8 +7,9 @@ import {
 } from "@/server/services/developer-webhook.service";
 import { createDeveloperWebhookEndpointSchema } from "@/server/validators/developer-webhook.validator";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const context = await getCurrentWorkspaceContext();
 
@@ -23,6 +24,11 @@ export async function GET() {
       );
     }
 
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
+    }
     await assertCompanyFeature(
       context.membership.companyId,
       "DEVELOPER_WEBHOOKS",
@@ -78,6 +84,11 @@ export async function POST(request: Request) {
       );
     }
 
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
+    }
     await assertCompanyFeature(
       context.membership.companyId,
       "DEVELOPER_WEBHOOKS",

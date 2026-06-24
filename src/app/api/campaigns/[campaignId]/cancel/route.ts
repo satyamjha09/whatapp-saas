@@ -6,12 +6,13 @@ import {
   assertSystemWritesAllowed,
   SystemMaintenanceModeError,
 } from "@/server/services/system-maintenance-mode.service";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
 type RouteContext = {
   params: Promise<{ campaignId: string }>;
 };
 
-export async function POST(_request: Request, { params }: RouteContext) {
+export async function POST(request: Request, { params }: RouteContext) {
   try {
     const { campaignId } = await params;
     const context = await getCurrentWorkspaceContext();
@@ -30,6 +31,12 @@ export async function POST(_request: Request, { params }: RouteContext) {
         { message: "Only owners and admins can cancel campaigns" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
     }
 
     await assertSystemWritesAllowed({

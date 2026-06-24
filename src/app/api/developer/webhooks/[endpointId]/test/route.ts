@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { sendTestDeveloperWebhook } from "@/server/services/developer-webhook.service";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
 type TestDeveloperWebhookRouteContext = {
   params: Promise<{
@@ -10,7 +11,7 @@ type TestDeveloperWebhookRouteContext = {
 };
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: TestDeveloperWebhookRouteContext,
 ) {
   try {
@@ -35,6 +36,12 @@ export async function POST(
         { message: "You do not have permission to test webhooks" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
     }
 
     const { endpointId } = await params;

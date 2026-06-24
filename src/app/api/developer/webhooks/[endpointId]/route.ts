@@ -5,6 +5,7 @@ import { createAuditLog } from "@/server/services/audit.service";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
 import { revokeDeveloperWebhookEndpoint } from "@/server/services/developer-webhook.service";
 import { developerWebhookSchema } from "@/server/validators/developer-webhook.validator";
+import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 
 type RevokeDeveloperWebhookRouteContext = {
   params: Promise<{
@@ -51,6 +52,11 @@ export async function PATCH(
       );
     }
 
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
+    }
     await assertCompanyFeature(
       context.membership.companyId,
       "DEVELOPER_WEBHOOKS",
@@ -139,7 +145,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: RevokeDeveloperWebhookRouteContext,
 ) {
   try {
@@ -164,6 +170,12 @@ export async function DELETE(
         { message: "You do not have permission to revoke webhooks" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRoutePermission({ request, workspace: context });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
     }
 
     const { endpointId } = await params;
