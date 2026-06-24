@@ -1002,6 +1002,30 @@ export function getProductionEnvAudit() {
     required: false,
   });
 
+  items.push({
+    id: "plan-checkout-reconciliation-enabled",
+    title: "Plan checkout reconciliation enabled",
+    severity:
+      process.env.PLAN_CHECKOUT_RECONCILIATION_ENABLED !== "false"
+        ? "PASS"
+        : "FAIL",
+    message:
+      process.env.PLAN_CHECKOUT_RECONCILIATION_ENABLED !== "false"
+        ? "Plan checkout reconciliation is enabled"
+        : "PLAN_CHECKOUT_RECONCILIATION_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "plan-checkout-expiry-configured",
+    title: "Plan checkout expiry configured",
+    severity: process.env.PLAN_CHECKOUT_EXPIRY_MINUTES ? "PASS" : "WARNING",
+    message: process.env.PLAN_CHECKOUT_EXPIRY_MINUTES
+      ? "PLAN_CHECKOUT_EXPIRY_MINUTES is configured"
+      : "Using default plan checkout expiry",
+    required: false,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

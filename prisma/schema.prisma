@@ -788,6 +788,7 @@ model Company {
   billingInvoices             BillingInvoice[]
   subscriptionRenewalEvents   SubscriptionRenewalEvent[]
   scheduledPlanChanges        ScheduledPlanChange[]
+  planCheckoutReconciliationEvents PlanCheckoutReconciliationEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1652,6 +1653,15 @@ model PlanCheckout {
   failureReason String?
   metadata      Json?
 
+  expiresAt DateTime?
+
+  webhookProcessedAt DateTime?
+  reconciliationAttempts Int @default(0)
+  lastReconciliationAt DateTime?
+  lastReconciliationError String?
+
+  reconciliationEvents PlanCheckoutReconciliationEvent[]
+
   company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   requestedBy User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
@@ -1665,6 +1675,9 @@ model PlanCheckout {
   @@index([status])
   @@index([razorpayOrderId])
   @@index([razorpayPaymentId])
+  @@index([expiresAt])
+  @@index([webhookProcessedAt])
+  @@index([lastReconciliationAt])
   @@index([createdAt])
 }
 
@@ -3380,3 +3393,46 @@ model StatusPageIncidentUpdate {
   @@index([status])
   @@index([createdAt])
 }
+
+enum PlanCheckoutReconciliationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  EXPIRED
+  SKIPPED
+}
+
+model PlanCheckoutReconciliationEvent {
+  id String @id @default(cuid())
+
+  companyId  String
+  checkoutId String
+
+  status PlanCheckoutReconciliationStatus
+
+  source String
+
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+
+  attemptNumber Int @default(1)
+
+  message String?
+  errorMessage String?
+
+  metadata Json?
+
+  company  Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  checkout PlanCheckout @relation(fields: [checkoutId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([checkoutId])
+  @@index([status])
+  @@index([source])
+  @@index([razorpayOrderId])
+  @@index([razorpayPaymentId])
+  @@index([createdAt])
+}
+

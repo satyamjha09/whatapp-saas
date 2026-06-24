@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { completePlanCheckoutFromWebhook } from "@/server/services/plan-checkout-reconciliation.service";
 import {
   extractCreditPaymentFromWebhook,
   markRazorpayCreditPurchaseFailedFromWebhook,
@@ -256,6 +257,45 @@ export async function POST(request: Request) {
       });
 
       return completeAndRespond({ message: "Webhook ignored" });
+    }
+
+    const matchedCheckout = await prisma.planCheckout.findFirst({
+      where: {
+        razorpayOrderId: paymentData.razorpayOrderId,
+      },
+    });
+
+    if (matchedCheckout) {
+      if (eventType === "payment.failed") {
+        await markEvent({
+          eventRecordId,
+          companyId: matchedCheckout.companyId,
+          status: "PROCESSED",
+        });
+
+        return completeAndRespond({
+          message: "Razorpay plan checkout payment failure ignored",
+        });
+      }
+
+      if (eventType === "payment.captured" || eventType === "order.paid") {
+        await completePlanCheckoutFromWebhook({
+          razorpayOrderId: paymentData.razorpayOrderId,
+          razorpayPaymentId: paymentData.razorpayPaymentId!,
+          razorpaySignature: request.headers.get("x-razorpay-signature") ?? "",
+          payload: payload,
+        });
+
+        await markEvent({
+          eventRecordId,
+          companyId: matchedCheckout.companyId,
+          status: "PROCESSED",
+        });
+
+        return completeAndRespond({
+          message: "Razorpay plan checkout processed",
+        });
+      }
     }
 
     const [matchedPurchase, matchedSubscription] = await Promise.all([

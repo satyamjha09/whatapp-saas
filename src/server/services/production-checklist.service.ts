@@ -930,6 +930,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/subscription",
         }),
         buildItem({
+          id: "plan-checkout-reconciliation",
+          title: "Plan checkout reconciliation enabled",
+          description:
+            "Plan upgrade checkouts are resilient with webhook completion, checkout expiry, scheduled reconciliation, manual review events, and System Health monitoring.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open System Health",
+          actionHref: "/dashboard/system/health",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

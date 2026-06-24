@@ -209,6 +209,13 @@ function verifyRazorpaySignature({
   );
 }
 
+function checkoutExpiryDate() {
+  const minutes = Number(process.env.PLAN_CHECKOUT_EXPIRY_MINUTES ?? 60);
+  const safeMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : 60;
+
+  return new Date(Date.now() + safeMinutes * 60 * 1000);
+}
+
 export async function createPlanCheckout({
   companyId,
   requestedByUserId,
@@ -257,6 +264,7 @@ export async function createPlanCheckout({
       toPlan,
       amountPaise,
       currency: currency(),
+      expiresAt: checkoutExpiryDate(),
       metadata: safeJson({
         companyName: company.name,
       }),
@@ -307,7 +315,6 @@ export async function completePlanCheckout({
     where: {
       id: checkoutId,
       companyId,
-      status: "CREATED",
     },
     include: {
       company: true,
@@ -315,7 +322,42 @@ export async function completePlanCheckout({
   });
 
   if (!checkout) {
-    throw new PlanUpgradeError("Active checkout not found.");
+    throw new PlanUpgradeError("Checkout not found.");
+  }
+
+  if (checkout.status === "PAID") {
+    return {
+      checkout,
+      planChange: await prisma.companyPlanChange.findFirst({
+        where: {
+          companyId,
+          checkoutId: checkout.id,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      alreadyCompleted: true,
+    };
+  }
+
+  if (checkout.status !== "CREATED") {
+    throw new PlanUpgradeError(`Checkout is ${checkout.status}.`);
+  }
+
+  if (checkout.expiresAt && checkout.expiresAt < new Date()) {
+    await prisma.planCheckout.update({
+      where: {
+        id: checkout.id,
+      },
+      data: {
+        status: "EXPIRED",
+        failedAt: new Date(),
+        failureReason: "Checkout expired before verification",
+      },
+    });
+
+    throw new PlanUpgradeError("Checkout expired.");
   }
 
   if (checkout.razorpayOrderId !== razorpayOrderId) {

@@ -41,12 +41,14 @@ import { getUsageQuotaAlertHealth } from "@/server/services/usage-quota-alert.se
 import { getUsageQuotaHealth } from "@/server/services/usage-quota.service";
 import { getSubscriptionRenewalHealth } from "@/server/services/subscription-renewal.service";
 import { getScheduledPlanChangeHealth } from "@/server/services/scheduled-plan-change.service";
+import { getPlanCheckoutReconciliationHealth } from "@/server/services/plan-checkout-reconciliation.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
 import VerifyLatestBackupButton from "./verify-latest-backup-button";
 import ForceReleaseOperationLockButton from "./force-release-operation-lock-button";
 import VerifyAuditIntegrityButton from "./verify-audit-integrity-button";
+import { ReconcilePlanCheckoutsButton } from "@/app/dashboard/billing/reconciliation-actions";
 
 function statusClass(ok: boolean) {
   return ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700";
@@ -116,6 +118,7 @@ export default async function SystemHealthPage() {
     billingInvoices,
     subscriptionRenewals,
     scheduledPlanChanges,
+    planCheckoutReconciliation,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -163,6 +166,7 @@ export default async function SystemHealthPage() {
     getBillingInvoiceHealth(),
     getSubscriptionRenewalHealth(),
     getScheduledPlanChangeHealth(),
+    getPlanCheckoutReconciliationHealth(),
   ]);
 
   return (
@@ -494,6 +498,64 @@ export default async function SystemHealthPage() {
             <Link href="/dashboard/billing/upgrade" className="text-sm font-medium text-gray-900 underline">
               Open upgrade checkout
             </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Plan Checkout Reconciliation
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Completes paid plan upgrades from webhooks and expires abandoned checkout sessions.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                planCheckoutReconciliation.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {planCheckoutReconciliation.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Open Checkouts</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {planCheckoutReconciliation.createdOpen}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Expired / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {planCheckoutReconciliation.expired24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {planCheckoutReconciliation.failed24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Manual Review / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {planCheckoutReconciliation.manualReview24h}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 border-t pt-5">
+            <ReconcilePlanCheckoutsButton />
           </div>
         </section>
 

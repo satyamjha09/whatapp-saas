@@ -84,6 +84,10 @@ import {
   runScheduledPlanChangeJob,
   SCHEDULED_PLAN_CHANGE_JOB,
 } from "@/server/jobs/scheduled-plan-change.job";
+import {
+  PLAN_CHECKOUT_RECONCILIATION_JOB,
+  runPlanCheckoutReconciliationJob,
+} from "@/server/jobs/plan-checkout-reconciliation.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -319,6 +323,19 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    PLAN_CHECKOUT_RECONCILIATION_JOB,
+    {},
+    {
+      repeat: {
+        pattern:
+          process.env.PLAN_CHECKOUT_RECONCILIATION_SCAN_CRON || "*/20 * * * *",
+      },
+      jobId: PLAN_CHECKOUT_RECONCILIATION_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -453,6 +470,12 @@ const worker = new Worker(
     if (job.name === SCHEDULED_PLAN_CHANGE_JOB) {
       const result = await runScheduledPlanChangeJob();
       console.log("Scheduled plan change scan completed", result);
+      return result;
+    }
+
+    if (job.name === PLAN_CHECKOUT_RECONCILIATION_JOB) {
+      const result = await runPlanCheckoutReconciliationJob();
+      console.log("Plan checkout reconciliation scan completed", result);
       return result;
     }
 
