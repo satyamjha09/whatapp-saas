@@ -68,6 +68,10 @@ import {
   DATA_RETENTION_JOB,
   runDataRetentionJob,
 } from "@/server/jobs/data-retention.job";
+import {
+  COMPLIANCE_EVIDENCE_CLEANUP_JOB,
+  runComplianceEvidenceCleanupJob,
+} from "@/server/jobs/compliance-evidence.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -257,6 +261,16 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    COMPLIANCE_EVIDENCE_CLEANUP_JOB,
+    {},
+    {
+      repeat: { pattern: "35 3 * * *" },
+      jobId: COMPLIANCE_EVIDENCE_CLEANUP_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -367,6 +381,12 @@ const worker = new Worker(
     if (job.name === DATA_RETENTION_JOB) {
       const result = await runDataRetentionJob();
       console.log("Data retention completed", result);
+      return result;
+    }
+
+    if (job.name === COMPLIANCE_EVIDENCE_CLEANUP_JOB) {
+      const result = await runComplianceEvidenceCleanupJob();
+      console.log("Compliance evidence cleanup completed", result);
       return result;
     }
 

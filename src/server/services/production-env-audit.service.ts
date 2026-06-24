@@ -672,6 +672,32 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "compliance-evidence-center-enabled",
+    title: "Compliance Evidence Center enabled",
+    severity:
+      process.env.COMPLIANCE_EVIDENCE_CENTER_ENABLED !== "false"
+        ? "PASS"
+        : "FAIL",
+    message:
+      process.env.COMPLIANCE_EVIDENCE_CENTER_ENABLED !== "false"
+        ? "Compliance Evidence Center is enabled"
+        : "COMPLIANCE_EVIDENCE_CENTER_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "compliance-evidence-export-dir-configured",
+    title: "Compliance evidence export directory configured",
+    severity: exists(process.env.COMPLIANCE_EVIDENCE_EXPORT_DIR)
+      ? "PASS"
+      : "WARNING",
+    message: exists(process.env.COMPLIANCE_EVIDENCE_EXPORT_DIR)
+      ? "COMPLIANCE_EVIDENCE_EXPORT_DIR is configured"
+      : "COMPLIANCE_EVIDENCE_EXPORT_DIR should be configured outside the public app directory",
+    required: false,
+  });
+
+  items.push({
     id: "campaign-analytics-v2-enabled",
     title: "Campaign Analytics v2 enabled",
     severity:

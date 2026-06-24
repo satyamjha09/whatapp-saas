@@ -468,6 +468,22 @@ enum LegalHoldEntityType {
   INCIDENT
 }
 
+enum ComplianceEvidenceExportType {
+  COMPANY_COMPLIANCE
+  CONTACT_COMPLIANCE
+  PRIVACY_COMPLIANCE
+  SECURITY_COMPLIANCE
+  RETENTION_COMPLIANCE
+}
+
+enum ComplianceEvidenceExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
 model User {
   id          String  @id @default(cuid())
   clerkUserId String  @unique
@@ -491,6 +507,7 @@ model User {
   companyNotificationEmailDeliveries CompanyNotificationEmailDelivery[]
   privacyRequests                    PrivacyRequest[]
   contactConsentEvents               ContactConsentEvent[]
+  complianceEvidenceExports          ComplianceEvidenceExport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -551,6 +568,7 @@ model Company {
   publicApiIdempotencyRecords PublicApiIdempotencyRecord[]
   privacyRequests             PrivacyRequest[]
   contactConsentEvents        ContactConsentEvent[]
+  complianceEvidenceExports   ComplianceEvidenceExport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -777,6 +795,7 @@ model Contact {
   contactGroupMembers       ContactGroupMember[]
   privacyRequests            PrivacyRequest[]
   consentEvents              ContactConsentEvent[]
+  complianceEvidenceExports  ComplianceEvidenceExport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1029,6 +1048,48 @@ model LegalHold {
   @@index([companyId])
   @@index([entityType, entityId])
   @@index([active])
+  @@index([createdAt])
+}
+
+model ComplianceEvidenceExport {
+  id String @id @default(cuid())
+
+  companyId String
+  contactId String?
+
+  requestedByUserId String?
+
+  type   ComplianceEvidenceExportType
+  status ComplianceEvidenceExportStatus @default(PENDING)
+
+  dateFrom DateTime
+  dateTo   DateTime
+
+  filePath  String?
+  fileName  String?
+  expiresAt DateTime?
+
+  processedAt DateTime?
+  failedAt    DateTime?
+
+  failureReason String?
+  metadata      Json?
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact     Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  requestedBy User?    @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([requestedByUserId])
+  @@index([type])
+  @@index([status])
+  @@index([dateFrom])
+  @@index([dateTo])
+  @@index([expiresAt])
   @@index([createdAt])
 }
 

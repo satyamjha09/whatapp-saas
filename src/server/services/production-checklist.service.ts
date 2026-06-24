@@ -820,6 +820,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/contacts",
         }),
         buildItem({
+          id: "compliance-evidence-center",
+          title: "Compliance Evidence Center enabled",
+          description:
+            "Admins can generate audit-ready evidence packs for consent, privacy, security, retention, incidents, and audit logs with expiry cleanup and download audit trails.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Compliance Evidence",
+          actionHref: "/dashboard/system/compliance",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:
