@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAuthenticatedWorkspace } from "@/server/auth/authorization";
 import { listCompanyUsageQuotaAlerts } from "@/server/services/usage-quota-alert.service";
 import { listCompanyUsageQuotas } from "@/server/services/usage-quota.service";
@@ -70,9 +71,18 @@ export default async function UsageQuotasPage() {
                   </p>
                 </div>
 
-                {alert.status === "ACTIVE" && (
-                  <AcknowledgeQuotaAlertButton alertId={alert.id} />
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href="/dashboard/billing/upgrade"
+                    className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white"
+                  >
+                    Upgrade Plan
+                  </Link>
+
+                  {alert.status === "ACTIVE" && (
+                    <AcknowledgeQuotaAlertButton alertId={alert.id} />
+                  )}
+                </div>
               </div>
             </article>
           ))}

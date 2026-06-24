@@ -31,6 +31,7 @@ import { getDeveloperApiUsage } from "@/server/services/developer-api-usage.serv
 import SubscriptionPlanCard from "./subscription-plan-card";
 import CheckSubscriptionExpiryButton from "./check-subscription-expiry-button";
 import SubscriptionCancelResumeButton from "./subscription-cancel-resume-button";
+import { PlanHistory } from "./plan-history";
 
 function formatMoney(amountPaise: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -403,6 +404,8 @@ export default async function BillingPage() {
           </div>
         )}
       </Panel>
+
+      <PlanHistory companyId={companyId} />
 
       <Panel className="mt-5">
         <PanelTitle

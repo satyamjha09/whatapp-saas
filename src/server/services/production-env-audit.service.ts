@@ -856,6 +856,47 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "plan-upgrades-enabled",
+    title: "Plan upgrades enabled",
+    severity: process.env.PLAN_UPGRADES_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.PLAN_UPGRADES_ENABLED !== "false"
+        ? "Plan upgrades are enabled"
+        : "PLAN_UPGRADES_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "plan-upgrade-razorpay-configured",
+    title: "Plan upgrade Razorpay credentials configured",
+    severity:
+      exists(process.env.RAZORPAY_KEY_ID) &&
+      exists(process.env.RAZORPAY_KEY_SECRET)
+        ? "PASS"
+        : "FAIL",
+    message:
+      exists(process.env.RAZORPAY_KEY_ID) &&
+      exists(process.env.RAZORPAY_KEY_SECRET)
+        ? "Razorpay credentials are configured"
+        : "RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are required",
+    required: true,
+  });
+
+  items.push({
+    id: "plan-upgrade-prices-configured",
+    title: "Plan upgrade prices configured",
+    severity:
+      exists(process.env.PLAN_PRICE_STARTER_PAISE) &&
+      exists(process.env.PLAN_PRICE_GROWTH_PAISE) &&
+      exists(process.env.PLAN_PRICE_BUSINESS_PAISE)
+        ? "PASS"
+        : "WARNING",
+    message:
+      "Configure PLAN_PRICE_STARTER_PAISE, PLAN_PRICE_GROWTH_PAISE, and PLAN_PRICE_BUSINESS_PAISE before production.",
+    required: false,
+  });
+
+  items.push({
     id: "uptime-monitoring-enabled",
     title: "Uptime monitoring enabled",
     severity:

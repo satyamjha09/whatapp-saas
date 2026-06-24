@@ -890,6 +890,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/usage-quotas",
         }),
         buildItem({
+          id: "plan-upgrade-checkout",
+          title: "Self-serve plan upgrade checkout enabled",
+          description:
+            "Companies can upgrade plans using Razorpay checkout with server-side payment verification, plan change ledger, audit logs, and quota upgrade nudges.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Upgrade Plan",
+          actionHref: "/dashboard/billing/upgrade",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

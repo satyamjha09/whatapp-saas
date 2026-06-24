@@ -617,6 +617,20 @@ enum UsageQuotaAlertSeverity {
   CRITICAL
 }
 
+enum PlanCheckoutStatus {
+  CREATED
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum PlanChangeSource {
+  CHECKOUT
+  ADMIN_OVERRIDE
+  SYSTEM
+}
+
 enum CompanyEntitlementOverrideStatus {
   ACTIVE
   EXPIRED
@@ -651,6 +665,8 @@ model User {
   accessRoleAssignments              CompanyAccessRoleAssignment[]
   createdEntitlementOverrides        CompanyEntitlementOverride[]
   entitlementCheckLogs               FeatureEntitlementCheckLog[]
+  requestedPlanCheckouts             PlanCheckout[]
+  companyPlanChanges                 CompanyPlanChange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -720,6 +736,8 @@ model Company {
   featureUsageCounters        FeatureUsageCounter[]
   featureUsageEvents          FeatureUsageEvent[]
   usageQuotaAlerts            UsageQuotaAlert[]
+  planCheckouts               PlanCheckout[]
+  planChanges                 CompanyPlanChange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1557,6 +1575,79 @@ model UsageQuotaAlert {
   @@index([featureKey])
   @@index([severity])
   @@index([status])
+  @@index([createdAt])
+}
+
+model PlanCheckout {
+  id String @id @default(cuid())
+
+  companyId         String
+  requestedByUserId String?
+
+  fromPlan BillingPlan
+  toPlan   BillingPlan
+
+  status PlanCheckoutStatus @default(CREATED)
+
+  amountPaise Int
+  currency    String @default("INR")
+
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+
+  paidAt   DateTime?
+  failedAt DateTime?
+
+  failureReason String?
+  metadata      Json?
+
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requestedBy User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([requestedByUserId])
+  @@index([fromPlan])
+  @@index([toPlan])
+  @@index([status])
+  @@index([razorpayOrderId])
+  @@index([razorpayPaymentId])
+  @@index([createdAt])
+}
+
+model CompanyPlanChange {
+  id String @id @default(cuid())
+
+  companyId   String
+  actorUserId String?
+
+  fromPlan BillingPlan
+  toPlan   BillingPlan
+
+  source PlanChangeSource
+
+  checkoutId String?
+
+  previousMonthlyMessageLimit Int?
+  newMonthlyMessageLimit      Int?
+
+  reason   String?
+  metadata Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([actorUserId])
+  @@index([fromPlan])
+  @@index([toPlan])
+  @@index([source])
+  @@index([checkoutId])
   @@index([createdAt])
 }
 
