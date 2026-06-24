@@ -5,6 +5,7 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getContactTimeline } from "@/server/services/contact-activity.service";
 import { getContactCrmProfile } from "@/server/services/contact-crm.service";
 import ContactCrmProfileForm from "./contact-crm-profile-form";
+import { PrivacyRequestButtons } from "./privacy-request-buttons";
 
 type PageProps = {
   params: Promise<{
@@ -90,6 +91,12 @@ export default async function ContactCrmPage({ params }: PageProps) {
               </p>
             </div>
           </div>
+
+          {["OWNER", "ADMIN"].includes(context.membership.role) ? (
+            <div className="mt-5">
+              <PrivacyRequestButtons contactId={contact.id} />
+            </div>
+          ) : null}
 
           <div className="mt-6">
             <ContactCrmProfileForm contact={contact} />
