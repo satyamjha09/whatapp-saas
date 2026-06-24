@@ -56,3 +56,12 @@ export async function requireMember() {
     membership: context.membership,
   };
 }
+
+export async function requireAuthenticatedWorkspace({
+  request,
+}: {
+  request?: Request;
+} = {}) {
+  void request;
+  return requireMember();
+}

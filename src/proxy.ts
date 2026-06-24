@@ -70,7 +70,13 @@ export default clerkMiddleware(async (auth, request) => {
     return response;
   }
 
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
   setSecurityHeaders(response.headers);
   response.headers.set(requestIdHeader, requestId);
 

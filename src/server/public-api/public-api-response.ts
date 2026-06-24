@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { setRequestIdHeader } from "@/server/utils/request-id";
 
 export type PublicApiErrorCode =
+  | "LEGAL_ACCEPTANCE_REQUIRED"
   | "unauthorized"
   | "forbidden"
   | "not_found"

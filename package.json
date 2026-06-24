@@ -37,7 +37,8 @@
     "secrets:rotate": "tsx scripts/rotate-secrets.ts",
     "uptime:seed": "tsx scripts/seed-uptime-monitors.ts",
     "status:seed": "tsx scripts/seed-status-page.ts",
-    "retention:seed": "tsx scripts/seed-data-retention-policies.ts"
+    "retention:seed": "tsx scripts/seed-data-retention-policies.ts",
+    "trust:seed": "tsx scripts/seed-trust-center.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",

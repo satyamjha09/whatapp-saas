@@ -31,6 +31,7 @@ import { getPublicPrivacyPortalHealth } from "@/server/services/public-privacy-p
 import { getDataRetentionHealth } from "@/server/services/data-retention.service";
 import { getConsentLedgerHealth } from "@/server/services/consent-ledger-health.service";
 import { getComplianceEvidenceHealth } from "@/server/services/compliance-evidence.service";
+import { getTrustCenterHealth } from "@/server/services/trust-center.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -96,6 +97,7 @@ export default async function SystemHealthPage() {
     dataRetention,
     consentLedger,
     complianceEvidence,
+    trustCenter,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -133,6 +135,7 @@ export default async function SystemHealthPage() {
     getDataRetentionHealth(),
     getConsentLedgerHealth(),
     getComplianceEvidenceHealth(),
+    getTrustCenterHealth(),
   ]);
 
   return (
@@ -147,6 +150,47 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Trust Center</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Published legal documents, required coverage, and acceptance evidence.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(
+                trustCenter.isHealthy,
+              )}`}
+            >
+              {trustCenter.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            {[
+              ["Published Docs", trustCenter.publishedDocuments],
+              ["Required Docs", trustCenter.requiredDocuments],
+              ["Acceptances / 24h", trustCenter.acceptances24h],
+              ["Draft Docs", trustCenter.draftDocuments],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/legal/acceptance"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open legal acceptance
+            </Link>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">

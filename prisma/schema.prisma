@@ -484,6 +484,24 @@ enum ComplianceEvidenceExportStatus {
   EXPIRED
 }
 
+enum TrustDocumentType {
+  TERMS_OF_SERVICE
+  PRIVACY_POLICY
+  DATA_PROCESSING_AGREEMENT
+}
+
+enum TrustDocumentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TrustDocumentAcceptanceSource {
+  DASHBOARD
+  PUBLIC_API
+  MANUAL
+}
+
 model User {
   id          String  @id @default(cuid())
   clerkUserId String  @unique
@@ -508,6 +526,7 @@ model User {
   privacyRequests                    PrivacyRequest[]
   contactConsentEvents               ContactConsentEvent[]
   complianceEvidenceExports          ComplianceEvidenceExport[]
+  trustDocumentAcceptances           TrustDocumentAcceptance[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -569,6 +588,7 @@ model Company {
   privacyRequests             PrivacyRequest[]
   contactConsentEvents        ContactConsentEvent[]
   complianceEvidenceExports   ComplianceEvidenceExport[]
+  trustDocumentAcceptances    TrustDocumentAcceptance[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -752,26 +772,26 @@ model Contact {
   companyId        String
   assignedToUserId String?
 
-  name                 String?
-  email                String?
-  companyName          String?
-  phoneNumber          String
-  countryCode          String    @default("91")
-  source               String    @default("MANUAL")
-  externalCustomerId   String?
-  lifecycleStage       String    @default("LEAD")
-  lastSeenAt           DateTime?
-  lastRepliedAt        DateTime?
-  lastProfileUpdatedAt DateTime?
-  isBlocked            Boolean   @default(false)
-  blockedAt            DateTime?
-  optedOutAt           DateTime?
-  optOutReason         String?
-  optOutSource         String?
-  marketingConsentStatus ContactConsentStatus @default(UNKNOWN)
+  name                   String?
+  email                  String?
+  companyName            String?
+  phoneNumber            String
+  countryCode            String                @default("91")
+  source                 String                @default("MANUAL")
+  externalCustomerId     String?
+  lifecycleStage         String                @default("LEAD")
+  lastSeenAt             DateTime?
+  lastRepliedAt          DateTime?
+  lastProfileUpdatedAt   DateTime?
+  isBlocked              Boolean               @default(false)
+  blockedAt              DateTime?
+  optedOutAt             DateTime?
+  optOutReason           String?
+  optOutSource           String?
+  marketingConsentStatus ContactConsentStatus  @default(UNKNOWN)
   marketingConsentAt     DateTime?
   marketingConsentSource ContactConsentSource?
-  utilityConsentStatus   ContactConsentStatus @default(UNKNOWN)
+  utilityConsentStatus   ContactConsentStatus  @default(UNKNOWN)
   utilityConsentAt       DateTime?
   utilityConsentSource   ContactConsentSource?
 
@@ -793,9 +813,9 @@ model Contact {
   campaignContacts          CampaignContact[]
   campaignReplyAttributions CampaignReplyAttribution[]
   contactGroupMembers       ContactGroupMember[]
-  privacyRequests            PrivacyRequest[]
-  consentEvents              ContactConsentEvent[]
-  complianceEvidenceExports  ComplianceEvidenceExport[]
+  privacyRequests           PrivacyRequest[]
+  consentEvents             ContactConsentEvent[]
+  complianceEvidenceExports ComplianceEvidenceExport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -865,8 +885,8 @@ model PrivacyRequest {
   status PrivacyRequestStatus @default(PENDING)
   source PrivacyRequestSource @default(DASHBOARD)
 
-  requesterEmail  String?
-  reason          String?
+  requesterEmail   String?
+  reason           String?
   confirmationText String?
 
   exportFilePath  String?
@@ -976,7 +996,7 @@ model DataRetentionRun {
   skippedCount Int @default(0)
   failedCount  Int @default(0)
 
-  startedAt   DateTime @default(now())
+  startedAt   DateTime  @default(now())
   completedAt DateTime?
 
   errorMessage String?
@@ -1091,6 +1111,63 @@ model ComplianceEvidenceExport {
   @@index([dateTo])
   @@index([expiresAt])
   @@index([createdAt])
+}
+
+model TrustDocument {
+  id String @id @default(cuid())
+
+  type    TrustDocumentType
+  title   String
+  slug    String
+  version String
+
+  content     String
+  contentHash String
+
+  status      TrustDocumentStatus @default(DRAFT)
+  publishedAt DateTime?
+  effectiveAt DateTime?
+
+  acceptances TrustDocumentAcceptance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([slug, version])
+  @@index([type])
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model TrustDocumentAcceptance {
+  id String @id @default(cuid())
+
+  companyId  String
+  userId     String?
+  documentId String
+
+  documentType    TrustDocumentType
+  documentVersion String
+  documentHash    String
+  source          TrustDocumentAcceptanceSource @default(DASHBOARD)
+
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  acceptedAt DateTime @default(now())
+
+  company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user     User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  document TrustDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, documentId])
+  @@index([companyId])
+  @@index([userId])
+  @@index([documentId])
+  @@index([documentType])
+  @@index([acceptedAt])
 }
 
 model ContactActivity {
@@ -2420,8 +2497,8 @@ model UptimeMonitor {
   url  String
 
   method         String @default("GET")
-  expectedStatus Int   @default(200)
-  timeoutMs      Int   @default(10000)
+  expectedStatus Int    @default(200)
+  timeoutMs      Int    @default(10000)
 
   intervalMinutes Int @default(5)
 
@@ -2433,7 +2510,7 @@ model UptimeMonitor {
   consecutiveFailures  Int @default(0)
   consecutiveSuccesses Int @default(0)
 
-  lastStatus    UptimeCheckStatus?
+  lastStatus     UptimeCheckStatus?
   lastStatusCode Int?
   lastLatencyMs  Int?
 
@@ -2466,7 +2543,7 @@ model UptimeCheck {
   statusCode Int?
   latencyMs  Int?
 
-  errorMessage String?
+  errorMessage    String?
   responseSnippet String?
 
   checkedAt DateTime @default(now())
@@ -2573,13 +2650,13 @@ model StatusPageIncident {
   status StatusPageIncidentStatus @default(INVESTIGATING)
   impact StatusPageIncidentImpact @default(MINOR)
 
-  startedAt  DateTime @default(now())
+  startedAt  DateTime  @default(now())
   resolvedAt DateTime?
 
   createdByUserId String?
   updatedByUserId String?
 
-  statusPage StatusPage @relation(fields: [statusPageId], references: [id], onDelete: Cascade)
+  statusPage StatusPage                 @relation(fields: [statusPageId], references: [id], onDelete: Cascade)
   updates    StatusPageIncidentUpdate[]
 
   createdAt DateTime @default(now())
@@ -2597,7 +2674,7 @@ model StatusPageIncidentUpdate {
 
   incidentId String
 
-  status StatusPageIncidentStatus
+  status  StatusPageIncidentStatus
   message String
 
   createdByUserId String?

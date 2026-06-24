@@ -686,6 +686,32 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "trust-center-required-documents",
+    title: "Trust Center required documents configured",
+    severity: exists(process.env.TRUST_CENTER_REQUIRED_DOCUMENT_TYPES)
+      ? "PASS"
+      : "WARNING",
+    message: exists(process.env.TRUST_CENTER_REQUIRED_DOCUMENT_TYPES)
+      ? "TRUST_CENTER_REQUIRED_DOCUMENT_TYPES is configured"
+      : "Using default required documents: Terms, Privacy Policy, DPA",
+    required: false,
+  });
+
+  items.push({
+    id: "trust-center-public-api-acceptance",
+    title: "Public API legal acceptance guard",
+    severity:
+      process.env.TRUST_CENTER_REQUIRE_ACCEPTANCE_FOR_PUBLIC_API !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.TRUST_CENTER_REQUIRE_ACCEPTANCE_FOR_PUBLIC_API !== "false"
+        ? "Public API mutations require legal acceptance"
+        : "Public API legal acceptance guard is disabled",
+    required: false,
+  });
+
+  items.push({
     id: "compliance-evidence-export-dir-configured",
     title: "Compliance evidence export directory configured",
     severity: exists(process.env.COMPLIANCE_EVIDENCE_EXPORT_DIR)

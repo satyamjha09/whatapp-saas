@@ -23,6 +23,11 @@ import {
 } from "@/server/utils/request-body-guard";
 import { getRequestIdFromRequest, setRequestIdHeader } from "@/server/utils/request-id";
 import { logger } from "@/server/utils/safe-logger";
+import {
+  assertCompanyAcceptedRequiredTrustDocuments,
+  LegalAcceptanceRequiredError,
+  requirePublicApiAcceptance,
+} from "@/server/services/trust-center.service";
 
 type HandlerContext<TBody> = {
   request: Request;
@@ -129,6 +134,12 @@ export function createPublicApiMutationRoute<TBody>({
         });
       }
 
+      if (requirePublicApiAcceptance()) {
+        await assertCompanyAcceptedRequiredTrustDocuments({
+          companyId: auth.apiKeyRecord.companyId,
+        });
+      }
+
       const rawBody = await readRequestJsonWithLimit({
         request,
         maxBytes: REQUEST_BODY_LIMITS.publicApi(),
@@ -191,6 +202,15 @@ export function createPublicApiMutationRoute<TBody>({
       }
 
       await failPublicApiIdempotency({ recordId: idempotencyRecordId });
+
+      if (error instanceof LegalAcceptanceRequiredError) {
+        return publicApiError({
+          status: 403,
+          code: "LEGAL_ACCEPTANCE_REQUIRED",
+          message: error.message,
+          requestId,
+        });
+      }
 
       if (error instanceof Error) {
         const knownResponse = knownHandlerError(error, requestId);

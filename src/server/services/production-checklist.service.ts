@@ -830,6 +830,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/compliance",
         }),
         buildItem({
+          id: "legal-acceptance-gate",
+          title: "Legal acceptance gate enabled",
+          description:
+            "Dashboard and Public API usage are blocked until companies accept the latest required Trust Center documents with version and SHA-256 evidence.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Legal Acceptance",
+          actionHref: "/dashboard/legal/acceptance",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:
