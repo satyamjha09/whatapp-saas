@@ -64,6 +64,10 @@ import {
   runPrivacyExportCleanupJob,
   runPrivacyRequestRetentionJob,
 } from "@/server/jobs/privacy-center.job";
+import {
+  DATA_RETENTION_JOB,
+  runDataRetentionJob,
+} from "@/server/jobs/data-retention.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -243,6 +247,16 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    DATA_RETENTION_JOB,
+    {},
+    {
+      repeat: { pattern: "10 4 * * *" },
+      jobId: DATA_RETENTION_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -347,6 +361,12 @@ const worker = new Worker(
     if (job.name === PRIVACY_REQUEST_RETENTION_JOB) {
       const result = await runPrivacyRequestRetentionJob();
       console.log("Privacy request retention cleanup completed", result);
+      return result;
+    }
+
+    if (job.name === DATA_RETENTION_JOB) {
+      const result = await runDataRetentionJob();
+      console.log("Data retention completed", result);
       return result;
     }
 

@@ -800,6 +800,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/privacy",
         }),
         buildItem({
+          id: "data-retention-legal-hold",
+          title: "Data retention and legal hold enabled",
+          description:
+            "Operational records are cleaned by policy with dry-run previews, legal hold protection, run ledger, scheduled maintenance, and incident creation on failures.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Data Retention",
+          actionHref: "/dashboard/system/data-retention",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

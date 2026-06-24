@@ -138,6 +138,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
         href: "/dashboard/developer/webhooks/outbox",
       },
       { label: "Privacy Center", href: "/dashboard/system/privacy" },
+      { label: "Data Retention", href: "/dashboard/system/data-retention" },
       { label: "System Health", href: "/dashboard/system/health" },
       { label: "Audit Logs", href: "/dashboard/settings/audit-logs" },
     ],

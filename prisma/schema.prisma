@@ -410,6 +410,42 @@ enum PublicPrivacyRequestIntent {
   CONTACT_DELETE
 }
 
+enum DataRetentionEntityType {
+  MESSAGE_EVENT
+  PROVIDER_WEBHOOK_EVENT
+  SECURITY_EVENT
+  STATUS_PAGE_EMAIL_DELIVERY
+  PUBLIC_PRIVACY_VERIFICATION
+  PRIVACY_REQUEST
+  AUDIT_LOG
+}
+
+enum DataRetentionPolicyStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+
+enum DataRetentionRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum DataRetentionAction {
+  DELETE
+  ANONYMIZE
+  SKIP
+}
+
+enum LegalHoldEntityType {
+  CONTACT
+  COMPANY
+  MESSAGE
+  PRIVACY_REQUEST
+  INCIDENT
+}
+
 model User {
   id          String  @id @default(cuid())
   clerkUserId String  @unique
@@ -811,6 +847,120 @@ model PublicPrivacyVerification {
   @@index([status])
   @@index([intent])
   @@index([expiresAt])
+  @@index([createdAt])
+}
+
+model DataRetentionPolicy {
+  id String @id @default(cuid())
+
+  companyId String?
+
+  entityType DataRetentionEntityType
+  status     DataRetentionPolicyStatus @default(ACTIVE)
+
+  retentionDays Int
+  action        DataRetentionAction @default(DELETE)
+
+  description String?
+
+  lastRunAt DateTime?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, entityType])
+  @@index([companyId])
+  @@index([entityType])
+  @@index([status])
+  @@index([lastRunAt])
+}
+
+model DataRetentionRun {
+  id String @id @default(cuid())
+
+  status DataRetentionRunStatus @default(RUNNING)
+
+  dryRun Boolean @default(true)
+
+  checkedCount Int @default(0)
+  deletedCount Int @default(0)
+  skippedCount Int @default(0)
+  failedCount  Int @default(0)
+
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  errorMessage String?
+
+  items DataRetentionRunItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([dryRun])
+  @@index([startedAt])
+}
+
+model DataRetentionRunItem {
+  id String @id @default(cuid())
+
+  runId String
+
+  companyId String?
+  policyId  String?
+
+  entityType DataRetentionEntityType
+  action     DataRetentionAction
+
+  checkedCount Int @default(0)
+  deletedCount Int @default(0)
+  skippedCount Int @default(0)
+  failedCount  Int @default(0)
+
+  cutoffAt DateTime
+
+  errorMessage String?
+  metadata     Json?
+
+  run DataRetentionRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([runId])
+  @@index([companyId])
+  @@index([policyId])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+model LegalHold {
+  id String @id @default(cuid())
+
+  companyId String?
+
+  entityType LegalHoldEntityType
+  entityId   String
+
+  reason String
+
+  active Boolean @default(true)
+
+  createdByUserId  String?
+  releasedByUserId String?
+
+  releasedAt DateTime?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([entityType, entityId])
+  @@index([active])
   @@index([createdAt])
 }
 

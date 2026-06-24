@@ -625,6 +625,28 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "data-retention-enabled",
+    title: "Data retention enabled",
+    severity: process.env.DATA_RETENTION_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.DATA_RETENTION_ENABLED !== "false"
+        ? "Data retention is enabled"
+        : "DATA_RETENTION_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "data-retention-dry-run-review",
+    title: "Data retention dry-run reviewed",
+    severity: process.env.DATA_RETENTION_DRY_RUN === "false" ? "PASS" : "WARNING",
+    message:
+      process.env.DATA_RETENTION_DRY_RUN === "false"
+        ? "Data retention is allowed to delete records"
+        : "DATA_RETENTION_DRY_RUN is enabled. Review preview counts before disabling.",
+    required: false,
+  });
+
+  items.push({
     id: "campaign-analytics-v2-enabled",
     title: "Campaign Analytics v2 enabled",
     severity:

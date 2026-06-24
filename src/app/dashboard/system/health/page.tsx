@@ -28,6 +28,7 @@ import { getUptimeMonitoringHealth } from "@/server/services/uptime-monitoring.s
 import { getStatusPageHealth } from "@/server/services/status-page.service";
 import { getPrivacyCenterHealth } from "@/server/services/privacy-center.service";
 import { getPublicPrivacyPortalHealth } from "@/server/services/public-privacy-portal.service";
+import { getDataRetentionHealth } from "@/server/services/data-retention.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -90,6 +91,7 @@ export default async function SystemHealthPage() {
     statusPage,
     privacyCenter,
     publicPrivacyPortal,
+    dataRetention,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -124,6 +126,7 @@ export default async function SystemHealthPage() {
     getStatusPageHealth(),
     getPrivacyCenterHealth(),
     getPublicPrivacyPortalHealth(),
+    getDataRetentionHealth(),
   ]);
 
   return (
@@ -138,6 +141,55 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Data Retention
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Automated cleanup policies, dry-run previews, and legal hold protection.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                dataRetention.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {dataRetention.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            {[
+              ["Active Policies", dataRetention.activePolicies],
+              ["Dry Run", dataRetention.dryRun ? "Yes" : "No"],
+              ["Failed Runs / 24h", dataRetention.failedRuns24h],
+              ["Legal Holds", dataRetention.activeLegalHolds],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/system/data-retention"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open data retention
+            </Link>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
