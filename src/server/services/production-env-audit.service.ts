@@ -647,6 +647,31 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "consent-ledger-enabled",
+    title: "Consent ledger enabled",
+    severity: process.env.CONSENT_LEDGER_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.CONSENT_LEDGER_ENABLED !== "false"
+        ? "Consent ledger is enabled"
+        : "CONSENT_LEDGER_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "marketing-opt-in-required",
+    title: "Marketing opt-in required",
+    severity:
+      process.env.CONSENT_REQUIRE_MARKETING_OPT_IN !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.CONSENT_REQUIRE_MARKETING_OPT_IN !== "false"
+        ? "Marketing templates require explicit opt-in"
+        : "Marketing opt-in guard is disabled",
+    required: false,
+  });
+
+  items.push({
     id: "campaign-analytics-v2-enabled",
     title: "Campaign Analytics v2 enabled",
     severity:

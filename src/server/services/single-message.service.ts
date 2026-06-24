@@ -1,6 +1,7 @@
 import { getMessageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { assertContactCanReceiveTemplate } from "@/server/services/contact-consent.service";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import type { SendSingleTemplateMessageInput } from "@/server/validators/single-message.validator";
@@ -54,6 +55,28 @@ export async function sendSingleTemplateMessage(
     );
   }
 
+  const contact = await prisma.contact.upsert({
+    where: {
+      companyId_phoneNumber: { companyId, phoneNumber },
+    },
+    update: {
+      countryCode,
+      ...(input.name ? { name: input.name } : {}),
+    },
+    create: {
+      companyId,
+      name: input.name || null,
+      countryCode,
+      phoneNumber,
+    },
+  });
+
+  await assertContactCanReceiveTemplate({
+    companyId,
+    contactId: contact.id,
+    templateCategory: template.category,
+  });
+
   const result = await prisma.$transaction(async (tx) => {
     const debitResult = await tx.wallet.updateMany({
       where: {
@@ -68,22 +91,6 @@ export async function sendSingleTemplateMessage(
     if (debitResult.count !== 1) {
       throw new Error("Insufficient wallet balance");
     }
-
-    const contact = await tx.contact.upsert({
-      where: {
-        companyId_phoneNumber: { companyId, phoneNumber },
-      },
-      update: {
-        countryCode,
-        ...(input.name ? { name: input.name } : {}),
-      },
-      create: {
-        companyId,
-        name: input.name || null,
-        countryCode,
-        phoneNumber,
-      },
-    });
 
     const message = await tx.message.create({
       data: {

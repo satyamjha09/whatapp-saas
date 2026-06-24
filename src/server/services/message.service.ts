@@ -1,6 +1,7 @@
 import { getMessageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { assertContactCanReceiveTemplate } from "@/server/services/contact-consent.service";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
@@ -67,6 +68,12 @@ export async function createQueuedTemplateMessage(
       `This template requires ${requiredVariableCount} variable value(s)`,
     );
   }
+
+  await assertContactCanReceiveTemplate({
+    companyId,
+    contactId: contact.id,
+    templateCategory: template.category,
+  });
 
   const toPhoneNumber = `${contact.countryCode}${contact.phoneNumber}`;
   const body = renderTemplateBody(template.body, input.variables);
@@ -277,28 +284,54 @@ export async function createQueuedPublicTemplateMessage(
 ) {
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId);
-  const message = await prisma.$transaction(async (tx) => {
-    const template = await tx.template.findFirst({
-      where: {
+  const template = await prisma.template.findFirst({
+    where: {
+      companyId,
+      name: input.templateName,
+      language: input.language,
+      status: "APPROVED",
+    },
+  });
+
+  if (!template) {
+    throw new Error("Template not found");
+  }
+
+  const requiredVariableCount = template.variables.length;
+
+  if (input.variables.length !== requiredVariableCount) {
+    throw new Error(
+      `This template requires ${requiredVariableCount} variable value(s)`,
+    );
+  }
+
+  const phone = splitPhoneNumber(input.to);
+  const contact = await prisma.contact.upsert({
+    where: {
+      companyId_phoneNumber: {
         companyId,
-        name: input.templateName,
-        language: input.language,
-        status: "APPROVED",
+        phoneNumber: phone.phoneNumber,
       },
-    });
+    },
+    update: {
+      name: input.contactName,
+      countryCode: phone.countryCode,
+    },
+    create: {
+      companyId,
+      name: input.contactName,
+      countryCode: phone.countryCode,
+      phoneNumber: phone.phoneNumber,
+    },
+  });
 
-    if (!template) {
-      throw new Error("Template not found");
-    }
+  await assertContactCanReceiveTemplate({
+    companyId,
+    contactId: contact.id,
+    templateCategory: template.category,
+  });
 
-    const requiredVariableCount = template.variables.length;
-
-    if (input.variables.length !== requiredVariableCount) {
-      throw new Error(
-        `This template requires ${requiredVariableCount} variable value(s)`,
-      );
-    }
-
+  const message = await prisma.$transaction(async (tx) => {
     const existingWallet = await tx.wallet.findUnique({
       where: {
         companyId,
@@ -331,27 +364,6 @@ export async function createQueuedPublicTemplateMessage(
     if (debitResult.count !== 1) {
       throw new Error("Insufficient wallet balance");
     }
-
-    const phone = splitPhoneNumber(input.to);
-
-    const contact = await tx.contact.upsert({
-      where: {
-        companyId_phoneNumber: {
-          companyId,
-          phoneNumber: phone.phoneNumber,
-        },
-      },
-      update: {
-        name: input.contactName,
-        countryCode: phone.countryCode,
-      },
-      create: {
-        companyId,
-        name: input.contactName,
-        countryCode: phone.countryCode,
-        phoneNumber: phone.phoneNumber,
-      },
-    });
 
     const body = renderTemplateBody(template.body, input.variables);
 

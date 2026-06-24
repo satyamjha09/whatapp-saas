@@ -2,6 +2,10 @@ import { getMessageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { getBillingPlanConfig } from "@/server/config/billing-plans";
+import {
+  assertContactCanReceiveTemplate,
+  ConsentRequiredError,
+} from "@/server/services/contact-consent.service";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
@@ -176,7 +180,58 @@ export async function sendBulkTemplateMessages(
     );
   }
 
-  const totalChargePaise = uniqueRecipients.length * MESSAGE_PRICE_PAISE;
+  const contactByRecipientKey = new Map<string, { id: string }>();
+  const consentBlockedRecipients: typeof uniqueRecipients = [];
+  const consentSendableRecipients: typeof uniqueRecipients = [];
+
+  for (const recipient of uniqueRecipients) {
+    const contact = await prisma.contact.upsert({
+      where: {
+        companyId_phoneNumber: {
+          companyId,
+          phoneNumber: recipient.phoneNumber,
+        },
+      },
+      update: {
+        countryCode: recipient.countryCode,
+        ...(recipient.name ? { name: recipient.name } : {}),
+      },
+      create: {
+        companyId,
+        name: recipient.name,
+        countryCode: recipient.countryCode,
+        phoneNumber: recipient.phoneNumber,
+      },
+      select: {
+        id: true,
+      },
+    });
+    const key = `${recipient.countryCode}${recipient.phoneNumber}`;
+    contactByRecipientKey.set(key, contact);
+
+    try {
+      await assertContactCanReceiveTemplate({
+        companyId,
+        contactId: contact.id,
+        templateCategory: template.category,
+      });
+      consentSendableRecipients.push(recipient);
+    } catch (error) {
+      if (error instanceof ConsentRequiredError) {
+        consentBlockedRecipients.push(recipient);
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  if (consentSendableRecipients.length === 0) {
+    throw new ConsentRequiredError("No recipients have the required consent");
+  }
+
+  const skippedConsentCount = consentBlockedRecipients.length;
+  const totalChargePaise = consentSendableRecipients.length * MESSAGE_PRICE_PAISE;
   const transactionResult = await prisma.$transaction(
     async (tx) => {
       const debitResult = await tx.wallet.updateMany({
@@ -202,9 +257,9 @@ export async function sendBulkTemplateMessages(
           status: isScheduled ? "SCHEDULED" : "QUEUED",
           scheduledAt: isScheduled ? scheduledAt : null,
           requestedCount,
-          queuedCount: uniqueRecipients.length,
+          queuedCount: consentSendableRecipients.length,
           skippedDuplicateCount: duplicateRecipients.length,
-          skippedBlockedCount: blockedRecipients.length,
+          skippedBlockedCount: blockedRecipients.length + skippedConsentCount,
           recipients: {
             create: [
               ...duplicateRecipients.map((recipient) => ({
@@ -226,34 +281,33 @@ export async function sendBulkTemplateMessages(
                 status: "SKIPPED_BLOCKED" as const,
                 errorMessage: "Contact is blocked",
               })),
+              ...consentBlockedRecipients.map((recipient) => ({
+                countryCode: recipient.countryCode,
+                phoneNumber: recipient.phoneNumber,
+                name: recipient.name,
+                bodyParameters: recipient.bodyParameters.length
+                  ? recipient.bodyParameters
+                  : input.bodyParameters,
+                status: "SKIPPED_BLOCKED" as const,
+                errorMessage: "Marketing consent is required",
+              })),
             ],
           },
         },
       });
       const messages = [];
 
-      for (const recipient of uniqueRecipients) {
+      for (const recipient of consentSendableRecipients) {
         const recipientParameters = recipient.bodyParameters.length
           ? recipient.bodyParameters
           : input.bodyParameters;
-        const contact = await tx.contact.upsert({
-          where: {
-            companyId_phoneNumber: {
-              companyId,
-              phoneNumber: recipient.phoneNumber,
-            },
-          },
-          update: {
-            countryCode: recipient.countryCode,
-            ...(recipient.name ? { name: recipient.name } : {}),
-          },
-          create: {
-            companyId,
-            name: recipient.name,
-            countryCode: recipient.countryCode,
-            phoneNumber: recipient.phoneNumber,
-          },
-        });
+        const key = `${recipient.countryCode}${recipient.phoneNumber}`;
+        const contact = contactByRecipientKey.get(key);
+
+        if (!contact) {
+          throw new Error("Contact not found");
+        }
+
         const message = await tx.message.create({
           data: {
             companyId,
@@ -400,7 +454,8 @@ export async function sendBulkTemplateMessages(
     queuedCount: queuedMessages.length,
     failedCount: 0,
     skippedDuplicateCount: duplicateRecipients.length,
-    skippedBlockedCount: blockedRecipients.length,
+    skippedBlockedCount: blockedRecipients.length + skippedConsentCount,
+    missingMarketingConsent: skippedConsentCount,
     queuedMessages,
   };
 }

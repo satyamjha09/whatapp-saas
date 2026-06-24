@@ -15,6 +15,10 @@ type ContactRow = {
   phoneNumber: string;
   name?: string;
   source?: string;
+  marketingConsent?: string;
+  marketingConsentEvidence?: string;
+  utilityConsent?: string;
+  utilityConsentEvidence?: string;
 };
 
 type ImportResponse = {
@@ -78,6 +82,10 @@ function parseContacts(text: string): ContactRow[] {
     phoneNumber: row[1] ?? "",
     name: row[2] || undefined,
     source: row[3] || "GROUP_IMPORT",
+    marketingConsent: row[4] || undefined,
+    marketingConsentEvidence: row[5] || undefined,
+    utilityConsent: row[6] || undefined,
+    utilityConsentEvidence: row[7] || undefined,
   }));
 }
 
@@ -88,7 +96,7 @@ export default function GroupMembersImportCard({
 }) {
   const router = useRouter();
   const [contactsText, setContactsText] = useState(
-    "countryCode,phoneNumber,name,source",
+    "countryCode,phoneNumber,name,source,marketingConsent,marketingConsentEvidence,utilityConsent,utilityConsentEvidence",
   );
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -168,7 +176,7 @@ export default function GroupMembersImportCard({
     <Panel className="mb-6">
       <PanelTitle
         title="Add contacts to group"
-        description="Upload CSV or paste countryCode, phoneNumber, name, source rows."
+        description="Upload CSV or paste contact rows with optional consent evidence."
       />
       <form onSubmit={importMembers} className="mt-5 space-y-4">
         <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#0052CC]/35 bg-[#F0F8FF] px-4 py-5 text-sm font-semibold text-[#0052CC]">

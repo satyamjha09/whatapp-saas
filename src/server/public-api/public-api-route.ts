@@ -71,7 +71,7 @@ function authErrorCode(status: number) {
 }
 
 function knownHandlerError(error: Error, requestId: string) {
-  if (error.message === "Template not found") {
+  if (error.message === "Template not found" || error.message === "Contact not found") {
     return publicApiError({ status: 404, code: "not_found", message: error.message, requestId });
   }
   if (error.message === "Subscription is past due") {

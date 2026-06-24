@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
+import { ConsentRequiredError } from "@/server/services/contact-consent.service";
 import { sendSingleTemplateMessage } from "@/server/services/single-message.service";
 import {
   assertSystemWritesAllowed,
@@ -73,6 +74,10 @@ export async function POST(request: Request) {
 
     if (error instanceof SystemMaintenanceModeError) {
       return NextResponse.json({ message: error.message }, { status: 503 });
+    }
+
+    if (error instanceof ConsentRequiredError) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
     }
 
     if (

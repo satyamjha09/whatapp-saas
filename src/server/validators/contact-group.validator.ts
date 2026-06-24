@@ -30,6 +30,10 @@ export const contactGroupImportRowSchema = z
       ),
     name: z.string().trim().max(100).optional(),
     source: z.string().trim().max(80).optional(),
+    marketingConsent: z.string().trim().max(20).optional(),
+    marketingConsentEvidence: z.string().trim().max(2000).optional(),
+    utilityConsent: z.string().trim().max(20).optional(),
+    utilityConsentEvidence: z.string().trim().max(2000).optional(),
   })
   .superRefine((contact, context) => {
     if (

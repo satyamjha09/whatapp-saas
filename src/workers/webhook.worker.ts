@@ -6,6 +6,10 @@ import {
   enqueueDeveloperInboundMessageWebhook,
   enqueueDeveloperMessageStatusWebhook,
 } from "@/server/services/developer-webhook.service";
+import {
+  grantMarketingConsent,
+  revokeMarketingConsent,
+} from "@/server/services/contact-consent.service";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
 import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
 import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
@@ -111,6 +115,20 @@ function getInboundMessageBody(message: JsonRecord) {
   }
 
   return `[Unsupported inbound message type: ${String(message.type)}]`;
+}
+
+function getConsentKeyword(body: string) {
+  const normalized = body.trim().replace(/\s+/g, " ").toUpperCase();
+
+  if (["STOP", "UNSUBSCRIBE", "OPT OUT", "OPTOUT"].includes(normalized)) {
+    return "STOP" as const;
+  }
+
+  if (["START", "SUBSCRIBE", "OPT IN", "OPTIN"].includes(normalized)) {
+    return "START" as const;
+  }
+
+  return null;
 }
 
 function mapMetaStatusToMessageStatus(status: string): MessageStatus | null {
@@ -239,6 +257,7 @@ const worker = new Worker<ProcessWebhookJobData>(
       });
 
       const now = new Date();
+      const consentKeyword = getConsentKeyword(body);
 
       await prisma.contact.update({
         where: {
@@ -248,6 +267,24 @@ const worker = new Worker<ProcessWebhookJobData>(
           inboxStatus: "OPEN",
           inboxClosedAt: null,
           snoozedUntil: null,
+          ...(consentKeyword === "STOP"
+            ? {
+                isBlocked: true,
+                blockedAt: now,
+                optedOutAt: now,
+                optOutReason: `WhatsApp keyword: ${body}`,
+                optOutSource: "WHATSAPP_KEYWORD",
+              }
+            : {}),
+          ...(consentKeyword === "START"
+            ? {
+                isBlocked: false,
+                blockedAt: null,
+                optedOutAt: null,
+                optOutReason: null,
+                optOutSource: null,
+              }
+            : {}),
           inboxLastCustomerMessageAt: now,
           lastSeenAt: now,
           inboxSlaDueAt: calculateInboxSlaDueAt(contact.inboxPriority, now),
@@ -255,6 +292,30 @@ const worker = new Worker<ProcessWebhookJobData>(
           inboxSlaEscalationCount: 0,
         },
       });
+
+      if (consentKeyword === "STOP") {
+        await revokeMarketingConsent({
+          companyId,
+          contactId: contact.id,
+          source: "WHATSAPP_KEYWORD",
+          evidenceText: body,
+          metadata: {
+            messageId: message.id,
+            keyword: body,
+          },
+        });
+      } else if (consentKeyword === "START") {
+        await grantMarketingConsent({
+          companyId,
+          contactId: contact.id,
+          source: "WHATSAPP_KEYWORD",
+          evidenceText: body,
+          metadata: {
+            messageId: message.id,
+            keyword: body,
+          },
+        });
+      }
 
       await recordContactActivity({
         companyId,

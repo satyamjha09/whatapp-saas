@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { recordContactConsent } from "@/server/services/contact-consent.service";
 import type {
   CreateContactGroupInput,
   ImportContactsToGroupInput,
@@ -15,6 +16,20 @@ function isUniqueConstraintError(error: unknown) {
     "code" in error &&
     error.code === "P2002"
   );
+}
+
+function normalizeConsentValue(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase();
+
+  if (["yes", "true", "granted", "opt-in", "opted in"].includes(normalized ?? "")) {
+    return "GRANTED" as const;
+  }
+
+  if (["no", "false", "revoked", "opt-out", "opted out"].includes(normalized ?? "")) {
+    return "REVOKED" as const;
+  }
+
+  return null;
 }
 
 export function getContactGroupsByCompany(companyId: string) {
@@ -64,12 +79,17 @@ export async function importContactsToGroup(
   companyId: string,
   groupId: string,
   input: ImportContactsToGroupInput,
+  actorUserId?: string | null,
 ) {
   const normalizedContacts = input.contacts.map((contact) => ({
     countryCode: normalizeDigits(contact.countryCode),
     phoneNumber: normalizeDigits(contact.phoneNumber),
     name: contact.name?.trim() || null,
     source: contact.source?.trim() || "GROUP_IMPORT",
+    marketingConsent: contact.marketingConsent?.trim() || null,
+    marketingConsentEvidence: contact.marketingConsentEvidence?.trim() || null,
+    utilityConsent: contact.utilityConsent?.trim() || null,
+    utilityConsentEvidence: contact.utilityConsentEvidence?.trim() || null,
   }));
   // Contact identity in the existing schema is company + local phone number.
   const uniqueContacts = Array.from(
@@ -87,7 +107,13 @@ export async function importContactsToGroup(
       if (!group) throw new Error("Contact group not found");
 
       await tx.contact.createMany({
-        data: uniqueContacts.map((contact) => ({ companyId, ...contact })),
+        data: uniqueContacts.map((contact) => ({
+          companyId,
+          countryCode: contact.countryCode,
+          phoneNumber: contact.phoneNumber,
+          name: contact.name,
+          source: contact.source,
+        })),
         skipDuplicates: true,
       });
 
@@ -96,7 +122,7 @@ export async function importContactsToGroup(
           companyId,
           phoneNumber: { in: uniqueContacts.map((item) => item.phoneNumber) },
         },
-        select: { id: true },
+        select: { id: true, phoneNumber: true },
       });
       const added = await tx.contactGroupMember.createMany({
         data: contacts.map((contact) => ({
@@ -109,15 +135,65 @@ export async function importContactsToGroup(
       return {
         addedCount: added.count,
         alreadyInGroupCount: contacts.length - added.count,
+        contacts,
       };
     },
     { timeout: 30_000 },
   );
 
+  const contactIdByPhone = new Map(
+    result.contacts.map((contact) => [contact.phoneNumber, contact.id]),
+  );
+
+  for (const contact of uniqueContacts) {
+    const contactId = contactIdByPhone.get(contact.phoneNumber);
+    const marketingStatus = normalizeConsentValue(contact.marketingConsent);
+    const utilityStatus = normalizeConsentValue(contact.utilityConsent);
+
+    if (!contactId) continue;
+
+    if (marketingStatus) {
+      await recordContactConsent({
+        companyId,
+        contactId,
+        type: "WHATSAPP_MARKETING",
+        status: marketingStatus,
+        source: "IMPORT",
+        actorUserId,
+        evidenceText:
+          contact.marketingConsentEvidence ??
+          `Imported with marketing consent = ${contact.marketingConsent}`,
+        metadata: {
+          groupId,
+          importSource: contact.source,
+        },
+      });
+    }
+
+    if (utilityStatus) {
+      await recordContactConsent({
+        companyId,
+        contactId,
+        type: "WHATSAPP_UTILITY",
+        status: utilityStatus,
+        source: "IMPORT",
+        actorUserId,
+        evidenceText:
+          contact.utilityConsentEvidence ??
+          `Imported with utility consent = ${contact.utilityConsent}`,
+        metadata: {
+          groupId,
+          importSource: contact.source,
+        },
+      });
+    }
+  }
+
   return {
     requestedCount: input.contacts.length,
     uniqueCount: uniqueContacts.length,
-    ...result,
+    addedCount: result.addedCount,
+    alreadyInGroupCount: result.alreadyInGroupCount,
     skippedDuplicateCount: input.contacts.length - uniqueContacts.length,
   };
 }

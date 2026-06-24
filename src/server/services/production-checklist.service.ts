@@ -810,6 +810,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/data-retention",
         }),
         buildItem({
+          id: "whatsapp-consent-ledger",
+          title: "WhatsApp consent ledger enabled",
+          description:
+            "Contacts have opt-in and opt-out history with consent evidence, keyword updates, public API recording, CSV import support, and marketing template send guards.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Contacts",
+          actionHref: "/dashboard/contacts",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

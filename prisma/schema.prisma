@@ -391,6 +391,28 @@ enum PrivacyRequestStatus {
   CANCELLED
 }
 
+enum ContactConsentType {
+  WHATSAPP_MARKETING
+  WHATSAPP_UTILITY
+  WHATSAPP_SERVICE
+  DATA_PROCESSING
+}
+
+enum ContactConsentStatus {
+  GRANTED
+  REVOKED
+  UNKNOWN
+}
+
+enum ContactConsentSource {
+  DASHBOARD
+  IMPORT
+  PUBLIC_API
+  WHATSAPP_KEYWORD
+  PUBLIC_FORM
+  SYSTEM
+}
+
 enum PrivacyRequestSource {
   DASHBOARD
   PUBLIC_API
@@ -468,6 +490,7 @@ model User {
   companyNotificationPreferences     CompanyNotificationPreference[]
   companyNotificationEmailDeliveries CompanyNotificationEmailDelivery[]
   privacyRequests                    PrivacyRequest[]
+  contactConsentEvents               ContactConsentEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -527,6 +550,7 @@ model Company {
   developerApiRequestLogs     DeveloperApiRequestLog[]
   publicApiIdempotencyRecords PublicApiIdempotencyRecord[]
   privacyRequests             PrivacyRequest[]
+  contactConsentEvents        ContactConsentEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -726,6 +750,12 @@ model Contact {
   optedOutAt           DateTime?
   optOutReason         String?
   optOutSource         String?
+  marketingConsentStatus ContactConsentStatus @default(UNKNOWN)
+  marketingConsentAt     DateTime?
+  marketingConsentSource ContactConsentSource?
+  utilityConsentStatus   ContactConsentStatus @default(UNKNOWN)
+  utilityConsentAt       DateTime?
+  utilityConsentSource   ContactConsentSource?
 
   inboxStatus                InboxConversationStatus @default(OPEN)
   inboxClosedAt              DateTime?
@@ -746,12 +776,15 @@ model Contact {
   campaignReplyAttributions CampaignReplyAttribution[]
   contactGroupMembers       ContactGroupMember[]
   privacyRequests            PrivacyRequest[]
+  consentEvents              ContactConsentEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, phoneNumber])
   @@index([companyId])
+  @@index([companyId, marketingConsentStatus])
+  @@index([companyId, utilityConsentStatus])
   @@index([assignedToUserId])
   @@index([companyId, inboxStatus])
   @@index([companyId, inboxPriority])
@@ -763,8 +796,43 @@ model Contact {
   @@index([companyId, optedOutAt])
   @@index([companyId, lifecycleStage])
   @@index([companyId, externalCustomerId])
+  @@index([marketingConsentAt])
   @@index([lastSeenAt])
   @@index([lastRepliedAt])
+}
+
+model ContactConsentEvent {
+  id String @id @default(cuid())
+
+  companyId String
+  contactId String
+
+  type   ContactConsentType
+  status ContactConsentStatus
+  source ContactConsentSource
+
+  actorUserId String?
+
+  evidenceText String?
+  evidenceUrl  String?
+  ipAddress    String?
+  userAgent    String?
+
+  metadata Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  actor   User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([actorUserId])
+  @@index([type])
+  @@index([status])
+  @@index([source])
+  @@index([createdAt])
 }
 
 model PrivacyRequest {

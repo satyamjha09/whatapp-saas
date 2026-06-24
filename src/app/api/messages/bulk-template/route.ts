@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
+import { ConsentRequiredError } from "@/server/services/contact-consent.service";
 import { sendBulkTemplateMessages } from "@/server/services/bulk-message.service";
 import {
   assertSystemWritesAllowed,
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
         failedCount: result.failedCount,
         skippedDuplicateCount: result.skippedDuplicateCount,
         skippedBlockedCount: result.skippedBlockedCount,
+        missingMarketingConsent: result.missingMarketingConsent,
         contactGroupId: result.contactGroup?.id ?? null,
         contactGroupName: result.contactGroup?.name ?? null,
         scheduledAt: result.batch.scheduledAt,
@@ -123,6 +125,7 @@ export async function POST(request: Request) {
           failedCount: result.failedCount,
           skippedDuplicateCount: result.skippedDuplicateCount,
           skippedBlockedCount: result.skippedBlockedCount,
+          missingMarketingConsent: result.missingMarketingConsent,
           scheduledAt: result.batch.scheduledAt,
           status: result.batch.status,
           contactGroupId: result.contactGroup?.id ?? null,
@@ -136,6 +139,10 @@ export async function POST(request: Request) {
 
     if (error instanceof SystemMaintenanceModeError) {
       return NextResponse.json({ message: error.message }, { status: 503 });
+    }
+
+    if (error instanceof ConsentRequiredError) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
     }
 
     if (
