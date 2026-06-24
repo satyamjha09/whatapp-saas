@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidateCompanyMembersCache } from "@/server/services/team.service";
 import { UpdateCompanyInput } from "@/server/validators/company.validator";
+import { ensureCompanyUserAccessRole } from "@/server/services/rbac-v2.service";
 
 export async function getUserCompany(userId: string) {
   const membership = await prisma.companyUser.findFirst({
@@ -36,6 +37,12 @@ export async function createCompanyForUser(userId: string, companyName: string) 
         },
       },
     },
+  });
+
+  await ensureCompanyUserAccessRole({
+    companyId: company.id,
+    userId,
+    legacyRole: "OWNER",
   });
 
   revalidateCompanyMembersCache();

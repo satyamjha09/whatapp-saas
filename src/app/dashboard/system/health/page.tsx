@@ -32,6 +32,7 @@ import { getDataRetentionHealth } from "@/server/services/data-retention.service
 import { getConsentLedgerHealth } from "@/server/services/consent-ledger-health.service";
 import { getComplianceEvidenceHealth } from "@/server/services/compliance-evidence.service";
 import { getTrustCenterHealth } from "@/server/services/trust-center.service";
+import { getRbacV2Health } from "@/server/services/rbac-v2.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -98,6 +99,7 @@ export default async function SystemHealthPage() {
     consentLedger,
     complianceEvidence,
     trustCenter,
+    rbacV2,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -136,6 +138,7 @@ export default async function SystemHealthPage() {
     getConsentLedgerHealth(),
     getComplianceEvidenceHealth(),
     getTrustCenterHealth(),
+    getRbacV2Health(),
   ]);
 
   return (
@@ -150,6 +153,38 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Enterprise RBAC</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Custom roles, permission matrix, and user role assignments.
+              </p>
+            </div>
+            <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(rbacV2.isHealthy)}`}>
+              {rbacV2.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            {[
+              ["Roles", rbacV2.roles],
+              ["Assignments", rbacV2.assignments],
+              ["Strict Mode", rbacV2.strictMode ? "Yes" : "No"],
+              ["Companies Missing Roles", rbacV2.companiesWithoutRoles],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5">
+            <Link href="/dashboard/team/roles" className="text-sm font-medium text-gray-900 underline">
+              Open roles
+            </Link>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">

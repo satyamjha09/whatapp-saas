@@ -128,6 +128,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
     items: [
       { label: "Company", href: "/dashboard/settings/company" },
       { label: "Team", href: "/dashboard/settings/team" },
+      { label: "Roles & Permissions", href: "/dashboard/team/roles" },
       { label: "API Keys", href: "/dashboard/developer/api-keys" },
       {
         label: "Developer Webhooks",

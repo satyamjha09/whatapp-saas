@@ -9,6 +9,7 @@ import {
   lockCompanyForTeamSeatCheck,
 } from "@/server/services/plan-limit.service";
 import { CreateCompanyInviteInput } from "@/server/validators/invite.validator";
+import { seedCompanySystemRoles } from "@/server/services/rbac-v2.service";
 
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -171,6 +172,26 @@ export async function acceptCompanyInvite(token: string, userId: string) {
     throw new Error("User is already a member of this company");
   }
 
+  await seedCompanySystemRoles({ companyId: invite.companyId });
+  const accessRoleSlug =
+    invite.role === "OWNER"
+      ? "owner"
+      : invite.role === "ADMIN"
+        ? "admin"
+        : process.env.RBAC_V2_DEFAULT_MEMBER_ROLE || "member";
+  const accessRole = await prisma.companyAccessRole.findUnique({
+    where: {
+      companyId_slug: {
+        companyId: invite.companyId,
+        slug: accessRoleSlug,
+      },
+    },
+  });
+
+  if (!accessRole) {
+    throw new Error("Default access role not found");
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     await lockCompanyForTeamSeatCheck(tx, invite.companyId);
     await assertTeamMemberLimitForAcceptInvite(invite.companyId, tx);
@@ -202,6 +223,24 @@ export async function acceptCompanyInvite(token: string, userId: string) {
       include: {
         company: true,
         user: true,
+      },
+    });
+
+    await tx.companyAccessRoleAssignment.upsert({
+      where: {
+        companyId_userId: {
+          companyId: invite.companyId,
+          userId: user.id,
+        },
+      },
+      create: {
+        companyId: invite.companyId,
+        userId: user.id,
+        roleId: accessRole.id,
+      },
+      update: {
+        roleId: accessRole.id,
+        assignedAt: new Date(),
       },
     });
 

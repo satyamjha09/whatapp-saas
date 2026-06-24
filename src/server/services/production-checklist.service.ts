@@ -840,6 +840,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/legal/acceptance",
         }),
         buildItem({
+          id: "enterprise-rbac-v2",
+          title: "Enterprise RBAC v2 enabled",
+          description:
+            "Companies can use system and custom roles with granular permissions, user role assignments, permission checks, audit logs, and strict-mode enforcement.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Roles",
+          actionHref: "/dashboard/team/roles",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

@@ -736,6 +736,28 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "rbac-v2-enabled",
+    title: "Enterprise RBAC enabled",
+    severity: process.env.RBAC_V2_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.RBAC_V2_ENABLED !== "false"
+        ? "Enterprise RBAC is enabled"
+        : "RBAC_V2_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "rbac-v2-strict-mode",
+    title: "Enterprise RBAC strict mode",
+    severity: process.env.RBAC_V2_STRICT_MODE !== "false" ? "PASS" : "WARNING",
+    message:
+      process.env.RBAC_V2_STRICT_MODE !== "false"
+        ? "RBAC strict mode is enabled"
+        : "RBAC strict mode is disabled; users without roles may receive fallback permissions",
+    required: false,
+  });
+
+  items.push({
     id: "uptime-monitoring-enabled",
     title: "Uptime monitoring enabled",
     severity:
