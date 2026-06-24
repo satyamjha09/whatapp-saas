@@ -377,6 +377,27 @@ enum BulkMessageRecipientStatus {
   CANCELED
 }
 
+enum PrivacyRequestType {
+  CONTACT_EXPORT
+  CONTACT_DELETE
+  COMPANY_EXPORT
+}
+
+enum PrivacyRequestStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PrivacyRequestSource {
+  DASHBOARD
+  PUBLIC_API
+  MANUAL
+  SYSTEM
+}
+
 model User {
   id          String  @id @default(cuid())
   clerkUserId String  @unique
@@ -398,6 +419,7 @@ model User {
   companyNotificationRecipients      CompanyNotificationRecipient[]
   companyNotificationPreferences     CompanyNotificationPreference[]
   companyNotificationEmailDeliveries CompanyNotificationEmailDelivery[]
+  privacyRequests                    PrivacyRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -456,6 +478,7 @@ model Company {
   developerApiUsage           DeveloperApiUsage[]
   developerApiRequestLogs     DeveloperApiRequestLog[]
   publicApiIdempotencyRecords PublicApiIdempotencyRecord[]
+  privacyRequests             PrivacyRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -674,6 +697,7 @@ model Contact {
   campaignContacts          CampaignContact[]
   campaignReplyAttributions CampaignReplyAttribution[]
   contactGroupMembers       ContactGroupMember[]
+  privacyRequests            PrivacyRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -693,6 +717,48 @@ model Contact {
   @@index([companyId, externalCustomerId])
   @@index([lastSeenAt])
   @@index([lastRepliedAt])
+}
+
+model PrivacyRequest {
+  id String @id @default(cuid())
+
+  companyId         String
+  contactId         String?
+  requestedByUserId String?
+
+  type   PrivacyRequestType
+  status PrivacyRequestStatus @default(PENDING)
+  source PrivacyRequestSource @default(DASHBOARD)
+
+  requesterEmail  String?
+  reason          String?
+  confirmationText String?
+
+  exportFilePath  String?
+  exportFileName  String?
+  exportExpiresAt DateTime?
+
+  processedAt   DateTime?
+  failedAt      DateTime?
+  failureReason String?
+
+  metadata Json?
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact     Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  requestedBy User?    @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([contactId])
+  @@index([requestedByUserId])
+  @@index([type])
+  @@index([status])
+  @@index([source])
+  @@index([createdAt])
+  @@index([exportExpiresAt])
 }
 
 model ContactActivity {
@@ -2212,4 +2278,3 @@ model StatusPageIncidentUpdate {
   @@index([status])
   @@index([createdAt])
 }
-

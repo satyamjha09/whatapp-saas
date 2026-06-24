@@ -566,6 +566,27 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "privacy-center-enabled",
+    title: "Privacy Center enabled",
+    severity: process.env.PRIVACY_CENTER_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.PRIVACY_CENTER_ENABLED !== "false"
+        ? "Privacy Center is enabled"
+        : "PRIVACY_CENTER_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "privacy-export-dir-configured",
+    title: "Privacy export directory configured",
+    severity: exists(process.env.PRIVACY_EXPORT_DIR) ? "PASS" : "WARNING",
+    message: exists(process.env.PRIVACY_EXPORT_DIR)
+      ? "PRIVACY_EXPORT_DIR is configured"
+      : "PRIVACY_EXPORT_DIR should be configured outside the public app directory",
+    required: false,
+  });
+
+  items.push({
     id: "campaign-analytics-v2-enabled",
     title: "Campaign Analytics v2 enabled",
     severity:

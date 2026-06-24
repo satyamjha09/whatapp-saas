@@ -58,6 +58,12 @@ import {
   STATUS_PAGE_SYNC_JOB,
   runStatusPageSyncJob,
 } from "@/server/jobs/status-page-sync.job";
+import {
+  PRIVACY_EXPORT_CLEANUP_JOB,
+  PRIVACY_REQUEST_RETENTION_JOB,
+  runPrivacyExportCleanupJob,
+  runPrivacyRequestRetentionJob,
+} from "@/server/jobs/privacy-center.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -217,6 +223,26 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    PRIVACY_EXPORT_CLEANUP_JOB,
+    {},
+    {
+      repeat: { pattern: "20 3 * * *" },
+      jobId: PRIVACY_EXPORT_CLEANUP_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
+  await getMaintenanceQueue().add(
+    PRIVACY_REQUEST_RETENTION_JOB,
+    {},
+    {
+      repeat: { pattern: "50 3 * * *" },
+      jobId: PRIVACY_REQUEST_RETENTION_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -309,6 +335,18 @@ const worker = new Worker(
     if (job.name === STATUS_PAGE_SYNC_JOB) {
       const result = await runStatusPageSyncJob();
       console.log("Status page sync completed", result);
+      return result;
+    }
+
+    if (job.name === PRIVACY_EXPORT_CLEANUP_JOB) {
+      const result = await runPrivacyExportCleanupJob();
+      console.log("Privacy export cleanup completed", result);
+      return result;
+    }
+
+    if (job.name === PRIVACY_REQUEST_RETENTION_JOB) {
+      const result = await runPrivacyRequestRetentionJob();
+      console.log("Privacy request retention cleanup completed", result);
       return result;
     }
 

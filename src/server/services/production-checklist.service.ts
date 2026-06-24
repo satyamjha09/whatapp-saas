@@ -780,6 +780,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/developer/api-v1",
         }),
         buildItem({
+          id: "privacy-center",
+          title: "Privacy Center enabled",
+          description:
+            "Admins can process contact data export and deletion requests with downloadable exports, anonymization, audit logs, expiry, retention cleanup, and incident handling.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Privacy Center",
+          actionHref: "/dashboard/system/privacy",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

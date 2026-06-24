@@ -26,6 +26,7 @@ import { getInboxCrmHealth } from "@/server/services/inbox-crm-health.service";
 import { getCampaignAnalyticsHealth } from "@/server/services/campaign-analytics-v2.service";
 import { getUptimeMonitoringHealth } from "@/server/services/uptime-monitoring.service";
 import { getStatusPageHealth } from "@/server/services/status-page.service";
+import { getPrivacyCenterHealth } from "@/server/services/privacy-center.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -86,6 +87,7 @@ export default async function SystemHealthPage() {
     campaignAnalytics,
     uptimeMonitoring,
     statusPage,
+    privacyCenter,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -118,6 +120,7 @@ export default async function SystemHealthPage() {
     getCampaignAnalyticsHealth(),
     getUptimeMonitoringHealth(),
     getStatusPageHealth(),
+    getPrivacyCenterHealth(),
   ]);
 
   return (
@@ -132,6 +135,55 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Privacy Center
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Contact data export, deletion requests, export file expiry, and privacy request retention.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                privacyCenter.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {privacyCenter.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            {[
+              ["Pending", privacyCenter.pending],
+              ["Completed / 24h", privacyCenter.completed24h],
+              ["Failed / 24h", privacyCenter.failed24h],
+              ["Expired Files", privacyCenter.expiredFiles],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/system/privacy"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open Privacy Center
+            </Link>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
