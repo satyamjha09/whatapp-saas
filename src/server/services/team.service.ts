@@ -2,6 +2,7 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { backfillCompanyNotificationRecipients } from "@/server/services/company-notification.service";
 import { ensureCompanyNotificationPreferences } from "@/server/services/company-notification-preference.service";
+import { decrementUsageQuota } from "@/server/services/usage-quota.service";
 import { UpdateMemberRoleInput } from "@/server/validators/team.validator";
 
 type UpdateCompanyMemberRoleInput = {
@@ -142,6 +143,18 @@ export async function removeCompanyMember({
   await prisma.companyUser.delete({
     where: {
       id: member.id,
+    },
+  });
+
+  await decrementUsageQuota({
+    companyId,
+    featureKey: "TEAM",
+    amount: 1,
+    idempotencyKey: `team-member-removed:${member.id}`,
+    reason: "team-member-removed",
+    metadata: {
+      companyUserId: member.id,
+      userId: member.userId,
     },
   });
 

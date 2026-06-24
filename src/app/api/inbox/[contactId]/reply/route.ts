@@ -3,11 +3,13 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { assertTenantEntityAccess } from "@/server/auth/tenant-guard";
 import { createAuditLog } from "@/server/services/audit.service";
 import { createQueuedInboxReply } from "@/server/services/message.service";
+import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
 import {
   assertSystemWritesAllowed,
   SystemMaintenanceModeError,
 } from "@/server/services/system-maintenance-mode.service";
 import { createTenantErrorResponse } from "@/server/utils/api-tenant-error";
+import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 import { createInboxReplySchema } from "@/server/validators/inbox-reply.validator";
 
 type InboxReplyRouteContext = {
@@ -93,6 +95,10 @@ export async function POST(
 
     if (error instanceof SystemMaintenanceModeError) {
       return NextResponse.json({ message: error.message }, { status: 503 });
+    }
+
+    if (error instanceof UsageQuotaExceededError) {
+      return createUsageQuotaErrorResponse(error);
     }
 
     if (error instanceof Error && error.message === "Contact not found") {

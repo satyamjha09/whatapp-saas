@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createQueuedTemplateMessage } from "@/server/services/message.service";
+import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
+import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 import { sendTemplateMessageSchema } from "@/server/validators/message.validator";
 
 export async function POST(request: Request) {
@@ -46,6 +48,10 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("SEND_TEMPLATE_MESSAGE_ERROR:", error);
+
+    if (error instanceof UsageQuotaExceededError) {
+      return createUsageQuotaErrorResponse(error);
+    }
 
     if (
       error instanceof Error &&

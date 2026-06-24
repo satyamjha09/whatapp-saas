@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { startCampaignForCompany } from "@/server/services/campaign.service";
 import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
+import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
+import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 
 type StartCampaignRouteContext = {
   params: Promise<{
@@ -56,6 +58,10 @@ export async function POST(
     });
   } catch (error) {
     console.error("START_CAMPAIGN_ERROR:", error);
+
+    if (error instanceof UsageQuotaExceededError) {
+      return createUsageQuotaErrorResponse(error);
+    }
 
     if (
       error instanceof Error &&

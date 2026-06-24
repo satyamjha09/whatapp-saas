@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentDatabaseUser } from "@/server/auth/current-user";
 import { acceptCompanyInvite } from "@/server/services/invite.service";
+import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
+import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 
 type AcceptInviteRouteContext = {
   params: Promise<{
@@ -32,6 +34,10 @@ export async function POST(
     });
   } catch (error) {
     console.error("ACCEPT_INVITE_ERROR:", error);
+
+    if (error instanceof UsageQuotaExceededError) {
+      return createUsageQuotaErrorResponse(error);
+    }
 
     if (
       error instanceof Error &&

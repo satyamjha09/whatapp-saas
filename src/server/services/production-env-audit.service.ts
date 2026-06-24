@@ -811,6 +811,29 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "usage-quotas-enabled",
+    title: "Usage quotas enabled",
+    severity: process.env.USAGE_QUOTAS_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.USAGE_QUOTAS_ENABLED !== "false"
+        ? "Usage quotas are enabled"
+        : "USAGE_QUOTAS_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "usage-quotas-strict-mode",
+    title: "Usage quotas strict mode",
+    severity:
+      process.env.USAGE_QUOTAS_STRICT_MODE !== "false" ? "PASS" : "WARNING",
+    message:
+      process.env.USAGE_QUOTAS_STRICT_MODE !== "false"
+        ? "Usage quota strict mode is enabled"
+        : "Usage quota strict mode is disabled",
+    required: false,
+  });
+
+  items.push({
     id: "uptime-monitoring-enabled",
     title: "Uptime monitoring enabled",
     severity:

@@ -28,6 +28,7 @@ import {
   LegalAcceptanceRequiredError,
   requirePublicApiAcceptance,
 } from "@/server/services/trust-center.service";
+import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
 
 type HandlerContext<TBody> = {
   request: Request;
@@ -76,6 +77,15 @@ function authErrorCode(status: number) {
 }
 
 function knownHandlerError(error: Error, requestId: string) {
+  if (error instanceof UsageQuotaExceededError) {
+    return publicApiError({
+      status: 402,
+      code: "payment_required",
+      message: error.message,
+      requestId,
+    });
+  }
+
   if (error.message === "Template not found" || error.message === "Contact not found") {
     return publicApiError({ status: 404, code: "not_found", message: error.message, requestId });
   }

@@ -8,6 +8,10 @@ import {
   assertTeamMemberLimitForInvite,
   lockCompanyForTeamSeatCheck,
 } from "@/server/services/plan-limit.service";
+import {
+  assertUsageQuotaAvailable,
+  incrementUsageQuota,
+} from "@/server/services/usage-quota.service";
 import { CreateCompanyInviteInput } from "@/server/validators/invite.validator";
 import { seedCompanySystemRoles } from "@/server/services/rbac-v2.service";
 
@@ -173,6 +177,12 @@ export async function acceptCompanyInvite(token: string, userId: string) {
   }
 
   await seedCompanySystemRoles({ companyId: invite.companyId });
+  await assertUsageQuotaAvailable({
+    companyId: invite.companyId,
+    featureKey: "TEAM",
+    amount: 1,
+  });
+
   const accessRoleSlug =
     invite.role === "OWNER"
       ? "owner"
@@ -267,6 +277,17 @@ export async function acceptCompanyInvite(token: string, userId: string) {
     userId: result.membership.userId,
   });
   await backfillCompanyNotificationRecipients(invite.companyId);
+  await incrementUsageQuota({
+    companyId: invite.companyId,
+    featureKey: "TEAM",
+    amount: 1,
+    idempotencyKey: `team-member-created:${result.membership.id}`,
+    reason: "team-member-created",
+    metadata: {
+      companyUserId: result.membership.id,
+      userId: result.membership.userId,
+    },
+  });
 
   return result;
 }

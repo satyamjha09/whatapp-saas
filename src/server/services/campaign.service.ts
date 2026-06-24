@@ -6,6 +6,10 @@ import { assertCompanyMessageQuota } from "@/server/services/message-quota.servi
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
 import { publishCampaignDeveloperWebhookEvent } from "@/server/services/developer-webhook-event-publisher.service";
+import {
+  assertUsageQuotaAvailable,
+  incrementUsageQuota,
+} from "@/server/services/usage-quota.service";
 import { CreateCampaignInput } from "@/server/validators/campaign.validator";
 
 export async function getCampaignsByCompany(companyId: string) {
@@ -32,6 +36,12 @@ export async function createCampaignForCompany(
   input: CreateCampaignInput,
 ) {
   await assertCompanyFeature(companyId, "BULK_CAMPAIGNS");
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "CAMPAIGNS",
+    amount: 1,
+  });
+
   const template = await prisma.template.findFirst({
     where: {
       id: input.templateId,
@@ -98,6 +108,17 @@ export async function createCampaignForCompany(
     companyId,
     campaign,
     operation: "created",
+  });
+
+  await incrementUsageQuota({
+    companyId,
+    featureKey: "CAMPAIGNS",
+    amount: 1,
+    idempotencyKey: `campaign-created:${campaign.id}`,
+    reason: "campaign-created",
+    metadata: {
+      campaignId: campaign.id,
+    },
   });
 
   return campaign;
@@ -167,6 +188,11 @@ export async function startCampaignForCompany(
   }
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId, pendingContacts.length);
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "BULK_MESSAGING",
+    amount: pendingContacts.length,
+  });
 
   const requiredBalancePaise = pendingContacts.length * MESSAGE_PRICE_PAISE;
   const wallet = await prisma.wallet.findUnique({
@@ -282,6 +308,18 @@ export async function startCampaignForCompany(
       companyId,
     });
   }
+
+  await incrementUsageQuota({
+    companyId,
+    featureKey: "BULK_MESSAGING",
+    amount: createdMessages.length,
+    idempotencyKey: `campaign-messages-created:${campaign.id}`,
+    reason: "campaign-messages-created",
+    metadata: {
+      campaignId: campaign.id,
+      messageCount: createdMessages.length,
+    },
+  });
 
   const updatedCampaign = await prisma.campaign.findUnique({
     where: {

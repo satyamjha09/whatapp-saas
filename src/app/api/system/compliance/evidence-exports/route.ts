@@ -7,6 +7,12 @@ import {
   createComplianceEvidenceExport,
   listComplianceEvidenceExports,
 } from "@/server/services/compliance-evidence.service";
+import {
+  assertUsageQuotaAvailable,
+  incrementUsageQuota,
+  UsageQuotaExceededError,
+} from "@/server/services/usage-quota.service";
+import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 
 const CreateEvidenceExportSchema = z.object({
   type: z.enum([
@@ -63,6 +69,12 @@ export async function POST(request: Request) {
   }
 
   try {
+    await assertUsageQuotaAvailable({
+      companyId: workspace.membership.companyId,
+      featureKey: "COMPLIANCE_EXPORTS",
+      amount: 1,
+    });
+
     const evidenceExport = await createComplianceEvidenceExport({
       companyId: workspace.membership.companyId,
       requestedByUserId: workspace.user.id,
@@ -86,6 +98,17 @@ export async function POST(request: Request) {
       },
     });
 
+    await incrementUsageQuota({
+      companyId: workspace.membership.companyId,
+      featureKey: "COMPLIANCE_EXPORTS",
+      amount: 1,
+      idempotencyKey: `compliance-export-created:${evidenceExport.id}`,
+      reason: "compliance-export-created",
+      metadata: {
+        exportId: evidenceExport.id,
+      },
+    });
+
     return NextResponse.json(
       {
         ok: true,
@@ -94,6 +117,10 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof UsageQuotaExceededError) {
+      return createUsageQuotaErrorResponse(error);
+    }
+
     return NextResponse.json(
       {
         ok: false,

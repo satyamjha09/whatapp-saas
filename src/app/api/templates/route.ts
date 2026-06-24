@@ -4,6 +4,8 @@ import {
   createTemplateForCompany,
   getTemplatesByCompany,
 } from "@/server/services/template.service";
+import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
+import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 import { createTemplateSchema } from "@/server/validators/template.validator";
 
 export async function GET() {
@@ -91,6 +93,10 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("CREATE_TEMPLATE_ERROR:", error);
+
+    if (error instanceof UsageQuotaExceededError) {
+      return createUsageQuotaErrorResponse(error);
+    }
 
     return NextResponse.json(
       { message: "Unable to create template" },

@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import {
+  assertUsageQuotaAvailable,
+  incrementUsageQuota,
+} from "@/server/services/usage-quota.service";
 import { CreateTemplateInput } from "@/server/validators/template.validator";
 
 function extractTemplateVariables(body: string) {
@@ -28,6 +32,12 @@ export async function createTemplateForCompany(
   companyId: string,
   input: CreateTemplateInput,
 ) {
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "TEMPLATES",
+    amount: 1,
+  });
+
   const variables = extractTemplateVariables(input.body);
 
   const template = await prisma.template.create({
@@ -39,6 +49,17 @@ export async function createTemplateForCompany(
       body: input.body,
       variables,
       status: "DRAFT",
+    },
+  });
+
+  await incrementUsageQuota({
+    companyId,
+    featureKey: "TEMPLATES",
+    amount: 1,
+    idempotencyKey: `template-created:${template.id}`,
+    reason: "template-created",
+    metadata: {
+      templateId: template.id,
     },
   });
 

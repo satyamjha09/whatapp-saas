@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
+import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
 import { syncWhatsAppTemplatesFromMeta } from "@/server/services/whatsapp-template-sync.service";
+import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 
 export async function POST() {
   try {
@@ -46,6 +48,10 @@ export async function POST() {
     });
   } catch (error) {
     console.error("SYNC_WHATSAPP_TEMPLATES_ERROR:", error);
+
+    if (error instanceof UsageQuotaExceededError) {
+      return createUsageQuotaErrorResponse(error);
+    }
 
     if (
       error instanceof Error &&

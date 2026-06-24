@@ -5,6 +5,10 @@ import { assertContactCanReceiveTemplate } from "@/server/services/contact-conse
 import { recordContactActivity } from "@/server/services/contact-activity.service";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
+import {
+  assertUsageQuotaAvailable,
+  incrementUsageQuota,
+} from "@/server/services/usage-quota.service";
 import { SendTemplateMessageInput } from "@/server/validators/message.validator";
 import { PublicSendTemplateMessageInput } from "@/server/validators/public-message.validator";
 import { CreateInboxReplyInput } from "@/server/validators/inbox-reply.validator";
@@ -38,6 +42,12 @@ export async function createQueuedTemplateMessage(
 ) {
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId);
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "BULK_MESSAGING",
+    amount: 1,
+  });
+
   const contact = await prisma.contact.findFirst({
     where: {
       id: input.contactId,
@@ -187,6 +197,12 @@ export async function createQueuedInboxReply(
 ) {
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId);
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "BULK_MESSAGING",
+    amount: 1,
+  });
+
   const contact = await prisma.contact.findFirst({
     where: {
       id: contactId,
@@ -240,6 +256,18 @@ export async function createQueuedInboxReply(
     companyId,
   });
 
+  await incrementUsageQuota({
+    companyId,
+    featureKey: "BULK_MESSAGING",
+    amount: 1,
+    idempotencyKey: `message-created:${message.id}`,
+    reason: "message-created",
+    metadata: {
+      messageId: message.id,
+      contactId: message.contactId,
+    },
+  });
+
   await prisma.contact.update({
     where: {
       id: contact.id,
@@ -284,6 +312,12 @@ export async function createQueuedPublicTemplateMessage(
 ) {
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId);
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "BULK_MESSAGING",
+    amount: 1,
+  });
+
   const template = await prisma.template.findFirst({
     where: {
       companyId,
@@ -424,6 +458,18 @@ export async function createQueuedPublicTemplateMessage(
   await getMessageQueue().add("send-template-message", {
     messageId: message.id,
     companyId,
+  });
+
+  await incrementUsageQuota({
+    companyId,
+    featureKey: "BULK_MESSAGING",
+    amount: 1,
+    idempotencyKey: `message-created:${message.id}`,
+    reason: "message-created",
+    metadata: {
+      messageId: message.id,
+      contactId: message.contactId,
+    },
   });
 
   return message;

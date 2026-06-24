@@ -4,6 +4,8 @@ import {
   createContactForCompany,
   getContactsByCompany,
 } from "@/server/services/contact.service";
+import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
+import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 import { createContactSchema } from "@/server/validators/contact.validator";
 
 export async function GET() {
@@ -79,6 +81,10 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("CREATE_CONTACT_ERROR:", error);
+
+    if (error instanceof UsageQuotaExceededError) {
+      return createUsageQuotaErrorResponse(error);
+    }
 
     return NextResponse.json(
       { message: "Unable to create contact" },

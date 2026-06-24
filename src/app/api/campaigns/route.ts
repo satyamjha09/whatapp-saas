@@ -7,6 +7,8 @@ import {
 import { createCampaignSchema } from "@/server/validators/campaign.validator";
 import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
 import { assertRouteFeatureEntitlement, createFeatureEntitlementErrorResponse } from "@/server/auth/feature-entitlement-guard";
+import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
+import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 
 export async function GET(request: Request) {
   try {
@@ -105,6 +107,10 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("CREATE_CAMPAIGN_ERROR:", error);
+
+    if (error instanceof UsageQuotaExceededError) {
+      return createUsageQuotaErrorResponse(error);
+    }
 
     if (
       error instanceof Error &&

@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { assertContactCanReceiveTemplate } from "@/server/services/contact-consent.service";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
+import {
+  assertUsageQuotaAvailable,
+  incrementUsageQuota,
+} from "@/server/services/usage-quota.service";
 import type { SendSingleTemplateMessageInput } from "@/server/validators/single-message.validator";
 
 function normalizePhoneNumber(value: string) {
@@ -22,6 +26,12 @@ export async function sendSingleTemplateMessage(
 ) {
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId);
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "BULK_MESSAGING",
+    amount: 1,
+  });
+
   const phoneNumber = normalizePhoneNumber(input.phoneNumber);
   const countryCode = normalizePhoneNumber(input.countryCode);
 
@@ -149,6 +159,18 @@ export async function sendSingleTemplateMessage(
       },
       { jobId: result.message.id },
     );
+
+    await incrementUsageQuota({
+      companyId,
+      featureKey: "BULK_MESSAGING",
+      amount: 1,
+      idempotencyKey: `message-created:${result.message.id}`,
+      reason: "message-created",
+      metadata: {
+        messageId: result.message.id,
+        contactId: result.message.contactId,
+      },
+    });
   } catch {
     await prisma.$transaction([
       prisma.message.update({

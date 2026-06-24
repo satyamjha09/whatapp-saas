@@ -9,6 +9,10 @@ import {
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import { assertCompanyFeature } from "@/server/services/feature-gate.service";
+import {
+  assertUsageQuotaAvailable,
+  incrementUsageQuota,
+} from "@/server/services/usage-quota.service";
 import type { SendBulkTemplateMessageInput } from "@/server/validators/bulk-message.validator";
 
 function normalizePhoneNumber(value: string) {
@@ -121,6 +125,12 @@ export async function sendBulkTemplateMessages(
   }
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId, uniqueRecipients.length);
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "BULK_MESSAGING",
+    amount: uniqueRecipients.length,
+  });
+
   const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : null;
   const now = new Date();
   const isScheduled = Boolean(
@@ -391,6 +401,18 @@ export async function sendBulkTemplateMessages(
         },
       })),
     );
+
+    await incrementUsageQuota({
+      companyId,
+      featureKey: "BULK_MESSAGING",
+      amount: queuedMessages.length,
+      idempotencyKey: `bulk-batch-created:${transactionResult.batch.id}`,
+      reason: "bulk-batch-created",
+      metadata: {
+        batchId: transactionResult.batch.id,
+        recipientCount: queuedMessages.length,
+      },
+    });
   } catch {
     const messageIds = queuedMessages.map((message) => message.messageId);
 

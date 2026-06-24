@@ -870,6 +870,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/entitlements",
         }),
         buildItem({
+          id: "usage-quotas",
+          title: "Usage quotas enabled",
+          description:
+            "Numeric plan limits are enforced with monthly/lifetime counters for contacts, templates, campaigns, compliance exports, team usage, and messaging.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Usage Quotas",
+          actionHref: "/dashboard/billing/usage-quotas",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

@@ -587,6 +587,24 @@ enum FeatureEntitlementCheckResult {
   BLOCKED
 }
 
+enum FeatureUsagePeriodType {
+  MONTHLY
+  LIFETIME
+}
+
+enum FeatureUsageEventType {
+  INCREMENT
+  DECREMENT
+  SET
+  RESET
+}
+
+enum FeatureUsageEventStatus {
+  APPLIED
+  SKIPPED_DUPLICATE
+  FAILED
+}
+
 enum CompanyEntitlementOverrideStatus {
   ACTIVE
   EXPIRED
@@ -687,6 +705,8 @@ model Company {
   accessRoleAssignments       CompanyAccessRoleAssignment[]
   entitlementOverrides        CompanyEntitlementOverride[]
   entitlementCheckLogs        FeatureEntitlementCheckLog[]
+  featureUsageCounters        FeatureUsageCounter[]
+  featureUsageEvents          FeatureUsageEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1423,6 +1443,68 @@ model FeatureEntitlementCheckLog {
   @@index([userId])
   @@index([featureKey])
   @@index([result])
+  @@index([createdAt])
+}
+
+model FeatureUsageCounter {
+  id String @id @default(cuid())
+
+  companyId String
+
+  featureKey FeatureEntitlementKey
+
+  periodType  FeatureUsagePeriodType
+  periodStart DateTime
+  periodEnd   DateTime?
+
+  usedCount Int @default(0)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  events FeatureUsageEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, featureKey, periodType, periodStart])
+  @@index([companyId])
+  @@index([featureKey])
+  @@index([periodType])
+  @@index([periodStart])
+  @@index([periodEnd])
+}
+
+model FeatureUsageEvent {
+  id String @id @default(cuid())
+
+  companyId String
+  counterId String
+
+  featureKey FeatureEntitlementKey
+
+  type   FeatureUsageEventType
+  status FeatureUsageEventStatus @default(APPLIED)
+
+  amount Int
+
+  beforeCount Int
+  afterCount  Int
+
+  idempotencyKey String?
+
+  reason   String?
+  metadata Json?
+
+  company Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  counter FeatureUsageCounter @relation(fields: [counterId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, featureKey, idempotencyKey])
+  @@index([companyId])
+  @@index([counterId])
+  @@index([featureKey])
+  @@index([status])
   @@index([createdAt])
 }
 

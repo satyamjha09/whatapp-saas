@@ -5,6 +5,8 @@ import {
 } from "@/server/auth/public-api";
 import { createAuditLog } from "@/server/services/audit.service";
 import { createQueuedPublicTemplateMessage } from "@/server/services/message.service";
+import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
+import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 import { publicSendTemplateMessageSchema } from "@/server/validators/public-message.validator";
 import {
   createRequestBodyErrorResponse,
@@ -89,6 +91,10 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("PUBLIC_SEND_TEMPLATE_MESSAGE_ERROR:", error);
+
+    if (error instanceof UsageQuotaExceededError) {
+      return createUsageQuotaErrorResponse(error);
+    }
 
     if (error instanceof Error && error.message === "Template not found") {
       return NextResponse.json(

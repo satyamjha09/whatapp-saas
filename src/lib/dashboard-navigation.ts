@@ -63,6 +63,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
         label: "Subscription Plan",
         href: "/dashboard/billing/subscription",
       },
+      { label: "Usage Quotas", href: "/dashboard/billing/usage-quotas" },
       {
         label: "WhatsApp Credits",
         href: "/dashboard/billing/whatsapp-credits",

@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { publishContactDeveloperWebhookEvent } from "@/server/services/developer-webhook-event-publisher.service";
+import {
+  assertUsageQuotaAvailable,
+  incrementUsageQuota,
+} from "@/server/services/usage-quota.service";
 import { CreateContactInput } from "@/server/validators/contact.validator";
 
 export async function getContactsByCompany(companyId: string) {
@@ -13,6 +17,12 @@ export async function createContactForCompany(
   companyId: string,
   input: CreateContactInput,
 ) {
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "CONTACTS",
+    amount: 1,
+  });
+
   const contact = await prisma.contact.create({
     data: {
       companyId,
@@ -26,6 +36,17 @@ export async function createContactForCompany(
     companyId,
     contact,
     operation: "created",
+  });
+
+  await incrementUsageQuota({
+    companyId,
+    featureKey: "CONTACTS",
+    amount: 1,
+    idempotencyKey: `contact-created:${contact.id}`,
+    reason: "contact-created",
+    metadata: {
+      contactId: contact.id,
+    },
   });
 
   return contact;

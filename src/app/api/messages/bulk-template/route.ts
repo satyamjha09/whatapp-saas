@@ -3,10 +3,12 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { ConsentRequiredError } from "@/server/services/contact-consent.service";
 import { sendBulkTemplateMessages } from "@/server/services/bulk-message.service";
+import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
 import {
   assertSystemWritesAllowed,
   SystemMaintenanceModeError,
 } from "@/server/services/system-maintenance-mode.service";
+import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 import { sendBulkTemplateMessageSchema } from "@/server/validators/bulk-message.validator";
 import { RATE_LIMIT_RULES } from "@/server/config/rate-limits";
 import {
@@ -150,6 +152,10 @@ export async function POST(request: Request) {
 
     if (error instanceof ConsentRequiredError) {
       return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+
+    if (error instanceof UsageQuotaExceededError) {
+      return createUsageQuotaErrorResponse(error);
     }
 
     if (

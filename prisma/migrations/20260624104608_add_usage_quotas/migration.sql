@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "FeatureUsageCounter_companyId_featureKey_periodType_periodStart" RENAME TO "FeatureUsageCounter_companyId_featureKey_periodType_periodS_key";

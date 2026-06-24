@@ -1,5 +1,9 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  assertUsageQuotaAvailable,
+  incrementUsageQuota,
+} from "@/server/services/usage-quota.service";
 import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
 
 type MetaTemplateComponent = {
@@ -182,6 +186,7 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
 
   let syncedCount = 0;
   let skippedCount = 0;
+  const syncableTemplates = [];
 
   for (const template of templates) {
     const status = normalizeTemplateStatus(template.status);
@@ -192,10 +197,57 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
       continue;
     }
 
+    syncableTemplates.push({
+      template,
+      status,
+      category,
+    });
+  }
+
+  if (syncableTemplates.length === 0) {
+    return {
+      fetchedCount: templates.length,
+      syncedCount,
+      skippedCount,
+    };
+  }
+
+  const existingTemplateKeys = new Set(
+    (
+      await prisma.template.findMany({
+        where: {
+          companyId,
+          OR: syncableTemplates.map(({ template }) => ({
+            name: template.name,
+            language: template.language,
+          })),
+        },
+        select: {
+          name: true,
+          language: true,
+        },
+      })
+    ).map((template) => `${template.name}:${template.language}`),
+  );
+
+  const newTemplateCount = syncableTemplates.filter(({ template }) => {
+    return !existingTemplateKeys.has(`${template.name}:${template.language}`);
+  }).length;
+
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "TEMPLATES",
+    amount: newTemplateCount,
+  });
+
+  for (const { template, status, category } of syncableTemplates) {
+    const isNewTemplate = !existingTemplateKeys.has(
+      `${template.name}:${template.language}`,
+    );
     const components = template.components ?? [];
     const body = extractTemplateBody(components);
 
-    await prisma.template.upsert({
+    const syncedTemplate = await prisma.template.upsert({
       where: {
         companyId_name_language: {
           companyId,
@@ -223,6 +275,20 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
         components: serializeComponents(components),
       },
     });
+
+    if (isNewTemplate) {
+      await incrementUsageQuota({
+        companyId,
+        featureKey: "TEMPLATES",
+        amount: 1,
+        idempotencyKey: `template-created:${syncedTemplate.id}`,
+        reason: "template-created",
+        metadata: {
+          templateId: syncedTemplate.id,
+          source: "whatsapp-template-sync",
+        },
+      });
+    }
 
     syncedCount += 1;
   }
