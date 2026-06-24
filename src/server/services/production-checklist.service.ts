@@ -910,6 +910,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/invoices",
         }),
         buildItem({
+          id: "subscription-renewal-engine",
+          title: "Subscription renewal engine enabled",
+          description:
+            "Paid plan renewals generate reminders, past-due grace period events, automatic downgrades, notifications, audit logs, and plan change ledger entries.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Subscription Renewals",
+          actionHref: "/dashboard/billing/subscription-renewals",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

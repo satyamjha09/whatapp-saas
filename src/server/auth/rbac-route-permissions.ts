@@ -17,6 +17,7 @@ export const RBAC_ROUTE_PERMISSION_RULES: RbacRoutePermissionRule[] = [
   { id: "whatsapp-settings-manage", method: "*", pattern: /^\/api\/whatsapp\/settings(?:\/|$)/, permission: "WHATSAPP_SETTINGS_MANAGE", description: "Manage WhatsApp settings" },
   { id: "api-key-manage", method: "*", pattern: /^\/api\/developer\/api-keys(?:\/|$)/, permission: "DEVELOPER_API_KEYS_MANAGE", description: "Manage developer API keys" },
   { id: "developer-webhooks-manage", method: "*", pattern: /^\/api\/developer\/webhooks(?:\/|$)/, permission: "DEVELOPER_WEBHOOKS_MANAGE", description: "Manage developer webhooks" },
+  { id: "subscription-renewals-scan", method: "POST", pattern: /^\/api\/billing\/subscription-renewals\/scan$/, permission: "BILLING_MANAGE", description: "Run subscription renewal scan" },
   { id: "privacy-request-process", method: "POST", pattern: /^\/api\/privacy\/requests\/[^/]+\/process$/, permission: "PRIVACY_REQUEST_PROCESS", description: "Process privacy request" },
   { id: "privacy-export-download", method: "GET", pattern: /^\/api\/privacy\/requests\/[^/]+\/download$/, permission: "PRIVACY_REQUEST_PROCESS", description: "Download privacy export" },
   { id: "compliance-evidence", method: "*", pattern: /^\/api\/system\/compliance(?:\/|$)/, permission: "COMPLIANCE_MANAGE", description: "Compliance evidence operations" },

@@ -617,6 +617,21 @@ enum UsageQuotaAlertSeverity {
   CRITICAL
 }
 
+enum SubscriptionRenewalEventType {
+  REMINDER_SENT
+  PERIOD_RENEWED
+  MARKED_PAST_DUE
+  GRACE_STARTED
+  AUTO_DOWNGRADED
+  MANUALLY_EXTENDED
+}
+
+enum SubscriptionRenewalEventStatus {
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
 enum PlanCheckoutStatus {
   CREATED
   PAID
@@ -757,6 +772,7 @@ model Company {
   planCheckouts               PlanCheckout[]
   planChanges                 CompanyPlanChange[]
   billingInvoices             BillingInvoice[]
+  subscriptionRenewalEvents   SubscriptionRenewalEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1667,6 +1683,47 @@ model CompanyPlanChange {
   @@index([toPlan])
   @@index([source])
   @@index([checkoutId])
+  @@index([createdAt])
+}
+
+model SubscriptionRenewalEvent {
+  id String @id @default(cuid())
+
+  companyId String
+
+  type   SubscriptionRenewalEventType
+  status SubscriptionRenewalEventStatus @default(SUCCESS)
+
+  billingPlan        BillingPlan
+  subscriptionStatus SubscriptionStatus
+
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  reminderDaysBeforeEnd Int?
+
+  previousPlan BillingPlan?
+  newPlan      BillingPlan?
+
+  previousMonthlyMessageLimit Int?
+  newMonthlyMessageLimit      Int?
+
+  idempotencyKey String?
+
+  message      String?
+  errorMessage String?
+  metadata     Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId])
+  @@index([type])
+  @@index([status])
+  @@index([billingPlan])
+  @@index([subscriptionStatus])
   @@index([createdAt])
 }
 

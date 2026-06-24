@@ -39,6 +39,7 @@ import { getBillingInvoiceHealth } from "@/server/services/billing-invoice.servi
 import { getPlanUpgradeHealth } from "@/server/services/plan-upgrade.service";
 import { getUsageQuotaAlertHealth } from "@/server/services/usage-quota-alert.service";
 import { getUsageQuotaHealth } from "@/server/services/usage-quota.service";
+import { getSubscriptionRenewalHealth } from "@/server/services/subscription-renewal.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -112,6 +113,7 @@ export default async function SystemHealthPage() {
     usageQuotaAlerts,
     planUpgrades,
     billingInvoices,
+    subscriptionRenewals,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -157,6 +159,7 @@ export default async function SystemHealthPage() {
     getUsageQuotaAlertHealth(),
     getPlanUpgradeHealth(),
     getBillingInvoiceHealth(),
+    getSubscriptionRenewalHealth(),
   ]);
 
   return (
@@ -200,6 +203,70 @@ export default async function SystemHealthPage() {
           <div className="mt-5">
             <Link href="/dashboard/system/entitlements" className="text-sm font-medium text-gray-900 underline">
               Open entitlements
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Subscription Renewals
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Renewal reminders, past-due grace period, and automatic
+                downgrade protection.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                subscriptionRenewals.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {subscriptionRenewals.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Events / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {subscriptionRenewals.events24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Past Due</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {subscriptionRenewals.pastDueCompanies}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Expiring 7 Days</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {subscriptionRenewals.paidCompaniesExpiring7d}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Grace Days</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {subscriptionRenewals.graceDays}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/billing/subscription-renewals"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open subscription renewals
             </Link>
           </div>
         </section>

@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import { BillingPlan, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getBillingPlanConfig } from "@/server/config/billing-plans";
-import { addOneMonth } from "@/server/services/subscription.service";
 import { createAuditLog } from "@/server/services/audit.service";
 import { createPaidPlanUpgradeInvoice } from "@/server/services/billing-invoice.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
@@ -50,6 +49,10 @@ function numericEnv(key: string, fallback: number) {
   const value = Number(process.env[key] ?? fallback);
 
   return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function addDays(date: Date, days: number) {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
 export function getPlanPricePaise(plan: BillingPlan) {
@@ -368,7 +371,7 @@ export async function completePlanCheckout({
         subscriptionStatus: "ACTIVE",
         monthlyMessageLimit: newMonthlyMessageLimit,
         currentPeriodStart: now,
-        currentPeriodEnd: addOneMonth(now),
+        currentPeriodEnd: addDays(now, 30),
         cancelAtPeriodEnd: false,
         subscriptionCanceledAt: null,
       },

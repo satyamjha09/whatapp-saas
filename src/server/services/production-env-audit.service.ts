@@ -856,6 +856,28 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "subscription-renewals-enabled",
+    title: "Subscription renewals enabled",
+    severity:
+      process.env.SUBSCRIPTION_RENEWALS_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.SUBSCRIPTION_RENEWALS_ENABLED !== "false"
+        ? "Subscription renewal engine is enabled"
+        : "SUBSCRIPTION_RENEWALS_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "subscription-renewal-grace-days",
+    title: "Subscription renewal grace period configured",
+    severity: process.env.SUBSCRIPTION_RENEWAL_GRACE_DAYS ? "PASS" : "WARNING",
+    message: process.env.SUBSCRIPTION_RENEWAL_GRACE_DAYS
+      ? "SUBSCRIPTION_RENEWAL_GRACE_DAYS is configured"
+      : "Using default subscription renewal grace period",
+    required: false,
+  });
+
+  items.push({
     id: "plan-upgrades-enabled",
     title: "Plan upgrades enabled",
     severity: process.env.PLAN_UPGRADES_ENABLED !== "false" ? "PASS" : "FAIL",

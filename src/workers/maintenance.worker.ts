@@ -76,6 +76,10 @@ import {
   runUsageQuotaAlertJob,
   USAGE_QUOTA_ALERT_JOB,
 } from "@/server/jobs/usage-quota-alert.job";
+import {
+  runSubscriptionRenewalJob,
+  SUBSCRIPTION_RENEWAL_JOB,
+} from "@/server/jobs/subscription-renewal.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -287,6 +291,18 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    SUBSCRIPTION_RENEWAL_JOB,
+    {},
+    {
+      repeat: {
+        pattern: process.env.SUBSCRIPTION_RENEWAL_SCAN_CRON || "15 6 * * *",
+      },
+      jobId: SUBSCRIPTION_RENEWAL_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -409,6 +425,12 @@ const worker = new Worker(
     if (job.name === USAGE_QUOTA_ALERT_JOB) {
       const result = await runUsageQuotaAlertJob();
       console.log("Usage quota alert scan completed", result);
+      return result;
+    }
+
+    if (job.name === SUBSCRIPTION_RENEWAL_JOB) {
+      const result = await runSubscriptionRenewalJob();
+      console.log("Subscription renewal scan completed", result);
       return result;
     }
 
