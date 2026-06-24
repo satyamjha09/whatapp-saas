@@ -18,6 +18,7 @@ import {
   readRequestJsonWithLimit,
   REQUEST_BODY_LIMITS,
 } from "@/server/utils/request-body-guard";
+import { assertRouteFeatureEntitlement, createFeatureEntitlementErrorResponse } from "@/server/auth/feature-entitlement-guard";
 
 export async function POST(request: Request) {
   const rateLimit = await enforceApiRateLimit({
@@ -51,6 +52,12 @@ export async function POST(request: Request) {
         { message: "Only owners and admins can send bulk messages" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRouteFeatureEntitlement({ request, workspace: context });
+    } catch (error) {
+      return createFeatureEntitlementErrorResponse(error);
     }
 
     let body: unknown;

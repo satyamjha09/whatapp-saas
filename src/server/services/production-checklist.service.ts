@@ -860,6 +860,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/health",
         }),
         buildItem({
+          id: "feature-entitlements",
+          title: "Feature entitlements enabled",
+          description:
+            "Plan features are enforced by Free, Starter, Growth, and Business entitlement rules with company overrides, subscription blocking, and entitlement check logs.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Feature Entitlements",
+          actionHref: "/dashboard/system/entitlements",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

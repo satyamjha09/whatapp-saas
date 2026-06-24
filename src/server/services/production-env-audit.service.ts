@@ -783,6 +783,34 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "feature-entitlements-enabled",
+    title: "Feature entitlements enabled",
+    severity: process.env.FEATURE_ENTITLEMENTS_ENABLED !== "false" ? "PASS" : "FAIL",
+    message: process.env.FEATURE_ENTITLEMENTS_ENABLED !== "false"
+      ? "Feature entitlements are enabled"
+      : "FEATURE_ENTITLEMENTS_ENABLED must not be false in production",
+    required: true,
+  });
+  items.push({
+    id: "feature-entitlements-strict-mode",
+    title: "Feature entitlements strict mode",
+    severity: process.env.FEATURE_ENTITLEMENTS_STRICT_MODE !== "false" ? "PASS" : "WARNING",
+    message: process.env.FEATURE_ENTITLEMENTS_STRICT_MODE !== "false"
+      ? "Feature entitlement strict mode is enabled"
+      : "Unknown plan rows may allow features. Enable strict mode in production.",
+    required: false,
+  });
+  items.push({
+    id: "feature-entitlements-block-past-due",
+    title: "Past-due subscription blocking",
+    severity: process.env.FEATURE_ENTITLEMENTS_BLOCK_PAST_DUE !== "false" ? "PASS" : "WARNING",
+    message: process.env.FEATURE_ENTITLEMENTS_BLOCK_PAST_DUE !== "false"
+      ? "Past-due subscriptions are blocked from gated features"
+      : "Past-due subscriptions are not blocked",
+    required: false,
+  });
+
+  items.push({
     id: "uptime-monitoring-enabled",
     title: "Uptime monitoring enabled",
     severity:

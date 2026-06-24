@@ -40,7 +40,8 @@
     "retention:seed": "tsx scripts/seed-data-retention-policies.ts",
     "trust:seed": "tsx scripts/seed-trust-center.ts",
     "rbac:seed": "tsx scripts/seed-rbac-v2.ts",
-    "rbac:audit": "tsx scripts/audit-rbac-permissions.ts"
+    "rbac:audit": "tsx scripts/audit-rbac-permissions.ts",
+    "entitlements:seed": "tsx scripts/seed-plan-entitlements.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",

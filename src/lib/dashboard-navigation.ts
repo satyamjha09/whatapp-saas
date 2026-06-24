@@ -144,6 +144,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
         href: "/dashboard/system/compliance",
       },
       { label: "Data Retention", href: "/dashboard/system/data-retention" },
+      { label: "Feature Entitlements", href: "/dashboard/system/entitlements" },
       { label: "System Health", href: "/dashboard/system/health" },
       { label: "Audit Logs", href: "/dashboard/settings/audit-logs" },
     ],

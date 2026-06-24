@@ -6,8 +6,9 @@ import {
 } from "@/server/services/campaign.service";
 import { createCampaignSchema } from "@/server/validators/campaign.validator";
 import { assertRoutePermission, createRoutePermissionErrorResponse } from "@/server/auth/route-permission-guard";
+import { assertRouteFeatureEntitlement, createFeatureEntitlementErrorResponse } from "@/server/auth/feature-entitlement-guard";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const context = await getCurrentWorkspaceContext();
 
@@ -20,6 +21,12 @@ export async function GET() {
         { message: "Complete company onboarding first" },
         { status: 403 },
       );
+    }
+
+    try {
+      await assertRouteFeatureEntitlement({ request, workspace: context });
+    } catch (error) {
+      return createFeatureEntitlementErrorResponse(error);
     }
 
     const campaigns = await getCampaignsByCompany(

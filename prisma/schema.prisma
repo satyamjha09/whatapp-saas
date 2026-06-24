@@ -559,6 +559,40 @@ enum RbacPermissionAuditItemSeverity {
   ERROR
 }
 
+enum FeatureEntitlementKey {
+  INBOX
+  CONTACTS
+  CRM
+  CAMPAIGNS
+  BULK_MESSAGING
+  TEMPLATES
+  ANALYTICS
+  DEVELOPER_API
+  DEVELOPER_WEBHOOKS
+  WHATSAPP_SETTINGS
+  TEAM
+  RBAC
+  BILLING
+  WALLET
+  PRIVACY_CENTER
+  CONSENT_CENTER
+  TRUST_CENTER
+  STATUS_PAGE
+  COMPLIANCE_EXPORTS
+  SYSTEM_OPERATIONS
+}
+
+enum FeatureEntitlementCheckResult {
+  ALLOWED
+  BLOCKED
+}
+
+enum CompanyEntitlementOverrideStatus {
+  ACTIVE
+  EXPIRED
+  DISABLED
+}
+
 model User {
   id          String  @id @default(cuid())
   clerkUserId String  @unique
@@ -585,6 +619,8 @@ model User {
   complianceEvidenceExports          ComplianceEvidenceExport[]
   trustDocumentAcceptances           TrustDocumentAcceptance[]
   accessRoleAssignments              CompanyAccessRoleAssignment[]
+  createdEntitlementOverrides        CompanyEntitlementOverride[]
+  entitlementCheckLogs               FeatureEntitlementCheckLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -649,6 +685,8 @@ model Company {
   trustDocumentAcceptances    TrustDocumentAcceptance[]
   accessRoles                 CompanyAccessRole[]
   accessRoleAssignments       CompanyAccessRoleAssignment[]
+  entitlementOverrides        CompanyEntitlementOverride[]
+  entitlementCheckLogs        FeatureEntitlementCheckLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1317,6 +1355,74 @@ model RbacPermissionAuditItem {
   @@index([runId])
   @@index([severity])
   @@index([routePath])
+  @@index([createdAt])
+}
+
+model PlanEntitlement {
+  id String @id @default(cuid())
+
+  billingPlan BillingPlan
+  featureKey  FeatureEntitlementKey
+  enabled     Boolean               @default(true)
+  limitValue  Int?
+  metadata    Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([billingPlan, featureKey])
+  @@index([billingPlan])
+  @@index([featureKey])
+  @@index([enabled])
+}
+
+model CompanyEntitlementOverride {
+  id String @id @default(cuid())
+
+  companyId  String
+  featureKey FeatureEntitlementKey
+  status     CompanyEntitlementOverrideStatus @default(ACTIVE)
+
+  enabledOverride Boolean?
+  limitOverride   Int?
+  reason          String?
+  expiresAt       DateTime?
+  createdByUserId String?
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([featureKey])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model FeatureEntitlementCheckLog {
+  id String @id @default(cuid())
+
+  companyId   String
+  userId      String?
+  featureKey  FeatureEntitlementKey
+  result      FeatureEntitlementCheckResult
+  billingPlan BillingPlan?
+  routePath   String?
+  method      String?
+  reason      String?
+  metadata    Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([featureKey])
+  @@index([result])
   @@index([createdAt])
 }
 

@@ -21,6 +21,7 @@ export const RBAC_ROUTE_PERMISSION_RULES: RbacRoutePermissionRule[] = [
   { id: "privacy-export-download", method: "GET", pattern: /^\/api\/privacy\/requests\/[^/]+\/download$/, permission: "PRIVACY_REQUEST_PROCESS", description: "Download privacy export" },
   { id: "compliance-evidence", method: "*", pattern: /^\/api\/system\/compliance(?:\/|$)/, permission: "COMPLIANCE_MANAGE", description: "Compliance evidence operations" },
   { id: "system-operations", method: "*", pattern: /^\/api\/system\/(?:data-retention|legal-holds|billing-reconciliation|dead-letter-queue|operation-lock)(?:\/|$)/, permission: "SYSTEM_OPERATIONS_MANAGE", description: "System operation actions" },
+  { id: "entitlement-overrides", method: "*", pattern: /^\/api\/system\/entitlements\/overrides$/, permission: "SYSTEM_OPERATIONS_MANAGE", description: "Feature entitlement overrides" },
   { id: "trust-center-manage", method: "*", pattern: /^\/api\/trust\/documents(?:\/|$)/, permission: "TRUST_CENTER_MANAGE", description: "Trust Center document management" },
   { id: "team-role-manage", method: "*", pattern: /^\/api\/team\/(?:roles|role-assignments)(?:\/|$)/, permission: "TEAM_MANAGE_ROLES", description: "Role and permission management" },
 ];

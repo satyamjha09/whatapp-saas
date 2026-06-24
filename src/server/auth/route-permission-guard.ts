@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { RbacPermission } from "@/generated/prisma/client";
+import { assertRouteFeatureEntitlement } from "@/server/auth/feature-entitlement-guard";
+import { FeatureEntitlementError } from "@/server/services/feature-entitlement.service";
 import { getRequiredPermissionForRoute } from "@/server/auth/rbac-route-permissions";
 import {
   assertUserPermission,
@@ -20,6 +22,8 @@ export async function assertRoutePermission({
   workspace: WorkspaceLike;
   permission?: RbacPermission;
 }) {
+  await assertRouteFeatureEntitlement({ request, workspace });
+
   const requiredPermission =
     permission ??
     getRequiredPermissionForRoute({
@@ -39,6 +43,13 @@ export async function assertRoutePermission({
 }
 
 export function createRoutePermissionErrorResponse(error: unknown) {
+  if (error instanceof FeatureEntitlementError) {
+    return NextResponse.json(
+      { ok: false, code: error.code, message: error.message },
+      { status: 402 },
+    );
+  }
+
   return NextResponse.json(
     {
       ok: false,
