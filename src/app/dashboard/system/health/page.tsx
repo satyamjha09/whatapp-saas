@@ -35,6 +35,7 @@ import { getTrustCenterHealth } from "@/server/services/trust-center.service";
 import { getRbacV2Health } from "@/server/services/rbac-v2.service";
 import { getRbacPermissionAuditHealth } from "@/server/services/rbac-permission-audit.service";
 import { getFeatureEntitlementHealth } from "@/server/services/feature-entitlement.service";
+import { getBillingInvoiceHealth } from "@/server/services/billing-invoice.service";
 import { getPlanUpgradeHealth } from "@/server/services/plan-upgrade.service";
 import { getUsageQuotaAlertHealth } from "@/server/services/usage-quota-alert.service";
 import { getUsageQuotaHealth } from "@/server/services/usage-quota.service";
@@ -110,6 +111,7 @@ export default async function SystemHealthPage() {
     usageQuotas,
     usageQuotaAlerts,
     planUpgrades,
+    billingInvoices,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -154,6 +156,7 @@ export default async function SystemHealthPage() {
     getUsageQuotaHealth(),
     getUsageQuotaAlertHealth(),
     getPlanUpgradeHealth(),
+    getBillingInvoiceHealth(),
   ]);
 
   return (
@@ -363,6 +366,59 @@ export default async function SystemHealthPage() {
           <div className="mt-5">
             <Link href="/dashboard/billing/upgrade" className="text-sm font-medium text-gray-900 underline">
               Open upgrade checkout
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Billing Invoices
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Invoice and receipt ledger for plan upgrades, payments, and billing history.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                billingInvoices.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {billingInvoices.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Paid / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingInvoices.paid24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingInvoices.failed24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Total Paid</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingInvoices.totalPaid}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link href="/dashboard/billing/invoices" className="text-sm font-medium text-gray-900 underline">
+              Open invoices
             </Link>
           </div>
         </section>

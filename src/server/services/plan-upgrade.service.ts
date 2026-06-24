@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getBillingPlanConfig } from "@/server/config/billing-plans";
 import { addOneMonth } from "@/server/services/subscription.service";
 import { createAuditLog } from "@/server/services/audit.service";
+import { createPaidPlanUpgradeInvoice } from "@/server/services/billing-invoice.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 
 export class PlanUpgradeError extends Error {
@@ -410,6 +411,18 @@ export async function completePlanCheckout({
       razorpayOrderId,
       razorpayPaymentId,
     },
+  }).catch(() => undefined);
+
+  await createPaidPlanUpgradeInvoice({
+    companyId,
+    userId: actorUserId ?? null,
+    planCheckoutId: checkout.id,
+    planChangeId: result.planChange.id,
+    toPlan: checkout.toPlan,
+    amountPaise: checkout.amountPaise,
+    currency: checkout.currency,
+    razorpayOrderId,
+    razorpayPaymentId,
   }).catch(() => undefined);
 
   return result;

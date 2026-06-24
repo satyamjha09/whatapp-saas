@@ -631,6 +631,23 @@ enum PlanChangeSource {
   SYSTEM
 }
 
+enum BillingInvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+  FAILED
+}
+
+enum BillingInvoiceLineType {
+  PLAN
+  USAGE
+  WALLET_TOPUP
+  DISCOUNT
+  TAX
+  ADJUSTMENT
+}
+
 enum CompanyEntitlementOverrideStatus {
   ACTIVE
   EXPIRED
@@ -667,6 +684,7 @@ model User {
   entitlementCheckLogs               FeatureEntitlementCheckLog[]
   requestedPlanCheckouts             PlanCheckout[]
   companyPlanChanges                 CompanyPlanChange[]
+  billingInvoices                    BillingInvoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -738,6 +756,7 @@ model Company {
   usageQuotaAlerts            UsageQuotaAlert[]
   planCheckouts               PlanCheckout[]
   planChanges                 CompanyPlanChange[]
+  billingInvoices             BillingInvoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1649,6 +1668,87 @@ model CompanyPlanChange {
   @@index([source])
   @@index([checkoutId])
   @@index([createdAt])
+}
+
+model BillingInvoice {
+  id String @id @default(cuid())
+
+  companyId String
+  userId    String?
+
+  invoiceNumber String @unique
+
+  status BillingInvoiceStatus @default(DRAFT)
+
+  currency String @default("INR")
+
+  subtotalPaise Int @default(0)
+  taxPaise      Int @default(0)
+  totalPaise    Int @default(0)
+
+  taxBasisPoints Int @default(0)
+
+  billingName    String?
+  billingEmail   String?
+  billingAddress String?
+  billingTaxId   String?
+
+  sellerName    String?
+  sellerEmail   String?
+  sellerAddress String?
+  sellerTaxId   String?
+
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+
+  planCheckoutId String?
+  planChangeId   String?
+
+  issuedAt DateTime?
+  paidAt   DateTime?
+  voidedAt DateTime?
+
+  metadata Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  lines BillingInvoiceLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([status])
+  @@index([issuedAt])
+  @@index([paidAt])
+  @@index([razorpayOrderId])
+  @@index([razorpayPaymentId])
+  @@index([planCheckoutId])
+}
+
+model BillingInvoiceLine {
+  id String @id @default(cuid())
+
+  invoiceId String
+
+  type BillingInvoiceLineType
+
+  description String
+  quantity    Int @default(1)
+
+  unitAmountPaise Int
+  totalPaise      Int
+
+  metadata Json?
+
+  invoice BillingInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([invoiceId])
+  @@index([type])
 }
 
 model ContactActivity {

@@ -900,6 +900,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/upgrade",
         }),
         buildItem({
+          id: "billing-invoice-ledger",
+          title: "Billing invoice ledger enabled",
+          description:
+            "Plan upgrade payments generate invoice and receipt records with line items, configurable tax, payment references, and printable billing history.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Invoices",
+          actionHref: "/dashboard/billing/invoices",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

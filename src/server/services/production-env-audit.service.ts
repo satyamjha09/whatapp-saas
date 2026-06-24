@@ -897,6 +897,34 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "billing-invoices-enabled",
+    title: "Billing invoices enabled",
+    severity:
+      process.env.BILLING_INVOICES_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.BILLING_INVOICES_ENABLED !== "false"
+        ? "Billing invoice ledger is enabled"
+        : "BILLING_INVOICES_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "billing-invoice-seller-configured",
+    title: "Billing seller details configured",
+    severity:
+      exists(process.env.BILLING_SELLER_NAME) &&
+      exists(process.env.BILLING_SELLER_EMAIL)
+        ? "PASS"
+        : "WARNING",
+    message:
+      exists(process.env.BILLING_SELLER_NAME) &&
+      exists(process.env.BILLING_SELLER_EMAIL)
+        ? "Billing seller name/email are configured"
+        : "Configure BILLING_SELLER_NAME and BILLING_SELLER_EMAIL before production",
+    required: false,
+  });
+
+  items.push({
     id: "uptime-monitoring-enabled",
     title: "Uptime monitoring enabled",
     severity:
