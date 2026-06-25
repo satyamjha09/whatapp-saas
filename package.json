@@ -34,6 +34,8 @@
     "restore:production": "tsx scripts/production-restore.ts",
     "doctor:production": "tsx scripts/production-doctor.ts",
     "audit:tenant-routes": "tsx scripts/audit-tenant-routes.ts",
+    "audit:tenant-user-relations": "tsx scripts/audit-tenant-user-relations.ts",
+    "audit:company-plan-snapshots": "tsx scripts/audit-company-plan-snapshots.ts",
     "secrets:rotate": "tsx scripts/rotate-secrets.ts",
     "uptime:seed": "tsx scripts/seed-uptime-monitors.ts",
     "status:seed": "tsx scripts/seed-status-page.ts",

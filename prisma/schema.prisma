@@ -772,6 +772,9 @@ model User {
   platformAccessEnabled Boolean      @default(false)
 
   companies                          CompanyUser[]
+  // Tenant-scoped records below must not be loaded via User include/select.
+  // Query them with both companyId and userId, preferably through
+  // src/server/services/tenant-user-relations.service.ts.
   assignedContacts                   Contact[]                          @relation("ContactAssignee")
   inboxNotes                         InboxNote[]                        @relation("InboxNoteAuthor")
   contactActivities                  ContactActivity[]

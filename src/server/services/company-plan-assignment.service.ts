@@ -1,5 +1,6 @@
-import { Prisma } from "@/generated/prisma/client";
+import { BillingPlan, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getBillingPlanConfig } from "@/server/config/billing-plans";
 import { createAuditLog } from "@/server/services/audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 
@@ -27,6 +28,27 @@ function safeJson(value: unknown): Prisma.InputJsonValue {
   return redactSensitiveData(value) as Prisma.InputJsonValue;
 }
 
+type PlanEventType =
+  | "CREATED"
+  | "ACTIVATED"
+  | "TRIAL_EXTENDED"
+  | "PLAN_CHANGED"
+  | "CANCELED"
+  | "SUSPENDED"
+  | "EXPIRED"
+  | "REACTIVATED";
+
+type PlanAssignmentSnapshot = {
+  id: string;
+  companyId: string;
+  planCode: string;
+  status: "TRIAL" | "ACTIVE" | "EXPIRED" | "CANCELED" | "SUSPENDED";
+  currentPeriodStartsAt: Date | null;
+  currentPeriodEndsAt: Date | null;
+  trialEndsAt: Date | null;
+  canceledAt: Date | null;
+};
+
 function planNameFromCode(planCode: string) {
   const map: Record<string, string> = {
     trial: "Free Trial",
@@ -43,7 +65,102 @@ function addDays(days: number) {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 }
 
-async function createPlanEvent({
+function billingPlanFromPlanCode(planCode: string): BillingPlan {
+  const normalized = planCode.trim().toUpperCase();
+
+  if (normalized === "TRIAL") {
+    return "FREE" as const;
+  }
+
+  if (
+    normalized === "FREE" ||
+    normalized === "STARTER" ||
+    normalized === "GROWTH" ||
+    normalized === "BUSINESS"
+  ) {
+    return normalized;
+  }
+
+  throw new CompanyPlanAssignmentError(
+    `Plan code "${planCode}" cannot be mirrored to Company.billingPlan.`,
+  );
+}
+
+function subscriptionStatusFromPlanStatus(
+  status: PlanAssignmentSnapshot["status"],
+) {
+  if (status === "TRIAL") return "TRIALING" as const;
+  if (status === "ACTIVE") return "ACTIVE" as const;
+  if (status === "CANCELED") return "CANCELED" as const;
+
+  return "PAST_DUE" as const;
+}
+
+function companyBillingSnapshotData(assignment: PlanAssignmentSnapshot) {
+  const billingPlan = billingPlanFromPlanCode(assignment.planCode);
+  const plan = getBillingPlanConfig(billingPlan);
+
+  return {
+    billingPlan,
+    subscriptionStatus: subscriptionStatusFromPlanStatus(assignment.status),
+    trialEndsAt: assignment.trialEndsAt,
+    currentPeriodStart: assignment.currentPeriodStartsAt,
+    currentPeriodEnd: assignment.currentPeriodEndsAt,
+    monthlyMessageLimit: plan.monthlyMessageLimit,
+    cancelAtPeriodEnd: false,
+    subscriptionCanceledAt:
+      assignment.status === "CANCELED"
+        ? (assignment.canceledAt ?? new Date())
+        : null,
+  };
+}
+
+async function syncCompanyBillingSnapshotTx(
+  tx: Prisma.TransactionClient,
+  assignment: PlanAssignmentSnapshot,
+) {
+  return tx.company.update({
+    where: {
+      id: assignment.companyId,
+    },
+    data: companyBillingSnapshotData(assignment),
+  });
+}
+
+async function createPlanEventRecord(
+  tx: Prisma.TransactionClient,
+  {
+    actorUserId,
+    assignmentId,
+    companyId,
+    description,
+    metadata,
+    title,
+    type,
+  }: {
+    companyId: string;
+    assignmentId: string;
+    actorUserId?: string | null;
+    type: PlanEventType;
+    title: string;
+    description?: string | null;
+    metadata?: unknown;
+  },
+) {
+  return tx.companyPlanAssignmentEvent.create({
+    data: {
+      companyId,
+      assignmentId,
+      actorUserId: actorUserId ?? null,
+      type,
+      title,
+      description: description ?? null,
+      metadata: metadata ? safeJson(metadata) : undefined,
+    },
+  });
+}
+
+async function createPlanAuditLog({
   actorUserId,
   assignmentId,
   companyId,
@@ -55,31 +172,11 @@ async function createPlanEvent({
   companyId: string;
   assignmentId: string;
   actorUserId?: string | null;
-  type:
-    | "CREATED"
-    | "ACTIVATED"
-    | "TRIAL_EXTENDED"
-    | "PLAN_CHANGED"
-    | "CANCELED"
-    | "SUSPENDED"
-    | "EXPIRED"
-    | "REACTIVATED";
+  type: PlanEventType;
   title: string;
   description?: string | null;
   metadata?: unknown;
 }) {
-  const event = await prisma.companyPlanAssignmentEvent.create({
-    data: {
-      companyId,
-      assignmentId,
-      actorUserId: actorUserId ?? null,
-      type,
-      title,
-      description: description ?? null,
-      metadata: metadata ? safeJson(metadata) : undefined,
-    },
-  });
-
   await createAuditLog({
     companyId,
     actorUserId: actorUserId ?? undefined,
@@ -92,8 +189,6 @@ async function createPlanEvent({
       metadata,
     }),
   }).catch(() => undefined);
-
-  return event;
 }
 
 export async function assignDefaultTrialPlan({
@@ -115,32 +210,53 @@ export async function assignDefaultTrialPlan({
   });
 
   if (existing) {
+    await prisma.$transaction(async (tx) => {
+      await syncCompanyBillingSnapshotTx(tx, existing);
+    });
+
     return existing;
   }
 
   const planCode = defaultPlanCode();
   const trialEndsAt = addDays(defaultTrialDays());
   const now = new Date();
-  const assignment = await prisma.companyPlanAssignment.create({
-    data: {
+  const assignment = await prisma.$transaction(async (tx) => {
+    const created = await tx.companyPlanAssignment.create({
+      data: {
+        companyId,
+        planCode,
+        planName: planNameFromCode(planCode),
+        status: "TRIAL",
+        source: "SIGNUP",
+        isCurrent: true,
+        startsAt: now,
+        trialEndsAt,
+        currentPeriodStartsAt: now,
+        currentPeriodEndsAt: trialEndsAt,
+        assignedByUserId: actorUserId ?? null,
+        metadata: safeJson({
+          defaultTrialDays: defaultTrialDays(),
+        }),
+      },
+    });
+
+    await syncCompanyBillingSnapshotTx(tx, created);
+    await createPlanEventRecord(tx, {
       companyId,
-      planCode,
-      planName: planNameFromCode(planCode),
-      status: "TRIAL",
-      source: "SIGNUP",
-      isCurrent: true,
-      startsAt: now,
-      trialEndsAt,
-      currentPeriodStartsAt: now,
-      currentPeriodEndsAt: trialEndsAt,
-      assignedByUserId: actorUserId ?? null,
-      metadata: safeJson({
-        defaultTrialDays: defaultTrialDays(),
-      }),
-    },
+      assignmentId: created.id,
+      actorUserId,
+      type: "CREATED",
+      title: "Default trial plan assigned",
+      metadata: {
+        planCode,
+        trialEndsAt,
+      },
+    });
+
+    return created;
   });
 
-  await createPlanEvent({
+  await createPlanAuditLog({
     companyId,
     assignmentId: assignment.id,
     actorUserId,
@@ -177,21 +293,33 @@ export async function getCurrentCompanyPlan(companyId: string) {
     assignment.trialEndsAt &&
     assignment.trialEndsAt.getTime() < now
   ) {
-    const expired = await prisma.companyPlanAssignment.update({
-      where: {
-        id: assignment.id,
-      },
-      data: {
-        status: "EXPIRED",
-      },
+    const expired = await prisma.$transaction(async (tx) => {
+      const updated = await tx.companyPlanAssignment.update({
+        where: {
+          id: assignment.id,
+        },
+        data: {
+          status: "EXPIRED",
+        },
+      });
+
+      await syncCompanyBillingSnapshotTx(tx, updated);
+      await createPlanEventRecord(tx, {
+        companyId,
+        assignmentId: assignment.id,
+        type: "EXPIRED",
+        title: "Trial plan expired",
+      });
+
+      return updated;
     });
 
-    await createPlanEvent({
+    await createPlanAuditLog({
       companyId,
-      assignmentId: assignment.id,
+      assignmentId: expired.id,
       type: "EXPIRED",
       title: "Trial plan expired",
-    }).catch(() => undefined);
+    });
 
     return expired;
   }
@@ -201,21 +329,33 @@ export async function getCurrentCompanyPlan(companyId: string) {
     assignment.currentPeriodEndsAt &&
     assignment.currentPeriodEndsAt.getTime() < now
   ) {
-    const expired = await prisma.companyPlanAssignment.update({
-      where: {
-        id: assignment.id,
-      },
-      data: {
-        status: "EXPIRED",
-      },
+    const expired = await prisma.$transaction(async (tx) => {
+      const updated = await tx.companyPlanAssignment.update({
+        where: {
+          id: assignment.id,
+        },
+        data: {
+          status: "EXPIRED",
+        },
+      });
+
+      await syncCompanyBillingSnapshotTx(tx, updated);
+      await createPlanEventRecord(tx, {
+        companyId,
+        assignmentId: assignment.id,
+        type: "EXPIRED",
+        title: "Plan period expired",
+      });
+
+      return updated;
     });
 
-    await createPlanEvent({
+    await createPlanAuditLog({
       companyId,
-      assignmentId: assignment.id,
+      assignmentId: expired.id,
       type: "EXPIRED",
       title: "Plan period expired",
-    }).catch(() => undefined);
+    });
 
     return expired;
   }
@@ -271,45 +411,65 @@ export async function platformAssignCompanyPlan({
     throw new CompanyPlanAssignmentError("Valid plan days are required.");
   }
 
-  await prisma.companyPlanAssignment.updateMany({
-    where: {
-      companyId,
-      isCurrent: true,
-    },
-    data: {
-      isCurrent: false,
-    },
-  });
-
   const periodEndsAt = addDays(days);
   const now = new Date();
-  const assignment = await prisma.companyPlanAssignment.create({
-    data: {
+  const normalizedPlanCode = planCode.trim();
+  const assignment = await prisma.$transaction(async (tx) => {
+    await tx.companyPlanAssignment.updateMany({
+      where: {
+        companyId,
+        isCurrent: true,
+      },
+      data: {
+        isCurrent: false,
+      },
+    });
+
+    const created = await tx.companyPlanAssignment.create({
+      data: {
+        companyId,
+        planCode: normalizedPlanCode,
+        planName: planNameFromCode(normalizedPlanCode),
+        status,
+        source: "PLATFORM_ADMIN",
+        isCurrent: true,
+        startsAt: now,
+        trialEndsAt: status === "TRIAL" ? periodEndsAt : null,
+        currentPeriodStartsAt: now,
+        currentPeriodEndsAt: periodEndsAt,
+        assignedByUserId: actorUserId,
+        metadata: safeJson({
+          days,
+        }),
+      },
+    });
+
+    await syncCompanyBillingSnapshotTx(tx, created);
+    await createPlanEventRecord(tx, {
       companyId,
-      planCode: planCode.trim(),
-      planName: planNameFromCode(planCode.trim()),
-      status,
-      source: "PLATFORM_ADMIN",
-      isCurrent: true,
-      startsAt: now,
-      trialEndsAt: status === "TRIAL" ? periodEndsAt : null,
-      currentPeriodStartsAt: now,
-      currentPeriodEndsAt: periodEndsAt,
-      assignedByUserId: actorUserId,
-      metadata: safeJson({
+      assignmentId: created.id,
+      actorUserId,
+      type: status === "ACTIVE" ? "ACTIVATED" : "CREATED",
+      title: `${created.planName} assigned by platform admin`,
+      metadata: {
+        planCode: normalizedPlanCode,
+        status,
         days,
-      }),
-    },
+        periodEndsAt,
+      },
+    });
+
+    return created;
   });
 
-  await createPlanEvent({
+  await createPlanAuditLog({
     companyId,
     assignmentId: assignment.id,
     actorUserId,
     type: status === "ACTIVE" ? "ACTIVATED" : "CREATED",
     title: `${assignment.planName} assigned by platform admin`,
     metadata: {
-      planCode,
+      planCode: normalizedPlanCode,
       status,
       days,
       periodEndsAt,
@@ -345,20 +505,37 @@ export async function extendCompanyTrial({
   const nextTrialEndsAt = new Date(
     baseDate.getTime() + days * 24 * 60 * 60 * 1000,
   );
-  const updated = await prisma.companyPlanAssignment.update({
-    where: {
-      id: current.id,
-    },
-    data: {
-      status: "TRIAL",
-      trialEndsAt: nextTrialEndsAt,
-      currentPeriodEndsAt: nextTrialEndsAt,
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const assignment = await tx.companyPlanAssignment.update({
+      where: {
+        id: current.id,
+      },
+      data: {
+        status: "TRIAL",
+        trialEndsAt: nextTrialEndsAt,
+        currentPeriodEndsAt: nextTrialEndsAt,
+      },
+    });
+
+    await syncCompanyBillingSnapshotTx(tx, assignment);
+    await createPlanEventRecord(tx, {
+      companyId,
+      assignmentId: current.id,
+      actorUserId,
+      type: "TRIAL_EXTENDED",
+      title: `Trial extended by ${days} days`,
+      metadata: {
+        days,
+        nextTrialEndsAt,
+      },
+    });
+
+    return assignment;
   });
 
-  await createPlanEvent({
+  await createPlanAuditLog({
     companyId,
-    assignmentId: current.id,
+    assignmentId: updated.id,
     actorUserId,
     type: "TRIAL_EXTENDED",
     title: `Trial extended by ${days} days`,
@@ -390,20 +567,34 @@ export async function suspendCompanyPlan({
     throw new CompanyPlanAssignmentError("No current plan found.");
   }
 
-  const updated = await prisma.companyPlanAssignment.update({
-    where: {
-      id: current.id,
-    },
-    data: {
-      status: "SUSPENDED",
-      suspendedAt: new Date(),
-      suspensionReason: reason.trim(),
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const assignment = await tx.companyPlanAssignment.update({
+      where: {
+        id: current.id,
+      },
+      data: {
+        status: "SUSPENDED",
+        suspendedAt: new Date(),
+        suspensionReason: reason.trim(),
+      },
+    });
+
+    await syncCompanyBillingSnapshotTx(tx, assignment);
+    await createPlanEventRecord(tx, {
+      companyId,
+      assignmentId: current.id,
+      actorUserId,
+      type: "SUSPENDED",
+      title: "Company plan suspended",
+      description: reason.trim(),
+    });
+
+    return assignment;
   });
 
-  await createPlanEvent({
+  await createPlanAuditLog({
     companyId,
-    assignmentId: current.id,
+    assignmentId: updated.id,
     actorUserId,
     type: "SUSPENDED",
     title: "Company plan suspended",
@@ -426,19 +617,33 @@ export async function cancelCompanyPlan({
     throw new CompanyPlanAssignmentError("No current plan found.");
   }
 
-  const updated = await prisma.companyPlanAssignment.update({
-    where: {
-      id: current.id,
-    },
-    data: {
-      status: "CANCELED",
-      canceledAt: new Date(),
-    },
+  const canceledAt = new Date();
+  const updated = await prisma.$transaction(async (tx) => {
+    const assignment = await tx.companyPlanAssignment.update({
+      where: {
+        id: current.id,
+      },
+      data: {
+        status: "CANCELED",
+        canceledAt,
+      },
+    });
+
+    await syncCompanyBillingSnapshotTx(tx, assignment);
+    await createPlanEventRecord(tx, {
+      companyId,
+      assignmentId: current.id,
+      actorUserId,
+      type: "CANCELED",
+      title: "Company plan canceled",
+    });
+
+    return assignment;
   });
 
-  await createPlanEvent({
+  await createPlanAuditLog({
     companyId,
-    assignmentId: current.id,
+    assignmentId: updated.id,
     actorUserId,
     type: "CANCELED",
     title: "Company plan canceled",
@@ -457,8 +662,131 @@ export async function getCompanyPlanAccessSummary(companyId: string) {
   };
 }
 
+export async function syncCompanyBillingSnapshotFromPlanAssignment(
+  companyId: string,
+) {
+  const assignment = await prisma.companyPlanAssignment.findFirst({
+    where: {
+      companyId,
+      isCurrent: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (!assignment) {
+    throw new CompanyPlanAssignmentError("No current plan assignment found.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await syncCompanyBillingSnapshotTx(tx, assignment);
+    return assignment;
+  });
+}
+
+export async function getCompanyPlanSnapshotMismatches({
+  limit = 500,
+}: {
+  limit?: number;
+} = {}) {
+  const assignments = await prisma.companyPlanAssignment.findMany({
+    where: {
+      isCurrent: true,
+    },
+    include: {
+      company: {
+        select: {
+          id: true,
+          name: true,
+          billingPlan: true,
+          subscriptionStatus: true,
+          trialEndsAt: true,
+          currentPeriodStart: true,
+          currentPeriodEnd: true,
+          monthlyMessageLimit: true,
+        },
+      },
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+    take: limit,
+  });
+
+  return assignments.flatMap((assignment) => {
+    const expected = companyBillingSnapshotData(assignment);
+    const company = assignment.company;
+    const mismatches: Array<{
+      field: string;
+      expected: string | number | null;
+      actual: string | number | null;
+    }> = [];
+
+    const compare = (
+      field: string,
+      expectedValue: string | number | Date | null,
+      actualValue: string | number | Date | null,
+    ) => {
+      const normalize = (value: string | number | Date | null) =>
+        value instanceof Date ? value.toISOString() : value;
+      const expectedNormalized = normalize(expectedValue);
+      const actualNormalized = normalize(actualValue);
+
+      if (expectedNormalized !== actualNormalized) {
+        mismatches.push({
+          field,
+          expected: expectedNormalized,
+          actual: actualNormalized,
+        });
+      }
+    };
+
+    compare("billingPlan", expected.billingPlan, company.billingPlan);
+    compare(
+      "subscriptionStatus",
+      expected.subscriptionStatus,
+      company.subscriptionStatus,
+    );
+    compare("trialEndsAt", expected.trialEndsAt, company.trialEndsAt);
+    compare(
+      "currentPeriodStart",
+      expected.currentPeriodStart,
+      company.currentPeriodStart,
+    );
+    compare("currentPeriodEnd", expected.currentPeriodEnd, company.currentPeriodEnd);
+    compare(
+      "monthlyMessageLimit",
+      expected.monthlyMessageLimit,
+      company.monthlyMessageLimit,
+    );
+
+    if (mismatches.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        companyId: company.id,
+        companyName: company.name,
+        assignmentId: assignment.id,
+        planCode: assignment.planCode,
+        status: assignment.status,
+        mismatches,
+      },
+    ];
+  });
+}
+
 export async function getCompanyPlanAssignmentHealth() {
-  const [currentPlans, trialPlans, activePlans, expiredPlans, suspendedPlans] =
+  const [
+    currentPlans,
+    trialPlans,
+    activePlans,
+    expiredPlans,
+    suspendedPlans,
+    snapshotMismatches,
+  ] =
     await Promise.all([
       prisma.companyPlanAssignment.count({
         where: {
@@ -489,6 +817,7 @@ export async function getCompanyPlanAssignmentHealth() {
           status: "SUSPENDED",
         },
       }),
+      getCompanyPlanSnapshotMismatches({ limit: 50 }),
     ]);
 
   return {
@@ -498,6 +827,7 @@ export async function getCompanyPlanAssignmentHealth() {
     activePlans,
     expiredPlans,
     suspendedPlans,
-    isHealthy: enabled(),
+    snapshotMismatchCount: snapshotMismatches.length,
+    isHealthy: enabled() && snapshotMismatches.length === 0,
   };
 }

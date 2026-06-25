@@ -271,6 +271,10 @@ function isPermanentMessageSendError(error: unknown) {
   return httpStatus >= 400 && httpStatus < 500;
 }
 
+function isMessageSimulationEnabled() {
+  return process.env.ENABLE_MESSAGE_SIMULATION === "true";
+}
+
 const worker = new Worker<SendMessageJobData>(
   "message-queue",
   async (job) => {
@@ -377,6 +381,12 @@ const worker = new Worker<SendMessageJobData>(
         Boolean(phoneNumber?.phoneNumberId);
 
       if (!hasCompanyWhatsAppCredentials) {
+        if (!isMessageSimulationEnabled()) {
+          throw new UnrecoverableError(
+            "WhatsApp credentials are missing. Connect a WhatsApp account, access token, and phone number ID before sending messages.",
+          );
+        }
+
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         const fakeMetaMessageId = `dev_meta_${message.id}`;
