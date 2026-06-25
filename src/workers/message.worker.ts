@@ -1,6 +1,7 @@
 import "dotenv/config";
-import { Worker } from "bullmq";
+import { UnrecoverableError, Worker } from "bullmq";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
+import { DEFAULT_MESSAGE_JOB_ATTEMPTS } from "@/lib/queue";
 import { getRedisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
 import {
@@ -176,6 +177,100 @@ async function markMessageAsFailed(
   }
 }
 
+async function markMessageForRetry(
+  messageId: string,
+  companyId: string,
+  reason: string,
+  attemptNumber: number,
+  maxAttempts: number,
+) {
+  await prisma.message.updateMany({
+    where: {
+      id: messageId,
+      companyId,
+      status: "SENDING",
+    },
+    data: {
+      status: "RETRY_PENDING",
+    },
+  });
+
+  const message = await prisma.message.findFirst({
+    where: {
+      id: messageId,
+      companyId,
+      status: "RETRY_PENDING",
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!message) {
+    return;
+  }
+
+  await prisma.messageEvent.create({
+    data: {
+      companyId,
+      messageId,
+      status: "RETRY_PENDING",
+      raw: {
+        source: "worker",
+        reason,
+        attemptNumber,
+        maxAttempts,
+      },
+    },
+  });
+}
+
+function getMaxAttempts(jobAttempts?: number) {
+  return jobAttempts && jobAttempts > 0
+    ? jobAttempts
+    : DEFAULT_MESSAGE_JOB_ATTEMPTS;
+}
+
+function isFinalAttempt(attemptsMade: number, maxAttempts: number) {
+  return attemptsMade + 1 >= maxAttempts;
+}
+
+function getHttpStatus(error: unknown) {
+  if (
+    error &&
+    typeof error === "object" &&
+    "response" in error &&
+    error.response &&
+    typeof error.response === "object" &&
+    "status" in error.response &&
+    typeof error.response.status === "number"
+  ) {
+    return error.response.status;
+  }
+
+  return null;
+}
+
+function isPermanentMessageSendError(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+
+  if (message === "Message not found") {
+    return true;
+  }
+
+  const httpStatus = getHttpStatus(error);
+
+  if (!httpStatus) {
+    return false;
+  }
+
+  if (httpStatus === 429 || httpStatus >= 500) {
+    return false;
+  }
+
+  return httpStatus >= 400 && httpStatus < 500;
+}
+
 const worker = new Worker<SendMessageJobData>(
   "message-queue",
   async (job) => {
@@ -237,7 +332,9 @@ const worker = new Worker<SendMessageJobData>(
           where: {
             id: message.id,
             companyId,
-            status: "QUEUED",
+            status: {
+              in: ["QUEUED", "RETRY_PENDING"],
+            },
           },
           data: { status: "SENDING" },
         });
@@ -376,7 +473,27 @@ const worker = new Worker<SendMessageJobData>(
         throw error;
       }
 
-      await markMessageAsFailed(messageId, companyId, reason);
+      const maxAttempts = getMaxAttempts(job.opts.attempts);
+      const permanentFailure = isPermanentMessageSendError(error);
+      const finalAttempt = isFinalAttempt(job.attemptsMade, maxAttempts);
+
+      if (permanentFailure || finalAttempt) {
+        await markMessageAsFailed(messageId, companyId, reason);
+
+        if (permanentFailure && !finalAttempt) {
+          throw new UnrecoverableError(reason);
+        }
+
+        throw error;
+      }
+
+      await markMessageForRetry(
+        messageId,
+        companyId,
+        reason,
+        job.attemptsMade + 1,
+        maxAttempts,
+      );
 
       throw error;
     }

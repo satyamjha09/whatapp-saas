@@ -81,6 +81,7 @@ export default function MessageReportFilters({
             <option value="">All statuses</option>
             <option value="QUEUED">Queued</option>
             <option value="SENDING">Sending</option>
+            <option value="RETRY_PENDING">Retry pending</option>
             <option value="RECEIVED">Received</option>
             <option value="SENT">Sent</option>
             <option value="DELIVERED">Delivered</option>

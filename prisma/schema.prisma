@@ -163,6 +163,7 @@ enum TemplateStatus {
 enum MessageStatus {
   QUEUED
   SENDING
+  RETRY_PENDING
   SENT
   DELIVERED
   READ

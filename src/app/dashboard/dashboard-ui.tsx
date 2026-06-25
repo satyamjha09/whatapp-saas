@@ -149,7 +149,7 @@ export function statusTone(status: string): "zinc" | "green" | "blue" | "amber" 
     return "green";
   }
 
-  if (["QUEUED", "SENDING", "PENDING", "PENDING_APPROVAL", "RUNNING", "SCHEDULED", "TRIALING"].includes(status)) {
+  if (["QUEUED", "SENDING", "RETRY_PENDING", "PENDING", "PENDING_APPROVAL", "RUNNING", "SCHEDULED", "TRIALING"].includes(status)) {
     return "amber";
   }
 

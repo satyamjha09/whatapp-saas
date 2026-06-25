@@ -263,7 +263,8 @@ export async function syncCampaignAnalyticsSnapshot({
     const totalContacts = campaign.contacts.length || campaign.totalContacts || 0;
     const queuedCount =
       statusCount(outboundMessages, "QUEUED") +
-      statusCount(outboundMessages, "SENDING");
+      statusCount(outboundMessages, "SENDING") +
+      statusCount(outboundMessages, "RETRY_PENDING");
     const sentCount =
       statusCount(outboundMessages, "SENT") +
       statusCount(outboundMessages, "DELIVERED") +

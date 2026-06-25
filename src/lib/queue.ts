@@ -1,6 +1,8 @@
 import { Queue } from "bullmq";
 import { getRedisConnection } from "@/lib/redis";
 
+export const DEFAULT_MESSAGE_JOB_ATTEMPTS = 10;
+
 let messageQueue: Queue | undefined;
 let webhookQueue: Queue | undefined;
 let developerWebhookQueue: Queue | undefined;
@@ -10,7 +12,7 @@ export function getMessageQueue() {
   messageQueue ??= new Queue("message-queue", {
     connection: getRedisConnection(),
     defaultJobOptions: {
-      attempts: 10,
+      attempts: DEFAULT_MESSAGE_JOB_ATTEMPTS,
       backoff: {
         type: "exponential",
         delay: 60_000,

@@ -25,7 +25,13 @@ function addMessageStatus(
   summary: MessageStatusSummary,
   status: MessageStatus,
 ) {
-  if (status === "QUEUED" || status === "SENDING") summary.pending += 1;
+  if (
+    status === "QUEUED" ||
+    status === "SENDING" ||
+    status === "RETRY_PENDING"
+  ) {
+    summary.pending += 1;
+  }
   else if (status === "SENT") summary.sent += 1;
   else if (status === "DELIVERED") summary.delivered += 1;
   else if (status === "READ") summary.read += 1;

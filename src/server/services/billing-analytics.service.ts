@@ -20,7 +20,6 @@ function currency() {
 
 function defaultWindowDays() {
   const value = Number(process.env.BILLING_ANALYTICS_DEFAULT_WINDOW_DAYS ?? 30);
-
   return Number.isFinite(value) && value > 0 ? value : 30;
 }
 
@@ -36,7 +35,6 @@ function startOfUtcDay(date = new Date()) {
 
 function startOfNextUtcDay(date = new Date()) {
   const start = startOfUtcDay(date);
-
   return new Date(start.getTime() + 24 * 60 * 60 * 1000);
 }
 
@@ -54,7 +52,6 @@ function addDays(date: Date, days: number) {
 
 function moneyPlanValue(plan: BillingPlan) {
   if (plan === "FREE") return 0;
-
   return getPlanPricePaise(plan);
 }
 
@@ -86,6 +83,7 @@ export async function calculateBillingMetrics({
       },
       select: {
         totalPaise: true,
+        currency: true,
       },
     }),
 
@@ -99,6 +97,7 @@ export async function calculateBillingMetrics({
       },
       select: {
         amountPaise: true,
+        currency: true,
       },
     }),
 
@@ -224,8 +223,7 @@ export async function generateBillingMetricSnapshot({
     };
   }
 
-  const periodStart =
-    period === "DAILY" ? startOfUtcDay(date) : startOfUtcMonth(date);
+  const periodStart = period === "DAILY" ? startOfUtcDay(date) : startOfUtcMonth(date);
   const periodEnd =
     period === "DAILY" ? startOfNextUtcDay(date) : startOfNextUtcMonth(date);
 
@@ -323,6 +321,12 @@ export async function generateBillingMetricSnapshot({
           periodStart,
         },
       },
+      update: {
+        status: "FAILED",
+        failedAt: new Date(),
+        failureReason:
+          error instanceof Error ? error.message : "Unknown billing analytics error",
+      },
       create: {
         period,
         status: "FAILED",
@@ -331,17 +335,7 @@ export async function generateBillingMetricSnapshot({
         currency: currency(),
         failedAt: new Date(),
         failureReason:
-          error instanceof Error
-            ? error.message
-            : "Unknown billing analytics error",
-      },
-      update: {
-        status: "FAILED",
-        failedAt: new Date(),
-        failureReason:
-          error instanceof Error
-            ? error.message
-            : "Unknown billing analytics error",
+          error instanceof Error ? error.message : "Unknown billing analytics error",
       },
     });
 
@@ -405,46 +399,45 @@ export async function getBillingAnalyticsDashboard() {
 }
 
 export async function getBillingAnalyticsHealth() {
-  const [generated24h, failed24h, latestDaily, latestMonthly] =
-    await Promise.all([
-      prisma.billingMetricSnapshot.count({
-        where: {
-          status: "GENERATED",
-          createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
-          },
+  const [generated24h, failed24h, latestDaily, latestMonthly] = await Promise.all([
+    prisma.billingMetricSnapshot.count({
+      where: {
+        status: "GENERATED",
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
         },
-      }),
+      },
+    }),
 
-      prisma.billingMetricSnapshot.count({
-        where: {
-          status: "FAILED",
-          createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
-          },
+    prisma.billingMetricSnapshot.count({
+      where: {
+        status: "FAILED",
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
         },
-      }),
+      },
+    }),
 
-      prisma.billingMetricSnapshot.findFirst({
-        where: {
-          period: "DAILY",
-          status: "GENERATED",
-        },
-        orderBy: {
-          periodStart: "desc",
-        },
-      }),
+    prisma.billingMetricSnapshot.findFirst({
+      where: {
+        period: "DAILY",
+        status: "GENERATED",
+      },
+      orderBy: {
+        periodStart: "desc",
+      },
+    }),
 
-      prisma.billingMetricSnapshot.findFirst({
-        where: {
-          period: "MONTHLY",
-          status: "GENERATED",
-        },
-        orderBy: {
-          periodStart: "desc",
-        },
-      }),
-    ]);
+    prisma.billingMetricSnapshot.findFirst({
+      where: {
+        period: "MONTHLY",
+        status: "GENERATED",
+      },
+      orderBy: {
+        periodStart: "desc",
+      },
+    }),
+  ]);
 
   return {
     enabled: isEnabled(),

@@ -56,6 +56,7 @@ export default async function MessageReportsPage({
     ["Received", report.statusSummary.RECEIVED],
     ["Queued", report.statusSummary.QUEUED],
     ["Sending", report.statusSummary.SENDING],
+    ["Retry Pending", report.statusSummary.RETRY_PENDING],
     ["Sent", report.statusSummary.SENT],
     ["Delivered", report.statusSummary.DELIVERED],
     ["Read", report.statusSummary.READ],
@@ -109,7 +110,7 @@ export default async function MessageReportsPage({
         />
       </section>
 
-      <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+      <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
         {statusCards.map(([label, value]) => (
           <div
             key={label}

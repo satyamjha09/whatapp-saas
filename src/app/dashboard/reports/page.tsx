@@ -37,6 +37,11 @@ export default async function ReportsPage() {
       value: messages.filter((message) => message.status === "SENDING").length,
     },
     {
+      label: "Retry Pending",
+      value: messages.filter((message) => message.status === "RETRY_PENDING")
+        .length,
+    },
+    {
       label: "Sent",
       value: messages.filter((message) => message.status === "SENT").length,
     },

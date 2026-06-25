@@ -400,6 +400,7 @@ async function getDashboardOverviewData(
     DELIVERED: "#2070B0",
     FAILED: "#e11d48",
     QUEUED: "#F8C830",
+    RETRY_PENDING: "#f59e0b",
     READ: "#0052CC",
     RECEIVED: "#384080",
     SENDING: "#2070B0",

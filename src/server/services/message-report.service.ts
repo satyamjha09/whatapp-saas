@@ -9,6 +9,7 @@ export const messageReportDirections = ["INBOUND", "OUTBOUND"] as const;
 export const messageReportStatuses = [
   "QUEUED",
   "SENDING",
+  "RETRY_PENDING",
   "SENT",
   "DELIVERED",
   "READ",
