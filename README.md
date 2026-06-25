@@ -1,7 +1,7 @@
 # TallyKonnect WhatsApp SaaS
 
 ![CI](https://github.com/satyamjha09/whatapp-saas/actions/workflows/ci.yml/badge.svg)
-
+https://docs.google.com/document/d/1yHcj1gTsMT3HZ7g_OcRvXjppVWnfycl6NgECZ2uVYOs/edit?tab=t.0
 
 ## Local Development
 
