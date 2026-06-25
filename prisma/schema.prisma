@@ -723,6 +723,8 @@ model User {
   requestedScheduledPlanChanges      ScheduledPlanChange[]
   manualReviewedPlanCheckouts        PlanCheckout[]                     @relation("ManualReviewedPlanCheckouts")
   requestedBillingRefunds BillingRefund[]
+  updatedBillingProfiles CompanyBillingProfile[] @relation("BillingProfileUpdatedBy")
+  billingProfileUpdateEvents BillingProfileUpdateEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -801,6 +803,8 @@ model Company {
   billingRefunds     BillingRefund[]
   billingCreditNotes BillingCreditNote[]
   billingRefundReconciliationEvents BillingRefundReconciliationEvent[]
+  billingProfile CompanyBillingProfile?
+  billingProfileUpdateEvents BillingProfileUpdateEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3612,11 +3616,88 @@ model BillingRefundReconciliationEvent {
  @@index([refundId])
  @@index([status])
  @@index([source])
- @@index([razorpayRefundId])
- @@index([razorpayPaymentId])
- @@index([razorpayStatus])
- @@index([createdAt])
+  @@index([razorpayRefundId])
+  @@index([razorpayPaymentId])
+  @@index([razorpayStatus])
+  @@index([createdAt])
 }
 
+enum BillingProfileVerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+}
 
+enum BillingProfileUpdateSource {
+  CUSTOMER
+  ADMIN
+  SYSTEM
+}
 
+model CompanyBillingProfile {
+  id String @id @default(cuid())
+
+  companyId String @unique
+
+  legalName    String?
+  billingEmail String?
+  billingPhone String?
+
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  postalCode   String?
+  country      String?
+
+  taxIdLabel String?
+  taxId      String?
+
+  invoiceNotes String?
+
+  verificationStatus BillingProfileVerificationStatus @default(UNVERIFIED)
+
+  lastUpdatedByUserId String?
+  lastUpdatedSource   BillingProfileUpdateSource @default(CUSTOMER)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lastUpdatedBy User? @relation("BillingProfileUpdatedBy", fields: [lastUpdatedByUserId], references: [id], onDelete: SetNull)
+
+  updateEvents BillingProfileUpdateEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([billingEmail])
+  @@index([taxId])
+  @@index([verificationStatus])
+}
+
+model BillingProfileUpdateEvent {
+  id String @id @default(cuid())
+
+  companyId String
+  profileId String
+
+  actorUserId String?
+
+  source BillingProfileUpdateSource
+
+  previousData Json?
+  newData      Json?
+
+  reason String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  profile CompanyBillingProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  actor   User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([profileId])
+  @@index([actorUserId])
+  @@index([source])
+  @@index([createdAt])
+}

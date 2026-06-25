@@ -1111,6 +1111,27 @@ export function getProductionEnvAudit() {
     required: false,
   });
 
+  items.push({
+    id: "billing-profile-enabled",
+    title: "Billing profile enabled",
+    severity: process.env.BILLING_PROFILE_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.BILLING_PROFILE_ENABLED !== "false"
+        ? "Billing profile is enabled"
+        : "BILLING_PROFILE_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "billing-profile-tax-label-configured",
+    title: "Billing profile tax ID label configured",
+    severity: process.env.BILLING_PROFILE_TAX_ID_LABEL ? "PASS" : "WARNING",
+    message: process.env.BILLING_PROFILE_TAX_ID_LABEL
+      ? "Billing profile tax ID label is configured"
+      : "Using default Tax ID label",
+    required: false,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

@@ -969,6 +969,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/refunds",
         }),
         buildItem({
+          id: "company-billing-profile",
+          title: "Company billing profile enabled",
+          description:
+            "Companies can maintain billing name, email, address, tax ID, and invoice notes used as snapshots for future invoices and receipts.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Billing Profile",
+          actionHref: "/dashboard/billing/profile",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

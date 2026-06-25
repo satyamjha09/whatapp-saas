@@ -2,6 +2,7 @@ import { BillingPlan, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
+import { getInvoiceBillingSnapshot } from "@/server/services/company-billing-profile.service";
 
 function isEnabled() {
   return process.env.BILLING_INVOICES_ENABLED !== "false";
@@ -77,6 +78,10 @@ export async function createPaidPlanUpgradeInvoice({
     throw new Error("Company not found");
   }
 
+  const billingSnapshot = await getInvoiceBillingSnapshot({
+    companyId,
+  });
+
   const basisPoints = taxBasisPoints();
   const subtotalPaise = amountPaise;
   const taxPaise = calculateTax(subtotalPaise, basisPoints);
@@ -95,10 +100,10 @@ export async function createPaidPlanUpgradeInvoice({
       totalPaise,
       taxBasisPoints: basisPoints,
 
-      billingName: company.name,
-      billingEmail: null,
-      billingAddress: null,
-      billingTaxId: null,
+      billingName: billingSnapshot.billingName,
+      billingEmail: billingSnapshot.billingEmail,
+      billingAddress: billingSnapshot.billingAddress || null,
+      billingTaxId: billingSnapshot.billingTaxId,
 
       sellerName: process.env.BILLING_SELLER_NAME || "TallyKonnect",
       sellerEmail: process.env.BILLING_SELLER_EMAIL || null,
@@ -117,6 +122,8 @@ export async function createPaidPlanUpgradeInvoice({
       metadata: safeJson({
         source: "plan-upgrade-checkout",
         toPlan,
+        billingTaxIdLabel: billingSnapshot.billingTaxIdLabel,
+        invoiceNotes: billingSnapshot.invoiceNotes,
       }),
 
       lines: {

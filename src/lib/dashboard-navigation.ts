@@ -73,6 +73,10 @@ export const dashboardNavigation: DashboardNavGroup[] = [
         label: "Billing Ops",
         href: "/dashboard/billing/ops",
       },
+      {
+        label: "Billing Profile",
+        href: "/dashboard/billing/profile",
+      },
       { label: "Usage Quotas", href: "/dashboard/billing/usage-quotas" },
       {
         label: "Subscription Renewals",
