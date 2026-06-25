@@ -1049,6 +1049,44 @@ export function getProductionEnvAudit() {
     required: false,
   });
 
+  items.push({
+    id: "billing-refunds-enabled",
+    title: "Billing refunds enabled",
+    severity:
+      process.env.BILLING_REFUNDS_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.BILLING_REFUNDS_ENABLED !== "false"
+        ? "Billing refund workflow is enabled"
+        : "BILLING_REFUNDS_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "billing-refunds-confirmation-required",
+    title: "Billing refunds confirmation required",
+    severity:
+      process.env.BILLING_REFUNDS_REQUIRE_CONFIRMATION !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.BILLING_REFUNDS_REQUIRE_CONFIRMATION !== "false"
+        ? "Refunds require confirmation text"
+        : "Refund confirmation text is disabled",
+    required: false,
+  });
+
+  items.push({
+    id: "billing-refunds-dry-run-disabled",
+    title: "Billing refunds dry-run disabled",
+    severity:
+      process.env.BILLING_REFUNDS_DRY_RUN === "true" ? "WARNING" : "PASS",
+    message:
+      process.env.BILLING_REFUNDS_DRY_RUN === "true"
+        ? "Refund dry-run is enabled; real refunds will not be created"
+        : "Refund dry-run is disabled",
+    required: false,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

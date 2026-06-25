@@ -950,6 +950,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/ops",
         }),
         buildItem({
+          id: "billing-refunds-credit-notes",
+          title: "Billing refunds and credit notes enabled",
+          description:
+            "Admins can create full or partial refunds with Razorpay, credit notes, audit logs, notifications, and downgrade-on-full-refund safety.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Refunds",
+          actionHref: "/dashboard/billing/refunds",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

@@ -722,6 +722,7 @@ model User {
   billingInvoices                    BillingInvoice[]
   requestedScheduledPlanChanges      ScheduledPlanChange[]
   manualReviewedPlanCheckouts        PlanCheckout[]                     @relation("ManualReviewedPlanCheckouts")
+  requestedBillingRefunds BillingRefund[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -797,6 +798,8 @@ model Company {
   subscriptionRenewalEvents   SubscriptionRenewalEvent[]
   scheduledPlanChanges        ScheduledPlanChange[]
   planCheckoutReconciliationEvents PlanCheckoutReconciliationEvent[]
+  billingRefunds     BillingRefund[]
+  billingCreditNotes BillingCreditNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1859,6 +1862,8 @@ model BillingInvoice {
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   lines BillingInvoiceLine[]
+  refunds     BillingRefund[]
+  creditNotes BillingCreditNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3455,4 +3460,117 @@ model PlanCheckoutReconciliationEvent {
   @@index([razorpayPaymentId])
   @@index([createdAt])
 }
+
+enum BillingRefundStatus {
+ REQUESTED
+ PROCESSING
+ PROCESSED
+ FAILED
+ CANCELLED
+}
+
+enum BillingRefundType {
+ FULL
+ PARTIAL
+}
+
+enum BillingRefundSource {
+ ADMIN
+ SYSTEM
+}
+
+enum BillingCreditNoteStatus {
+ ISSUED
+ VOID
+}
+
+model BillingRefund {
+ id String @id @default(cuid())
+
+ companyId String
+ invoiceId String?
+ checkoutId String?
+
+ requestedByUserId String?
+
+ type   BillingRefundType
+ source BillingRefundSource @default(ADMIN)
+ status BillingRefundStatus @default(REQUESTED)
+
+ amountPaise Int
+ currency    String @default("INR")
+
+ reason String?
+ confirmationText String?
+
+ razorpayPaymentId String?
+ razorpayRefundId  String?
+ razorpayStatus    String?
+
+ processedAt DateTime?
+ failedAt    DateTime?
+ failureReason String?
+
+ downgradeApplied Boolean @default(false)
+ planChangeId String?
+
+ metadata Json?
+
+ company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+ invoice BillingInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+ requestedBy User? @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+ creditNote BillingCreditNote?
+
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ @@index([companyId])
+ @@index([invoiceId])
+ @@index([checkoutId])
+ @@index([requestedByUserId])
+ @@index([status])
+ @@index([type])
+ @@index([razorpayPaymentId])
+ @@index([razorpayRefundId])
+ @@index([createdAt])
+}
+
+model BillingCreditNote {
+ id String @id @default(cuid())
+
+ companyId String
+ refundId  String @unique
+ invoiceId String?
+
+ creditNoteNumber String @unique
+
+ status BillingCreditNoteStatus @default(ISSUED)
+
+ currency String @default("INR")
+
+ subtotalPaise Int @default(0)
+ taxPaise      Int @default(0)
+ totalPaise    Int @default(0)
+
+ reason String?
+
+ issuedAt DateTime @default(now())
+ voidedAt DateTime?
+
+ metadata Json?
+
+ company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+ refund  BillingRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
+ invoice BillingInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ @@index([companyId])
+ @@index([invoiceId])
+ @@index([status])
+ @@index([issuedAt])
+}
+
 
