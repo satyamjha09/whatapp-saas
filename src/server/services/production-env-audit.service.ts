@@ -1087,6 +1087,30 @@ export function getProductionEnvAudit() {
     required: false,
   });
 
+  items.push({
+    id: "billing-refund-reconciliation-enabled",
+    title: "Billing refund reconciliation enabled",
+    severity:
+      process.env.BILLING_REFUND_RECONCILIATION_ENABLED !== "false"
+        ? "PASS"
+        : "FAIL",
+    message:
+      process.env.BILLING_REFUND_RECONCILIATION_ENABLED !== "false"
+        ? "Billing refund reconciliation is enabled"
+        : "BILLING_REFUND_RECONCILIATION_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "billing-refund-stale-hours-configured",
+    title: "Billing refund stale processing window configured",
+    severity: process.env.BILLING_REFUND_STALE_PROCESSING_HOURS ? "PASS" : "WARNING",
+    message: process.env.BILLING_REFUND_STALE_PROCESSING_HOURS
+      ? "BILLING_REFUND_STALE_PROCESSING_HOURS is configured"
+      : "Using default stale refund processing window",
+    required: false,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

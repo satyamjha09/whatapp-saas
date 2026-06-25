@@ -44,6 +44,7 @@ import { getScheduledPlanChangeHealth } from "@/server/services/scheduled-plan-c
 import { getPlanCheckoutReconciliationHealth } from "@/server/services/plan-checkout-reconciliation.service";
 import { getBillingOpsHealth } from "@/server/services/billing-ops.service";
 import { getBillingRefundHealth } from "@/server/services/billing-refund.service";
+import { getBillingRefundReconciliationHealth } from "@/server/services/billing-refund-reconciliation.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -123,6 +124,7 @@ export default async function SystemHealthPage() {
     planCheckoutReconciliation,
     billingOps,
     billingRefunds,
+    billingRefundReconciliation,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -173,6 +175,7 @@ export default async function SystemHealthPage() {
     getPlanCheckoutReconciliationHealth(),
     getBillingOpsHealth(),
     getBillingRefundHealth(),
+    getBillingRefundReconciliationHealth(),
   ]);
 
   return (
@@ -677,6 +680,67 @@ export default async function SystemHealthPage() {
               <p className="text-sm text-gray-500">Credit Notes / 24h</p>
               <p className="mt-1 text-2xl font-bold text-gray-900">
                 {billingRefunds.creditNotes24h}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/billing/refunds"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open refunds
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Refund Reconciliation
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Tracks Razorpay refund status via webhooks and scheduled reconciliation.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                billingRefundReconciliation.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {billingRefundReconciliation.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Processing</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingRefundReconciliation.processing}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Stale Processing</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingRefundReconciliation.staleProcessing}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Processed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingRefundReconciliation.processed24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingRefundReconciliation.failed24h}
               </p>
             </div>
           </div>

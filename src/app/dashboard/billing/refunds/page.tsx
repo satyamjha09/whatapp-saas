@@ -2,6 +2,7 @@ import { requireAdmin } from "@/server/auth/authorization";
 import { listCompanyBillingInvoices } from "@/server/services/billing-invoice.service";
 import { listCompanyBillingRefunds } from "@/server/services/billing-refund.service";
 import { RefundCreateForm } from "./refund-create-form";
+import { ReconcileRefundsButton } from "./refund-reconcile-button";
 
 function money(paise: number, currency: string) {
  return new Intl.NumberFormat("en-IN", {
@@ -28,14 +29,19 @@ export default async function BillingRefundsPage() {
 
  return (
    <main className="mx-auto max-w-7xl px-6 py-8">
-     <div>
-       <p className="text-sm font-medium text-gray-500">Billing</p>
-       <h1 className="mt-1 text-3xl font-bold text-gray-900">
-         Refunds & Credit Notes
-       </h1>
-       <p className="mt-2 text-sm text-gray-600">
-         Create refunds, issue credit notes, and track payment reversal history.
-       </p>
+     <div className="flex flex-wrap items-start justify-between gap-4">
+       <div>
+         <p className="text-sm font-medium text-gray-500">Billing</p>
+         <h1 className="mt-1 text-3xl font-bold text-gray-900">
+           Refunds & Credit Notes
+         </h1>
+         <p className="mt-2 text-sm text-gray-600">
+           Create refunds, issue credit notes, and track payment reversal history.
+         </p>
+       </div>
+       <div className="pt-4">
+         <ReconcileRefundsButton />
+       </div>
      </div>
 
      <div className="mt-6">
@@ -64,6 +70,8 @@ export default async function BillingRefundsPage() {
                <th className="px-5 py-3">Invoice</th>
                <th className="px-5 py-3">Type</th>
                <th className="px-5 py-3">Status</th>
+               <th className="px-5 py-3">Razorpay Status</th>
+               <th className="px-5 py-3">Attempts</th>
                <th className="px-5 py-3">Amount</th>
                <th className="px-5 py-3">Razorpay Refund</th>
                <th className="px-5 py-3">Credit Note</th>
@@ -80,6 +88,8 @@ export default async function BillingRefundsPage() {
                  </td>
                  <td className="px-5 py-4">{refund.type}</td>
                  <td className="px-5 py-4 font-semibold">{refund.status}</td>
+                 <td className="px-5 py-4">{refund.razorpayStatus ?? "-"}</td>
+                 <td className="px-5 py-4">{refund.reconciliationAttempts}</td>
                  <td className="px-5 py-4">
                    {money(refund.amountPaise, refund.currency)}
                  </td>
@@ -98,7 +108,7 @@ export default async function BillingRefundsPage() {
              {refunds.length === 0 && (
                <tr>
                  <td
-                   colSpan={8}
+                   colSpan={10}
                    className="px-5 py-8 text-center text-sm text-gray-500"
                  >
                    No refunds yet.

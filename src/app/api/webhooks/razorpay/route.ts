@@ -2,6 +2,10 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { completePlanCheckoutFromWebhook } from "@/server/services/plan-checkout-reconciliation.service";
 import {
+  processRefundWebhookPayload,
+  type RazorpayRefundWebhookPayload,
+} from "@/server/services/billing-refund-reconciliation.service";
+import {
   extractCreditPaymentFromWebhook,
   markRazorpayCreditPurchaseFailedFromWebhook,
   markRazorpayCreditPurchasePaidFromWebhook,
@@ -231,6 +235,23 @@ export async function POST(request: Request) {
           throw error;
         }
       }
+    }
+
+    if (
+      eventType === "refund.created" ||
+      eventType === "refund.processed" ||
+      eventType === "refund.failed"
+    ) {
+      await processRefundWebhookPayload({
+        payload: payload as unknown as RazorpayRefundWebhookPayload,
+      }).catch(() => undefined);
+
+      await markEvent({
+        eventRecordId,
+        status: "PROCESSED",
+      });
+
+      return completeAndRespond({ message: "Razorpay refund webhook processed" });
     }
 
     if (!handledEvents.has(eventType)) {

@@ -960,6 +960,15 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/refunds",
         }),
         buildItem({
+          id: "billing-refund-reconciliation",
+          title: "Billing refund reconciliation enabled",
+          description: "Refund status is reconciled through Razorpay webhooks and scheduled polling, with stale refund detection, failed refund alerts, and credit note status sync.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Refunds",
+          actionHref: "/dashboard/billing/refunds",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

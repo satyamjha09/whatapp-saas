@@ -800,6 +800,7 @@ model Company {
   planCheckoutReconciliationEvents PlanCheckoutReconciliationEvent[]
   billingRefunds     BillingRefund[]
   billingCreditNotes BillingCreditNote[]
+  billingRefundReconciliationEvents BillingRefundReconciliationEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3514,6 +3515,12 @@ model BillingRefund {
  downgradeApplied Boolean @default(false)
  planChangeId String?
 
+ reconciliationAttempts Int @default(0)
+ lastReconciliationAt DateTime?
+ lastReconciliationError String?
+ webhookProcessedAt DateTime?
+ reconciliationEvents BillingRefundReconciliationEvent[]
+
  metadata Json?
 
  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -3534,6 +3541,8 @@ model BillingRefund {
  @@index([razorpayPaymentId])
  @@index([razorpayRefundId])
  @@index([createdAt])
+ @@index([lastReconciliationAt])
+ @@index([webhookProcessedAt])
 }
 
 model BillingCreditNote {
@@ -3572,5 +3581,42 @@ model BillingCreditNote {
  @@index([status])
  @@index([issuedAt])
 }
+
+enum BillingRefundReconciliationStatus {
+ PENDING
+ PROCESSED
+ FAILED
+ SKIPPED
+}
+
+model BillingRefundReconciliationEvent {
+ id String @id @default(cuid())
+ companyId String
+ refundId String
+ status BillingRefundReconciliationStatus
+ source String
+ razorpayRefundId String?
+ razorpayPaymentId String?
+ razorpayStatus String?
+ attemptNumber Int @default(1)
+ message String?
+ errorMessage String?
+ metadata Json?
+
+ company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+ refund BillingRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
+
+ createdAt DateTime @default(now())
+
+ @@index([companyId])
+ @@index([refundId])
+ @@index([status])
+ @@index([source])
+ @@index([razorpayRefundId])
+ @@index([razorpayPaymentId])
+ @@index([razorpayStatus])
+ @@index([createdAt])
+}
+
 
 
