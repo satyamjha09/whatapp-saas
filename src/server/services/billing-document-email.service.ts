@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
+import { generateInvoicePdf, generateCreditNotePdf } from "@/server/services/billing-document-pdf.service";
 
 export class BillingDocumentEmailError extends Error {
   constructor(message: string) {
@@ -72,11 +73,17 @@ async function sendMail({
   subject,
   html,
   text,
+  attachments,
 }: {
   to: string;
   subject: string;
   html: string;
   text: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer;
+    contentType: string;
+  }>;
 }) {
   const client = transporter();
 
@@ -87,7 +94,12 @@ async function sendMail({
     subject,
     html,
     text,
+    attachments,
   });
+}
+
+function shouldAttachPdfs() {
+  return process.env.BILLING_PDFS_ATTACH_TO_EMAILS !== "false";
 }
 
 function invoiceEmailHtml({
@@ -228,6 +240,21 @@ export async function sendBillingInvoiceEmail({
     },
   });
 
+  const attachments = [];
+
+  if (shouldAttachPdfs()) {
+    const pdf = await generateInvoicePdf({
+      companyId,
+      invoiceId: invoice.id,
+    });
+
+    attachments.push({
+      filename: pdf.fileName,
+      content: pdf.buffer,
+      contentType: pdf.contentType,
+    });
+  }
+
   try {
     await sendMail({
       to: recipientEmail,
@@ -239,6 +266,7 @@ export async function sendBillingInvoiceEmail({
         companyName: invoice.billingName ?? invoice.company.name,
       }),
       text: `Invoice ${invoice.invoiceNumber} is ready. Total: ${amount}. View: ${invoiceUrl}`,
+      attachments,
     });
 
     const sent = await prisma.billingDocumentEmailDelivery.update({
@@ -380,6 +408,21 @@ export async function sendCreditNoteEmail({
     },
   });
 
+  const attachments = [];
+
+  if (shouldAttachPdfs()) {
+    const pdf = await generateCreditNotePdf({
+      companyId,
+      creditNoteId: creditNote.id,
+    });
+
+    attachments.push({
+      filename: pdf.fileName,
+      content: pdf.buffer,
+      contentType: pdf.contentType,
+    });
+  }
+
   try {
     await sendMail({
       to: recipientEmail,
@@ -394,6 +437,7 @@ export async function sendCreditNoteEmail({
           creditNote.company.name,
       }),
       text: `Credit Note ${creditNote.creditNoteNumber} is ready. Amount: ${amount}. View: ${refundsUrl}`,
+      attachments,
     });
 
     const sent = await prisma.billingDocumentEmailDelivery.update({

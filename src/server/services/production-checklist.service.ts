@@ -989,6 +989,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/email-deliveries",
         }),
         buildItem({
+          id: "billing-document-pdfs",
+          title: "Billing document PDFs enabled",
+          description:
+            "Invoices and credit notes can be exported as PDFs, attached to billing emails, and monitored through PDF render logs and System Health.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Invoices",
+          actionHref: "/dashboard/billing/invoices",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

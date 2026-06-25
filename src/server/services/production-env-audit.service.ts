@@ -1162,6 +1162,29 @@ export function getProductionEnvAudit() {
     required: true,
   });
 
+  items.push({
+    id: "billing-pdfs-enabled",
+    title: "Billing PDFs enabled",
+    severity: process.env.BILLING_PDFS_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.BILLING_PDFS_ENABLED !== "false"
+        ? "Billing PDF generation is enabled"
+        : "BILLING_PDFS_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "billing-pdf-email-attachments",
+    title: "Billing PDF email attachments configured",
+    severity:
+      process.env.BILLING_PDFS_ATTACH_TO_EMAILS !== "false" ? "PASS" : "WARNING",
+    message:
+      process.env.BILLING_PDFS_ATTACH_TO_EMAILS !== "false"
+        ? "Billing PDFs are attached to billing emails"
+        : "Billing PDFs are not attached to emails",
+    required: false,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

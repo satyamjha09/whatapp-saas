@@ -47,6 +47,7 @@ import { getBillingRefundHealth } from "@/server/services/billing-refund.service
 import { getBillingRefundReconciliationHealth } from "@/server/services/billing-refund-reconciliation.service";
 import { getBillingProfileHealth } from "@/server/services/company-billing-profile.service";
 import { getBillingDocumentEmailHealth } from "@/server/services/billing-document-email.service";
+import { getBillingPdfHealth } from "@/server/services/billing-document-pdf.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -129,6 +130,7 @@ export default async function SystemHealthPage() {
     billingRefundReconciliation,
     billingProfiles,
     billingDocumentEmails,
+    billingPdfs,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -182,6 +184,7 @@ export default async function SystemHealthPage() {
     getBillingRefundReconciliationHealth(),
     getBillingProfileHealth(),
     getBillingDocumentEmailHealth(),
+    getBillingPdfHealth(),
   ]);
 
   return (
@@ -937,6 +940,60 @@ export default async function SystemHealthPage() {
             >
               Open email deliveries
             </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Billing PDFs
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Generates invoice and credit note PDFs for download and email attachments.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                billingPdfs.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {billingPdfs.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Generated / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingPdfs.generated24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingPdfs.failed24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Total Generated</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingPdfs.totalGenerated}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Email Attachments</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {billingPdfs.attachToEmails ? "Enabled" : "Disabled"}
+              </p>
+            </div>
           </div>
         </section>
 

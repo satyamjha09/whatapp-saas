@@ -806,6 +806,7 @@ model Company {
   billingProfile CompanyBillingProfile?
   billingProfileUpdateEvents BillingProfileUpdateEvent[]
   billingDocumentEmailDeliveries BillingDocumentEmailDelivery[]
+  billingDocumentPdfRenders BillingDocumentPdfRender[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1871,6 +1872,7 @@ model BillingInvoice {
   refunds     BillingRefund[]
   creditNotes BillingCreditNote[]
   emailDeliveries BillingDocumentEmailDelivery[]
+  pdfRenders BillingDocumentPdfRender[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3580,6 +3582,7 @@ model BillingCreditNote {
  refund  BillingRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
  invoice BillingInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
  emailDeliveries BillingDocumentEmailDelivery[]
+ pdfRenders BillingDocumentPdfRender[]
 
  createdAt DateTime @default(now())
  updatedAt DateTime @updatedAt
@@ -3761,4 +3764,49 @@ model BillingDocumentEmailDelivery {
   @@index([sentAt])
   @@index([createdAt])
 }
+
+enum BillingDocumentPdfType {
+  INVOICE
+  CREDIT_NOTE
+}
+
+enum BillingDocumentPdfStatus {
+  GENERATED
+  FAILED
+}
+
+model BillingDocumentPdfRender {
+  id String @id @default(cuid())
+
+  companyId String
+
+  type   BillingDocumentPdfType
+  status BillingDocumentPdfStatus
+
+  invoiceId    String?
+  creditNoteId String?
+
+  fileName String?
+
+  sizeBytes Int?
+
+  failedAt DateTime?
+  failureReason String?
+
+  metadata Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice BillingInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  creditNote BillingCreditNote? @relation(fields: [creditNoteId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([type])
+  @@index([status])
+  @@index([invoiceId])
+  @@index([creditNoteId])
+  @@index([createdAt])
+}
+
 

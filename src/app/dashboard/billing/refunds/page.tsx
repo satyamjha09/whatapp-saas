@@ -3,7 +3,10 @@ import { listCompanyBillingInvoices } from "@/server/services/billing-invoice.se
 import { listCompanyBillingRefunds } from "@/server/services/billing-refund.service";
 import { RefundCreateForm } from "./refund-create-form";
 import { ReconcileRefundsButton } from "./refund-reconcile-button";
-import { SendCreditNoteEmailButton } from "@/app/dashboard/billing/document-email-actions";
+import {
+  CreditNotePdfButton,
+  SendCreditNoteEmailButton,
+} from "@/app/dashboard/billing/document-email-actions";
 
 function money(paise: number, currency: string) {
  return new Intl.NumberFormat("en-IN", {
@@ -100,8 +103,12 @@ export default async function BillingRefundsPage() {
                  <td className="px-5 py-4">
                    {refund.creditNote ? (
                      <div className="space-y-2">
-                       <p className="font-semibold text-gray-900">{refund.creditNote.creditNoteNumber}</p>
-                       <SendCreditNoteEmailButton creditNoteId={refund.creditNote.id} />
+                       <p>{refund.creditNote.creditNoteNumber}</p>
+
+                       <div className="flex flex-wrap gap-2">
+                         <CreditNotePdfButton creditNoteId={refund.creditNote.id} />
+                         <SendCreditNoteEmailButton creditNoteId={refund.creditNote.id} />
+                       </div>
                      </div>
                    ) : (
                      "-"

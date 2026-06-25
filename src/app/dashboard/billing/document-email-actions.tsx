@@ -70,3 +70,38 @@ export function SendCreditNoteEmailButton({
     </button>
   );
 }
+
+export function InvoicePdfButton({
+  invoiceId,
+}: {
+  invoiceId: string;
+}) {
+  return (
+    <a
+      href={`/api/billing/invoices/${invoiceId}/pdf`}
+      target="_blank"
+      rel="noreferrer"
+      className="rounded-lg border px-3 py-1.5 text-xs font-medium"
+    >
+      PDF
+    </a>
+  );
+}
+
+export function CreditNotePdfButton({
+  creditNoteId,
+}: {
+  creditNoteId: string;
+}) {
+  return (
+    <a
+      href={`/api/billing/credit-notes/${creditNoteId}/pdf`}
+      target="_blank"
+      rel="noreferrer"
+      className="rounded-lg border px-3 py-1.5 text-xs font-medium"
+    >
+      PDF
+    </a>
+  );
+}
+
