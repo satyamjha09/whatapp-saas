@@ -999,6 +999,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/invoices",
         }),
         buildItem({
+          id: "billing-analytics",
+          title: "Billing analytics enabled",
+          description:
+            "Revenue metrics, refunds, net revenue, MRR, ARR, plan distribution, and daily/monthly billing snapshots are tracked and visible in the dashboard.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Billing Analytics",
+          actionHref: "/dashboard/billing/analytics",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

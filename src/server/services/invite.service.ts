@@ -1,5 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { sendTeamInviteTransactionalEmail } from "@/server/email/transactional-email";
+import { buildTeamInviteEmail } from "@/server/email/templates/team-invite-email";
 import { revalidateCompanyMembersCache } from "@/server/services/team.service";
 import { backfillCompanyNotificationRecipients } from "@/server/services/company-notification.service";
 import { ensureCompanyNotificationPreferences } from "@/server/services/company-notification-preference.service";
@@ -95,13 +97,55 @@ export async function createCompanyInvite(
         invitedByUserId,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
-      include: { invitedBy: true },
+      include: {
+        company: {
+          select: {
+            name: true,
+          },
+        },
+        invitedBy: true,
+      },
     });
   });
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const inviteUrl = `${appUrl}/invite/${token}`;
+  let emailResult:
+    | {
+        skipped?: boolean;
+        reason?: string;
+        messageId?: string;
+      }
+    | undefined;
+
+  try {
+    const email = buildTeamInviteEmail({
+      companyName: invite.company.name,
+      invitedByName: invite.invitedBy.name,
+      invitedByEmail: invite.invitedBy.email,
+      role: invite.role,
+      inviteUrl,
+      expiresAt: invite.expiresAt,
+    });
+
+    emailResult = await sendTeamInviteTransactionalEmail({
+      to: normalizedEmail,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+    });
+  } catch (error) {
+    emailResult = {
+      skipped: true,
+      reason: error instanceof Error ? error.message : "Email failed.",
+    };
+  }
 
   return {
     invite,
     token,
+    inviteUrl,
+    emailResult,
   };
 }
 
@@ -159,6 +203,13 @@ export async function acceptCompanyInvite(token: string, userId: string) {
     });
 
     throw new Error("Invite has expired");
+  }
+
+  if (
+    invite.company.status !== "ACTIVE" &&
+    invite.company.status !== "PENDING_ONBOARDING"
+  ) {
+    throw new Error("This company workspace is not active");
   }
 
   if (invite.email.toLowerCase() !== user.email.toLowerCase()) {
@@ -262,6 +313,21 @@ export async function acceptCompanyInvite(token: string, userId: string) {
         status: "ACCEPTED",
         acceptedByUserId: user.id,
         acceptedAt: new Date(),
+      },
+    });
+
+    await tx.userWorkspacePreference.upsert({
+      where: {
+        userId: user.id,
+      },
+      create: {
+        userId: user.id,
+        activeCompanyId: invite.companyId,
+        lastSelectedAt: new Date(),
+      },
+      update: {
+        activeCompanyId: invite.companyId,
+        lastSelectedAt: new Date(),
       },
     });
 

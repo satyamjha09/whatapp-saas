@@ -39,6 +39,21 @@ export async function createCompanyForUser(userId: string, companyName: string) 
     },
   });
 
+  await prisma.userWorkspacePreference.upsert({
+    where: {
+      userId,
+    },
+    create: {
+      userId,
+      activeCompanyId: company.id,
+      lastSelectedAt: new Date(),
+    },
+    update: {
+      activeCompanyId: company.id,
+      lastSelectedAt: new Date(),
+    },
+  });
+
   await ensureCompanyUserAccessRole({
     companyId: company.id,
     userId,

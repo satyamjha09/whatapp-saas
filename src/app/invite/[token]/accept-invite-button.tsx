@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type AcceptInviteButtonProps = {
+  disabled?: boolean;
   token: string;
 };
 
@@ -12,6 +13,7 @@ type AcceptInviteResponse = {
 };
 
 export default function AcceptInviteButton({
+  disabled = false,
   token,
 }: AcceptInviteButtonProps) {
   const router = useRouter();
@@ -48,7 +50,7 @@ export default function AcceptInviteButton({
     <div className="mt-6">
       <button
         onClick={acceptInvite}
-        disabled={isAccepting}
+        disabled={disabled || isAccepting}
         className="w-full rounded-lg bg-black px-4 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isAccepting ? "Joining..." : "Accept Invite"}

@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { invite, token } = await createCompanyInvite(
+    const { emailResult, invite, inviteUrl } = await createCompanyInvite(
       context.membership.companyId,
       context.user.id,
       validation.data,
@@ -94,11 +94,10 @@ export async function POST(request: Request) {
       },
     });
 
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/invite/${token}`;
-
     return NextResponse.json(
       {
         message: "Invite created successfully",
+        emailResult,
         invite,
         inviteUrl,
       },

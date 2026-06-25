@@ -46,6 +46,7 @@ export async function POST(
         "Invite not found",
         "Invite is not pending",
         "Invite has expired",
+        "This company workspace is not active",
         "This invite belongs to another email address",
         "User is already a member of this company",
       ].includes(error.message)

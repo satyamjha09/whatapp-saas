@@ -92,6 +92,10 @@ import {
   BILLING_REFUND_RECONCILIATION_JOB,
   runBillingRefundReconciliationJob,
 } from "@/server/jobs/billing-refund-reconciliation.job";
+import {
+  BILLING_ANALYTICS_JOB,
+  runBillingAnalyticsJob,
+} from "@/server/jobs/billing-analytics.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -351,6 +355,18 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    BILLING_ANALYTICS_JOB,
+    {},
+    {
+      repeat: {
+        pattern: process.env.BILLING_ANALYTICS_SNAPSHOT_CRON || "45 6 * * *",
+      },
+      jobId: BILLING_ANALYTICS_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -497,6 +513,12 @@ const worker = new Worker(
     if (job.name === BILLING_REFUND_RECONCILIATION_JOB) {
       const result = await runBillingRefundReconciliationJob();
       console.log("Billing refund reconciliation scan completed", result);
+      return result;
+    }
+
+    if (job.name === BILLING_ANALYTICS_JOB) {
+      const result = await runBillingAnalyticsJob();
+      console.log("Billing analytics snapshot completed", result);
       return result;
     }
 

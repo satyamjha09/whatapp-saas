@@ -445,6 +445,74 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "company-onboarding-gate-enabled",
+    title: "Company onboarding gate enabled",
+    severity:
+      process.env.COMPANY_ONBOARDING_GATE_ENABLED !== "false"
+        ? "PASS"
+        : "FAIL",
+    message:
+      process.env.COMPANY_ONBOARDING_GATE_ENABLED !== "false"
+        ? "New workspaces are gated until activation"
+        : "COMPANY_ONBOARDING_GATE_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "company-onboarding-profile-required",
+    title: "Company onboarding profile required",
+    severity:
+      process.env.COMPANY_ONBOARDING_REQUIRE_PROFILE !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.COMPANY_ONBOARDING_REQUIRE_PROFILE !== "false"
+        ? "Company profile fields are required before activation"
+        : "Company profile can be skipped during onboarding",
+    required: false,
+  });
+
+  items.push({
+    id: "company-plan-assignment-enabled",
+    title: "Company plan assignment enabled",
+    severity:
+      process.env.COMPANY_PLAN_ASSIGNMENT_ENABLED !== "false"
+        ? "PASS"
+        : "FAIL",
+    message:
+      process.env.COMPANY_PLAN_ASSIGNMENT_ENABLED !== "false"
+        ? "Signup default trial and platform plan assignment are enabled"
+        : "COMPANY_PLAN_ASSIGNMENT_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "default-company-trial-days-configured",
+    title: "Default company trial days configured",
+    severity: exists(process.env.DEFAULT_COMPANY_TRIAL_DAYS)
+      ? "PASS"
+      : "WARNING",
+    message: exists(process.env.DEFAULT_COMPANY_TRIAL_DAYS)
+      ? "Default company trial days are configured"
+      : "DEFAULT_COMPANY_TRIAL_DAYS is not set; the application default will be used",
+    required: false,
+  });
+
+  items.push({
+    id: "company-plan-active-access-required",
+    title: "Company active plan access required",
+    severity:
+      process.env.COMPANY_PLAN_REQUIRE_ACTIVE_ACCESS !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.COMPANY_PLAN_REQUIRE_ACTIVE_ACCESS !== "false"
+        ? "Dashboard access requires an active or trial plan"
+        : "Inactive company plans can still access the dashboard",
+    required: false,
+  });
+
+  items.push({
     id: "secret-encryption-v2-enabled",
     title: "Secret encryption v2 enabled",
     severity:
@@ -502,6 +570,34 @@ export function getProductionEnvAudit() {
         ? `${platformAdminEmails.length} platform admin email(s) configured`
         : "PLATFORM_ADMIN_EMAILS must include at least one admin email",
     required: true,
+  });
+
+  items.push({
+    id: "platform-company-control-enabled",
+    title: "Platform company control enabled",
+    severity:
+      process.env.PLATFORM_COMPANY_CONTROL_ENABLED !== "false"
+        ? "PASS"
+        : "FAIL",
+    message:
+      process.env.PLATFORM_COMPANY_CONTROL_ENABLED !== "false"
+        ? "Platform company control center is enabled"
+        : "PLATFORM_COMPANY_CONTROL_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "platform-company-internal-notes-enabled",
+    title: "Platform company internal notes enabled",
+    severity:
+      process.env.PLATFORM_COMPANY_INTERNAL_NOTES_ENABLED !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.PLATFORM_COMPANY_INTERNAL_NOTES_ENABLED !== "false"
+        ? "Platform admins can add internal company notes"
+        : "Platform company notes are disabled",
+    required: false,
   });
 
   items.push({
@@ -1182,6 +1278,28 @@ export function getProductionEnvAudit() {
       process.env.BILLING_PDFS_ATTACH_TO_EMAILS !== "false"
         ? "Billing PDFs are attached to billing emails"
         : "Billing PDFs are not attached to emails",
+    required: false,
+  });
+
+  items.push({
+    id: "billing-analytics-enabled",
+    title: "Billing analytics enabled",
+    severity:
+      process.env.BILLING_ANALYTICS_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.BILLING_ANALYTICS_ENABLED !== "false"
+        ? "Billing analytics snapshots are enabled"
+        : "BILLING_ANALYTICS_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "billing-analytics-currency-configured",
+    title: "Billing analytics currency configured",
+    severity: process.env.BILLING_ANALYTICS_CURRENCY ? "PASS" : "WARNING",
+    message: process.env.BILLING_ANALYTICS_CURRENCY
+      ? "Billing analytics currency is configured"
+      : "Using default billing analytics currency",
     required: false,
   });
 

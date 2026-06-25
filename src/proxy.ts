@@ -1,4 +1,4 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getCorsHeadersForOrigin,
@@ -6,6 +6,15 @@ import {
   shouldApplyPublicApiCors,
 } from "@/lib/security-headers";
 import { validateCsrfOrigin } from "@/lib/csrf-origin-guard";
+
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/verify-email(.*)",
+  "/invite(.*)",
+  "/api/signup/company",
+]);
 
 function applyCorsHeaders(response: NextResponse, request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -82,6 +91,10 @@ export default clerkMiddleware(async (auth, request) => {
 
   if (shouldHandleCors) {
     applyCorsHeaders(response, request);
+  }
+
+  if (!isPublicRoute(request)) {
+    await auth.protect();
   }
 
   return response;

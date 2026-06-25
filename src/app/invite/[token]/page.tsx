@@ -1,6 +1,5 @@
 import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { getInviteByToken } from "@/server/services/invite.service";
 import AcceptInviteButton from "./accept-invite-button";
 
@@ -83,9 +82,53 @@ export default async function InvitePage({ params }: InvitePageProps) {
   }
 
   const clerkUser = await currentUser();
+  const currentEmail =
+    clerkUser?.emailAddresses
+      .find((email) => email.id === clerkUser.primaryEmailAddressId)
+      ?.emailAddress.toLowerCase() ??
+    clerkUser?.emailAddresses[0]?.emailAddress.toLowerCase();
 
   if (!clerkUser) {
-    redirect(`/sign-in?redirect_url=/invite/${token}`);
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gray-50 p-8">
+        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">
+            TallyKonnect Invite
+          </p>
+          <h1 className="mt-1 text-2xl font-bold text-gray-900">
+            Join {invite.company.name}
+          </h1>
+
+          <p className="mt-2 text-sm text-gray-600">
+            You have been invited as{" "}
+            <span className="font-medium text-gray-900">{invite.role}</span>.
+          </p>
+
+          <div className="mt-6 rounded-lg bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Invited email</p>
+            <p className="mt-1 font-medium text-gray-900">{invite.email}</p>
+          </div>
+
+          <div className="mt-6 grid gap-3">
+            <Link
+              href={`/sign-in?redirect_url=/invite/${token}`}
+              className="block rounded-lg bg-black px-4 py-3 text-center text-sm font-medium text-white"
+            >
+              Sign in to accept
+            </Link>
+
+            <Link
+              href={`/sign-up?redirect_url=/invite/${token}&email=${encodeURIComponent(
+                invite.email,
+              )}`}
+              className="block rounded-lg border px-4 py-3 text-center text-sm font-medium text-gray-900"
+            >
+              Create account with invited email
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -104,9 +147,20 @@ export default async function InvitePage({ params }: InvitePageProps) {
           <p className="text-sm text-gray-500">Invited email</p>
 
           <p className="mt-1 font-medium text-gray-900">{invite.email}</p>
+          {currentEmail && currentEmail !== invite.email.toLowerCase() ? (
+            <p className="mt-3 text-sm text-red-600">
+              You are signed in as {currentEmail}. Please sign in with{" "}
+              {invite.email} to accept this invite.
+            </p>
+          ) : null}
         </div>
 
-        <AcceptInviteButton token={token} />
+        <AcceptInviteButton
+          disabled={Boolean(
+            currentEmail && currentEmail !== invite.email.toLowerCase(),
+          )}
+          token={token}
+        />
       </div>
     </main>
   );

@@ -63,6 +63,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
         label: "Subscription",
         href: "/dashboard/billing/subscription",
       },
+      { label: "Current Plan", href: "/dashboard/account/plan" },
       { label: "Upgrade Plan", href: "/dashboard/billing/upgrade" },
       { label: "Invoices", href: "/dashboard/billing/invoices" },
       {
@@ -80,6 +81,10 @@ export const dashboardNavigation: DashboardNavGroup[] = [
       {
         label: "Billing Emails",
         href: "/dashboard/billing/email-deliveries",
+      },
+      {
+        label: "Billing Analytics",
+        href: "/dashboard/billing/analytics",
       },
       { label: "Usage Quotas", href: "/dashboard/billing/usage-quotas" },
       {
@@ -149,6 +154,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
   {
     label: "Workspace Settings",
     items: [
+      { label: "Onboarding", href: "/dashboard/onboarding" },
       { label: "Company", href: "/dashboard/settings/company" },
       { label: "Team", href: "/dashboard/settings/team" },
       { label: "Roles & Permissions", href: "/dashboard/team/roles" },

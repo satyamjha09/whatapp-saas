@@ -7,6 +7,11 @@ type InviteRole = "ADMIN" | "MEMBER";
 
 type InviteMemberResponse = {
   message: string;
+  emailResult?: {
+    skipped?: boolean;
+    reason?: string;
+    messageId?: string;
+  };
   inviteUrl?: string;
   errors?: {
     email?: string[];
@@ -26,6 +31,7 @@ export default function InviteMemberForm({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<InviteRole>("MEMBER");
   const [inviteUrl, setInviteUrl] = useState("");
+  const [emailStatus, setEmailStatus] = useState("");
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,6 +40,7 @@ export default function InviteMemberForm({
     event.preventDefault();
 
     setError("");
+    setEmailStatus("");
     setSuccess("");
     setInviteUrl("");
     setIsSubmitting(true);
@@ -66,6 +73,13 @@ export default function InviteMemberForm({
       setRole("MEMBER");
       setSuccess(data.message);
       setInviteUrl(data.inviteUrl ?? "");
+      if (data.emailResult?.messageId) {
+        setEmailStatus("Invite email sent successfully.");
+      } else if (data.emailResult?.skipped) {
+        setEmailStatus(data.emailResult.reason ?? "Invite email was not sent.");
+      } else {
+        setEmailStatus("Invite created.");
+      }
 
       router.refresh();
     } catch {
@@ -166,6 +180,12 @@ export default function InviteMemberForm({
               Copy Link
             </button>
           </div>
+        )}
+
+        {emailStatus && (
+          <p className="rounded-lg bg-blue-50 p-3 text-sm font-medium text-blue-700">
+            {emailStatus}
+          </p>
         )}
 
         <button

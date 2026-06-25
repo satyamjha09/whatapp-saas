@@ -48,6 +48,10 @@ import { getBillingRefundReconciliationHealth } from "@/server/services/billing-
 import { getBillingProfileHealth } from "@/server/services/company-billing-profile.service";
 import { getBillingDocumentEmailHealth } from "@/server/services/billing-document-email.service";
 import { getBillingPdfHealth } from "@/server/services/billing-document-pdf.service";
+import { getBillingAnalyticsHealth } from "@/server/services/billing-analytics.service";
+import { getTransactionalEmailHealth } from "@/server/services/email-health.service";
+import { getPlatformCompanyControlHealth } from "@/server/services/platform-company-control.service";
+import { getCompanyPlanAssignmentHealth } from "@/server/services/company-plan-assignment.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -131,6 +135,10 @@ export default async function SystemHealthPage() {
     billingProfiles,
     billingDocumentEmails,
     billingPdfs,
+    billingAnalytics,
+    transactionalEmail,
+    platformCompanyControl,
+    companyPlanAssignment,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -185,6 +193,10 @@ export default async function SystemHealthPage() {
     getBillingProfileHealth(),
     getBillingDocumentEmailHealth(),
     getBillingPdfHealth(),
+    getBillingAnalyticsHealth(),
+    getTransactionalEmailHealth(),
+    getPlatformCompanyControlHealth(),
+    getCompanyPlanAssignmentHealth(),
   ]);
 
   return (
@@ -199,6 +211,124 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Platform Company Control
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Platform admin can manage companies, partners, suspension, and notes.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                platformCompanyControl.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {platformCompanyControl.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Companies</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {platformCompanyControl.totalCompanies}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Suspended</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {platformCompanyControl.suspendedCompanies}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Disabled</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {platformCompanyControl.disabledCompanies}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Notes</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {platformCompanyControl.notes}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/platform/companies"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open platform companies
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Company Plan Assignment
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Default trial plans, active access gates, and platform-assigned
+                company plans.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(
+                companyPlanAssignment.isHealthy,
+              )}`}
+            >
+              {companyPlanAssignment.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-5">
+            {[
+              ["Current", companyPlanAssignment.currentPlans],
+              ["Trial", companyPlanAssignment.trialPlans],
+              ["Active", companyPlanAssignment.activePlans],
+              ["Expired", companyPlanAssignment.expiredPlans],
+              ["Suspended", companyPlanAssignment.suspendedPlans],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-4">
+            <Link
+              href="/platform/companies"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Manage platform plans
+            </Link>
+            <Link
+              href="/dashboard/account/plan"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open current plan
+            </Link>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -947,6 +1077,48 @@ export default async function SystemHealthPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
+                Transactional Email
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Sends team invites and future system emails.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                transactionalEmail.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {transactionalEmail.isHealthy ? "Healthy" : "Needs SMTP"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Email Enabled</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {transactionalEmail.enabled ? "Yes" : "No"}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Missing Config</p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {transactionalEmail.missing.length > 0
+                  ? transactionalEmail.missing.join(", ")
+                  : "None"}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
                 Billing PDFs
               </h2>
 
@@ -994,6 +1166,69 @@ export default async function SystemHealthPage() {
                 {billingPdfs.attachToEmails ? "Enabled" : "Disabled"}
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Billing Analytics
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Revenue snapshots, MRR, ARR, refunds, and plan distribution metrics.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                billingAnalytics.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {billingAnalytics.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Generated / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingAnalytics.generated24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingAnalytics.failed24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Latest Daily</p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {billingAnalytics.latestDailyAt?.toLocaleString() ?? "-"}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Latest Monthly</p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {billingAnalytics.latestMonthlyAt?.toLocaleString() ?? "-"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/billing/analytics"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open billing analytics
+            </Link>
           </div>
         </section>
 

@@ -11,6 +11,12 @@ export class AuthorizationError extends Error {
   }
 }
 
+function assertUsableWorkspace(company: { status?: string }) {
+  if (company.status && company.status !== "ACTIVE" && company.status !== "PENDING_ONBOARDING") {
+    throw new AuthorizationError("This company workspace is not active.", 403);
+  }
+}
+
 export async function requireAdmin({
   request,
 }: {
@@ -27,6 +33,8 @@ export async function requireAdmin({
   if (!context.membership) {
     throw new AuthorizationError("Complete company onboarding first", 403);
   }
+
+  assertUsableWorkspace(context.membership.company);
 
   if (
     context.membership.role !== "OWNER" &&
@@ -54,6 +62,8 @@ export async function requireMember() {
   if (!context.membership) {
     throw new AuthorizationError("Complete company onboarding first", 403);
   }
+
+  assertUsableWorkspace(context.membership.company);
 
   return {
     user: context.user,

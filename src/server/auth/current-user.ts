@@ -36,7 +36,27 @@ export const getCurrentWorkspaceContext = cache(async function getCurrentWorkspa
     return null;
   }
 
-  const membership = await prisma.companyUser.findFirst({
+  const preference = await prisma.userWorkspacePreference.findUnique({
+    where: {
+      userId: user.id,
+    },
+  });
+
+  const preferredMembership = preference?.activeCompanyId
+    ? await prisma.companyUser.findUnique({
+        where: {
+          userId_companyId: {
+            userId: user.id,
+            companyId: preference.activeCompanyId,
+          },
+        },
+        include: {
+          company: true,
+        },
+      })
+    : null;
+
+  const fallbackMembership = await prisma.companyUser.findFirst({
     where: {
       userId: user.id,
     },
@@ -44,6 +64,7 @@ export const getCurrentWorkspaceContext = cache(async function getCurrentWorkspa
       company: true,
     },
   });
+  const membership = preferredMembership ?? fallbackMembership;
 
   return {
     user,

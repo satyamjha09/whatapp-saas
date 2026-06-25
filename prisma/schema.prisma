@@ -35,6 +35,76 @@ enum SubscriptionStatus {
   INCOMPLETE
 }
 
+enum PlatformRole {
+  NONE
+  SUPPORT
+  FINANCE
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum CompanyType {
+  DIRECT_COMPANY
+  PARTNER
+  PARTNER_CLIENT
+}
+
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+  PENDING_ONBOARDING
+}
+
+enum CompanyBillingOwnerType {
+  SELF
+  PARENT_PARTNER
+}
+
+enum CompanyPlanAssignmentStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+  CANCELED
+  SUSPENDED
+}
+
+enum CompanyPlanAssignmentSource {
+  SIGNUP
+  PLATFORM_ADMIN
+  SELF_SERVE
+  PARTNER
+  SYSTEM
+}
+
+enum CompanyPlanAssignmentEventType {
+  CREATED
+  ACTIVATED
+  TRIAL_EXTENDED
+  PLAN_CHANGED
+  CANCELED
+  SUSPENDED
+  EXPIRED
+  REACTIVATED
+}
+
+enum PlatformCompanyActionType {
+  VIEWED
+  APPROVED
+  ACTIVATED
+  SUSPENDED
+  REACTIVATED
+  DISABLED
+  NOTE_ADDED
+  NOTE_UPDATED
+}
+
+enum PlatformCompanyNoteVisibility {
+  INTERNAL
+  SUPPORT
+  FINANCE
+}
+
 enum CompanyNotificationType {
   BILLING
   WALLET
@@ -694,7 +764,11 @@ model User {
   clerkUserId String  @unique
   email       String  @unique
   name        String?
+  mobile      String?
   imageUrl    String?
+
+  platformRole          PlatformRole @default(NONE)
+  platformAccessEnabled Boolean      @default(false)
 
   companies                          CompanyUser[]
   assignedContacts                   Contact[]                          @relation("ContactAssignee")
@@ -725,6 +799,11 @@ model User {
   requestedBillingRefunds BillingRefund[]
   updatedBillingProfiles CompanyBillingProfile[] @relation("BillingProfileUpdatedBy")
   billingProfileUpdateEvents BillingProfileUpdateEvent[]
+  workspacePreference UserWorkspacePreference?
+  platformCompanyActionLogs PlatformCompanyActionLog[]
+  platformCompanyNotes PlatformCompanyNote[]
+  assignedCompanyPlans CompanyPlanAssignment[] @relation("AssignedCompanyPlans")
+  companyPlanAssignmentEvents CompanyPlanAssignmentEvent[] @relation("CompanyPlanAssignmentEventActor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -733,6 +812,37 @@ model User {
 model Company {
   id   String @id @default(cuid())
   name String
+
+  type   CompanyType   @default(DIRECT_COMPANY)
+  status CompanyStatus @default(PENDING_ONBOARDING)
+
+  parentCompanyId String?
+  parentCompany   Company?  @relation("PartnerChildCompanies", fields: [parentCompanyId], references: [id], onDelete: SetNull)
+  childCompanies  Company[] @relation("PartnerChildCompanies")
+
+  billingOwnerType CompanyBillingOwnerType @default(SELF)
+
+  legalName String?
+  brandName String?
+  industry  String?
+  website   String?
+  businessCategory String?
+  city             String?
+  pinCode          String?
+  employeeCode     String?
+
+  whatsappUpdatesConsent   Boolean   @default(false)
+  whatsappUpdatesConsentAt DateTime?
+
+  supportEmail String?
+  supportPhone String?
+
+  isSandbox Boolean @default(false)
+  onboardingCompletedAt DateTime?
+  suspendedAt DateTime?
+  suspensionReason String?
+
+  platformNotes String?
 
   metaPaymentMethodAdded         Boolean   @default(false)
   metaBusinessVerificationStatus String    @default("NOT_STARTED")
@@ -807,9 +917,38 @@ model Company {
   billingProfileUpdateEvents BillingProfileUpdateEvent[]
   billingDocumentEmailDeliveries BillingDocumentEmailDelivery[]
   billingDocumentPdfRenders BillingDocumentPdfRender[]
+  activeWorkspaceUsers UserWorkspacePreference[] @relation("ActiveCompanyPreference")
+  platformCompanyActionLogs PlatformCompanyActionLog[]
+  platformCompanyNotes PlatformCompanyNote[]
+  planAssignments CompanyPlanAssignment[]
+  planAssignmentEvents CompanyPlanAssignmentEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([parentCompanyId])
+  @@index([billingOwnerType])
+  @@index([isSandbox])
+}
+
+model UserWorkspacePreference {
+  id String @id @default(cuid())
+
+  userId          String @unique
+  activeCompanyId String?
+
+  lastSelectedAt DateTime?
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeCompany Company? @relation("ActiveCompanyPreference", fields: [activeCompanyId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([activeCompanyId])
+  @@index([lastSelectedAt])
 }
 
 model CompanyUser {
@@ -2660,6 +2799,124 @@ model PlatformAuditLog {
   @@index([createdAt])
 }
 
+model PlatformCompanyActionLog {
+  id String @id @default(cuid())
+
+  companyId   String
+  actorUserId String
+
+  type PlatformCompanyActionType
+
+  title       String
+  description String?
+
+  metadata Json?
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actorUser User    @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([actorUserId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model PlatformCompanyNote {
+  id String @id @default(cuid())
+
+  companyId       String
+  createdByUserId String
+
+  visibility PlatformCompanyNoteVisibility @default(INTERNAL)
+
+  title String
+  body  String
+
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdByUser User    @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([createdByUserId])
+  @@index([visibility])
+  @@index([createdAt])
+}
+
+model CompanyPlanAssignment {
+  id String @id @default(cuid())
+
+  companyId String
+
+  planCode String
+  planName String
+
+  status CompanyPlanAssignmentStatus @default(TRIAL)
+  source CompanyPlanAssignmentSource @default(SIGNUP)
+
+  isCurrent Boolean @default(true)
+
+  startsAt              DateTime @default(now())
+  trialEndsAt           DateTime?
+  currentPeriodStartsAt DateTime?
+  currentPeriodEndsAt   DateTime?
+
+  assignedByUserId String?
+
+  canceledAt       DateTime?
+  suspendedAt      DateTime?
+  suspensionReason String?
+
+  metadata Json?
+
+  company        Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedByUser User?   @relation("AssignedCompanyPlans", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  events CompanyPlanAssignmentEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([planCode])
+  @@index([status])
+  @@index([source])
+  @@index([isCurrent])
+  @@index([trialEndsAt])
+  @@index([currentPeriodEndsAt])
+  @@index([assignedByUserId])
+}
+
+model CompanyPlanAssignmentEvent {
+  id String @id @default(cuid())
+
+  companyId    String
+  assignmentId String
+  actorUserId  String?
+
+  type CompanyPlanAssignmentEventType
+
+  title       String
+  description String?
+
+  metadata Json?
+
+  company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignment CompanyPlanAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  actorUser  User?                 @relation("CompanyPlanAssignmentEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([assignmentId])
+  @@index([actorUserId])
+  @@index([type])
+  @@index([createdAt])
+}
+
 model Incident {
   id String @id @default(cuid())
 
@@ -3809,4 +4066,62 @@ model BillingDocumentPdfRender {
   @@index([createdAt])
 }
 
+enum BillingMetricSnapshotPeriod {
+  DAILY
+  MONTHLY
+}
 
+enum BillingMetricSnapshotStatus {
+  GENERATED
+  FAILED
+}
+
+model BillingMetricSnapshot {
+  id String @id @default(cuid())
+
+  period BillingMetricSnapshotPeriod
+  status BillingMetricSnapshotStatus @default(GENERATED)
+
+  periodStart DateTime
+  periodEnd   DateTime
+
+  currency String @default("INR")
+
+  grossRevenuePaise Int @default(0)
+  refundPaise       Int @default(0)
+  netRevenuePaise   Int @default(0)
+
+  paidInvoiceCount Int @default(0)
+  refundCount      Int @default(0)
+
+  mrrPaise Int @default(0)
+  arrPaise Int @default(0)
+
+  activeCompanies  Int @default(0)
+  paidCompanies    Int @default(0)
+  freeCompanies    Int @default(0)
+  pastDueCompanies Int @default(0)
+
+  starterCompanies  Int @default(0)
+  growthCompanies   Int @default(0)
+  businessCompanies Int @default(0)
+
+  failedCheckoutCount Int @default(0)
+  failedRefundCount   Int @default(0)
+
+  planDistribution Json?
+  metadata         Json?
+
+  failedAt      DateTime?
+  failureReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([period, periodStart])
+  @@index([period])
+  @@index([status])
+  @@index([periodStart])
+  @@index([periodEnd])
+  @@index([createdAt])
+}

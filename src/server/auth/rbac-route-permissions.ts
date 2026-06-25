@@ -18,6 +18,7 @@ export const RBAC_ROUTE_PERMISSION_RULES: RbacRoutePermissionRule[] = [
   { id: "api-key-manage", method: "*", pattern: /^\/api\/developer\/api-keys(?:\/|$)/, permission: "DEVELOPER_API_KEYS_MANAGE", description: "Manage developer API keys" },
   { id: "developer-webhooks-manage", method: "*", pattern: /^\/api\/developer\/webhooks(?:\/|$)/, permission: "DEVELOPER_WEBHOOKS_MANAGE", description: "Manage developer webhooks" },
   { id: "subscription-renewals-scan", method: "POST", pattern: /^\/api\/billing\/subscription-renewals\/scan$/, permission: "BILLING_MANAGE", description: "Run subscription renewal scan" },
+  { id: "billing-analytics-snapshot", method: "POST", pattern: /^\/api\/billing\/analytics\/snapshot$/, permission: "BILLING_MANAGE", description: "Generate billing analytics snapshots" },
   { id: "scheduled-plan-change-manage", method: "POST", pattern: /^\/api\/billing\/scheduled-plan-change\/(?:cancel-at-period-end|downgrade|undo|scan)$/, permission: "BILLING_MANAGE", description: "Manage scheduled billing plan changes" },
   { id: "privacy-request-process", method: "POST", pattern: /^\/api\/privacy\/requests\/[^/]+\/process$/, permission: "PRIVACY_REQUEST_PROCESS", description: "Process privacy request" },
   { id: "privacy-export-download", method: "GET", pattern: /^\/api\/privacy\/requests\/[^/]+\/download$/, permission: "PRIVACY_REQUEST_PROCESS", description: "Download privacy export" },
