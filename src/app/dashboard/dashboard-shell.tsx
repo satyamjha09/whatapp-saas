@@ -424,7 +424,7 @@ export function DashboardShell({
 
       <div
         className={[
-          "relative transition-[padding] duration-300",
+          "relative min-w-0 overflow-x-hidden transition-[padding] duration-300",
           collapsed ? "md:pl-20" : "md:pl-20 xl:pl-64",
         ].join(" ")}
       >
@@ -469,8 +469,10 @@ export function DashboardShell({
           </div>
         </header>
 
-        <main className="dashboard-content relative px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-          <div className="mx-auto max-w-[1480px]">{children}</div>
+        <main className="dashboard-content relative min-w-0 overflow-x-hidden px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+          <div className="mx-auto w-full max-w-[1480px] min-w-0">
+            {children}
+          </div>
         </main>
       </div>
     </div>
