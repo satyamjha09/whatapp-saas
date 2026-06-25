@@ -42,6 +42,7 @@ import { getUsageQuotaHealth } from "@/server/services/usage-quota.service";
 import { getSubscriptionRenewalHealth } from "@/server/services/subscription-renewal.service";
 import { getScheduledPlanChangeHealth } from "@/server/services/scheduled-plan-change.service";
 import { getPlanCheckoutReconciliationHealth } from "@/server/services/plan-checkout-reconciliation.service";
+import { getBillingOpsHealth } from "@/server/services/billing-ops.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -119,6 +120,7 @@ export default async function SystemHealthPage() {
     subscriptionRenewals,
     scheduledPlanChanges,
     planCheckoutReconciliation,
+    billingOps,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -167,6 +169,7 @@ export default async function SystemHealthPage() {
     getSubscriptionRenewalHealth(),
     getScheduledPlanChangeHealth(),
     getPlanCheckoutReconciliationHealth(),
+    getBillingOpsHealth(),
   ]);
 
   return (
@@ -556,6 +559,69 @@ export default async function SystemHealthPage() {
 
           <div className="mt-5 border-t pt-5">
             <ReconcilePlanCheckoutsButton />
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Billing Ops Manual Review
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Reviews captured-payment reconciliation issues and protects manual checkout approval.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                billingOps.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {billingOps.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Open Reviews</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingOps.manualReviewOpen}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Approved / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingOps.approved24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Rejected / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingOps.rejected24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Stale Reviews</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingOps.staleReviews}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/billing/ops"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open Billing Ops
+            </Link>
           </div>
         </section>
 

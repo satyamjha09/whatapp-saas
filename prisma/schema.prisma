@@ -651,6 +651,13 @@ enum PlanCheckoutStatus {
   FAILED
   CANCELLED
   EXPIRED
+  MANUAL_REVIEW
+}
+
+enum BillingOpsReviewDecision {
+  APPROVED
+  REJECTED
+  EXPIRED
 }
 
 enum PlanChangeSource {
@@ -714,6 +721,7 @@ model User {
   companyPlanChanges                 CompanyPlanChange[]
   billingInvoices                    BillingInvoice[]
   requestedScheduledPlanChanges      ScheduledPlanChange[]
+  manualReviewedPlanCheckouts        PlanCheckout[]                     @relation("ManualReviewedPlanCheckouts")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1660,10 +1668,18 @@ model PlanCheckout {
   lastReconciliationAt DateTime?
   lastReconciliationError String?
 
+  manualReviewReason String?
+  manualReviewOpenedAt DateTime?
+  manualReviewedAt DateTime?
+  manualReviewedByUserId String?
+  manualReviewDecision BillingOpsReviewDecision?
+  manualReviewNotes String?
+
   reconciliationEvents PlanCheckoutReconciliationEvent[]
 
   company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   requestedBy User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  manualReviewedBy User? @relation("ManualReviewedPlanCheckouts", fields: [manualReviewedByUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1678,6 +1694,10 @@ model PlanCheckout {
   @@index([expiresAt])
   @@index([webhookProcessedAt])
   @@index([lastReconciliationAt])
+  @@index([manualReviewOpenedAt])
+  @@index([manualReviewedAt])
+  @@index([manualReviewedByUserId])
+  @@index([manualReviewDecision])
   @@index([createdAt])
 }
 

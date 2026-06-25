@@ -322,6 +322,11 @@ export async function reconcileSinglePlanCheckout({
         id: checkout.id,
       },
       data: {
+        status: "MANUAL_REVIEW",
+        manualReviewReason:
+          "Captured Razorpay payment found but trusted checkout signature is unavailable.",
+        manualReviewOpenedAt: new Date(),
+        razorpayPaymentId: paidPayment.id,
         reconciliationAttempts: {
           increment: 1,
         },

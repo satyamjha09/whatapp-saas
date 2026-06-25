@@ -940,6 +940,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/system/health",
         }),
         buildItem({
+          id: "billing-ops-manual-review",
+          title: "Billing Ops manual review enabled",
+          description:
+            "Captured-payment reconciliation issues can be reviewed safely with confirmation text, audit logs, invoice creation, notifications, and System Health monitoring.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Billing Ops",
+          actionHref: "/dashboard/billing/ops",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

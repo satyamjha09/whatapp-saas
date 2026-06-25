@@ -1026,6 +1026,29 @@ export function getProductionEnvAudit() {
     required: false,
   });
 
+  items.push({
+    id: "billing-ops-enabled",
+    title: "Billing Ops enabled",
+    severity: process.env.BILLING_OPS_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.BILLING_OPS_ENABLED !== "false"
+        ? "Billing Ops manual review is enabled"
+        : "BILLING_OPS_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "billing-ops-confirmation-required",
+    title: "Billing Ops confirmation required",
+    severity:
+      process.env.BILLING_OPS_REQUIRE_CONFIRMATION !== "false" ? "PASS" : "WARNING",
+    message:
+      process.env.BILLING_OPS_REQUIRE_CONFIRMATION !== "false"
+        ? "Manual payment review requires confirmation text"
+        : "Manual payment review confirmation is disabled",
+    required: false,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 
