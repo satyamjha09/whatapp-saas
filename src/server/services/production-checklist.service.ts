@@ -979,6 +979,16 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing/profile",
         }),
         buildItem({
+          id: "billing-document-emails",
+          title: "Billing document emails enabled",
+          description:
+            "Invoices and credit notes are automatically emailed to billing profile recipients with SMTP delivery tracking, manual resend, audit logs, and System Health monitoring.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Billing Emails",
+          actionHref: "/dashboard/billing/email-deliveries",
+        }),
+        buildItem({
           id: "inbox-crm-v2",
           title: "Inbox CRM v2 enabled",
           description:

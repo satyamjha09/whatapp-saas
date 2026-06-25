@@ -1132,6 +1132,36 @@ export function getProductionEnvAudit() {
     required: false,
   });
 
+  items.push({
+    id: "billing-document-emails-enabled",
+    title: "Billing document emails enabled",
+    severity:
+      process.env.BILLING_DOCUMENT_EMAILS_ENABLED !== "false" ? "PASS" : "FAIL",
+    message:
+      process.env.BILLING_DOCUMENT_EMAILS_ENABLED !== "false"
+        ? "Billing document emails are enabled"
+        : "BILLING_DOCUMENT_EMAILS_ENABLED must not be false in production",
+    required: true,
+  });
+
+  items.push({
+    id: "billing-document-smtp-configured",
+    title: "Billing document SMTP configured",
+    severity:
+      exists(process.env.SMTP_HOST) &&
+      exists(process.env.SMTP_USER) &&
+      exists(process.env.SMTP_PASSWORD)
+        ? "PASS"
+        : "FAIL",
+    message:
+      exists(process.env.SMTP_HOST) &&
+      exists(process.env.SMTP_USER) &&
+      exists(process.env.SMTP_PASSWORD)
+        ? "SMTP configuration exists"
+        : "SMTP_HOST, SMTP_USER, and SMTP_PASSWORD are required for billing emails",
+    required: true,
+  });
+
   const failedItems = items.filter((item) => item.severity === "FAIL");
   const warningItems = items.filter((item) => item.severity === "WARNING");
 

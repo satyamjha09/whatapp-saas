@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAuthenticatedWorkspace } from "@/server/auth/authorization";
 import { listCompanyBillingInvoices } from "@/server/services/billing-invoice.service";
+import { SendInvoiceEmailButton } from "@/app/dashboard/billing/document-email-actions";
 
 function money(paise: number, currency: string) {
   return new Intl.NumberFormat("en-IN", {
@@ -67,12 +68,15 @@ export default async function BillingInvoicesPage() {
                     {invoice.paidAt?.toLocaleString() ?? "-"}
                   </td>
                   <td className="px-5 py-4">
-                    <Link
-                      href={`/dashboard/billing/invoices/${invoice.id}`}
-                      className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white"
-                    >
-                      View / Print
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/dashboard/billing/invoices/${invoice.id}`}
+                        className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800 transition"
+                      >
+                        View / Print
+                      </Link>
+                      <SendInvoiceEmailButton invoiceId={invoice.id} />
+                    </div>
                   </td>
                 </tr>
               ))}

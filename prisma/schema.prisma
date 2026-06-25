@@ -805,6 +805,7 @@ model Company {
   billingRefundReconciliationEvents BillingRefundReconciliationEvent[]
   billingProfile CompanyBillingProfile?
   billingProfileUpdateEvents BillingProfileUpdateEvent[]
+  billingDocumentEmailDeliveries BillingDocumentEmailDelivery[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1869,6 +1870,7 @@ model BillingInvoice {
   lines BillingInvoiceLine[]
   refunds     BillingRefund[]
   creditNotes BillingCreditNote[]
+  emailDeliveries BillingDocumentEmailDelivery[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3532,6 +3534,7 @@ model BillingRefund {
  requestedBy User? @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
  creditNote BillingCreditNote?
+ emailDeliveries BillingDocumentEmailDelivery[]
 
  createdAt DateTime @default(now())
  updatedAt DateTime @updatedAt
@@ -3576,6 +3579,7 @@ model BillingCreditNote {
  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
  refund  BillingRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
  invoice BillingInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+ emailDeliveries BillingDocumentEmailDelivery[]
 
  createdAt DateTime @default(now())
  updatedAt DateTime @updatedAt
@@ -3695,9 +3699,66 @@ model BillingProfileUpdateEvent {
 
   createdAt DateTime @default(now())
 
-  @@index([companyId])
-  @@index([profileId])
-  @@index([actorUserId])
-  @@index([source])
   @@index([createdAt])
 }
+
+enum BillingDocumentEmailType {
+  INVOICE
+  CREDIT_NOTE
+  REFUND_CONFIRMATION
+}
+
+enum BillingDocumentEmailStatus {
+  QUEUED
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model BillingDocumentEmailDelivery {
+  id String @id @default(cuid())
+
+  companyId String
+
+  type   BillingDocumentEmailType
+  status BillingDocumentEmailStatus @default(QUEUED)
+
+  invoiceId    String?
+  creditNoteId String?
+  refundId     String?
+
+  recipientEmail String
+  recipientName  String?
+
+  subject String
+
+  sentAt   DateTime?
+  failedAt DateTime?
+
+  failureReason String?
+
+  attempts Int @default(0)
+
+  idempotencyKey String? @unique
+
+  metadata Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice BillingInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  creditNote BillingCreditNote? @relation(fields: [creditNoteId], references: [id], onDelete: SetNull)
+  refund BillingRefund? @relation(fields: [refundId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([type])
+  @@index([status])
+  @@index([invoiceId])
+  @@index([creditNoteId])
+  @@index([refundId])
+  @@index([recipientEmail])
+  @@index([sentAt])
+  @@index([createdAt])
+}
+

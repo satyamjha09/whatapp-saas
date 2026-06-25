@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 import { getInvoiceBillingSnapshot } from "@/server/services/company-billing-profile.service";
+import { autoSendInvoiceEmail } from "@/server/services/billing-document-email.service";
 
 function isEnabled() {
   return process.env.BILLING_INVOICES_ENABLED !== "false";
@@ -175,6 +176,11 @@ export async function createPaidPlanUpgradeInvoice({
       razorpayOrderId,
       razorpayPaymentId,
     },
+  }).catch(() => undefined);
+
+  await autoSendInvoiceEmail({
+    companyId,
+    invoiceId: invoice.id,
   }).catch(() => undefined);
 
   return invoice;

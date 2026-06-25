@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit.service";
 import { createCompanyNotification } from "@/server/services/company-notification.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
+import { autoSendCreditNoteEmail } from "@/server/services/billing-document-email.service";
 
 export class BillingRefundError extends Error {
   constructor(message: string) {
@@ -361,6 +362,11 @@ export async function createBillingRefund({
         razorpayRefundId: razorpayRefund.id,
         planChangeId: result.planChangeId,
       },
+    }).catch(() => undefined);
+
+    await autoSendCreditNoteEmail({
+      companyId,
+      creditNoteId: result.creditNote.id,
     }).catch(() => undefined);
 
     await createCompanyNotification({

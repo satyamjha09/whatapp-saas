@@ -46,6 +46,7 @@ import { getBillingOpsHealth } from "@/server/services/billing-ops.service";
 import { getBillingRefundHealth } from "@/server/services/billing-refund.service";
 import { getBillingRefundReconciliationHealth } from "@/server/services/billing-refund-reconciliation.service";
 import { getBillingProfileHealth } from "@/server/services/company-billing-profile.service";
+import { getBillingDocumentEmailHealth } from "@/server/services/billing-document-email.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -127,6 +128,7 @@ export default async function SystemHealthPage() {
     billingRefunds,
     billingRefundReconciliation,
     billingProfiles,
+    billingDocumentEmails,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -179,6 +181,7 @@ export default async function SystemHealthPage() {
     getBillingRefundHealth(),
     getBillingRefundReconciliationHealth(),
     getBillingProfileHealth(),
+    getBillingDocumentEmailHealth(),
   ]);
 
   return (
@@ -870,6 +873,69 @@ export default async function SystemHealthPage() {
               className="text-sm font-medium text-gray-900 underline"
             >
               Open billing profile
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Billing Document Emails
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Sends invoices and credit notes by email and tracks delivery history.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                billingDocumentEmails.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {billingDocumentEmails.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Sent / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingDocumentEmails.sent24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingDocumentEmails.failed24h}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Queued</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {billingDocumentEmails.queued}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Auto Send</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {billingDocumentEmails.autoSendEnabled ? "Enabled" : "Disabled"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/dashboard/billing/email-deliveries"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open email deliveries
             </Link>
           </div>
         </section>
