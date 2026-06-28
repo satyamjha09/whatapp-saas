@@ -43,12 +43,10 @@ export const getCurrentWorkspaceContext = cache(async function getCurrentWorkspa
   });
 
   const preferredMembership = preference?.activeCompanyId
-    ? await prisma.companyUser.findUnique({
+    ? await prisma.companyUser.findFirst({
         where: {
-          userId_companyId: {
-            userId: user.id,
-            companyId: preference.activeCompanyId,
-          },
+          userId: user.id,
+          companyId: preference.activeCompanyId,
         },
         include: {
           company: true,

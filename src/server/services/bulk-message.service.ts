@@ -13,6 +13,7 @@ import {
   assertUsageQuotaAvailable,
   incrementUsageQuota,
 } from "@/server/services/usage-quota.service";
+import { buildCampaignRecipientsFromSegmentAndMapping } from "@/server/services/template-variable-mapping.service";
 import type { SendBulkTemplateMessageInput } from "@/server/validators/bulk-message.validator";
 
 function normalizePhoneNumber(value: string) {
@@ -74,63 +75,6 @@ export async function sendBulkTemplateMessages(
     );
   }
 
-  const sourceRecipients = contactGroup
-    ? contactGroup.members.map((member) => ({
-        countryCode: member.contact.countryCode,
-        phoneNumber: member.contact.phoneNumber,
-        name: member.contact.name ?? undefined,
-        bodyParameters: [] as string[],
-        isBlocked: member.contact.isBlocked,
-      }))
-    : input.recipients.map((recipient) => ({
-        ...recipient,
-        isBlocked: false,
-      }));
-  const normalizedRecipients = sourceRecipients.map((recipient) => ({
-    countryCode: normalizePhoneNumber(recipient.countryCode),
-    phoneNumber: normalizePhoneNumber(recipient.phoneNumber),
-    name: recipient.name || null,
-    bodyParameters: recipient.bodyParameters,
-    isBlocked: recipient.isBlocked,
-  }));
-  const blockedRecipients = normalizedRecipients.filter(
-    (recipient) => recipient.isBlocked,
-  );
-  const sendableRecipients = normalizedRecipients.filter(
-    (recipient) => !recipient.isBlocked,
-  );
-  const uniqueRecipientMap = new Map<string, (typeof normalizedRecipients)[number]>();
-  const duplicateRecipients: typeof normalizedRecipients = [];
-
-  for (const recipient of sendableRecipients) {
-    const key = `${recipient.countryCode}${recipient.phoneNumber}`;
-
-    if (uniqueRecipientMap.has(key)) {
-      duplicateRecipients.push(recipient);
-    } else {
-      uniqueRecipientMap.set(key, recipient);
-    }
-  }
-
-  const uniqueRecipients = Array.from(uniqueRecipientMap.values());
-  const requestedCount = normalizedRecipients.length;
-
-  if (uniqueRecipients.length === 0) {
-    throw new Error("Contact group has no sendable contacts");
-  }
-  if (uniqueRecipients.length > plan.maxBulkRecipients) {
-    throw new Error(
-      `Your ${plan.name} plan allows maximum ${plan.maxBulkRecipients.toLocaleString("en-IN")} bulk recipients`,
-    );
-  }
-  await assertSubscriptionCanSend(companyId);
-  await assertCompanyMessageQuota(companyId, uniqueRecipients.length);
-  await assertUsageQuotaAvailable({
-    companyId,
-    featureKey: "BULK_MESSAGING",
-    amount: uniqueRecipients.length,
-  });
-
   const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : null;
   const now = new Date();
   const isScheduled = Boolean(
@@ -164,6 +108,79 @@ export async function sendBulkTemplateMessages(
 
   if (!template) throw new Error("Approved template not found");
   if (!whatsAppAccount) throw new Error("WhatsApp account is not connected");
+
+  const segmentRecipients = input.segmentId
+    ? await buildCampaignRecipientsFromSegmentAndMapping({
+        companyId,
+        segmentId: input.segmentId,
+        templateName: template.name,
+        templateLanguage: template.language,
+        templateBody: template.body,
+        limit: plan.maxBulkRecipients + 1,
+      })
+    : null;
+
+  const sourceRecipients = segmentRecipients
+    ? segmentRecipients.map((recipient) => ({
+        ...recipient,
+        isBlocked: false,
+      }))
+    : contactGroup
+      ? contactGroup.members.map((member) => ({
+          countryCode: member.contact.countryCode,
+          phoneNumber: member.contact.phoneNumber,
+          name: member.contact.name ?? undefined,
+          bodyParameters: [] as string[],
+          isBlocked: member.contact.isBlocked,
+        }))
+      : input.recipients.map((recipient) => ({
+          ...recipient,
+          isBlocked: false,
+        }));
+  const normalizedRecipients = sourceRecipients.map((recipient) => ({
+    countryCode: normalizePhoneNumber(recipient.countryCode),
+    phoneNumber: normalizePhoneNumber(recipient.phoneNumber),
+    name: recipient.name || null,
+    bodyParameters: recipient.bodyParameters,
+    isBlocked: recipient.isBlocked,
+  }));
+  const blockedRecipients = normalizedRecipients.filter(
+    (recipient) => recipient.isBlocked,
+  );
+  const sendableRecipients = normalizedRecipients.filter(
+    (recipient) => !recipient.isBlocked,
+  );
+  const uniqueRecipientMap = new Map<string, (typeof normalizedRecipients)[number]>();
+  const duplicateRecipients: typeof normalizedRecipients = [];
+
+  for (const recipient of sendableRecipients) {
+    const key = `${recipient.countryCode}${recipient.phoneNumber}`;
+
+    if (uniqueRecipientMap.has(key)) {
+      duplicateRecipients.push(recipient);
+    } else {
+      uniqueRecipientMap.set(key, recipient);
+    }
+  }
+
+  const uniqueRecipients = Array.from(uniqueRecipientMap.values());
+  const requestedCount = normalizedRecipients.length;
+
+  if (uniqueRecipients.length === 0) {
+    throw new Error(input.segmentId ? "Segment has no sendable contacts" : "Contact group has no sendable contacts");
+  }
+  if (uniqueRecipients.length > plan.maxBulkRecipients) {
+    throw new Error(
+      `Your ${plan.name} plan allows maximum ${plan.maxBulkRecipients.toLocaleString("en-IN")} bulk recipients`,
+    );
+  }
+  await assertSubscriptionCanSend(companyId);
+  await assertCompanyMessageQuota(companyId, uniqueRecipients.length);
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "BULK_MESSAGING",
+    amount: uniqueRecipients.length,
+  });
 
   if (input.bodyParameters.length !== template.variables.length) {
     const allRecipientsHaveParameters = uniqueRecipients.every(

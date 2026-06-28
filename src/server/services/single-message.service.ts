@@ -1,9 +1,12 @@
 import { getMessageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
+import { uploadWhatsAppMedia } from "@/lib/whatsapp";
 import { assertContactCanReceiveTemplate } from "@/server/services/contact-consent.service";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
+import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
 import {
   assertUsageQuotaAvailable,
   incrementUsageQuota,
@@ -17,6 +20,46 @@ function normalizePhoneNumber(value: string) {
 function renderTemplateBody(body: string, parameters: string[]) {
   return body.replace(/{{(\d+)}}/g, (_, index: string) => {
     return parameters[Number(index) - 1] ?? `{{${index}}}`;
+  });
+}
+
+export async function uploadSingleMessageMedia(
+  companyId: string,
+  file: File,
+) {
+  const whatsAppAccount = await prisma.whatsAppAccount.findFirst({
+    where: {
+      companyId,
+      status: "CONNECTED",
+      accessToken: { not: null },
+      phoneNumbers: {
+        some: { phoneNumberId: { not: null } },
+      },
+    },
+    include: {
+      phoneNumbers: {
+        where: {
+          phoneNumberId: {
+            not: null,
+          },
+        },
+        take: 1,
+      },
+    },
+  });
+
+  const phoneNumber = whatsAppAccount?.phoneNumbers[0];
+
+  if (!whatsAppAccount || !phoneNumber?.phoneNumberId) {
+    throw new Error("WhatsApp account is not connected");
+  }
+
+  const accessToken = await getWhatsAppAccessToken({ companyId });
+
+  return uploadWhatsAppMedia({
+    accessToken,
+    phoneNumberId: phoneNumber.phoneNumberId,
+    file,
   });
 }
 
@@ -36,13 +79,15 @@ export async function sendSingleTemplateMessage(
   const countryCode = normalizePhoneNumber(input.countryCode);
 
   const [template, whatsAppAccount] = await Promise.all([
-    prisma.template.findFirst({
-      where: {
-        id: input.templateId,
-        companyId,
-        status: "APPROVED",
-      },
-    }),
+    input.messageType === "Template"
+      ? prisma.template.findFirst({
+          where: {
+            id: input.templateId,
+            companyId,
+            status: "APPROVED",
+          },
+        })
+      : Promise.resolve(null),
     prisma.whatsAppAccount.findFirst({
       where: {
         companyId,
@@ -56,10 +101,17 @@ export async function sendSingleTemplateMessage(
     }),
   ]);
 
-  if (!template) throw new Error("Approved template not found");
+  if (input.messageType === "Template" && !template) {
+    throw new Error("Approved template not found");
+  }
+
   if (!whatsAppAccount) throw new Error("WhatsApp account is not connected");
 
-  if (input.bodyParameters.length !== template.variables.length) {
+  if (
+    input.messageType === "Template" &&
+    template &&
+    input.bodyParameters.length !== template.variables.length
+  ) {
     throw new Error(
       `This template requires ${template.variables.length} parameter value(s)`,
     );
@@ -81,11 +133,33 @@ export async function sendSingleTemplateMessage(
     },
   });
 
-  await assertContactCanReceiveTemplate({
-    companyId,
-    contactId: contact.id,
-    templateCategory: template.category,
-  });
+  if (input.messageType === "Template" && template) {
+    await assertContactCanReceiveTemplate({
+      companyId,
+      contactId: contact.id,
+      templateCategory: template.category,
+    });
+  }
+
+  const body =
+    input.messageType === "Template" && template
+      ? renderTemplateBody(template.body, input.bodyParameters)
+      : input.media?.caption?.trim() ||
+        `[${input.media?.type.toLowerCase() ?? "media"}] ${
+          input.media?.name ?? input.media?.url ?? ""
+        }`.trim();
+
+  const metadata =
+    input.messageType === "Media" && input.media
+      ? ({
+          messageType: "MEDIA",
+          mediaType: input.media.type,
+          mediaUrl: input.media.url ?? null,
+          mediaId: input.media.id ?? null,
+          mediaName: input.media.name ?? null,
+          caption: input.media.caption ?? null,
+        } satisfies Prisma.InputJsonObject)
+      : undefined;
 
   const result = await prisma.$transaction(async (tx) => {
     const debitResult = await tx.wallet.updateMany({
@@ -106,19 +180,24 @@ export async function sendSingleTemplateMessage(
       data: {
         companyId,
         contactId: contact.id,
-        templateId: template.id,
+        templateId: template?.id,
         direction: "OUTBOUND",
         status: "QUEUED",
         toPhoneNumber: `${countryCode}${phoneNumber}`,
-        body: renderTemplateBody(template.body, input.bodyParameters),
-        variables: input.bodyParameters,
+        body,
+        variables:
+          input.messageType === "Template" ? input.bodyParameters : [],
+        metadata,
         events: {
           create: {
             companyId,
             status: "QUEUED",
             raw: {
               source: "single_message",
-              reason: "Single template message queued",
+              reason:
+                input.messageType === "Media"
+                  ? "Single media message queued"
+                  : "Single template message queued",
             },
           },
         },
@@ -131,7 +210,10 @@ export async function sendSingleTemplateMessage(
         type: "DEBIT",
         status: "SUCCESS",
         amountPaise: MESSAGE_PRICE_PAISE,
-        description: "Single template message queued",
+        description:
+          input.messageType === "Media"
+            ? "Single media message queued"
+            : "Single template message queued",
         referenceType: "MESSAGE_USAGE",
         referenceId: message.id,
       },

@@ -122,11 +122,13 @@ export async function listRecentPlanCheckouts({
 
 export async function approveManualPlanCheckout({
   checkoutId,
+  companyId,
   reviewedByUserId,
   confirmation,
   notes,
 }: {
   checkoutId: string;
+  companyId?: string | null;
   reviewedByUserId: string;
   confirmation?: string | null;
   notes?: string | null;
@@ -137,9 +139,10 @@ export async function approveManualPlanCheckout({
     throw new BillingOpsError(`Confirmation text must be ${confirmationText()}.`);
   }
 
-  const checkout = await prisma.planCheckout.findUnique({
+  const checkout = await prisma.planCheckout.findFirst({
     where: {
       id: checkoutId,
+      ...(companyId ? { companyId } : {}),
     },
     include: {
       company: true,
@@ -282,11 +285,13 @@ export async function approveManualPlanCheckout({
 
 export async function rejectManualPlanCheckout({
   checkoutId,
+  companyId,
   reviewedByUserId,
   confirmation,
   notes,
 }: {
   checkoutId: string;
+  companyId?: string | null;
   reviewedByUserId: string;
   confirmation?: string | null;
   notes?: string | null;
@@ -297,9 +302,10 @@ export async function rejectManualPlanCheckout({
     throw new BillingOpsError(`Confirmation text must be ${confirmationText()}.`);
   }
 
-  const checkout = await prisma.planCheckout.findUnique({
+  const checkout = await prisma.planCheckout.findFirst({
     where: {
       id: checkoutId,
+      ...(companyId ? { companyId } : {}),
     },
   });
 

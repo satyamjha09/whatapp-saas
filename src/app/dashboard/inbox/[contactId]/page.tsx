@@ -15,6 +15,7 @@ import {
 } from "@/server/services/inbox.service";
 import { getCompanyMembers } from "@/server/services/team.service";
 import InboxFilterTabs from "../inbox-filter-tabs";
+import InboxAutoRefresh from "../inbox-auto-refresh";
 import InboxBulkActions from "../inbox-bulk-actions";
 import InboxPagination from "../inbox-pagination";
 import InboxPriorityFilter from "../inbox-priority-filter";
@@ -46,6 +47,102 @@ type InboxConversationPageProps = {
     sla?: string;
   }>;
 };
+
+type InboxMediaMetadata = {
+  messageType: "MEDIA";
+  mediaType: "IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO";
+  mediaName?: string | null;
+  caption?: string | null;
+};
+
+function getInboxMediaMetadata(metadata: unknown): InboxMediaMetadata | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const mediaType = String(record.mediaType);
+
+  if (
+    record.messageType !== "MEDIA" ||
+    !["IMAGE", "DOCUMENT", "VIDEO", "AUDIO"].includes(mediaType)
+  ) {
+    return null;
+  }
+
+  return {
+    messageType: "MEDIA",
+    mediaType: mediaType as InboxMediaMetadata["mediaType"],
+    mediaName: typeof record.mediaName === "string" ? record.mediaName : null,
+    caption: typeof record.caption === "string" ? record.caption : null,
+  };
+}
+
+function messagePreview(message: { body: string; metadata: unknown }) {
+  const media = getInboxMediaMetadata(message.metadata);
+
+  if (!media) return message.body;
+
+  return `${media.mediaType[0]}${media.mediaType.slice(1).toLowerCase()}${
+    media.mediaName ? `: ${media.mediaName}` : ""
+  }`;
+}
+
+function MessageBubbleBody({
+  message,
+  isOutbound,
+}: {
+  message: { id: string; body: string; metadata: unknown };
+  isOutbound: boolean;
+}) {
+  const media = getInboxMediaMetadata(message.metadata);
+
+  if (!media) {
+    return (
+      <p className="mt-3 whitespace-pre-wrap text-sm">
+        {message.body}
+      </p>
+    );
+  }
+
+  const caption = media.caption?.trim();
+
+  if (media.mediaType === "IMAGE") {
+    return (
+      <div className="mt-3 space-y-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/api/messages/${message.id}/media`}
+          alt={media.mediaName ?? "Sent image"}
+          className="max-h-80 w-full rounded-xl object-cover"
+        />
+        {caption ? (
+          <p className="whitespace-pre-wrap text-sm">{caption}</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-2">
+      <a
+        href={`/api/messages/${message.id}/media`}
+        target="_blank"
+        rel="noreferrer"
+        className={`block rounded-xl border px-3 py-2 text-sm font-semibold ${
+          isOutbound
+            ? "border-white/20 bg-white/10 text-white"
+            : "border-gray-200 bg-gray-50 text-gray-900"
+        }`}
+      >
+        {media.mediaType[0]}
+        {media.mediaType.slice(1).toLowerCase()} sent
+        {media.mediaName ? `: ${media.mediaName}` : ""}
+      </a>
+      {caption ? <p className="whitespace-pre-wrap text-sm">{caption}</p> : null}
+    </div>
+  );
+}
 
 export default async function InboxConversationPage({
   params,
@@ -139,6 +236,7 @@ export default async function InboxConversationPage({
 
   return (
     <main className="p-8">
+      <InboxAutoRefresh />
       <MarkConversationRead contactId={conversation.id} />
 
       <div className="mx-auto max-w-6xl">
@@ -388,7 +486,7 @@ export default async function InboxConversationPage({
                       {latestMessage && (
                         <>
                           <p className="mt-3 line-clamp-2 text-sm text-gray-600">
-                            {latestMessage.body}
+                            {messagePreview(latestMessage)}
                           </p>
 
                           <p className="mt-2 text-xs text-gray-400">
@@ -595,9 +693,10 @@ export default async function InboxConversationPage({
                           </span>
                         </div>
 
-                        <p className="mt-3 whitespace-pre-wrap text-sm">
-                          {message.body}
-                        </p>
+                        <MessageBubbleBody
+                          message={message}
+                          isOutbound={isOutbound}
+                        />
 
                         {message.template && (
                           <p

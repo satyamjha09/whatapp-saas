@@ -258,6 +258,171 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "segment-builder-enabled",
+    title: "Segment Builder enabled",
+    severity: process.env.SEGMENT_BUILDER_ENABLED !== "false" ? "PASS" : "WARNING",
+    message:
+      process.env.SEGMENT_BUILDER_ENABLED !== "false"
+        ? "Segment Builder is enabled"
+        : "Segment Builder is disabled",
+    required: true,
+  });
+
+  items.push({
+    id: "template-variable-mapping-enabled",
+    title: "Template Variable Mapping enabled",
+    severity:
+      process.env.TEMPLATE_VARIABLE_MAPPING_ENABLED !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.TEMPLATE_VARIABLE_MAPPING_ENABLED !== "false"
+        ? "Template Variable Mapping is enabled"
+        : "Template Variable Mapping is disabled",
+    required: true,
+  });
+
+  items.push({
+    id: "campaign-launch-orchestrator-enabled",
+    title: "Campaign Launch Orchestrator enabled",
+    severity:
+      process.env.CAMPAIGN_LAUNCH_ORCHESTRATOR_ENABLED !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.CAMPAIGN_LAUNCH_ORCHESTRATOR_ENABLED !== "false"
+        ? "Campaign launch orchestrator is enabled"
+        : "Campaign launch orchestrator is disabled",
+    required: true,
+  });
+
+  items.push({
+    id: "campaign-launch-confirmed-dry-run-required",
+    title: "Campaign launch confirmed dry run required",
+    severity:
+      process.env.CAMPAIGN_LAUNCH_REQUIRE_CONFIRMED_DRY_RUN !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.CAMPAIGN_LAUNCH_REQUIRE_CONFIRMED_DRY_RUN !== "false"
+        ? "Campaign launch requires confirmed dry run"
+        : "Campaign launch can bypass confirmed dry run",
+    required: true,
+  });
+
+  items.push({
+    id: "campaign-failure-intelligence-enabled",
+    title: "Campaign Failure Intelligence enabled",
+    severity:
+      process.env.CAMPAIGN_FAILURE_INTELLIGENCE_ENABLED !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.CAMPAIGN_FAILURE_INTELLIGENCE_ENABLED !== "false"
+        ? "Campaign failure grouping and retry intelligence is enabled"
+        : "Campaign Failure Intelligence is disabled",
+    required: true,
+  });
+
+  items.push({
+    id: "campaign-failure-safe-retry-enabled",
+    title: "Campaign Failure safe retry enabled",
+    severity:
+      process.env.CAMPAIGN_FAILURE_SAFE_RETRY_ENABLED !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.CAMPAIGN_FAILURE_SAFE_RETRY_ENABLED !== "false"
+        ? "Safe retry by failure group is enabled"
+        : "Safe retry is disabled",
+    required: false,
+  });
+
+  items.push({
+    id: "campaign-throughput-guard-enabled",
+    title: "Campaign Throughput Guard enabled",
+    severity:
+      process.env.CAMPAIGN_THROUGHPUT_GUARD_ENABLED !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.CAMPAIGN_THROUGHPUT_GUARD_ENABLED !== "false"
+        ? "Campaign throughput guard is enabled"
+        : "Campaign throughput guard is disabled",
+    required: true,
+  });
+
+  items.push({
+    id: "campaign-throughput-auto-slowdown-enabled",
+    title: "Campaign auto-slowdown enabled",
+    severity:
+      process.env.CAMPAIGN_THROUGHPUT_AUTO_SLOWDOWN_ENABLED !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.CAMPAIGN_THROUGHPUT_AUTO_SLOWDOWN_ENABLED !== "false"
+        ? "Campaign auto-slowdown is enabled"
+        : "Campaign auto-slowdown is disabled",
+    required: false,
+  });
+
+  items.push({
+    id: "campaign-completion-reports-enabled",
+    title: "Campaign Completion Reports enabled",
+    severity:
+      process.env.CAMPAIGN_COMPLETION_REPORTS_ENABLED !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.CAMPAIGN_COMPLETION_REPORTS_ENABLED !== "false"
+        ? "Campaign completion reports are enabled"
+        : "Campaign completion reports are disabled",
+    required: true,
+  });
+
+  items.push({
+    id: "campaign-report-csv-export-enabled",
+    title: "Campaign report CSV export enabled",
+    severity:
+      process.env.CAMPAIGN_REPORT_EXPORT_CSV_ENABLED !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.CAMPAIGN_REPORT_EXPORT_CSV_ENABLED !== "false"
+        ? "Campaign report CSV export is enabled"
+        : "Campaign report CSV export is disabled",
+    required: false,
+  });
+
+  items.push({
+    id: "campaign-reply-attribution-enabled",
+    title: "Campaign Reply Attribution enabled",
+    severity:
+      process.env.CAMPAIGN_REPLY_ATTRIBUTION_ENABLED !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.CAMPAIGN_REPLY_ATTRIBUTION_ENABLED !== "false"
+        ? "Campaign Reply Attribution is enabled"
+        : "Campaign Reply Attribution is disabled",
+    required: true,
+  });
+
+  items.push({
+    id: "campaign-conversion-tracking-enabled",
+    title: "Campaign Conversion Tracking enabled",
+    severity:
+      process.env.CAMPAIGN_CONVERSION_TRACKING_ENABLED !== "false"
+        ? "PASS"
+        : "WARNING",
+    message:
+      process.env.CAMPAIGN_CONVERSION_TRACKING_ENABLED !== "false"
+        ? "Campaign conversion tracking is enabled"
+        : "Campaign conversion tracking is disabled",
+    required: false,
+  });
+
+  items.push({
     id: "csp-report-only-first",
     title: "CSP mode configured",
     severity: ["report-only", "enforce", undefined].includes(

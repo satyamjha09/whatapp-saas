@@ -40,6 +40,7 @@ export const sendBulkTemplateMessageSchema = z
   .object({
     templateId: z.string().trim().min(1, "Template is required"),
     groupId: z.string().trim().optional().nullable(),
+    segmentId: z.string().trim().optional().nullable(),
     recipients: z
       .array(bulkMessageRecipientSchema)
       .max(10_000, "A bulk request cannot exceed 10,000 pasted recipients")
@@ -50,9 +51,9 @@ export const sendBulkTemplateMessageSchema = z
     scheduledAt: z.string().datetime().optional().nullable(),
   })
   .refine(
-    (value) => Boolean(value.groupId) || value.recipients.length > 0,
+    (value) => Boolean(value.groupId) || Boolean(value.segmentId) || value.recipients.length > 0,
     {
-      message: "Select a contact group or add at least one recipient",
+      message: "Select a contact group, select a segment, or add at least one recipient",
       path: ["recipients"],
     },
   );

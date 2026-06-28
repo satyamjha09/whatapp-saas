@@ -14,15 +14,38 @@ export const metadata: Metadata = {
   description: 'Premium WhatsApp Business and Tally workflow dashboard',
 }
 
+function getAllowedRedirectOrigins() {
+  const origins = new Set<string>([
+    'http://localhost:3000',
+    'https://localhost:3000',
+  ])
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL
+
+  if (appUrl) {
+    try {
+      origins.add(new URL(appUrl).origin)
+    } catch {
+      // Ignore invalid local configuration; Clerk will still use its defaults.
+    }
+  }
+
+  return [...origins]
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const allowedRedirectOrigins = getAllowedRedirectOrigins()
+
   return (
     <html lang="en">
       <body className={`${plusJakartaSans.variable} antialiased`}>
-        <ClerkProvider>
+        <ClerkProvider
+          allowedRedirectOrigins={allowedRedirectOrigins}
+          allowedRedirectProtocols={['http', 'https']}
+        >
           {children}
         </ClerkProvider>
       </body>

@@ -3,6 +3,8 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { ConsentRequiredError } from "@/server/services/contact-consent.service";
 import { sendBulkTemplateMessages } from "@/server/services/bulk-message.service";
+import { ContactSegmentBuilderError } from "@/server/services/contact-segment-builder.service";
+import { TemplateVariableMappingError } from "@/server/services/template-variable-mapping.service";
 import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
 import {
   assertSystemWritesAllowed,
@@ -116,6 +118,7 @@ export async function POST(request: Request) {
         missingMarketingConsent: result.missingMarketingConsent,
         contactGroupId: result.contactGroup?.id ?? null,
         contactGroupName: result.contactGroup?.name ?? null,
+        segmentId: validation.data.segmentId ?? null,
         scheduledAt: result.batch.scheduledAt,
         status: result.batch.status,
       },
@@ -154,6 +157,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
 
+    if (
+      error instanceof ContactSegmentBuilderError ||
+      error instanceof TemplateVariableMappingError
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+
     if (error instanceof UsageQuotaExceededError) {
       return createUsageQuotaErrorResponse(error);
     }
@@ -166,6 +176,7 @@ export async function POST(request: Request) {
         "Contact group not found",
         "Contact group has no contacts",
         "Contact group has no sendable contacts",
+        "Segment has no sendable contacts",
         "Company not found",
       ].includes(error.message)
     ) {

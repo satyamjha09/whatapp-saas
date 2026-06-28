@@ -208,6 +208,9 @@ enum ContactActivityType {
   OPTED_OUT
   OPTED_IN
   PROFILE_UPDATED
+  CAMPAIGN_REPLY_ATTRIBUTED
+  CAMPAIGN_CONVERSION
+  CAMPAIGN_FOLLOW_UP_CREATED
 }
 
 enum InboxSavedViewVisibility {
@@ -226,6 +229,44 @@ enum CampaignReplyAttributionSource {
   MANUAL
 }
 
+enum CampaignReplyIntent {
+  POSITIVE
+  NEGATIVE
+  QUESTION
+  OPT_OUT
+  NEUTRAL
+  UNKNOWN
+}
+
+enum CampaignReplyAttributionStatus {
+  ATTRIBUTED
+  MANUAL
+  IGNORED
+}
+
+enum CampaignConversionType {
+  REPLY_RECEIVED
+  POSITIVE_REPLY
+  DEMO_BOOKED
+  MEETING_DONE
+  PAYMENT_RECEIVED
+  LEAD_WON
+  LEAD_LOST
+  OPT_OUT
+}
+
+enum CampaignFollowUpTaskStatus {
+  OPEN
+  COMPLETED
+  IGNORED
+}
+
+enum CampaignFollowUpTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 enum WebhookEventStatus {
   RECEIVED
   PROCESSING
@@ -240,6 +281,118 @@ enum CampaignStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+enum CampaignLaunchRunStatus {
+  DRAFT
+  DRY_RUN_CREATED
+  DRY_RUN_CONFIRMED
+  WALLET_RESERVED
+  QUEUING
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum CampaignLaunchRecipientStatus {
+  PLANNED
+  MESSAGE_CREATED
+  QUEUED
+  SKIPPED
+  FAILED
+}
+
+enum CampaignWalletReservationStatus {
+  RESERVED
+  RELEASED
+  CONSUMED
+  FAILED
+}
+
+enum CampaignFailureInsightRunStatus {
+  GENERATED
+  FAILED
+}
+
+enum CampaignFailureCategory {
+  INVALID_PHONE
+  TEMPLATE_ERROR
+  TEMPLATE_VARIABLE_ERROR
+  INSUFFICIENT_WALLET
+  QUOTA_EXCEEDED
+  RATE_LIMIT
+  OUTSIDE_24H_WINDOW
+  CONTACT_OPTED_OUT
+  CONSENT_MISSING
+  PROVIDER_TIMEOUT
+  META_TEMPORARY
+  META_PERMANENT
+  WEBHOOK_ERROR
+  UNKNOWN
+}
+
+enum CampaignFailureSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum CampaignFailureRetrySafety {
+  SAFE_TO_RETRY
+  RETRY_AFTER_FIX
+  DO_NOT_RETRY
+}
+
+enum CampaignFailureInsightStatus {
+  OPEN
+  FIXED
+  IGNORED
+  RETRIED
+}
+
+enum CampaignThroughputPolicyStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum CampaignThroughputMode {
+  NORMAL
+  SLOW
+  PAUSED
+}
+
+enum CampaignThroughputEventType {
+  THROTTLED
+  RATE_LIMIT_HIT
+  AUTO_SLOWDOWN
+  AUTO_RECOVERY
+  AUTO_PAUSE
+  QUALITY_WARNING
+  QUALITY_BLOCK
+  MANUAL_POLICY_UPDATE
+}
+
+enum CampaignThroughputEventSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum CampaignCompletionReportStatus {
+  GENERATED
+  FAILED
+}
+
+enum CampaignCompletionTrigger {
+  MANUAL
+  AUTO
+}
+
+enum CampaignReportExportFormat {
+  CSV
+  JSON
 }
 
 enum CampaignContactStatus {
@@ -475,11 +628,64 @@ enum ContactConsentStatus {
   UNKNOWN
 }
 
+enum ContactSegmentStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ContactSegmentMatchMode {
+  ALL
+  ANY
+}
+
+enum ContactSegmentRuleField {
+  PHONE
+  NAME
+  EMAIL
+  SOURCE
+  CITY
+  TAG
+  MARKETING_CONSENT
+  UTILITY_CONSENT
+  CREATED_AT
+  LAST_MESSAGE_AT
+  CUSTOM_FIELD
+}
+
+enum ContactSegmentRuleOperator {
+  EQUALS
+  NOT_EQUALS
+  CONTAINS
+  NOT_CONTAINS
+  STARTS_WITH
+  ENDS_WITH
+  IN
+  NOT_IN
+  EXISTS
+  NOT_EXISTS
+  BEFORE
+  AFTER
+  BETWEEN
+}
+
+enum TemplateVariableMappingStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum TemplateVariableMappingSource {
+  CONTACT_FIELD
+  CUSTOM_FIELD
+  STATIC_VALUE
+  SYSTEM_VALUE
+}
+
 enum ContactConsentSource {
   DASHBOARD
   IMPORT
   PUBLIC_API
   WHATSAPP_KEYWORD
+  CAMPAIGN_REPLY
   PUBLIC_FORM
   SYSTEM
 }
@@ -771,43 +977,59 @@ model User {
   platformRole          PlatformRole @default(NONE)
   platformAccessEnabled Boolean      @default(false)
 
-  companies                          CompanyUser[]
+  companies                           CompanyUser[]
   // Tenant-scoped records below must not be loaded via User include/select.
   // Query them with both companyId and userId, preferably through
   // src/server/services/tenant-user-relations.service.ts.
-  assignedContacts                   Contact[]                          @relation("ContactAssignee")
-  inboxNotes                         InboxNote[]                        @relation("InboxNoteAuthor")
-  contactActivities                  ContactActivity[]
-  inboxSavedViews                    InboxSavedView[]
-  createdQuickReplies                QuickReply[]                       @relation("QuickReplyCreator")
-  sentCompanyInvites                 CompanyInvite[]                    @relation("SentCompanyInvites")
-  acceptedCompanyInvites             CompanyInvite[]                    @relation("AcceptedCompanyInvites")
-  auditLogs                          AuditLog[]
-  createdApiKeys                     ApiKey[]
-  createdBulkMessageBatches          BulkMessageBatch[]
-  companyNotificationRecipients      CompanyNotificationRecipient[]
-  companyNotificationPreferences     CompanyNotificationPreference[]
-  companyNotificationEmailDeliveries CompanyNotificationEmailDelivery[]
-  privacyRequests                    PrivacyRequest[]
-  contactConsentEvents               ContactConsentEvent[]
-  complianceEvidenceExports          ComplianceEvidenceExport[]
-  trustDocumentAcceptances           TrustDocumentAcceptance[]
-  accessRoleAssignments              CompanyAccessRoleAssignment[]
-  createdEntitlementOverrides        CompanyEntitlementOverride[]
-  entitlementCheckLogs               FeatureEntitlementCheckLog[]
-  requestedPlanCheckouts             PlanCheckout[]
-  companyPlanChanges                 CompanyPlanChange[]
-  billingInvoices                    BillingInvoice[]
-  requestedScheduledPlanChanges      ScheduledPlanChange[]
-  manualReviewedPlanCheckouts        PlanCheckout[]                     @relation("ManualReviewedPlanCheckouts")
-  requestedBillingRefunds BillingRefund[]
-  updatedBillingProfiles CompanyBillingProfile[] @relation("BillingProfileUpdatedBy")
-  billingProfileUpdateEvents BillingProfileUpdateEvent[]
-  workspacePreference UserWorkspacePreference?
-  platformCompanyActionLogs PlatformCompanyActionLog[]
-  platformCompanyNotes PlatformCompanyNote[]
-  assignedCompanyPlans CompanyPlanAssignment[] @relation("AssignedCompanyPlans")
-  companyPlanAssignmentEvents CompanyPlanAssignmentEvent[] @relation("CompanyPlanAssignmentEventActor")
+  assignedContacts                    Contact[]                          @relation("ContactAssignee")
+  inboxNotes                          InboxNote[]                        @relation("InboxNoteAuthor")
+  contactActivities                   ContactActivity[]
+  inboxSavedViews                     InboxSavedView[]
+  createdQuickReplies                 QuickReply[]                       @relation("QuickReplyCreator")
+  sentCompanyInvites                  CompanyInvite[]                    @relation("SentCompanyInvites")
+  acceptedCompanyInvites              CompanyInvite[]                    @relation("AcceptedCompanyInvites")
+  auditLogs                           AuditLog[]
+  createdApiKeys                      ApiKey[]
+  createdBulkMessageBatches           BulkMessageBatch[]
+  createdContactSegments              ContactSegment[]
+  generatedContactSegmentPreviews     ContactSegmentPreview[]
+  createdTemplateVariableMappings     TemplateVariableMapping[]
+  createdCampaignLaunchRuns           CampaignLaunchRun[]
+  generatedCampaignFailureInsightRuns CampaignFailureInsightRun[]
+  fixedCampaignFailureInsights        CampaignFailureInsight[]           @relation("FixedCampaignFailureInsights")
+  ignoredCampaignFailureInsights      CampaignFailureInsight[]           @relation("IgnoredCampaignFailureInsights")
+  retriedCampaignFailureInsights      CampaignFailureInsight[]           @relation("RetriedCampaignFailureInsights")
+  updatedCampaignThroughputPolicies   CampaignThroughputPolicy[]
+  generatedCampaignCompletionReports  CampaignCompletionReport[]
+  generatedCampaignReportExports      CampaignReportExport[]
+  createdCampaignConversionEvents     CampaignConversionEvent[]
+  assignedCampaignFollowUpTasks       CampaignFollowUpTask[]             @relation("AssignedCampaignFollowUpTasks")
+  completedCampaignFollowUpTasks      CampaignFollowUpTask[]             @relation("CompletedCampaignFollowUpTasks")
+  ignoredCampaignFollowUpTasks        CampaignFollowUpTask[]             @relation("IgnoredCampaignFollowUpTasks")
+  companyNotificationRecipients       CompanyNotificationRecipient[]
+  companyNotificationPreferences      CompanyNotificationPreference[]
+  companyNotificationEmailDeliveries  CompanyNotificationEmailDelivery[]
+  privacyRequests                     PrivacyRequest[]
+  contactConsentEvents                ContactConsentEvent[]
+  complianceEvidenceExports           ComplianceEvidenceExport[]
+  trustDocumentAcceptances            TrustDocumentAcceptance[]
+  accessRoleAssignments               CompanyAccessRoleAssignment[]
+  createdEntitlementOverrides         CompanyEntitlementOverride[]
+  entitlementCheckLogs                FeatureEntitlementCheckLog[]
+  requestedPlanCheckouts              PlanCheckout[]
+  companyPlanChanges                  CompanyPlanChange[]
+  billingInvoices                     BillingInvoice[]
+  requestedScheduledPlanChanges       ScheduledPlanChange[]
+  manualReviewedPlanCheckouts         PlanCheckout[]                     @relation("ManualReviewedPlanCheckouts")
+  requestedBillingRefunds             BillingRefund[]
+  updatedBillingProfiles              CompanyBillingProfile[]            @relation("BillingProfileUpdatedBy")
+  billingProfileUpdateEvents          BillingProfileUpdateEvent[]
+  contactImportJobs                   ContactImportJob[]
+  workspacePreference                 UserWorkspacePreference?
+  platformCompanyActionLogs           PlatformCompanyActionLog[]
+  platformCompanyNotes                PlatformCompanyNote[]
+  assignedCompanyPlans                CompanyPlanAssignment[]            @relation("AssignedCompanyPlans")
+  companyPlanAssignmentEvents         CompanyPlanAssignmentEvent[]       @relation("CompanyPlanAssignmentEventActor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -826,13 +1048,14 @@ model Company {
 
   billingOwnerType CompanyBillingOwnerType @default(SELF)
 
-  legalName String?
-  brandName String?
-  industry  String?
-  website   String?
+  legalName        String?
+  brandName        String?
+  industry         String?
+  website          String?
   businessCategory String?
   city             String?
   pinCode          String?
+  channelPartner   String?
   employeeCode     String?
 
   whatsappUpdatesConsent   Boolean   @default(false)
@@ -841,10 +1064,10 @@ model Company {
   supportEmail String?
   supportPhone String?
 
-  isSandbox Boolean @default(false)
+  isSandbox             Boolean   @default(false)
   onboardingCompletedAt DateTime?
-  suspendedAt DateTime?
-  suspensionReason String?
+  suspendedAt           DateTime?
+  suspensionReason      String?
 
   platformNotes String?
 
@@ -862,70 +1085,88 @@ model Company {
   cancelAtPeriodEnd      Boolean            @default(false)
   subscriptionCanceledAt DateTime?
 
-  users                       CompanyUser[]
-  whatsAppAccounts            WhatsAppAccount[]
-  whatsAppPhoneNumbers        WhatsAppPhoneNumber[]
-  templates                   Template[]
-  contacts                    Contact[]
-  messages                    Message[]
-  messageEvents               MessageEvent[]
-  webhookEvents               WebhookEvent[]
-  campaigns                   Campaign[]
-  campaignContacts            CampaignContact[]
-  wallet                      Wallet?
-  walletTransactions          WalletTransaction[]
-  invites                     CompanyInvite[]
-  auditLogs                   AuditLog[]
-  inboxNotes                  InboxNote[]
-  inboxTags                   InboxTag[]
-  contactInboxTags            ContactInboxTag[]
-  contactActivities           ContactActivity[]
-  inboxSavedViews             InboxSavedView[]
-  campaignAnalyticsSnapshots  CampaignAnalyticsSnapshot[]
-  campaignReplyAttributions   CampaignReplyAttribution[]
-  quickReplies                QuickReply[]
-  apiKeys                     ApiKey[]
-  developerWebhookEndpoints   DeveloperWebhookEndpoint[]
-  developerWebhookDeliveries  DeveloperWebhookDelivery[]
-  developerWebhookOutbox      DeveloperWebhookOutbox[]
-  bulkMessageBatches          BulkMessageBatch[]
-  contactGroups               ContactGroup[]
-  creditPurchases             CreditPurchase[]
-  subscriptionPayments        SubscriptionPayment[]
-  razorpayWebhookEvents       RazorpayWebhookEvent[]
-  maintenanceJobRuns          MaintenanceJobRun[]
-  developerApiUsage           DeveloperApiUsage[]
-  developerApiRequestLogs     DeveloperApiRequestLog[]
-  publicApiIdempotencyRecords PublicApiIdempotencyRecord[]
-  privacyRequests             PrivacyRequest[]
-  contactConsentEvents        ContactConsentEvent[]
-  complianceEvidenceExports   ComplianceEvidenceExport[]
-  trustDocumentAcceptances    TrustDocumentAcceptance[]
-  accessRoles                 CompanyAccessRole[]
-  accessRoleAssignments       CompanyAccessRoleAssignment[]
-  entitlementOverrides        CompanyEntitlementOverride[]
-  entitlementCheckLogs        FeatureEntitlementCheckLog[]
-  featureUsageCounters        FeatureUsageCounter[]
-  featureUsageEvents          FeatureUsageEvent[]
-  usageQuotaAlerts            UsageQuotaAlert[]
-  planCheckouts               PlanCheckout[]
-  planChanges                 CompanyPlanChange[]
-  billingInvoices             BillingInvoice[]
-  subscriptionRenewalEvents   SubscriptionRenewalEvent[]
-  scheduledPlanChanges        ScheduledPlanChange[]
-  planCheckoutReconciliationEvents PlanCheckoutReconciliationEvent[]
-  billingRefunds     BillingRefund[]
-  billingCreditNotes BillingCreditNote[]
+  users                             CompanyUser[]
+  whatsAppAccounts                  WhatsAppAccount[]
+  whatsAppPhoneNumbers              WhatsAppPhoneNumber[]
+  contactImportJobs                 ContactImportJob[]
+  contactImportRows                 ContactImportRow[]
+  templates                         Template[]
+  contacts                          Contact[]
+  messages                          Message[]
+  messageEvents                     MessageEvent[]
+  webhookEvents                     WebhookEvent[]
+  campaigns                         Campaign[]
+  campaignContacts                  CampaignContact[]
+  wallet                            Wallet?
+  walletTransactions                WalletTransaction[]
+  invites                           CompanyInvite[]
+  auditLogs                         AuditLog[]
+  inboxNotes                        InboxNote[]
+  inboxTags                         InboxTag[]
+  contactInboxTags                  ContactInboxTag[]
+  contactActivities                 ContactActivity[]
+  inboxSavedViews                   InboxSavedView[]
+  campaignAnalyticsSnapshots        CampaignAnalyticsSnapshot[]
+  campaignReplyAttributions         CampaignReplyAttribution[]
+  quickReplies                      QuickReply[]
+  apiKeys                           ApiKey[]
+  developerWebhookEndpoints         DeveloperWebhookEndpoint[]
+  developerWebhookDeliveries        DeveloperWebhookDelivery[]
+  developerWebhookOutbox            DeveloperWebhookOutbox[]
+  bulkMessageBatches                BulkMessageBatch[]
+  contactSegments                   ContactSegment[]
+  contactSegmentRules               ContactSegmentRule[]
+  contactSegmentPreviews            ContactSegmentPreview[]
+  templateVariableMappings          TemplateVariableMapping[]
+  campaignLaunchRuns                CampaignLaunchRun[]
+  campaignLaunchRecipients          CampaignLaunchRecipient[]
+  campaignWalletReservations        CampaignWalletReservation[]
+  campaignFailureInsightRuns        CampaignFailureInsightRun[]
+  campaignFailureInsights           CampaignFailureInsight[]
+  campaignThroughputPolicies        CampaignThroughputPolicy[]
+  campaignThroughputEvents          CampaignThroughputEvent[]
+  campaignThroughputSnapshots       CampaignThroughputSnapshot[]
+  campaignCompletionReports         CampaignCompletionReport[]
+  campaignReportExports             CampaignReportExport[]
+  campaignConversionEvents          CampaignConversionEvent[]
+  campaignFollowUpTasks             CampaignFollowUpTask[]
+  contactGroups                     ContactGroup[]
+  creditPurchases                   CreditPurchase[]
+  subscriptionPayments              SubscriptionPayment[]
+  razorpayWebhookEvents             RazorpayWebhookEvent[]
+  maintenanceJobRuns                MaintenanceJobRun[]
+  developerApiUsage                 DeveloperApiUsage[]
+  developerApiRequestLogs           DeveloperApiRequestLog[]
+  publicApiIdempotencyRecords       PublicApiIdempotencyRecord[]
+  privacyRequests                   PrivacyRequest[]
+  contactConsentEvents              ContactConsentEvent[]
+  complianceEvidenceExports         ComplianceEvidenceExport[]
+  trustDocumentAcceptances          TrustDocumentAcceptance[]
+  accessRoles                       CompanyAccessRole[]
+  accessRoleAssignments             CompanyAccessRoleAssignment[]
+  entitlementOverrides              CompanyEntitlementOverride[]
+  entitlementCheckLogs              FeatureEntitlementCheckLog[]
+  featureUsageCounters              FeatureUsageCounter[]
+  featureUsageEvents                FeatureUsageEvent[]
+  usageQuotaAlerts                  UsageQuotaAlert[]
+  planCheckouts                     PlanCheckout[]
+  planChanges                       CompanyPlanChange[]
+  billingInvoices                   BillingInvoice[]
+  subscriptionRenewalEvents         SubscriptionRenewalEvent[]
+  scheduledPlanChanges              ScheduledPlanChange[]
+  planCheckoutReconciliationEvents  PlanCheckoutReconciliationEvent[]
+  billingRefunds                    BillingRefund[]
+  billingCreditNotes                BillingCreditNote[]
   billingRefundReconciliationEvents BillingRefundReconciliationEvent[]
-  billingProfile CompanyBillingProfile?
-  billingProfileUpdateEvents BillingProfileUpdateEvent[]
-  billingDocumentEmailDeliveries BillingDocumentEmailDelivery[]
-  billingDocumentPdfRenders BillingDocumentPdfRender[]
-  activeWorkspaceUsers UserWorkspacePreference[] @relation("ActiveCompanyPreference")
-  platformCompanyActionLogs PlatformCompanyActionLog[]
-  platformCompanyNotes PlatformCompanyNote[]
-  planAssignments CompanyPlanAssignment[]
-  planAssignmentEvents CompanyPlanAssignmentEvent[]
+  billingProfile                    CompanyBillingProfile?
+  billingProfileUpdateEvents        BillingProfileUpdateEvent[]
+  billingDocumentEmailDeliveries    BillingDocumentEmailDelivery[]
+  billingDocumentPdfRenders         BillingDocumentPdfRender[]
+  activeWorkspaceUsers              UserWorkspacePreference[]          @relation("ActiveCompanyPreference")
+  platformCompanyActionLogs         PlatformCompanyActionLog[]
+  platformCompanyNotes              PlatformCompanyNote[]
+  planAssignments                   CompanyPlanAssignment[]
+  planAssignmentEvents              CompanyPlanAssignmentEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -940,7 +1181,7 @@ model Company {
 model UserWorkspacePreference {
   id String @id @default(cuid())
 
-  userId          String @unique
+  userId          String  @unique
   activeCompanyId String?
 
   lastSelectedAt DateTime?
@@ -1173,9 +1414,12 @@ model Contact {
   activities                ContactActivity[]
   campaignContacts          CampaignContact[]
   campaignReplyAttributions CampaignReplyAttribution[]
+  campaignConversionEvents  CampaignConversionEvent[]
+  campaignFollowUpTasks     CampaignFollowUpTask[]
   contactGroupMembers       ContactGroupMember[]
   privacyRequests           PrivacyRequest[]
   consentEvents             ContactConsentEvent[]
+  contactImportRows         ContactImportRow[]
   complianceEvidenceExports ComplianceEvidenceExport[]
 
   createdAt DateTime @default(now())
@@ -1199,6 +1443,119 @@ model Contact {
   @@index([marketingConsentAt])
   @@index([lastSeenAt])
   @@index([lastRepliedAt])
+}
+
+model ContactSegment {
+  id               String                  @id @default(cuid())
+  companyId        String
+  createdByUserId  String?
+  status           ContactSegmentStatus    @default(ACTIVE)
+  matchMode        ContactSegmentMatchMode @default(ALL)
+  name             String
+  description      String?
+  lastPreviewCount Int                     @default(0)
+  lastPreviewAt    DateTime?
+  metadata         Json?
+
+  company                  Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdByUser            User?                     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  rules                    ContactSegmentRule[]
+  previews                 ContactSegmentPreview[]
+  templateVariableMappings TemplateVariableMapping[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([createdByUserId])
+  @@index([status])
+  @@index([matchMode])
+  @@index([createdAt])
+}
+
+model ContactSegmentRule {
+  id             String                     @id @default(cuid())
+  companyId      String
+  segmentId      String
+  field          ContactSegmentRuleField
+  operator       ContactSegmentRuleOperator
+  customFieldKey String?
+  value          String?
+  values         Json?
+  metadata       Json?
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  segment ContactSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([segmentId])
+  @@index([field])
+  @@index([operator])
+  @@index([customFieldKey])
+  @@index([createdAt])
+}
+
+model ContactSegmentPreview {
+  id                String   @id @default(cuid())
+  companyId         String
+  segmentId         String
+  totalMatched      Int      @default(0)
+  sampleCount       Int      @default(0)
+  sampleContactIds  Json?
+  sampleContacts    Json?
+  generatedByUserId String?
+  generatedAt       DateTime @default(now())
+  metadata          Json?
+
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  segment         ContactSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  generatedByUser User?          @relation(fields: [generatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([segmentId])
+  @@index([generatedByUserId])
+  @@index([generatedAt])
+}
+
+model TemplateVariableMapping {
+  id               String                        @id @default(cuid())
+  companyId        String
+  createdByUserId  String?
+  status           TemplateVariableMappingStatus @default(ACTIVE)
+  templateId       String?
+  templateName     String
+  templateLanguage String?
+  segmentId        String?
+  variableKey      String
+  source           TemplateVariableMappingSource
+  contactField     String?
+  customFieldKey   String?
+  staticValue      String?
+  systemValueKey   String?
+  fallbackValue    String?
+  isRequired       Boolean                       @default(true)
+  metadata         Json?
+
+  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdByUser User?           @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  segment       ContactSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, templateName, templateLanguage, segmentId, variableKey])
+  @@index([companyId])
+  @@index([createdByUserId])
+  @@index([templateId])
+  @@index([templateName])
+  @@index([templateLanguage])
+  @@index([segmentId])
+  @@index([variableKey])
+  @@index([source])
+  @@index([status])
 }
 
 model ContactConsentEvent {
@@ -1816,23 +2173,23 @@ model PlanCheckout {
 
   expiresAt DateTime?
 
-  webhookProcessedAt DateTime?
-  reconciliationAttempts Int @default(0)
-  lastReconciliationAt DateTime?
+  webhookProcessedAt      DateTime?
+  reconciliationAttempts  Int       @default(0)
+  lastReconciliationAt    DateTime?
   lastReconciliationError String?
 
-  manualReviewReason String?
-  manualReviewOpenedAt DateTime?
-  manualReviewedAt DateTime?
+  manualReviewReason     String?
+  manualReviewOpenedAt   DateTime?
+  manualReviewedAt       DateTime?
   manualReviewedByUserId String?
-  manualReviewDecision BillingOpsReviewDecision?
-  manualReviewNotes String?
+  manualReviewDecision   BillingOpsReviewDecision?
+  manualReviewNotes      String?
 
   reconciliationEvents PlanCheckoutReconciliationEvent[]
 
-  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  requestedBy User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
-  manualReviewedBy User? @relation("ManualReviewedPlanCheckouts", fields: [manualReviewedByUserId], references: [id], onDelete: SetNull)
+  company          Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requestedBy      User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  manualReviewedBy User?   @relation("ManualReviewedPlanCheckouts", fields: [manualReviewedByUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2011,11 +2368,11 @@ model BillingInvoice {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  lines BillingInvoiceLine[]
-  refunds     BillingRefund[]
-  creditNotes BillingCreditNote[]
+  lines           BillingInvoiceLine[]
+  refunds         BillingRefund[]
+  creditNotes     BillingCreditNote[]
   emailDeliveries BillingDocumentEmailDelivery[]
-  pdfRenders BillingDocumentPdfRender[]
+  pdfRenders      BillingDocumentPdfRender[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2038,7 +2395,7 @@ model BillingInvoiceLine {
   type BillingInvoiceLineType
 
   description String
-  quantity    Int @default(1)
+  quantity    Int    @default(1)
 
   unitAmountPaise Int
   totalPaise      Int
@@ -2065,6 +2422,7 @@ model ContactActivity {
   title       String
   description String?
   metadata    Json?
+  dedupeKey   String?             @unique
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -2229,8 +2587,12 @@ model Message {
   variables     String[]
 
   metaMessageId String?
+  errorCode     String?
+  errorMessage  String?
+  metadata      Json?
 
   inboxReadAt DateTime?
+  queuedAt    DateTime?
 
   company                   Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contact                   Contact                    @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -2239,9 +2601,11 @@ model Message {
   campaignContact           CampaignContact?           @relation(fields: [campaignContactId], references: [id], onDelete: SetNull)
   bulkMessageBatchRecipient BulkMessageBatchRecipient?
 
-  events                    MessageEvent[]
-  usageLedgers              MessageUsageLedger[]
-  campaignReplyAttributions CampaignReplyAttribution[]
+  events                            MessageEvent[]
+  usageLedgers                      MessageUsageLedger[]
+  campaignReplyAttributions         CampaignReplyAttribution[] @relation("CampaignReplyInboundMessage")
+  outboundCampaignReplyAttributions CampaignReplyAttribution[] @relation("CampaignReplyOutboundMessage")
+  campaignConversionEvents          CampaignConversionEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2250,6 +2614,7 @@ model Message {
   @@index([contactId])
   @@index([templateId])
   @@index([metaMessageId])
+  @@index([errorCode])
   @@index([campaignId])
   @@index([campaignContactId])
   @@index([companyId, direction, inboxReadAt])
@@ -2322,6 +2687,10 @@ model Campaign {
   messages          Message[]
   analyticsSnapshot CampaignAnalyticsSnapshot?
   replyAttributions CampaignReplyAttribution[]
+  conversionEvents  CampaignConversionEvent[]
+  followUpTasks     CampaignFollowUpTask[]
+  completionReports CampaignCompletionReport[]
+  reportExports     CampaignReportExport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2329,6 +2698,430 @@ model Campaign {
   @@index([companyId])
   @@index([templateId])
   @@index([status])
+}
+
+model CampaignLaunchRun {
+  id         String @id @default(cuid())
+  companyId  String
+  campaignId String
+
+  createdByUserId String?
+  status          CampaignLaunchRunStatus @default(DRAFT)
+  idempotencyKey  String?
+
+  templateId       String?
+  templateName     String
+  templateLanguage String?
+  templateBody     String
+  templateCategory String?
+
+  segmentId String?
+  dryRunId  String?
+
+  totalRecipients   Int @default(0)
+  validRecipients   Int @default(0)
+  skippedRecipients Int @default(0)
+  failedRecipients  Int @default(0)
+
+  estimatedCostPaise  Int @default(0)
+  reservedAmountPaise Int @default(0)
+
+  queuedMessageCount  Int @default(0)
+  createdMessageCount Int @default(0)
+
+  startedAt     DateTime?
+  queuedAt      DateTime?
+  completedAt   DateTime?
+  failedAt      DateTime?
+  failureReason String?
+
+  metadata Json?
+
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdByUser User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  recipients         CampaignLaunchRecipient[]
+  walletReservations CampaignWalletReservation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, campaignId, idempotencyKey])
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([createdByUserId])
+  @@index([status])
+  @@index([segmentId])
+  @@index([dryRunId])
+  @@index([createdAt])
+}
+
+model CampaignLaunchRecipient {
+  id          String @id @default(cuid())
+  companyId   String
+  launchRunId String
+  campaignId  String
+
+  contactId String?
+  messageId String?
+
+  status CampaignLaunchRecipientStatus @default(PLANNED)
+
+  phoneMasked String?
+  phoneLast4  String?
+
+  variables       Json?
+  bodyParameters  Json?
+  renderedPreview String?
+
+  failureReason String?
+
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  launchRun CampaignLaunchRun @relation(fields: [launchRunId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([launchRunId])
+  @@index([campaignId])
+  @@index([contactId])
+  @@index([messageId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CampaignWalletReservation {
+  id          String @id @default(cuid())
+  companyId   String
+  launchRunId String
+  campaignId  String
+
+  status CampaignWalletReservationStatus @default(RESERVED)
+
+  amountPaise         Int @default(0)
+  consumedAmountPaise Int @default(0)
+  releasedAmountPaise Int @default(0)
+
+  reason String?
+
+  reservedAt    DateTime  @default(now())
+  consumedAt    DateTime?
+  releasedAt    DateTime?
+  failedAt      DateTime?
+  failureReason String?
+
+  metadata Json?
+
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  launchRun CampaignLaunchRun @relation(fields: [launchRunId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([launchRunId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CampaignFailureInsightRun {
+  id         String @id @default(cuid())
+  companyId  String
+  campaignId String
+
+  generatedByUserId String?
+  status            CampaignFailureInsightRunStatus @default(GENERATED)
+
+  totalFailedMessages Int @default(0)
+  insightCount        Int @default(0)
+  retryableCount      Int @default(0)
+  nonRetryableCount   Int @default(0)
+
+  failedAt      DateTime?
+  failureReason String?
+  metadata      Json?
+
+  company         Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  generatedByUser User?                    @relation(fields: [generatedByUserId], references: [id], onDelete: SetNull)
+  insights        CampaignFailureInsight[]
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([generatedByUserId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CampaignFailureInsight {
+  id         String  @id @default(cuid())
+  companyId  String
+  campaignId String
+  runId      String?
+
+  status      CampaignFailureInsightStatus @default(OPEN)
+  category    CampaignFailureCategory
+  severity    CampaignFailureSeverity
+  retrySafety CampaignFailureRetrySafety
+
+  errorSignature     String
+  errorCode          String?
+  sampleErrorMessage String?
+
+  failedMessageCount    Int @default(0)
+  retryableMessageCount Int @default(0)
+
+  sampleMessageIds Json?
+  samplePhoneLast4 Json?
+
+  suggestedFix     String
+  technicalDetails String?
+
+  lastSeenAt DateTime?
+
+  fixedAt       DateTime?
+  fixedByUserId String?
+
+  ignoredAt       DateTime?
+  ignoredByUserId String?
+  ignoreReason    String?
+
+  retriedAt       DateTime?
+  retriedByUserId String?
+  retryBatchId    String?
+
+  metadata Json?
+
+  company       Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  run           CampaignFailureInsightRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  fixedByUser   User?                      @relation("FixedCampaignFailureInsights", fields: [fixedByUserId], references: [id], onDelete: SetNull)
+  ignoredByUser User?                      @relation("IgnoredCampaignFailureInsights", fields: [ignoredByUserId], references: [id], onDelete: SetNull)
+  retriedByUser User?                      @relation("RetriedCampaignFailureInsights", fields: [retriedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, campaignId, errorSignature])
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([runId])
+  @@index([status])
+  @@index([category])
+  @@index([severity])
+  @@index([retrySafety])
+  @@index([errorCode])
+  @@index([fixedByUserId])
+  @@index([ignoredByUserId])
+  @@index([retriedByUserId])
+  @@index([lastSeenAt])
+  @@index([createdAt])
+}
+
+model CampaignThroughputPolicy {
+  id String @id @default(cuid())
+
+  companyId  String
+  campaignId String @unique
+
+  status CampaignThroughputPolicyStatus @default(ACTIVE)
+  mode   CampaignThroughputMode         @default(NORMAL)
+
+  maxPerMinute Int @default(60)
+  maxPerHour   Int @default(1000)
+  minDelayMs   Int @default(250)
+
+  autoSlowdownEnabled     Boolean   @default(true)
+  autoPauseOnQualityError Boolean   @default(true)
+  slowModeMultiplier      Decimal   @default(0.25)
+  rateLimitCooldownUntil  DateTime?
+  lastRateLimitAt         DateTime?
+  lastQualityWarningAt    DateTime?
+  updatedByUserId         String?
+  metadata                Json?
+
+  company       Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  updatedByUser User?                     @relation(fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  events        CampaignThroughputEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([mode])
+  @@index([updatedByUserId])
+  @@index([rateLimitCooldownUntil])
+  @@index([createdAt])
+}
+
+model CampaignThroughputEvent {
+  id String @id @default(cuid())
+
+  companyId  String
+  campaignId String
+  policyId   String?
+
+  type     CampaignThroughputEventType
+  severity CampaignThroughputEventSeverity @default(INFO)
+
+  title   String
+  message String
+
+  errorCode    String?
+  errorMessage String?
+
+  retryAfterMs Int?
+  beforeMode   CampaignThroughputMode?
+  afterMode    CampaignThroughputMode?
+
+  metadata Json?
+
+  company Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  policy  CampaignThroughputPolicy? @relation(fields: [policyId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([policyId])
+  @@index([type])
+  @@index([severity])
+  @@index([errorCode])
+  @@index([createdAt])
+}
+
+model CampaignThroughputSnapshot {
+  id String @id @default(cuid())
+
+  companyId  String
+  campaignId String
+
+  mode         CampaignThroughputMode
+  maxPerMinute Int
+  maxPerHour   Int
+
+  sentLastMinute Int @default(0)
+  sentLastHour   Int @default(0)
+  throttledCount Int @default(0)
+
+  rateLimitEvents24h Int @default(0)
+  qualityEvents24h   Int @default(0)
+
+  isHealthy Boolean @default(true)
+  metadata  Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([mode])
+  @@index([isHealthy])
+  @@index([createdAt])
+}
+
+model CampaignCompletionReport {
+  id String @id @default(cuid())
+
+  companyId  String
+  campaignId String
+
+  generatedByUserId String?
+
+  status  CampaignCompletionReportStatus @default(GENERATED)
+  trigger CampaignCompletionTrigger      @default(MANUAL)
+
+  totalMessages     Int @default(0)
+  queuedMessages    Int @default(0)
+  sendingMessages   Int @default(0)
+  sentMessages      Int @default(0)
+  deliveredMessages Int @default(0)
+  readMessages      Int @default(0)
+  failedMessages    Int @default(0)
+  canceledMessages  Int @default(0)
+
+  deliveryRate Decimal @default(0)
+  readRate     Decimal @default(0)
+  failureRate  Decimal @default(0)
+
+  estimatedCostPaise  Int @default(0)
+  actualCostPaise     Int @default(0)
+  walletReservedPaise Int @default(0)
+
+  replyCount  Int @default(0)
+  optOutCount Int @default(0)
+
+  failureInsightCount    Int @default(0)
+  criticalFailureCount   Int @default(0)
+  safeRetryFailureGroups Int @default(0)
+
+  campaignStartedAt   DateTime?
+  campaignCompletedAt DateTime?
+  generatedAt         DateTime  @default(now())
+
+  failureReason String?
+
+  summary          Json?
+  failureBreakdown Json?
+  statusBreakdown  Json?
+  costBreakdown    Json?
+  replyBreakdown   Json?
+
+  company         Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign        Campaign               @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  generatedByUser User?                  @relation(fields: [generatedByUserId], references: [id], onDelete: SetNull)
+  exports         CampaignReportExport[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, campaignId])
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([generatedByUserId])
+  @@index([status])
+  @@index([trigger])
+  @@index([generatedAt])
+  @@index([createdAt])
+}
+
+model CampaignReportExport {
+  id String @id @default(cuid())
+
+  companyId  String
+  reportId   String
+  campaignId String
+
+  format CampaignReportExportFormat
+
+  filename    String
+  contentType String
+
+  rowCount  Int @default(0)
+  sizeBytes Int @default(0)
+
+  generatedByUserId String?
+
+  metadata Json?
+
+  company         Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign        Campaign                 @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  report          CampaignCompletionReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  generatedByUser User?                    @relation(fields: [generatedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([reportId])
+  @@index([campaignId])
+  @@index([format])
+  @@index([generatedByUserId])
+  @@index([createdAt])
 }
 
 model CampaignContact {
@@ -2413,23 +3206,140 @@ model CampaignReplyAttribution {
   contactId  String
   messageId  String
 
+  inboundMessageId  String?
+  outboundMessageId String?
+
   source CampaignReplyAttributionSource @default(AUTO)
+  status CampaignReplyAttributionStatus @default(ATTRIBUTED)
+  intent CampaignReplyIntent            @default(UNKNOWN)
 
-  repliedAt DateTime
+  replyBody        String?
+  replyBodyPreview String?
 
-  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  message  Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  repliedAt       DateTime
+  replyReceivedAt DateTime @default(now())
+  attributedAt    DateTime @default(now())
+
+  responseTimeMinutes Int?
+
+  autoClassified    Boolean @default(false)
+  autoOptOutApplied Boolean @default(false)
+
+  metadata Json?
+
+  company         Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign        Campaign                  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact         Contact                   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  message         Message                   @relation("CampaignReplyInboundMessage", fields: [messageId], references: [id], onDelete: Cascade)
+  outboundMessage Message?                  @relation("CampaignReplyOutboundMessage", fields: [outboundMessageId], references: [id], onDelete: SetNull)
+  conversions     CampaignConversionEvent[]
+  followUpTasks   CampaignFollowUpTask[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([campaignId, messageId])
   @@index([companyId])
   @@index([campaignId])
   @@index([contactId])
   @@index([messageId])
+  @@index([inboundMessageId])
+  @@index([outboundMessageId])
+  @@index([status])
+  @@index([intent])
   @@index([repliedAt])
+  @@index([replyReceivedAt])
+  @@index([createdAt])
+}
+
+model CampaignConversionEvent {
+  id String @id @default(cuid())
+
+  companyId          String
+  campaignId         String
+  contactId          String?
+  messageId          String?
+  replyAttributionId String?
+
+  type CampaignConversionType
+
+  valuePaise Int?
+  currency   String  @default("INR")
+  note       String?
+
+  createdByUserId String?
+  occurredAt      DateTime @default(now())
+  metadata        Json?
+
+  company          Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign         Campaign                  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact          Contact?                  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  message          Message?                  @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  replyAttribution CampaignReplyAttribution? @relation(fields: [replyAttributionId], references: [id], onDelete: SetNull)
+  createdByUser    User?                     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([contactId])
+  @@index([messageId])
+  @@index([replyAttributionId])
+  @@index([type])
+  @@index([createdByUserId])
+  @@index([occurredAt])
+  @@index([createdAt])
+}
+
+model CampaignFollowUpTask {
+  id String @id @default(cuid())
+
+  companyId          String
+  campaignId         String
+  contactId          String?
+  replyAttributionId String?
+
+  assignedToUserId String?
+
+  status   CampaignFollowUpTaskStatus   @default(OPEN)
+  priority CampaignFollowUpTaskPriority @default(MEDIUM)
+
+  title       String
+  description String?
+
+  dueAt DateTime?
+
+  completedAt       DateTime?
+  completedByUserId String?
+
+  ignoredAt       DateTime?
+  ignoredByUserId String?
+  ignoreReason    String?
+
+  metadata Json?
+
+  company          Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign         Campaign                  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact          Contact?                  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  replyAttribution CampaignReplyAttribution? @relation(fields: [replyAttributionId], references: [id], onDelete: SetNull)
+  assignedToUser   User?                     @relation("AssignedCampaignFollowUpTasks", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  completedByUser  User?                     @relation("CompletedCampaignFollowUpTasks", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  ignoredByUser    User?                     @relation("IgnoredCampaignFollowUpTasks", fields: [ignoredByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([contactId])
+  @@index([replyAttributionId])
+  @@index([assignedToUserId])
+  @@index([completedByUserId])
+  @@index([ignoredByUserId])
+  @@index([status])
+  @@index([priority])
+  @@index([dueAt])
+  @@index([createdAt])
 }
 
 model BulkMessageBatch {
@@ -2863,7 +3773,7 @@ model CompanyPlanAssignment {
 
   isCurrent Boolean @default(true)
 
-  startsAt              DateTime @default(now())
+  startsAt              DateTime  @default(now())
   trialEndsAt           DateTime?
   currentPeriodStartsAt DateTime?
   currentPeriodEndsAt   DateTime?
@@ -3712,7 +4622,7 @@ model PlanCheckoutReconciliationEvent {
 
   attemptNumber Int @default(1)
 
-  message String?
+  message      String?
   errorMessage String?
 
   metadata Json?
@@ -3732,158 +4642,158 @@ model PlanCheckoutReconciliationEvent {
 }
 
 enum BillingRefundStatus {
- REQUESTED
- PROCESSING
- PROCESSED
- FAILED
- CANCELLED
+  REQUESTED
+  PROCESSING
+  PROCESSED
+  FAILED
+  CANCELLED
 }
 
 enum BillingRefundType {
- FULL
- PARTIAL
+  FULL
+  PARTIAL
 }
 
 enum BillingRefundSource {
- ADMIN
- SYSTEM
+  ADMIN
+  SYSTEM
 }
 
 enum BillingCreditNoteStatus {
- ISSUED
- VOID
+  ISSUED
+  VOID
 }
 
 model BillingRefund {
- id String @id @default(cuid())
+  id String @id @default(cuid())
 
- companyId String
- invoiceId String?
- checkoutId String?
+  companyId  String
+  invoiceId  String?
+  checkoutId String?
 
- requestedByUserId String?
+  requestedByUserId String?
 
- type   BillingRefundType
- source BillingRefundSource @default(ADMIN)
- status BillingRefundStatus @default(REQUESTED)
+  type   BillingRefundType
+  source BillingRefundSource @default(ADMIN)
+  status BillingRefundStatus @default(REQUESTED)
 
- amountPaise Int
- currency    String @default("INR")
+  amountPaise Int
+  currency    String @default("INR")
 
- reason String?
- confirmationText String?
+  reason           String?
+  confirmationText String?
 
- razorpayPaymentId String?
- razorpayRefundId  String?
- razorpayStatus    String?
+  razorpayPaymentId String?
+  razorpayRefundId  String?
+  razorpayStatus    String?
 
- processedAt DateTime?
- failedAt    DateTime?
- failureReason String?
+  processedAt   DateTime?
+  failedAt      DateTime?
+  failureReason String?
 
- downgradeApplied Boolean @default(false)
- planChangeId String?
+  downgradeApplied Boolean @default(false)
+  planChangeId     String?
 
- reconciliationAttempts Int @default(0)
- lastReconciliationAt DateTime?
- lastReconciliationError String?
- webhookProcessedAt DateTime?
- reconciliationEvents BillingRefundReconciliationEvent[]
+  reconciliationAttempts  Int                                @default(0)
+  lastReconciliationAt    DateTime?
+  lastReconciliationError String?
+  webhookProcessedAt      DateTime?
+  reconciliationEvents    BillingRefundReconciliationEvent[]
 
- metadata Json?
+  metadata Json?
 
- company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
- invoice BillingInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
- requestedBy User? @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice     BillingInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  requestedBy User?           @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
- creditNote BillingCreditNote?
- emailDeliveries BillingDocumentEmailDelivery[]
+  creditNote      BillingCreditNote?
+  emailDeliveries BillingDocumentEmailDelivery[]
 
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
- @@index([companyId])
- @@index([invoiceId])
- @@index([checkoutId])
- @@index([requestedByUserId])
- @@index([status])
- @@index([type])
- @@index([razorpayPaymentId])
- @@index([razorpayRefundId])
- @@index([createdAt])
- @@index([lastReconciliationAt])
- @@index([webhookProcessedAt])
+  @@index([companyId])
+  @@index([invoiceId])
+  @@index([checkoutId])
+  @@index([requestedByUserId])
+  @@index([status])
+  @@index([type])
+  @@index([razorpayPaymentId])
+  @@index([razorpayRefundId])
+  @@index([createdAt])
+  @@index([lastReconciliationAt])
+  @@index([webhookProcessedAt])
 }
 
 model BillingCreditNote {
- id String @id @default(cuid())
+  id String @id @default(cuid())
 
- companyId String
- refundId  String @unique
- invoiceId String?
+  companyId String
+  refundId  String  @unique
+  invoiceId String?
 
- creditNoteNumber String @unique
+  creditNoteNumber String @unique
 
- status BillingCreditNoteStatus @default(ISSUED)
+  status BillingCreditNoteStatus @default(ISSUED)
 
- currency String @default("INR")
+  currency String @default("INR")
 
- subtotalPaise Int @default(0)
- taxPaise      Int @default(0)
- totalPaise    Int @default(0)
+  subtotalPaise Int @default(0)
+  taxPaise      Int @default(0)
+  totalPaise    Int @default(0)
 
- reason String?
+  reason String?
 
- issuedAt DateTime @default(now())
- voidedAt DateTime?
+  issuedAt DateTime  @default(now())
+  voidedAt DateTime?
 
- metadata Json?
+  metadata Json?
 
- company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
- refund  BillingRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
- invoice BillingInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
- emailDeliveries BillingDocumentEmailDelivery[]
- pdfRenders BillingDocumentPdfRender[]
+  company         Company                        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  refund          BillingRefund                  @relation(fields: [refundId], references: [id], onDelete: Cascade)
+  invoice         BillingInvoice?                @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  emailDeliveries BillingDocumentEmailDelivery[]
+  pdfRenders      BillingDocumentPdfRender[]
 
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
- @@index([companyId])
- @@index([invoiceId])
- @@index([status])
- @@index([issuedAt])
+  @@index([companyId])
+  @@index([invoiceId])
+  @@index([status])
+  @@index([issuedAt])
 }
 
 enum BillingRefundReconciliationStatus {
- PENDING
- PROCESSED
- FAILED
- SKIPPED
+  PENDING
+  PROCESSED
+  FAILED
+  SKIPPED
 }
 
 model BillingRefundReconciliationEvent {
- id String @id @default(cuid())
- companyId String
- refundId String
- status BillingRefundReconciliationStatus
- source String
- razorpayRefundId String?
- razorpayPaymentId String?
- razorpayStatus String?
- attemptNumber Int @default(1)
- message String?
- errorMessage String?
- metadata Json?
+  id                String                            @id @default(cuid())
+  companyId         String
+  refundId          String
+  status            BillingRefundReconciliationStatus
+  source            String
+  razorpayRefundId  String?
+  razorpayPaymentId String?
+  razorpayStatus    String?
+  attemptNumber     Int                               @default(1)
+  message           String?
+  errorMessage      String?
+  metadata          Json?
 
- company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
- refund BillingRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  refund  BillingRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
 
- createdAt DateTime @default(now())
+  createdAt DateTime @default(now())
 
- @@index([companyId])
- @@index([refundId])
- @@index([status])
- @@index([source])
+  @@index([companyId])
+  @@index([refundId])
+  @@index([status])
+  @@index([source])
   @@index([razorpayRefundId])
   @@index([razorpayPaymentId])
   @@index([razorpayStatus])
@@ -3928,8 +4838,8 @@ model CompanyBillingProfile {
   lastUpdatedByUserId String?
   lastUpdatedSource   BillingProfileUpdateSource @default(CUSTOMER)
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  lastUpdatedBy User? @relation("BillingProfileUpdatedBy", fields: [lastUpdatedByUserId], references: [id], onDelete: SetNull)
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lastUpdatedBy User?   @relation("BillingProfileUpdatedBy", fields: [lastUpdatedByUserId], references: [id], onDelete: SetNull)
 
   updateEvents BillingProfileUpdateEvent[]
 
@@ -3957,9 +4867,9 @@ model BillingProfileUpdateEvent {
 
   reason String?
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   profile CompanyBillingProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  actor   User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actor   User?                 @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -4007,10 +4917,10 @@ model BillingDocumentEmailDelivery {
 
   metadata Json?
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  invoice BillingInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  company    Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice    BillingInvoice?    @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   creditNote BillingCreditNote? @relation(fields: [creditNoteId], references: [id], onDelete: SetNull)
-  refund BillingRefund? @relation(fields: [refundId], references: [id], onDelete: SetNull)
+  refund     BillingRefund?     @relation(fields: [refundId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4051,13 +4961,13 @@ model BillingDocumentPdfRender {
 
   sizeBytes Int?
 
-  failedAt DateTime?
+  failedAt      DateTime?
   failureReason String?
 
   metadata Json?
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  invoice BillingInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  company    Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice    BillingInvoice?    @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   creditNote BillingCreditNote? @relation(fields: [creditNoteId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -4129,3 +5039,101 @@ model BillingMetricSnapshot {
   @@index([periodEnd])
   @@index([createdAt])
 }
+
+enum ContactImportJobStatus {
+  DRAFT
+  PREVIEWED
+  IMPORTING
+  COMPLETED
+  FAILED
+}
+
+enum ContactImportRowStatus {
+  READY
+  SKIPPED
+  IMPORTED
+  FAILED
+}
+
+enum ContactImportDuplicateStrategy {
+  UPDATE_EXISTING
+  SKIP_EXISTING
+}
+
+model ContactImportJob {
+  id String @id @default(cuid())
+
+  companyId String
+  actorUserId String?
+
+  status ContactImportJobStatus @default(DRAFT)
+  duplicateStrategy ContactImportDuplicateStrategy @default(UPDATE_EXISTING)
+
+  fileName String?
+  totalRows Int @default(0)
+  readyRows Int @default(0)
+  skippedRows Int @default(0)
+  importedRows Int @default(0)
+  failedRows Int @default(0)
+
+  fieldMapping Json?
+  consentMapping Json?
+  previewSummary Json?
+  errorMessage String?
+
+  startedAt DateTime?
+  completedAt DateTime?
+  failedAt DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actorUser User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  rows ContactImportRow[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([actorUserId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ContactImportRow {
+  id String @id @default(cuid())
+
+  companyId String
+  jobId String
+
+  rowNumber Int
+  status ContactImportRowStatus @default(READY)
+
+  raw Json?
+  normalized Json?
+
+  phone String?
+  email String?
+  name String?
+
+  contactId String?
+
+  errorMessage String?
+  consentStatus String?
+  consentProof String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  job ContactImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([jobId])
+  @@index([contactId])
+  @@index([status])
+  @@index([phone])
+  @@index([email])
+  @@index([rowNumber])
+}
+

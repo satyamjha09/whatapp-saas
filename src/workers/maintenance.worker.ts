@@ -96,6 +96,14 @@ import {
   BILLING_ANALYTICS_JOB,
   runBillingAnalyticsJob,
 } from "@/server/jobs/billing-analytics.job";
+import {
+  CAMPAIGN_THROUGHPUT_SNAPSHOT_JOB,
+  runCampaignThroughputSnapshotJob,
+} from "@/server/jobs/campaign-throughput-snapshot.job";
+import {
+  CAMPAIGN_COMPLETION_REPORT_JOB,
+  runCampaignCompletionReportJob,
+} from "@/server/jobs/campaign-completion-report.job";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -367,6 +375,30 @@ async function ensureRepeatableJobs() {
       removeOnFail: 100,
     },
   );
+  await getMaintenanceQueue().add(
+    CAMPAIGN_THROUGHPUT_SNAPSHOT_JOB,
+    {},
+    {
+      repeat: {
+        pattern: "*/15 * * * *",
+      },
+      jobId: CAMPAIGN_THROUGHPUT_SNAPSHOT_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
+  await getMaintenanceQueue().add(
+    CAMPAIGN_COMPLETION_REPORT_JOB,
+    {},
+    {
+      repeat: {
+        pattern: "*/10 * * * *",
+      },
+      jobId: CAMPAIGN_COMPLETION_REPORT_JOB,
+      removeOnComplete: 50,
+      removeOnFail: 100,
+    },
+  );
 }
 
 const worker = new Worker(
@@ -519,6 +551,18 @@ const worker = new Worker(
     if (job.name === BILLING_ANALYTICS_JOB) {
       const result = await runBillingAnalyticsJob();
       console.log("Billing analytics snapshot completed", result);
+      return result;
+    }
+
+    if (job.name === CAMPAIGN_THROUGHPUT_SNAPSHOT_JOB) {
+      const result = await runCampaignThroughputSnapshotJob();
+      console.log("Campaign throughput snapshot completed", result);
+      return result;
+    }
+
+    if (job.name === CAMPAIGN_COMPLETION_REPORT_JOB) {
+      const result = await runCampaignCompletionReportJob();
+      console.log("Campaign completion report job completed", result);
       return result;
     }
 

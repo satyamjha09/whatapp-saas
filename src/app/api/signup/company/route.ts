@@ -100,6 +100,7 @@ export async function POST(request: Request) {
           businessCategory: body.businessCategory,
           city: body.city,
           pinCode: body.pinCode,
+          channelPartner: body.channelPartner || null,
           employeeCode: body.employeeCode || null,
 
           whatsappUpdatesConsent: body.whatsappUpdatesConsent,
@@ -161,6 +162,7 @@ export async function POST(request: Request) {
       metadata: {
         businessCategory: body.businessCategory,
         city: body.city,
+        channelPartner: body.channelPartner,
         whatsappUpdatesConsent: body.whatsappUpdatesConsent,
       },
     }).catch(() => undefined);

@@ -52,6 +52,15 @@ import { getBillingAnalyticsHealth } from "@/server/services/billing-analytics.s
 import { getTransactionalEmailHealth } from "@/server/services/email-health.service";
 import { getPlatformCompanyControlHealth } from "@/server/services/platform-company-control.service";
 import { getCompanyPlanAssignmentHealth } from "@/server/services/company-plan-assignment.service";
+import { getContactSegmentBuilderHealth } from "@/server/services/contact-segment-builder.service";
+import { getTemplateVariableMappingHealth } from "@/server/services/template-variable-mapping.service";
+import { getCampaignLaunchHealth } from "@/server/services/campaign-launch-orchestrator.service";
+import { getCampaignFailureIntelligenceHealth } from "@/server/services/campaign-failure-intelligence.service";
+import { getCampaignThroughputGuardHealth } from "@/server/services/campaign-throughput-guard.service";
+import { getCampaignCompletionReportHealth } from "@/server/services/campaign-completion-report.service";
+import { getCampaignReplyAttributionHealth } from "@/server/services/campaign-reply-attribution.service";
+import { getTimelineBackfillHealth } from "@/server/services/timeline-backfill.service";
+import { getContactImportHealth } from "@/server/services/contact-import.service";
 import { prisma } from "@/lib/prisma";
 import MaintenanceModeCard from "./maintenance-mode-card";
 import RunDatabaseBackupButton from "./run-database-backup-button";
@@ -139,6 +148,15 @@ export default async function SystemHealthPage() {
     transactionalEmail,
     platformCompanyControl,
     companyPlanAssignment,
+    contactSegments,
+    templateVariableMapping,
+    campaignLaunch,
+    campaignFailureIntelligence,
+    campaignThroughput,
+    campaignCompletionReports,
+    campaignReplyAttribution,
+    timelineBackfill,
+    contactImport,
   ] = await Promise.all([
     getOperationsHealth(),
     getSystemMaintenanceMode(),
@@ -197,6 +215,15 @@ export default async function SystemHealthPage() {
     getTransactionalEmailHealth(),
     getPlatformCompanyControlHealth(),
     getCompanyPlanAssignmentHealth(),
+    getContactSegmentBuilderHealth(),
+    getTemplateVariableMappingHealth(),
+    getCampaignLaunchHealth(),
+    getCampaignFailureIntelligenceHealth(),
+    getCampaignThroughputGuardHealth(),
+    getCampaignCompletionReportHealth(),
+    getCampaignReplyAttributionHealth(),
+    getTimelineBackfillHealth(),
+    getContactImportHealth(),
   ]);
 
   return (
@@ -211,6 +238,433 @@ export default async function SystemHealthPage() {
         </div>
 
         <MaintenanceModeCard maintenanceMode={maintenanceMode} />
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Contact Import
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Imports contacts with consent mapping and row-level validation.
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                contactImport.isHealthy
+                  ? "bg-green-50 text-green-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {contactImport.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Jobs</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {contactImport.jobs}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Completed</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {contactImport.completed}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {contactImport.failed}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Imported Rows</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {contactImport.importedRows}
+              </p>
+            </div>
+          </div>
+
+          <p className="mt-4 rounded-xl bg-gray-50 p-3 text-sm text-gray-600">
+            Max rows: {contactImport.maxRows} · Consent proof required:{" "}
+            {contactImport.requireConsentProofForGranted ? "Yes" : "No"}
+          </p>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Timeline Backfill
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Tracks campaign CRM timeline activity dedupe readiness and backfilled campaign events.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(timelineBackfill.isHealthy)}`}
+            >
+              {timelineBackfill.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Dedupe Ready</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {timelineBackfill.dedupeReady ? "Yes" : "No"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Deduped Rows</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {timelineBackfill.dedupedActivities}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Campaign Activities</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {timelineBackfill.campaignTimelineActivities}
+              </p>
+            </div>
+          </div>
+          <div className="mt-5">
+            <Link
+              href="/dashboard/settings/timeline"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open timeline backfill
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Campaign Reply Attribution
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Attributes inbound replies to campaigns, classifies reply intent, tracks conversions, and creates follow-up tasks.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(campaignReplyAttribution.isHealthy)}`}
+            >
+              {campaignReplyAttribution.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Attributed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignReplyAttribution.attributed24h}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Positive / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignReplyAttribution.positive24h}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Opt-outs / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignReplyAttribution.optOut24h}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Open Tasks</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignReplyAttribution.openTasks}
+              </p>
+            </div>
+          </div>
+          <div className="mt-5">
+            <Link
+              href="/dashboard/campaigns/replies"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open campaign replies
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Campaign Completion Reports
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Final reports with delivery, read, failure, cost, replies, opt-outs, and CSV evidence.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(campaignCompletionReports.isHealthy)}`}
+            >
+              {campaignCompletionReports.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Reports Total</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignCompletionReports.reportsTotal}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Generated / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignCompletionReports.generated24h}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignCompletionReports.failed24h}
+              </p>
+            </div>
+          </div>
+          <div className="mt-5">
+            <Link
+              href="/dashboard/campaigns/reports"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open campaign reports
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Campaign Throughput Guard
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Adaptive send speed, rate-limit protection, and WABA quality safety for bulk campaigns.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(campaignThroughput.isHealthy)}`}
+            >
+              {campaignThroughput.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Slow Campaigns</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignThroughput.slowCampaigns}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Paused Campaigns</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignThroughput.pausedCampaigns}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Rate Limits / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignThroughput.rateLimitEvents24h}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Quality Events / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignThroughput.qualityEvents24h}
+              </p>
+            </div>
+          </div>
+          <div className="mt-5">
+            <Link
+              href="/dashboard/campaigns/throughput"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open campaign throughput
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Campaign Failure Intelligence
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Groups failed WhatsApp messages by root cause and controls safe retry.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(campaignFailureIntelligence.isHealthy)}`}
+            >
+              {campaignFailureIntelligence.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Open Critical</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignFailureIntelligence.openCritical}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Safe Retry Groups</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignFailureIntelligence.safeRetryGroups}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed Runs / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignFailureIntelligence.failedRuns24h}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Stale Open</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignFailureIntelligence.staleOpen}
+              </p>
+            </div>
+          </div>
+          <div className="mt-5">
+            <Link
+              href="/dashboard/campaigns/failures"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Open failure intelligence
+            </Link>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Campaign Launch Orchestrator
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Connects segment selection, variable mapping, dry run, wallet reservation, message queueing, and campaign control.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(campaignLaunch.isHealthy)}`}
+            >
+              {campaignLaunch.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Queuing</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignLaunch.queuing}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Running</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignLaunch.running}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Queued / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignLaunch.queued24h}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Failed / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {campaignLaunch.failed24h}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Segment Builder
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Reusable contact segments for campaign recipient selection.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(contactSegments.isHealthy)}`}
+            >
+              {contactSegments.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Active Segments</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {contactSegments.activeSegments}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Disabled Segments</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {contactSegments.disabledSegments}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Previews / 24h</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {contactSegments.previews24h}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Template Variable Mapping
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Maps WhatsApp template variables to contact fields and system values.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass(templateVariableMapping.isHealthy)}`}
+            >
+              {templateVariableMapping.isHealthy ? "Healthy" : "Needs Review"}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Active Mappings</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {templateVariableMapping.activeMappings}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Disabled Mappings</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {templateVariableMapping.disabledMappings}
+              </p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Mapped Templates</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {templateVariableMapping.mappedTemplates}
+              </p>
+            </div>
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">

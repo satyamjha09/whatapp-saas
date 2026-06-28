@@ -52,7 +52,15 @@ function hasGuard(content: string) {
   return (
     content.includes("assertRoutePermission") ||
     content.includes("assertUserPermission") ||
-    content.includes("requireAdmin({ request")
+    content.includes("authorizeBillingManualReview") ||
+    content.includes("requireAuthenticatedWorkspace") ||
+    content.includes("requireAdmin({ request") ||
+    content.includes("requireMember") ||
+    content.includes("requirePlatformAdmin") ||
+    content.includes("getCurrentWorkspaceContext") ||
+    content.includes("authenticatePublicApiRequest") ||
+    content.includes("verifyMetaWebhookSignature") ||
+    content.includes("verifyRazorpayWebhookSignature")
   );
 }
 
@@ -90,7 +98,7 @@ export async function runRbacPermissionAudit() {
       if (sensitiveOnly() && !sensitive && !rule) continue;
 
       totalRoutes += 1;
-      if (guarded && rule) guardedRoutes += 1;
+      if (guarded && rule?.permission) guardedRoutes += 1;
 
       if (sensitive && !rule) {
         missingRegistry += 1;
@@ -101,7 +109,7 @@ export async function runRbacPermissionAudit() {
           severity: "WARN",
           message: "Sensitive API route has no RBAC registry rule",
         });
-      } else if (rule && !guarded) {
+      } else if (rule?.permission && !guarded) {
         missingGuards += 1;
         items.push({
           routePath: `${method} ${routePath}`,

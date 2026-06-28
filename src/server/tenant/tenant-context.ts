@@ -180,12 +180,10 @@ export async function assertCompanyDataAccess({
     return true;
   }
 
-  const membership = await prisma.companyUser.findUnique({
+  const membership = await prisma.companyUser.findFirst({
     where: {
-      userId_companyId: {
-        userId,
-        companyId,
-      },
+      userId,
+      companyId,
     },
   });
 

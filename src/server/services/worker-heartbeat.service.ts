@@ -13,6 +13,7 @@ const EXPECTED_WORKER_NAMES = [
   "inbox-sla-worker",
   "maintenance-worker",
   "notification-email-worker",
+  "campaign-launch-worker",
 ];
 
 export function createWorkerHeartbeat({

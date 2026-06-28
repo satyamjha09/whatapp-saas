@@ -19,11 +19,17 @@ export const createTemplateSchema = z.object({
 
   category: z.enum(["MARKETING", "UTILITY", "AUTHENTICATION"]),
 
+  templateType: z
+    .enum(["STANDARD", "CAROUSEL", "MEDIA", "CATALOG"])
+    .default("STANDARD"),
+
   body: z
     .string()
     .trim()
     .min(5, "Template body must be at least 5 characters")
     .max(1024, "Template body must be less than 1024 characters"),
+
+  components: z.unknown().optional(),
 });
 
 export type CreateTemplateInput = z.infer<typeof createTemplateSchema>;

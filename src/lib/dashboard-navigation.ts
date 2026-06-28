@@ -106,6 +106,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
     label: "Contact",
     items: [
       { label: "Contacts List", href: "/dashboard/contacts" },
+      { label: "Import Contacts", href: "/dashboard/contacts/import" },
       { label: "Contact Groups", href: "/dashboard/contacts/groups" },
       { label: "Contact Settings", href: "/dashboard/contacts/settings" },
       { label: "Blocked Contacts", href: "/dashboard/contacts/blocked" },

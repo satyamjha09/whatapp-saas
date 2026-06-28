@@ -371,7 +371,13 @@ export async function assertCompanyHasActivePlan(companyId: string) {
     return true;
   }
 
-  const plan = await getCurrentCompanyPlan(companyId);
+  let plan = await getCurrentCompanyPlan(companyId);
+
+  if (!plan) {
+    plan = await assignDefaultTrialPlan({
+      companyId,
+    });
+  }
 
   if (!plan) {
     throw new CompanyPlanAssignmentError("No active plan assigned.");

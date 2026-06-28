@@ -15,6 +15,7 @@ export const SignupAccountDetailsSchema = z.object({
   city: z.string().min(2, "City is required"),
   pinCode: z.string().regex(/^\d{6}$/, "Enter valid 6-digit PIN code"),
 
+  channelPartner: z.string().trim().max(120).optional().nullable(),
   employeeCode: z.string().optional().nullable(),
 
   whatsappUpdatesConsent: z.boolean().default(false),

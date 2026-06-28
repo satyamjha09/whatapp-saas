@@ -76,6 +76,8 @@ export async function requireAuthenticatedWorkspace({
 }: {
   request?: Request;
 } = {}) {
-  void request;
-  return requireMember();
+  const workspace = await requireMember();
+
+  if (request) await assertRoutePermission({ request, workspace });
+  return workspace;
 }

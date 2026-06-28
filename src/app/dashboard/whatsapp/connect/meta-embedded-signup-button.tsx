@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, LogIn } from "lucide-react";
+import { LoaderCircle, LogIn, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { actionButtonClass } from "@/app/dashboard/dashboard-ui";
@@ -31,6 +31,13 @@ type SignupSession = {
   phoneNumberId?: string;
 };
 
+type EmbeddedSignupEvent = {
+  event?: string;
+  session: SignupSession | null;
+  currentStep?: string;
+  errorMessage?: string;
+};
+
 type ConnectResponse = {
   message?: string;
 };
@@ -53,33 +60,43 @@ function isFacebookOrigin(origin: string) {
   }
 }
 
-function extractSignupSession(eventData: unknown): SignupSession | null {
+function stringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function extractSignupEvent(eventData: unknown): EmbeddedSignupEvent | null {
   if (!eventData || typeof eventData !== "object") return null;
 
   const root = eventData as Record<string, unknown>;
 
   if (root.type !== "WA_EMBEDDED_SIGNUP") return null;
-  if (typeof root.event === "string" && root.event !== "FINISH") return null;
 
   const data = root.data;
 
-  if (!data || typeof data !== "object") return null;
+  if (!data || typeof data !== "object") {
+    return {
+      event: stringValue(root.event),
+      session: null,
+    };
+  }
 
   const signupData = data as Record<string, unknown>;
+  const wabaId = stringValue(signupData.waba_id) ?? stringValue(signupData.wabaId);
+  const phoneNumberId =
+    stringValue(signupData.phone_number_id) ??
+    stringValue(signupData.phoneNumberId);
 
   return {
-    wabaId:
-      typeof signupData.waba_id === "string"
-        ? signupData.waba_id
-        : typeof signupData.wabaId === "string"
-          ? signupData.wabaId
-          : undefined,
-    phoneNumberId:
-      typeof signupData.phone_number_id === "string"
-        ? signupData.phone_number_id
-        : typeof signupData.phoneNumberId === "string"
-          ? signupData.phoneNumberId
-          : undefined,
+    event: stringValue(root.event),
+    session:
+      wabaId || phoneNumberId
+        ? {
+            wabaId,
+            phoneNumberId,
+          }
+        : null,
+    currentStep: stringValue(signupData.current_step),
+    errorMessage: stringValue(signupData.error_message),
   };
 }
 
@@ -97,12 +114,38 @@ function waitForSignupSession(
         return;
       }
 
-      if (Date.now() - startedAt >= 5000) {
+      if (Date.now() - startedAt >= 15000) {
         window.clearInterval(interval);
-        resolve(null);
+        resolve(session ?? null);
       }
     }, 100);
   });
+}
+
+function getMissingSessionMessage(session: SignupSession | null) {
+  if (session?.wabaId && !session.phoneNumberId) {
+    return "Meta returned the WhatsApp Business Account but no phone number. Please select or create a phone number before finishing signup.";
+  }
+
+  if (!session?.wabaId && session?.phoneNumberId) {
+    return "Meta returned a phone number but no WhatsApp Business Account. Please select the correct WhatsApp Business Account and try again.";
+  }
+
+  return "Meta did not return the WABA and phone number details. Please try again.";
+}
+
+function getHttpsRequirementMessage(appUrl: string | undefined) {
+  if (typeof window === "undefined" || window.location.protocol === "https:") {
+    return "";
+  }
+
+  return appUrl?.startsWith("https://")
+    ? `Facebook Login requires HTTPS. Open this page from ${appUrl}/dashboard/whatsapp/connect.`
+    : "Facebook Login requires HTTPS. Open this page from your ngrok HTTPS URL.";
+}
+
+function getSdkBlockedMessage() {
+  return "Unable to load the Facebook SDK. Disable ad blockers or browser tracking protection for this site, then retry.";
 }
 
 export default function MetaEmbeddedSignupButton({
@@ -114,10 +157,13 @@ export default function MetaEmbeddedSignupButton({
   const [isSdkReady, setIsSdkReady] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState("");
+  const [sdkLoadAttempt, setSdkLoadAttempt] = useState(0);
   const signupSessionRef = useRef<SignupSession | null>(null);
 
   const appId = process.env.NEXT_PUBLIC_META_APP_ID;
   const configId = process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const runtimeOriginError = getHttpsRequirementMessage(appUrl);
   const hasAppId = isConfigured(appId, "your_meta_app_id");
   const hasConfigId = isConfigured(
     configId,
@@ -128,7 +174,8 @@ export default function MetaEmbeddedSignupButton({
     : !hasConfigId
       ? "Meta Embedded Signup Configuration ID is not configured."
       : "";
-  const visibleError = error || configurationError;
+  const visibleError = error || configurationError || runtimeOriginError;
+  const canRetrySdkLoad = error === getSdkBlockedMessage();
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
@@ -144,10 +191,29 @@ export default function MetaEmbeddedSignupButton({
         }
       }
 
-      const session = extractSignupSession(parsedData);
+      const signupEvent = extractSignupEvent(parsedData);
 
-      if (session?.wabaId && session.phoneNumberId) {
-        signupSessionRef.current = session;
+      if (!signupEvent) return;
+
+      if (signupEvent.event === "ERROR") {
+        setError(
+          signupEvent.errorMessage ??
+            "Meta Embedded Signup returned an error. Please try again.",
+        );
+        return;
+      }
+
+      if (signupEvent.event === "CANCEL") {
+        setError(
+          signupEvent.currentStep
+            ? `Meta signup was cancelled at ${signupEvent.currentStep}.`
+            : "Meta signup was cancelled.",
+        );
+        return;
+      }
+
+      if (signupEvent.session) {
+        signupSessionRef.current = signupEvent.session;
       }
     }
 
@@ -157,6 +223,7 @@ export default function MetaEmbeddedSignupButton({
 
   useEffect(() => {
     if (!hasAppId || !appId) return;
+    let loadTimeout: number | null = null;
 
     function initializeSdk() {
       window.FB?.init({
@@ -175,17 +242,36 @@ export default function MetaEmbeddedSignupButton({
       return;
     }
 
-    if (!document.getElementById("facebook-jssdk")) {
-      const script = document.createElement("script");
-      script.id = "facebook-jssdk";
-      script.async = true;
-      script.defer = true;
-      script.crossOrigin = "anonymous";
-      script.src = "https://connect.facebook.net/en_US/sdk.js";
-      script.onerror = () => setError("Unable to load the Facebook SDK.");
-      document.body.appendChild(script);
-    }
-  }, [appId, graphVersion, hasAppId]);
+    document.getElementById("facebook-jssdk")?.remove();
+
+    const script = document.createElement("script");
+    script.id = "facebook-jssdk";
+    script.async = true;
+    script.defer = true;
+    script.crossOrigin = "anonymous";
+    script.src = "https://connect.facebook.net/en_US/sdk.js";
+    script.onload = () => {
+      if (window.FB) initializeSdk();
+    };
+    script.onerror = () => setError(getSdkBlockedMessage());
+    document.body.appendChild(script);
+
+    loadTimeout = window.setTimeout(() => {
+      if (!window.FB) {
+        setError(getSdkBlockedMessage());
+      }
+    }, 8000);
+
+    return () => {
+      if (loadTimeout) window.clearTimeout(loadTimeout);
+    };
+  }, [appId, graphVersion, hasAppId, sdkLoadAttempt]);
+
+  function retrySdkLoad() {
+    setError("");
+    setIsSdkReady(false);
+    setSdkLoadAttempt((attempt) => attempt + 1);
+  }
 
   async function completeConnection(code: string, session: SignupSession) {
     setIsConnecting(true);
@@ -226,6 +312,15 @@ export default function MetaEmbeddedSignupButton({
       return;
     }
 
+    if (window.location.protocol !== "https:") {
+      setError(
+        appUrl?.startsWith("https://")
+          ? `Facebook Login requires HTTPS. Open this page from ${appUrl}/dashboard/whatsapp/connect.`
+          : "Facebook Login requires HTTPS. Open this page from your ngrok HTTPS URL.",
+      );
+      return;
+    }
+
     if (!hasConfigId || !configId) {
       setError("Meta Embedded Signup Configuration ID is not configured.");
       return;
@@ -241,10 +336,8 @@ export default function MetaEmbeddedSignupButton({
         }
 
         void waitForSignupSession(signupSessionRef).then((session) => {
-          if (!session) {
-            setError(
-              "Meta did not return the WABA and phone number details. Please try again.",
-            );
+          if (!session?.wabaId || !session.phoneNumberId) {
+            setError(getMissingSessionMessage(session));
             return;
           }
 
@@ -253,9 +346,10 @@ export default function MetaEmbeddedSignupButton({
       },
       {
         config_id: configId,
+        auth_type: "rerequest",
         response_type: "code",
         override_default_response_type: true,
-        extras: { sessionInfoVersion: "3" },
+        extras: { sessionInfoVersion: 3 },
       },
     );
   }
@@ -265,7 +359,12 @@ export default function MetaEmbeddedSignupButton({
       <button
         type="button"
         onClick={startEmbeddedSignup}
-        disabled={!isSdkReady || isConnecting || Boolean(configurationError)}
+        disabled={
+          !isSdkReady ||
+          isConnecting ||
+          Boolean(configurationError) ||
+          Boolean(runtimeOriginError)
+        }
         className={actionButtonClass()}
       >
         {isConnecting ? (
@@ -281,12 +380,22 @@ export default function MetaEmbeddedSignupButton({
       ) : null}
 
       {visibleError ? (
-        <p
+        <div
           role="alert"
           className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700 ring-1 ring-rose-200"
         >
-          {visibleError}
-        </p>
+          <p>{visibleError}</p>
+          {canRetrySdkLoad ? (
+            <button
+              type="button"
+              onClick={retrySdkLoad}
+              className="mt-3 inline-flex items-center rounded-lg bg-white px-3 py-2 text-xs font-bold text-rose-700 ring-1 ring-rose-200 transition hover:bg-rose-100"
+            >
+              <RotateCw className="mr-2 h-3.5 w-3.5" />
+              Retry
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

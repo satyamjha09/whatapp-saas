@@ -3,7 +3,7 @@
 import { CheckCircle2, FileUp, LoaderCircle, Send } from "lucide-react";
 import Link from "next/link";
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   actionButtonClass,
   fieldClass,
@@ -12,6 +12,7 @@ import {
   Panel,
   PanelTitle,
 } from "@/app/dashboard/dashboard-ui";
+import WhatsAppMessagePreview from "../whatsapp-message-preview";
 
 type Template = {
   id: string;
@@ -54,6 +55,7 @@ type SendResponse = {
   errors?: {
     templateId?: string[];
     recipients?: string[];
+    segmentId?: string[];
     bodyParameters?: string[];
   };
 };
@@ -143,6 +145,8 @@ export default function BulkTemplateMessageForm({
   };
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialSegmentId = searchParams.get("segmentId") ?? "";
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
   const [recipientsText, setRecipientsText] = useState(
     "countryCode,phoneNumber,name,param1,param2",
@@ -154,10 +158,11 @@ export default function BulkTemplateMessageForm({
   const [success, setSuccess] = useState("");
   const [batchId, setBatchId] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
-  const [sendMode, setSendMode] = useState<"CSV" | "GROUP">(
-    initialGroupId ? "GROUP" : "CSV",
+  const [sendMode, setSendMode] = useState<"CSV" | "GROUP" | "SEGMENT">(
+    initialSegmentId ? "SEGMENT" : initialGroupId ? "GROUP" : "CSV",
   );
   const [groupId, setGroupId] = useState(initialGroupId ?? "");
+  const [segmentId, setSegmentId] = useState(initialSegmentId);
   const [isSending, setIsSending] = useState(false);
 
   const selectedTemplate = templates.find(
@@ -184,19 +189,13 @@ export default function BulkTemplateMessageForm({
     ).size;
   }, [recipients]);
   const activeRecipientCount =
-    sendMode === "GROUP"
+    sendMode === "SEGMENT"
+      ? plan.maxBulkRecipients
+      : sendMode === "GROUP"
       ? selectedGroup?._count.members ?? 0
       : uniqueRecipientCount;
   const isWithinPlanLimit = activeRecipientCount <= plan.maxBulkRecipients;
   const isPlanReady = plan.isSubscriptionActive && isWithinPlanLimit;
-  const preview = useMemo(() => {
-    if (!selectedTemplate) return "";
-
-    return selectedTemplate.body.replace(/{{(\d+)}}/g, (token, index: string) => {
-      return fallbackParameters[Number(index) - 1] || token;
-    });
-  }, [fallbackParameters, selectedTemplate]);
-
   function chooseTemplate(nextTemplateId: string) {
     setTemplateId(nextTemplateId);
     const template = templates.find((item) => item.id === nextTemplateId);
@@ -245,6 +244,10 @@ export default function BulkTemplateMessageForm({
       setError("Select a contact group.");
       return;
     }
+    if (sendMode === "SEGMENT" && !segmentId) {
+      setError("Open this page from a contact segment or paste recipients manually.");
+      return;
+    }
 
     setIsSending(true);
 
@@ -260,6 +263,7 @@ export default function BulkTemplateMessageForm({
         body: JSON.stringify({
           templateId,
           groupId: sendMode === "GROUP" ? groupId : null,
+          segmentId: sendMode === "SEGMENT" ? segmentId : null,
           recipients: sendMode === "CSV" ? recipients : [],
           bodyParameters: fallbackPayload,
           scheduledAt: scheduledAt
@@ -273,6 +277,7 @@ export default function BulkTemplateMessageForm({
         const firstError =
           data.errors?.templateId?.[0] ??
           data.errors?.recipients?.[0] ??
+          data.errors?.segmentId?.[0] ??
           data.errors?.bodyParameters?.[0] ??
           data.message ??
           "Unable to queue bulk messages.";
@@ -322,7 +327,9 @@ export default function BulkTemplateMessageForm({
         description="Upload CSV or paste rows. Each recipient may have its own template parameters."
       />
 
-      <form onSubmit={sendBulkMessage} className="mt-6 space-y-5">
+      <form onSubmit={sendBulkMessage} className="mt-6">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_438px]">
+          <div className="space-y-5">
         <div className={`rounded-xl border p-4 ${isPlanReady ? "border-[#D8E6F3] bg-[#F0F8FF]" : "border-rose-200 bg-rose-50"}`}>
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -357,8 +364,8 @@ export default function BulkTemplateMessageForm({
 
         <div className="rounded-xl bg-[#F0F8FF] p-4 ring-1 ring-[#D8E6F3]">
           <p className="text-sm font-bold text-[#081B3A]">Recipients source</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {(["CSV", "GROUP"] as const).map((mode) => (
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {(["CSV", "GROUP", "SEGMENT"] as const).map((mode) => (
               <label
                 key={mode}
                 className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#D8E6F3] bg-white p-4"
@@ -371,12 +378,18 @@ export default function BulkTemplateMessageForm({
                 />
                 <span>
                   <span className="block text-sm font-semibold text-[#081B3A]">
-                    {mode === "CSV" ? "CSV / Paste" : "Contact Group"}
+                    {mode === "CSV"
+                      ? "CSV / Paste"
+                      : mode === "GROUP"
+                        ? "Contact Group"
+                        : "Segment"}
                   </span>
                   <span className="mt-1 block text-xs text-[#526173]">
                     {mode === "CSV"
                       ? "Upload a CSV or paste recipient rows."
-                      : "Send to a saved contact group."}
+                      : mode === "GROUP"
+                        ? "Send to a saved contact group."
+                        : "Use mapped contacts from a reusable segment."}
                   </span>
                 </span>
               </label>
@@ -428,6 +441,23 @@ export default function BulkTemplateMessageForm({
                 No groups found. Create one from Contacts → Contact Groups.
               </p>
             ) : null}
+          </div>
+        ) : sendMode === "SEGMENT" ? (
+          <div className="rounded-xl border border-[#D8E6F3] bg-white p-4">
+            <label htmlFor="segmentId" className={labelClass}>
+              Contact segment
+            </label>
+            <input
+              id="segmentId"
+              value={segmentId}
+              onChange={(event) => setSegmentId(event.target.value)}
+              required
+              className={fieldClass}
+              placeholder="Segment ID"
+            />
+            <p className={helperTextClass}>
+              Segment recipients use saved template variable mappings. Create or preview segments from Contacts / Segments.
+            </p>
           </div>
         ) : (
           <>
@@ -494,17 +524,6 @@ export default function BulkTemplateMessageForm({
             </p>
           </div>
         ))}
-
-        {selectedTemplate ? (
-          <div className="rounded-xl bg-[#F0F8FF] p-4 ring-1 ring-[#D8E6F3]">
-            <p className="text-sm font-bold text-[#081B3A]">
-              Fallback template preview
-            </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#526173]">
-              {preview || "No body preview available."}
-            </p>
-          </div>
-        ) : null}
 
         {sendMode === "CSV" && recipients.length > 0 ? (
           <div className="overflow-hidden rounded-xl border border-[#D8E6F3]">
@@ -618,6 +637,22 @@ export default function BulkTemplateMessageForm({
           )}
           {isSending ? "Queueing..." : "Queue Bulk Messages"}
         </button>
+          </div>
+
+          <WhatsAppMessagePreview
+            recipientLabel={
+              sendMode === "GROUP"
+                ? selectedGroup
+                  ? `Group - ${selectedGroup.name}`
+                  : "Group audience"
+                : sendMode === "SEGMENT"
+                  ? "Segment audience"
+                  : `${uniqueRecipientCount.toLocaleString("en-IN")} CSV recipient(s)`
+            }
+            template={selectedTemplate ?? null}
+            variables={fallbackParameters}
+          />
+        </div>
       </form>
     </Panel>
   );

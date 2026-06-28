@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { ConsentRequiredError } from "@/server/services/contact-consent.service";
-import { sendSingleTemplateMessage } from "@/server/services/single-message.service";
+import {
+  sendSingleTemplateMessage,
+  uploadSingleMessageMedia,
+} from "@/server/services/single-message.service";
 import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
 import {
   assertSystemWritesAllowed,
@@ -10,6 +13,47 @@ import {
 } from "@/server/services/system-maintenance-mode.service";
 import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 import { sendSingleTemplateMessageSchema } from "@/server/validators/single-message.validator";
+
+async function readSingleMessageRequest(
+  request: Request,
+  companyId: string,
+) {
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (!contentType.includes("multipart/form-data")) {
+    return request.json();
+  }
+
+  const formData = await request.formData();
+  const mediaFile = formData.get("mediaFile");
+  let uploadedMediaId: string | undefined;
+
+  if (mediaFile instanceof File && mediaFile.size > 0) {
+    const upload = await uploadSingleMessageMedia(companyId, mediaFile);
+    uploadedMediaId = upload.mediaId;
+  }
+
+  return {
+    messageType: formData.get("messageType")?.toString(),
+    countryCode: formData.get("countryCode")?.toString(),
+    phoneNumber: formData.get("phoneNumber")?.toString(),
+    name: formData.get("name")?.toString() || undefined,
+    templateId: formData.get("templateId")?.toString() || undefined,
+    bodyParameters: formData.getAll("bodyParameters").map((value) =>
+      value.toString(),
+    ),
+    media:
+      formData.get("messageType")?.toString() === "Media"
+        ? {
+            type: formData.get("mediaType")?.toString(),
+            id: uploadedMediaId,
+            url: formData.get("mediaUrl")?.toString() || undefined,
+            name: formData.get("mediaName")?.toString() || undefined,
+            caption: formData.get("mediaCaption")?.toString() || undefined,
+          }
+        : undefined,
+  };
+}
 
 export async function POST(request: Request) {
   try {
@@ -26,7 +70,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const body: unknown = await request.json();
+    const body: unknown = await readSingleMessageRequest(
+      request,
+      context.membership.companyId,
+    );
     const validation = sendSingleTemplateMessageSchema.safeParse(body);
 
     if (!validation.success) {
@@ -56,8 +103,9 @@ export async function POST(request: Request) {
       entityId: result.message.id,
       metadata: {
         contactId: result.contact.id,
-        templateId: result.template.id,
-        templateName: result.template.name,
+        templateId: result.template?.id ?? null,
+        templateName: result.template?.name ?? null,
+        messageType: validation.data.messageType,
       },
     });
 

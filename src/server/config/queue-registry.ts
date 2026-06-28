@@ -35,6 +35,11 @@ export const REGISTERED_QUEUES: RegisteredQueue[] = [
     label: "Notification Email Worker",
     description: "Email notification delivery jobs",
   },
+  {
+    name: process.env.CAMPAIGN_LAUNCH_QUEUE_NAME || "campaign-launch",
+    label: "Campaign Launch Worker",
+    description: "Campaign launch planning and message row creation jobs",
+  },
 ];
 
 export function getRegisteredQueueNames() {

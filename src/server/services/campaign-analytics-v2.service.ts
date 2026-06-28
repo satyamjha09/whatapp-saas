@@ -131,10 +131,14 @@ export async function syncCampaignReplyAttributions({
         campaignId,
         contactId: reply.contactId,
         messageId: reply.id,
+        replyReceivedAt: reply.createdAt,
         source: "AUTO",
+        status: "ATTRIBUTED",
         repliedAt: reply.createdAt,
       },
       update: {
+        replyReceivedAt: reply.createdAt,
+        status: "ATTRIBUTED",
         repliedAt: reply.createdAt,
       },
     });

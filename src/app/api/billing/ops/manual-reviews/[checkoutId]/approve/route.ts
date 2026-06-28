@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/server/auth/authorization";
-import { createAuthorizationErrorResponse } from "@/server/utils/api-authorization-error";
-import {
-  assertRoutePermission,
-  createRoutePermissionErrorResponse,
-} from "@/server/auth/route-permission-guard";
+import { authorizeBillingManualReview } from "@/server/auth/billing-ops-authorization";
 import {
   approveManualPlanCheckout,
   BillingOpsError,
@@ -23,22 +18,10 @@ type RouteContext = {
 };
 
 export async function POST(request: Request, context: RouteContext) {
-  let workspace;
+  const authorization = await authorizeBillingManualReview(request);
 
-  try {
-    workspace = await requireAdmin({ request });
-  } catch (error) {
-    return createAuthorizationErrorResponse(error);
-  }
-
-  try {
-    await assertRoutePermission({
-      request,
-      workspace,
-      permission: "BILLING_MANAGE",
-    });
-  } catch (error) {
-    return createRoutePermissionErrorResponse(error);
+  if (!authorization.ok) {
+    return authorization.response;
   }
 
   const { checkoutId } = await context.params;
@@ -48,7 +31,8 @@ export async function POST(request: Request, context: RouteContext) {
 
     const result = await approveManualPlanCheckout({
       checkoutId,
-      reviewedByUserId: workspace.user.id,
+      companyId: authorization.actor.companyId,
+      reviewedByUserId: authorization.actor.userId,
       confirmation: body.confirmation,
       notes: body.notes,
     });

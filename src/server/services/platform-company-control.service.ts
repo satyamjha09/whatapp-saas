@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { assignDefaultTrialPlan } from "@/server/services/company-plan-assignment.service";
 import { createAuditLog } from "@/server/services/audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 
@@ -286,6 +287,11 @@ export async function activatePlatformCompany({
     },
   });
 
+  await assignDefaultTrialPlan({
+    companyId,
+    actorUserId,
+  });
+
   await logPlatformCompanyAction({
     companyId,
     actorUserId,
@@ -350,6 +356,11 @@ export async function reactivatePlatformCompany({
       suspendedAt: null,
       suspensionReason: null,
     },
+  });
+
+  await assignDefaultTrialPlan({
+    companyId,
+    actorUserId,
   });
 
   await logPlatformCompanyAction({

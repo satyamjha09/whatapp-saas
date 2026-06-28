@@ -61,12 +61,12 @@ export default function SyncWhatsAppTemplatesButton({
         type="button"
         onClick={syncTemplates}
         disabled={!canManage || isSyncing}
-        className={actionButtonClass()}
+        className={actionButtonClass("secondary")}
       >
         <RefreshCw
           className={`mr-2 h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
         />
-        {isSyncing ? "Syncing..." : "Sync from Meta"}
+        {isSyncing ? "Syncing..." : "Sync Template"}
       </button>
 
       {error ? (

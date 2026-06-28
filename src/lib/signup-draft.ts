@@ -8,6 +8,7 @@ export type SignupCompanyDraft = {
   mobile: string;
   city: string;
   pinCode: string;
+  channelPartner?: string | null;
   employeeCode?: string | null;
   whatsappUpdatesConsent: boolean;
 };

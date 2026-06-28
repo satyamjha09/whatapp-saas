@@ -12,6 +12,7 @@ import {
 } from "@/server/services/contact-consent.service";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
 import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
+import { attributeInboundCampaignReply } from "@/server/services/campaign-reply-attribution.service";
 import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
@@ -357,6 +358,11 @@ const worker = new Worker<ProcessWebhookJobData>(
           metaMessageId,
         },
       });
+
+      await attributeInboundCampaignReply({
+        companyId,
+        inboundMessageId: message.id,
+      }).catch(() => undefined);
 
       await enqueueDeveloperInboundMessageWebhook(companyId, message.id);
     }

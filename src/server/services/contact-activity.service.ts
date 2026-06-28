@@ -10,6 +10,8 @@ export async function recordContactActivity({
   title,
   description,
   metadata,
+  dedupeKey,
+  createdAt,
 }: {
   companyId: string;
   contactId: string;
@@ -18,19 +20,44 @@ export async function recordContactActivity({
   title: string;
   description?: string | null;
   metadata?: unknown;
+  dedupeKey?: string | null;
+  createdAt?: Date;
 }) {
+  const data = {
+    companyId,
+    contactId,
+    actorUserId: actorUserId ?? null,
+    type,
+    title,
+    description: description ?? null,
+    dedupeKey: dedupeKey ?? null,
+    metadata:
+      metadata !== undefined
+        ? (redactSensitiveData(metadata) as Prisma.InputJsonValue)
+        : undefined,
+    ...(createdAt ? { createdAt } : {}),
+  };
+
+  if (dedupeKey) {
+    return prisma.contactActivity.upsert({
+      where: {
+        dedupeKey,
+      },
+      create: data,
+      update: {
+        actorUserId: data.actorUserId,
+        description: data.description,
+        metadata: data.metadata,
+        title: data.title,
+        type: data.type,
+      },
+    });
+  }
+
   return prisma.contactActivity.create({
     data: {
-      companyId,
-      contactId,
-      actorUserId: actorUserId ?? null,
-      type,
-      title,
-      description: description ?? null,
-      metadata:
-        metadata !== undefined
-          ? (redactSensitiveData(metadata) as Prisma.InputJsonValue)
-          : undefined,
+      ...data,
+      dedupeKey: null,
     },
   });
 }

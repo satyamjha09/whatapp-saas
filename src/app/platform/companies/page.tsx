@@ -107,6 +107,7 @@ export default async function PlatformCompaniesPage() {
                       <p>Category: {company.businessCategory ?? "-"}</p>
                       <p>City: {company.city ?? "-"}</p>
                       <p>PIN: {company.pinCode ?? "-"}</p>
+                      <p>Channel Partner: {company.channelPartner ?? "-"}</p>
                       <p>Employee Code: {company.employeeCode ?? "-"}</p>
                     </td>
 

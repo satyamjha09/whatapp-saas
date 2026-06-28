@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import {
   assertUsageQuotaAvailable,
   incrementUsageQuota,
@@ -48,6 +49,9 @@ export async function createTemplateForCompany(
       category: input.category,
       body: input.body,
       variables,
+      components: input.components
+        ? (JSON.parse(JSON.stringify(input.components)) as Prisma.InputJsonValue)
+        : undefined,
       status: "DRAFT",
     },
   });

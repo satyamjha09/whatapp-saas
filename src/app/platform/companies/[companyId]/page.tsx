@@ -147,6 +147,7 @@ export default async function PlatformCompanyDetailPage({
             ["Business Category", company.businessCategory ?? "-"],
             ["City", company.city ?? "-"],
             ["PIN Code", company.pinCode ?? "-"],
+            ["Channel Partner", company.channelPartner ?? "-"],
             ["Employee Code", company.employeeCode ?? "-"],
             ["WhatsApp Consent", company.whatsappUpdatesConsent ? "Yes" : "No"],
             ["Billing Plan", company.billingPlan],
@@ -160,10 +161,6 @@ export default async function PlatformCompanyDetailPage({
           ))}
         </div>
 
-        <p className="mt-5 rounded-xl bg-gray-50 p-3 text-sm text-gray-600">
-          Channel Partner and Referral Code are intentionally not collected or
-          stored.
-        </p>
       </section>
 
       <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">

@@ -1,16 +1,22 @@
 import "dotenv/config";
 import { UnrecoverableError, Worker } from "bullmq";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
-import { DEFAULT_MESSAGE_JOB_ATTEMPTS } from "@/lib/queue";
+import { DEFAULT_MESSAGE_JOB_ATTEMPTS, getMessageQueue } from "@/lib/queue";
 import { getRedisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
 import {
+  sendWhatsAppMediaMessage,
   sendWhatsAppTemplateMessage,
   sendWhatsAppTextMessage,
 } from "@/lib/whatsapp";
 import { enqueueDeveloperMessageStatusWebhook } from "@/server/services/developer-webhook.service";
 import { publishCampaignDeveloperWebhookEvent } from "@/server/services/developer-webhook-event-publisher.service";
 import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
+import { analyzeCampaignFailures } from "@/server/services/campaign-failure-intelligence.service";
+import {
+  acquireCampaignSendSlot,
+  recordCampaignProviderFailureForThroughput,
+} from "@/server/services/campaign-throughput-guard.service";
 import { refundWalletForMessage } from "@/server/services/wallet.service";
 import type { SendMessageJobData } from "@/lib/queue";
 import {
@@ -23,6 +29,44 @@ import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.servic
 const heartbeat = createWorkerHeartbeat({
   workerName: process.env.WORKER_HEARTBEAT_NAME ?? "message-worker",
 });
+
+type OutboundMediaMetadata = {
+  messageType: "MEDIA";
+  mediaType: "IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO";
+  mediaUrl?: string | null;
+  mediaId?: string | null;
+  mediaName?: string | null;
+  caption?: string | null;
+};
+
+function getOutboundMediaMetadata(
+  metadata: unknown,
+): OutboundMediaMetadata | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const mediaType = String(record.mediaType);
+
+  if (
+    record.messageType !== "MEDIA" ||
+    !["IMAGE", "DOCUMENT", "VIDEO", "AUDIO"].includes(mediaType) ||
+    (typeof record.mediaUrl !== "string" && typeof record.mediaId !== "string")
+  ) {
+    return null;
+  }
+
+  return {
+    messageType: "MEDIA",
+    mediaType: mediaType as OutboundMediaMetadata["mediaType"],
+    mediaUrl: typeof record.mediaUrl === "string" ? record.mediaUrl : null,
+    mediaId: typeof record.mediaId === "string" ? record.mediaId : null,
+    mediaName:
+      typeof record.mediaName === "string" ? record.mediaName : null,
+    caption: typeof record.caption === "string" ? record.caption : null,
+  };
+}
 
 async function updateCampaignCompletion(campaignId: string) {
   const campaign = await prisma.campaign.findUnique({
@@ -125,6 +169,7 @@ async function markMessageAsFailed(
     },
     data: {
       status: "FAILED",
+      errorMessage: reason,
       events: {
         create: {
           companyId,
@@ -141,14 +186,12 @@ async function markMessageAsFailed(
   await updateBulkMessageRecipientTracking(message.id, "FAILED", reason);
   await enqueueDeveloperMessageStatusWebhook(companyId, message.id);
 
-  if (message.templateId) {
-    await refundWalletForMessage(
-      companyId,
-      MESSAGE_PRICE_PAISE,
-      "Message sending failed refund",
-      message.id,
-    );
-  }
+  await refundWalletForMessage(
+    companyId,
+    MESSAGE_PRICE_PAISE,
+    "Message sending failed refund",
+    message.id,
+  );
 
   if (message.campaignContactId) {
     await prisma.campaignContact.update({
@@ -174,6 +217,13 @@ async function markMessageAsFailed(
     });
 
     await updateCampaignCompletion(message.campaignId);
+
+    if (process.env.CAMPAIGN_FAILURE_AUTO_ANALYZE_ON_FAILURE !== "false") {
+      await analyzeCampaignFailures({
+        companyId: message.companyId,
+        campaignId: message.campaignId,
+      }).catch(() => undefined);
+    }
   }
 }
 
@@ -275,10 +325,123 @@ function isMessageSimulationEnabled() {
   return process.env.ENABLE_MESSAGE_SIMULATION === "true";
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getErrorCode(error: unknown) {
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code !== undefined &&
+    error.code !== null
+  ) {
+    return String(error.code);
+  }
+
+  return null;
+}
+
+function getHeaderValue(headers: unknown, name: string) {
+  if (!headers || typeof headers !== "object") return null;
+
+  if ("get" in headers && typeof headers.get === "function") {
+    const value = headers.get(name);
+    return typeof value === "string" ? value : null;
+  }
+
+  const record = headers as Record<string, unknown>;
+  const direct = record[name] ?? record[name.toLowerCase()];
+  return typeof direct === "string" ? direct : null;
+}
+
+function getRetryAfterMs(error: unknown) {
+  if (
+    !error ||
+    typeof error !== "object" ||
+    !("response" in error) ||
+    !error.response ||
+    typeof error.response !== "object" ||
+    !("headers" in error.response)
+  ) {
+    return null;
+  }
+
+  const retryAfter = getHeaderValue(error.response.headers, "retry-after");
+  if (!retryAfter) return null;
+
+  const seconds = Number(retryAfter);
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.floor(seconds * 1000);
+  }
+
+  const retryDate = Date.parse(retryAfter);
+  if (Number.isFinite(retryDate)) {
+    return Math.max(1000, retryDate - Date.now());
+  }
+
+  return null;
+}
+
+async function markMessageForThroughputRetry({
+  companyId,
+  jobName,
+  messageId,
+  reason,
+  retryAfterMs,
+}: {
+  companyId: string;
+  jobName: string;
+  messageId: string;
+  reason: string;
+  retryAfterMs: number;
+}) {
+  const updated = await prisma.message.updateMany({
+    where: {
+      companyId,
+      id: messageId,
+      status: {
+        in: ["QUEUED", "RETRY_PENDING"],
+      },
+    },
+    data: {
+      status: "RETRY_PENDING",
+    },
+  });
+
+  if (updated.count !== 1) {
+    return;
+  }
+
+  await prisma.messageEvent.create({
+    data: {
+      companyId,
+      messageId,
+      raw: {
+        reason,
+        retryAfterMs,
+        source: "campaign_throughput_guard",
+      },
+      status: "RETRY_PENDING",
+    },
+  });
+
+  await getMessageQueue().add(
+    jobName,
+    { companyId, messageId },
+    {
+      delay: retryAfterMs,
+      jobId: `throughput:${messageId}:${Date.now()}`,
+    },
+  );
+}
+
 const worker = new Worker<SendMessageJobData>(
   "message-queue",
   async (job) => {
     const { messageId, companyId } = job.data;
+    let campaignId: string | null = null;
 
     try {
       console.log("Processing message job:", job.id, messageId);
@@ -303,8 +466,37 @@ const worker = new Worker<SendMessageJobData>(
         throw new Error("Message not found");
       }
 
+      campaignId = message.campaignId;
+
       if (message.status === "CANCELED") {
         return;
+      }
+
+      if (!["QUEUED", "RETRY_PENDING"].includes(message.status)) {
+        return;
+      }
+
+      if (message.campaignId) {
+        const decision = await acquireCampaignSendSlot({
+          campaignId: message.campaignId,
+          companyId,
+        });
+
+        if (!decision.allowed) {
+          await markMessageForThroughputRetry({
+            companyId,
+            jobName: job.name,
+            messageId: message.id,
+            reason: decision.reason,
+            retryAfterMs: decision.retryAfterMs,
+          });
+
+          return;
+        }
+
+        if (decision.delayMs > 0) {
+          await sleep(decision.delayMs);
+        }
       }
 
       const claimedForSending = await prisma.$transaction(async (tx) => {
@@ -423,6 +615,7 @@ const worker = new Worker<SendMessageJobData>(
       }
 
       const decryptedAccessToken = await getWhatsAppAccessToken({ companyId });
+      const media = getOutboundMediaMetadata(message.metadata);
 
       const result = message.template
         ? await sendWhatsAppTemplateMessage({
@@ -433,6 +626,17 @@ const worker = new Worker<SendMessageJobData>(
             languageCode: message.template.language,
             variables: message.variables,
           })
+        : media
+          ? await sendWhatsAppMediaMessage({
+              accessToken: decryptedAccessToken,
+              phoneNumberId: phoneNumber!.phoneNumberId!,
+              to: message.toPhoneNumber,
+              mediaType: media.mediaType,
+              mediaUrl: media.mediaUrl ?? undefined,
+              mediaId: media.mediaId ?? undefined,
+              caption: media.caption ?? undefined,
+              filename: media.mediaName ?? undefined,
+            })
         : await sendWhatsAppTextMessage({
             accessToken: decryptedAccessToken,
             phoneNumberId: phoneNumber!.phoneNumberId!,
@@ -470,6 +674,8 @@ const worker = new Worker<SendMessageJobData>(
       console.log(
         message.template
           ? "Template message sent using Meta API:"
+          : media
+            ? "Media message sent using Meta API:"
           : "Session reply sent using Meta API:",
         message.id,
       );
@@ -481,6 +687,16 @@ const worker = new Worker<SendMessageJobData>(
 
       if (error instanceof SystemMaintenanceModeError) {
         throw error;
+      }
+
+      if (campaignId) {
+        await recordCampaignProviderFailureForThroughput({
+          campaignId,
+          companyId,
+          errorCode: getErrorCode(error),
+          errorMessage: reason,
+          retryAfterMs: getRetryAfterMs(error),
+        }).catch(() => undefined);
       }
 
       const maxAttempts = getMaxAttempts(job.opts.attempts);

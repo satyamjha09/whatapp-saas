@@ -260,6 +260,66 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing",
         }),
         buildItem({
+          id: "segment-builder-variable-mapping",
+          title: "Segment Builder and Template Variable Mapping enabled",
+          description:
+            "Campaigns can use reusable contact segments and map WhatsApp template variables from contact fields, static values, and system values.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Segments",
+          actionHref: "/dashboard/contacts/segments",
+        }),
+        buildItem({
+          id: "campaign-launch-orchestrator",
+          title: "Campaign Launch Orchestrator enabled",
+          description:
+            "Campaigns launch through segment selection, variable mapping, dry run confirmation, wallet reservation, message queueing, and Campaign Control Center protection.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Campaign Launch",
+          actionHref: "/dashboard/campaigns/launch",
+        }),
+        buildItem({
+          id: "campaign-failure-intelligence",
+          title: "Campaign Failure Intelligence enabled",
+          description:
+            "Failed WhatsApp campaign messages are grouped by root cause, classified by retry safety, shown with suggested fixes, and safe groups can be retried.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Campaign Failures",
+          actionHref: "/dashboard/campaigns/failures",
+        }),
+        buildItem({
+          id: "campaign-throughput-guard",
+          title: "Campaign Throughput Guard enabled",
+          description:
+            "Bulk campaigns have adaptive send speed, Redis rate counters, auto-slowdown on rate limits, and auto-pause on WABA quality or policy errors.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Campaign Throughput",
+          actionHref: "/dashboard/campaigns/throughput",
+        }),
+        buildItem({
+          id: "campaign-completion-reports",
+          title: "Campaign Completion Reports enabled",
+          description:
+            "Completed campaigns generate final reports with delivery stats, read rate, failure rate, cost, replies, opt-outs, failure insights, and CSV export evidence.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Campaign Reports",
+          actionHref: "/dashboard/campaigns/reports",
+        }),
+        buildItem({
+          id: "campaign-reply-attribution-conversions",
+          title: "Campaign Reply Attribution and Conversion Tracking enabled",
+          description:
+            "Inbound replies are attributed to campaigns, classified by intent, opt-outs are applied automatically, follow-up tasks are created, and conversion events are tracked.",
+          status: "complete",
+          required: true,
+          actionLabel: "Open Campaign Replies",
+          actionHref: "/dashboard/campaigns/replies",
+        }),
+        buildItem({
           id: "developer-api-plan-rate-limits",
           title: "Developer API plan rate limits enabled",
           description:

@@ -764,6 +764,7 @@ export function SignupForm({
         mobile: form.mobile,
         city: form.city,
         pinCode: form.pinCode,
+        channelPartner: form.channelPartner || null,
         employeeCode: form.employeeCode || null,
         whatsappUpdatesConsent: form.whatsappUpdatesConsent,
       };

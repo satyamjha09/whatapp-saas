@@ -1,11 +1,71 @@
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit.service";
 import { ensureCompanyUserAccessRole } from "@/server/services/rbac-v2.service";
+import {
+  isCompanyAdmin,
+  isPlatformAdmin,
+} from "@/server/tenant/tenant-rules";
 
 export class CompanyOnboardingError extends Error {
-  constructor(message: string) {
+  status: number;
+
+  constructor(message: string, status = 400) {
     super(message);
     this.name = "CompanyOnboardingError";
+    this.status = status;
+  }
+}
+
+async function assertCanCreatePartnerClient({
+  ownerUserId,
+  parentCompanyId,
+}: {
+  ownerUserId: string;
+  parentCompanyId: string;
+}) {
+  const parent = await prisma.company.findUnique({
+    where: {
+      id: parentCompanyId,
+    },
+    select: {
+      id: true,
+      type: true,
+    },
+  });
+
+  if (!parent || parent.type !== "PARTNER") {
+    throw new CompanyOnboardingError("Parent company must be a partner.");
+  }
+
+  const actor = await prisma.user.findUnique({
+    where: {
+      id: ownerUserId,
+    },
+    select: {
+      platformAccessEnabled: true,
+      platformRole: true,
+    },
+  });
+
+  if (actor?.platformAccessEnabled && isPlatformAdmin(actor.platformRole)) {
+    return;
+  }
+
+  const parentMembership = await prisma.companyUser.findFirst({
+    where: {
+      userId: ownerUserId,
+      companyId: parentCompanyId,
+    },
+    select: {
+      role: true,
+    },
+  });
+
+  if (!parentMembership || !isCompanyAdmin(parentMembership.role)) {
+    throw new CompanyOnboardingError(
+      "Only a platform admin or parent partner owner/admin can create a partner client.",
+      403,
+    );
   }
 }
 
@@ -36,20 +96,17 @@ export async function createCompanyWorkspace({
     );
   }
 
-  if (parentCompanyId) {
-    const parent = await prisma.company.findUnique({
-      where: {
-        id: parentCompanyId,
-      },
-      select: {
-        id: true,
-        type: true,
-      },
-    });
+  if (type !== "PARTNER_CLIENT" && parentCompanyId) {
+    throw new CompanyOnboardingError(
+      "Only partner client workspaces can have a parent company.",
+    );
+  }
 
-    if (!parent || parent.type !== "PARTNER") {
-      throw new CompanyOnboardingError("Parent company must be a partner.");
-    }
+  if (type === "PARTNER_CLIENT" && parentCompanyId) {
+    await assertCanCreatePartnerClient({
+      ownerUserId,
+      parentCompanyId,
+    });
   }
 
   const company = await prisma.$transaction(async (tx) => {

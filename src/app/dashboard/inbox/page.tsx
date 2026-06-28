@@ -1,513 +1,351 @@
 import Link from "next/link";
-import { MessageCircle, Tag } from "lucide-react";
+import {
+  Archive,
+  CheckCheck,
+  CircleX,
+  EyeOff,
+  MessageCircle,
+  Plus,
+  Search,
+  Star,
+  UserRound,
+} from "lucide-react";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
-import { statusTone } from "@/app/dashboard/dashboard-ui";
-import {
-  getInboxSlaDueAt,
-  isInboxConversationOverdue,
-} from "@/lib/inbox-sla";
-import { buildInboxHref, getInboxUrlState } from "@/lib/inbox-url";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
-import { getInboxTagsByCompany } from "@/server/services/inbox-tag.service";
 import {
+  getConversationByContact,
   getInboxContactsByCompany,
-  getInboxSlaSettingsByCompany,
-  getInboxStatsByCompany,
 } from "@/server/services/inbox.service";
-import { getCompanyMembers } from "@/server/services/team.service";
-import InboxFilterTabs from "./inbox-filter-tabs";
-import InboxBulkActions from "./inbox-bulk-actions";
-import InboxPagination from "./inbox-pagination";
-import InboxPriorityFilter from "./inbox-priority-filter";
-import InboxSearchForm from "./inbox-search-form";
-import InboxStatsCards from "./inbox-stats-cards";
-import SlaBadge from "./sla-badge";
-import SlaFilter from "./sla-filter";
+import InboxAutoRefresh from "./inbox-auto-refresh";
+import InboxChatComposer from "./inbox-chat-composer";
 
 type InboxPageProps = {
   searchParams: Promise<{
-    filter?: string;
+    contactId?: string;
     q?: string;
-    tagId?: string;
-    priority?: string;
-    sort?: string;
+    filter?: string;
     page?: string;
-    sla?: string;
   }>;
 };
 
-type InboxUrlState = ReturnType<typeof getInboxUrlState>;
+function initials(name: string | null, phoneNumber: string) {
+  if (!name) return phoneNumber.slice(-1) || "?";
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
 
-function CompactStatusPill({
-  children,
-  tone = "zinc",
-}: {
-  children: React.ReactNode;
-  tone?: "zinc" | "green" | "blue" | "amber" | "red" | "violet";
-}) {
-  const tones = {
-    amber: "border-[#F8C830]/40 bg-[#F8C830]/20 text-[#081B3A]",
-    blue: "border-[#D8E6F3] bg-[#F0F8FF] text-[#0052CC]",
-    green: "border-[#22C55E]/25 bg-[#22C55E]/10 text-[#15803d]",
-    red: "border-rose-200 bg-rose-50 text-rose-700",
-    violet: "border-[#384080]/20 bg-[#384080]/10 text-[#384080]",
-    zinc: "border-[#D8E6F3] bg-[#F0F8FF] text-[#526173]",
+function compactDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "2-digit",
+  }).format(date);
+}
+
+function compactTime(date: Date) {
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+type InboxMediaMetadata = {
+  messageType: "MEDIA";
+  mediaType: "IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO";
+  mediaName?: string | null;
+  caption?: string | null;
+};
+
+function getInboxMediaMetadata(metadata: unknown): InboxMediaMetadata | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const mediaType = String(record.mediaType);
+
+  if (
+    record.messageType !== "MEDIA" ||
+    !["IMAGE", "DOCUMENT", "VIDEO", "AUDIO"].includes(mediaType)
+  ) {
+    return null;
+  }
+
+  return {
+    messageType: "MEDIA",
+    mediaType: mediaType as InboxMediaMetadata["mediaType"],
+    mediaName: typeof record.mediaName === "string" ? record.mediaName : null,
+    caption: typeof record.caption === "string" ? record.caption : null,
   };
-
-  return (
-    <span
-      className={[
-        "inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
-        tones[tone],
-      ].join(" ")}
-    >
-      <span className="truncate">{children}</span>
-    </span>
-  );
 }
 
-function SkeletonBox({ className = "" }: { className?: string }) {
-  return (
-    <div
-      className={[
-        "animate-pulse rounded-2xl border border-[#D8E6F3] bg-white",
-        className,
-      ].join(" ")}
-    />
-  );
+function messagePreview(message: { body: string; metadata: unknown }) {
+  const media = getInboxMediaMetadata(message.metadata);
+
+  if (!media) return message.body;
+
+  return `${media.mediaType[0]}${media.mediaType.slice(1).toLowerCase()}${
+    media.mediaName ? `: ${media.mediaName}` : ""
+  }`;
 }
 
-function InboxHeader({ companyName }: { companyName: string }) {
-  return (
-    <header className="flex shrink-0 flex-col gap-3 border-b border-[#D8E6F3] pb-3 lg:flex-row lg:items-center lg:justify-between">
-      <div className="min-w-0">
-        <p className="text-xs font-medium uppercase tracking-normal text-[#2070B0]">
-          {companyName}
-        </p>
-        <h1 className="mt-1 truncate text-2xl font-bold text-[#081B3A]">
-          Inbox
-        </h1>
-        <p className="mt-1 line-clamp-1 text-sm text-[#526173]">
-          Review real conversations, unread inbound messages, tags, priorities,
-          and conversation status.
-        </p>
+function MessageBubbleBody({
+  message,
+}: {
+  message: { id: string; body: string; metadata: unknown };
+}) {
+  const media = getInboxMediaMetadata(message.metadata);
+
+  if (!media) {
+    return <p className="whitespace-pre-wrap">{message.body}</p>;
+  }
+
+  const caption = media.caption?.trim();
+
+  if (media.mediaType === "IMAGE") {
+    return (
+      <div className="space-y-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/api/messages/${message.id}/media`}
+          alt={media.mediaName ?? "Sent image"}
+          className="max-h-72 w-full rounded-md object-cover"
+        />
+        {caption ? <p className="whitespace-pre-wrap">{caption}</p> : null}
       </div>
+    );
+  }
 
-      <div className="flex shrink-0 flex-wrap gap-2">
-        <Link
-          href="/dashboard/inbox/analytics"
-          className="rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-sm font-medium text-[#0052CC] transition hover:border-[#0052CC]/30 hover:bg-[#F0F8FF] hover:text-[#003F9E]"
-        >
-          Analytics
-        </Link>
-        <Link
-          href="/dashboard/inbox/saved-views"
-          className="rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-sm font-medium text-[#0052CC] transition hover:border-[#0052CC]/30 hover:bg-[#F0F8FF] hover:text-[#003F9E]"
-        >
-          Saved views
-        </Link>
-        <Link
-          href="/dashboard/inbox/quick-replies"
-          className="rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-sm font-medium text-[#0052CC] transition hover:border-[#0052CC]/30 hover:bg-[#F0F8FF] hover:text-[#003F9E]"
-        >
-          Quick replies
-        </Link>
-        <Link
-          href="/dashboard/inbox/tags"
-          className="rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-sm font-medium text-[#0052CC] transition hover:border-[#0052CC]/30 hover:bg-[#F0F8FF] hover:text-[#003F9E]"
-        >
-          Tags
-        </Link>
-      </div>
-    </header>
-  );
-}
-
-function InboxStatsSkeleton() {
   return (
-    <div className="mt-3 grid shrink-0 gap-2 sm:grid-cols-5 xl:grid-cols-10">
-      {Array.from({ length: 10 }).map((_, index) => (
-        <SkeletonBox key={index} className="h-[74px]" />
-      ))}
+    <div className="space-y-2">
+      <a
+        href={`/api/messages/${message.id}/media`}
+        target="_blank"
+        rel="noreferrer"
+        className="block rounded-md border border-black/10 bg-white/55 px-3 py-2 font-semibold text-[#102040]"
+      >
+        {media.mediaType[0]}
+        {media.mediaType.slice(1).toLowerCase()} sent
+        {media.mediaName ? `: ${media.mediaName}` : ""}
+      </a>
+      {caption ? <p className="whitespace-pre-wrap">{caption}</p> : null}
     </div>
   );
 }
 
-function InboxWorkspaceSkeleton() {
-  return (
-    <>
-      <SkeletonBox className="mt-3 h-[92px] shrink-0" />
-      <div className="mt-3 grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[390px_minmax(0,1fr)]">
-        <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#D8E6F3] bg-white p-3">
-          <SkeletonBox className="h-12 shrink-0" />
-          <SkeletonBox className="mt-3 h-28 shrink-0" />
-          <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-hidden">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <SkeletonBox key={index} className="h-28" />
-            ))}
-          </div>
-        </div>
-        <SkeletonBox className="min-h-0" />
-      </div>
-    </>
-  );
-}
-
-async function InboxStatsSection({
-  companyId,
-  currentUserId,
-}: {
-  companyId: string;
-  currentUserId: string;
-}) {
-  const inboxStats = await getInboxStatsByCompany(companyId, currentUserId);
-
-  return <InboxStatsCards stats={inboxStats} />;
-}
-
-async function InboxWorkspace({
-  companyId,
-  currentUserId,
-  inboxUrlState,
-}: {
-  companyId: string;
-  currentUserId: string;
-  inboxUrlState: InboxUrlState;
-}) {
-  const activeFilter = inboxUrlState.filter;
-  const searchQuery = inboxUrlState.q;
-  const activeTagId = inboxUrlState.tagId;
-  const activePriority = inboxUrlState.priority;
-  const activeSort = inboxUrlState.sort;
-  const activePage = inboxUrlState.page;
-  const sla = inboxUrlState.sla;
-
-  const [inboxResult, inboxTags, members, inboxSlaSettings] =
-    await Promise.all([
-      getInboxContactsByCompany(companyId, {
-        filter: activeFilter,
-        currentUserId,
-        search: searchQuery,
-        tagId: activeTagId,
-        priority: activePriority,
-        sort: activeSort,
-        page: activePage,
-        pageSize: 20,
-        sla,
-      }),
-      getInboxTagsByCompany(companyId),
-      getCompanyMembers(companyId),
-      getInboxSlaSettingsByCompany(companyId),
-    ]);
-  const contacts = inboxResult.contacts;
-  const pagination = inboxResult.pagination;
-  const now = new Date();
-
-  return (
-    <>
-      <section className="mt-3 shrink-0 rounded-2xl border border-[#D8E6F3] bg-white p-3 shadow-[0_14px_34px_rgba(8,27,58,0.08)] backdrop-blur">
-        <InboxFilterTabs
-          activeFilter={activeFilter}
-          searchQuery={searchQuery}
-          activeTagId={activeTagId}
-          activePriority={activePriority}
-          activeSort={activeSort}
-          sla={sla}
-        />
-
-        <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(320px,1fr)_auto_auto] xl:items-start">
-          <InboxSearchForm
-            activeFilter={activeFilter}
-            searchQuery={searchQuery}
-            activeTagId={activeTagId}
-            activePriority={activePriority}
-            activeSort={activeSort}
-            sla={sla}
-          />
-          <InboxPriorityFilter
-            activeFilter={activeFilter}
-            searchQuery={searchQuery}
-            activeTagId={activeTagId}
-            activePriority={activePriority}
-            activeSort={activeSort}
-            sla={sla}
-          />
-          <div className="min-w-0">
-            <p className="mb-2 text-xs font-medium text-[#526173]">SLA</p>
-            <SlaFilter />
-          </div>
-        </div>
-      </section>
-
-      <div className="mt-3 grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[390px_minmax(0,1fr)]">
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#D8E6F3] bg-white shadow-[0_16px_40px_rgba(8,27,58,0.08)] backdrop-blur">
-          <div className="shrink-0 border-b border-[#D8E6F3] p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="truncate text-base font-bold text-[#081B3A]">
-                  Conversations
-                </h2>
-                <p className="mt-0.5 line-clamp-1 text-xs text-[#526173]">
-                  Latest message preview for each matching contact.
-                </p>
-              </div>
-              <span className="rounded-full border border-[#D8E6F3] bg-[#F0F8FF] px-2.5 py-1 text-xs font-medium text-[#0052CC]">
-                {pagination.total.toLocaleString("en-IN")}
-              </span>
-            </div>
-          </div>
-
-          <div className="shrink-0 px-3 pt-3">
-            <InboxBulkActions
-              contacts={contacts.map((contact) => ({
-                id: contact.id,
-                name: contact.name,
-                countryCode: contact.countryCode,
-                phoneNumber: contact.phoneNumber,
-                inboxStatus: contact.inboxStatus,
-                inboxPriority: contact.inboxPriority,
-              }))}
-              members={members}
-              tags={inboxTags}
-            />
-          </div>
-
-          {contacts.length === 0 ? (
-            <div className="min-h-0 flex-1 p-3">
-              <div className="rounded-2xl border border-dashed border-[#D8E6F3] bg-white p-4 text-sm leading-6 text-[#526173]">
-                {searchQuery
-                  ? "No conversations found for this search."
-                  : activeTagId
-                    ? "No conversations found for this tag."
-                    : activePriority !== "all"
-                      ? "No conversations found for this priority."
-                      : activeFilter === "overdue"
-                        ? "No overdue conversations."
-                        : "No conversations found for this filter."}
-              </div>
-            </div>
-          ) : (
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
-              <div className="space-y-2">
-                {contacts.map((contact) => {
-                  const latestMessage = contact.messages[0];
-                  const unreadCount = contact._count.messages;
-                  const needsReply =
-                    latestMessage?.direction === "INBOUND" &&
-                    contact.inboxStatus === "OPEN" &&
-                    (!contact.snoozedUntil || contact.snoozedUntil <= now);
-                  const isOverdue = latestMessage
-                    ? isInboxConversationOverdue({
-                        latestMessageCreatedAt: latestMessage.createdAt,
-                        latestMessageDirection: latestMessage.direction,
-                        inboxStatus: contact.inboxStatus,
-                        inboxPriority: contact.inboxPriority,
-                        snoozedUntil: contact.snoozedUntil,
-                        slaSettings: inboxSlaSettings,
-                      })
-                    : false;
-                  const slaDueAt =
-                    latestMessage && needsReply
-                      ? getInboxSlaDueAt(
-                          latestMessage.createdAt,
-                          contact.inboxPriority,
-                          inboxSlaSettings,
-                        )
-                      : null;
-
-                  return (
-                    <Link
-                      key={contact.id}
-                      href={buildInboxHref(
-                        `/dashboard/inbox/${contact.id}`,
-                        inboxUrlState,
-                      )}
-                      className="block rounded-2xl border border-[#D8E6F3] bg-white p-3 transition hover:border-[#0052CC]/30 hover:bg-[#F0F8FF]"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <p className="truncate text-sm font-bold text-[#081B3A]">
-                              {contact.name ?? "Unnamed Contact"}
-                            </p>
-                            {unreadCount > 0 && (
-                              <span className="shrink-0 rounded-full bg-[#22C55E]/10 px-2 py-0.5 text-[11px] font-medium text-[#15803d] ring-1 ring-[#22C55E]/25">
-                                {unreadCount}
-                              </span>
-                            )}
-                          </div>
-
-                          <p className="mt-0.5 truncate text-xs text-[#526173]">
-                            +{contact.countryCode}
-                            {contact.phoneNumber}
-                          </p>
-
-                          <span className="mt-1 inline-flex text-xs font-medium text-[#0052CC] underline">
-                            CRM
-                          </span>
-
-                          {latestMessage && (
-                            <p className="mt-2 line-clamp-2 text-xs leading-5 text-[#526173]">
-                              {latestMessage.body}
-                            </p>
-                          )}
-
-                          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-[#526173]/80">
-                            {latestMessage ? (
-                              <>
-                                <span className="truncate">
-                                  {latestMessage.direction}
-                                </span>
-                                <span>-</span>
-                                <span className="truncate">
-                                  {latestMessage.createdAt.toLocaleString()}
-                                </span>
-                              </>
-                            ) : null}
-                            {contact.snoozedUntil &&
-                            contact.snoozedUntil > now ? (
-                              <span className="truncate text-[#384080]">
-                                Snoozed until{" "}
-                                {contact.snoozedUntil.toLocaleString()}
-                              </span>
-                            ) : null}
-                            {slaDueAt ? (
-                              <span
-                                className={
-                                  isOverdue ? "text-rose-700" : "text-[#526173]"
-                                }
-                              >
-                                SLA due: {slaDueAt.toLocaleString()}
-                              </span>
-                            ) : null}
-                          </div>
-
-                          {contact.inboxTags.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              {contact.inboxTags.map((item) => (
-                                <span
-                                  key={item.id}
-                                  className="inline-flex max-w-[130px] items-center gap-1 rounded-full border border-[#384080]/20 bg-[#384080]/10 px-2 py-0.5 text-[11px] font-medium text-[#384080]"
-                                >
-                                  <Tag className="h-3 w-3 shrink-0" />
-                                  <span className="truncate">
-                                    {item.tag.name}
-                                  </span>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex max-w-[120px] shrink-0 flex-col items-end gap-1.5">
-                          {isOverdue ? (
-                            <CompactStatusPill tone="red">
-                              Overdue
-                            </CompactStatusPill>
-                          ) : null}
-
-                          {needsReply ? (
-                            <CompactStatusPill tone="amber">
-                              Needs reply
-                            </CompactStatusPill>
-                          ) : null}
-
-                          <CompactStatusPill
-                            tone={statusTone(contact.inboxPriority)}
-                          >
-                            {contact.inboxPriority}
-                          </CompactStatusPill>
-
-                          {contact.snoozedUntil && contact.snoozedUntil > now ? (
-                            <CompactStatusPill tone="violet">
-                              Snoozed
-                            </CompactStatusPill>
-                          ) : null}
-
-                          <SlaBadge
-                            inboxStatus={contact.inboxStatus}
-                            inboxSlaDueAt={contact.inboxSlaDueAt}
-                            inboxSlaBreachedAt={contact.inboxSlaBreachedAt}
-                          />
-
-                          <CompactStatusPill
-                            tone={statusTone(contact.inboxStatus)}
-                          >
-                            {contact.inboxStatus}
-                          </CompactStatusPill>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-
-                <InboxPagination
-                  basePath="/dashboard/inbox"
-                  pagination={pagination}
-                  urlState={{
-                    filter: activeFilter,
-                    q: searchQuery,
-                    tagId: activeTagId,
-                    priority: activePriority,
-                    sort: activeSort,
-                    sla,
-                  }}
-                />
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="flex min-h-0 items-center justify-center overflow-hidden rounded-2xl border border-[#D8E6F3] bg-white p-4 shadow-[0_16px_40px_rgba(8,27,58,0.08)] backdrop-blur">
-          <div className="max-w-sm text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-[#D8E6F3] bg-[#F0F8FF] text-[#0052CC]">
-              <MessageCircle className="h-6 w-6" />
-            </div>
-            <h2 className="mt-4 text-lg font-bold text-[#081B3A]">
-              Select a conversation
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-[#526173]">
-              Choose a contact from the conversation list to view the thread.
-            </p>
-          </div>
-        </section>
-      </div>
-    </>
-  );
+function contactHref(contactId: string, q: string) {
+  const params = new URLSearchParams({ contactId });
+  if (q.trim()) params.set("q", q.trim());
+  return `/dashboard/inbox?${params.toString()}`;
 }
 
 export default async function InboxPage({ searchParams }: InboxPageProps) {
   const context = await getCurrentWorkspaceContext();
 
-  if (!context) {
-    redirect("/sign-in");
-  }
+  if (!context) redirect("/sign-in");
+  if (!context.membership) redirect("/onboarding");
 
-  if (!context.membership) {
-    redirect("/onboarding");
-  }
-
-  const resolvedSearchParams = await searchParams;
-  const inboxUrlState = getInboxUrlState(resolvedSearchParams);
-  const companyId = context.membership.companyId;
+  const membership = context.membership;
+  const params = await searchParams;
+  const companyId = membership.companyId;
+  const inboxResult = await getInboxContactsByCompany(companyId, {
+    search: params.q,
+    filter: "all",
+    page: Number(params.page ?? "1"),
+    pageSize: 25,
+  });
+  const contacts = inboxResult.contacts;
+  const selectedContactId = params.contactId ?? contacts[0]?.id ?? "";
+  const conversation = selectedContactId
+    ? await getConversationByContact(companyId, selectedContactId)
+    : null;
+  const selectedContact =
+    conversation ?? contacts.find((contact) => contact.id === selectedContactId);
+  const customerServiceWindowEndsAt = conversation?.inboxLastCustomerMessageAt
+    ? new Date(
+        conversation.inboxLastCustomerMessageAt.getTime() + 24 * 60 * 60 * 1000,
+      )
+    : null;
 
   return (
-    <div className="flex h-[calc(100vh-6rem)] max-h-screen min-h-0 flex-col overflow-hidden rounded-2xl border border-[#D8E6F3] bg-[linear-gradient(135deg,#FFFFFF,#F0F8FF_54%,rgba(216,230,243,0.72))] p-4 text-[#102040] shadow-[0_18px_48px_rgba(8,27,58,0.10)]">
-      <InboxHeader companyName={context.membership.company.name} />
+    <div className="h-[calc(100vh-5.5rem)] overflow-hidden rounded-xl bg-white text-black">
+      <InboxAutoRefresh />
+      <div className="grid h-full grid-cols-[460px_minmax(0,1fr)]">
+        <aside className="flex min-h-0 flex-col border-r border-[#E6E6E6] bg-white">
+          <div className="shrink-0 p-3">
+            <form action="/dashboard/inbox" className="flex">
+              <input
+                name="q"
+                defaultValue={params.q ?? ""}
+                placeholder="Search with phone number"
+                className="h-9 min-w-0 flex-1 rounded-l-md border border-[#D6D6D6] px-3 text-sm outline-none placeholder:text-[#B7B7B7] focus:border-[#1677FF]"
+              />
+              <button
+                type="submit"
+                className="grid h-9 w-10 place-items-center border-y border-r border-[#D6D6D6] bg-white text-black"
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className="ml-2 grid h-9 w-9 place-items-center rounded-md bg-[#1677FF] text-white"
+                aria-label="New contact"
+              >
+                <UserRound className="h-4 w-4" />
+              </button>
+            </form>
 
-      <Suspense fallback={<InboxStatsSkeleton />}>
-        <InboxStatsSection companyId={companyId} currentUserId={context.user.id} />
-      </Suspense>
+            <div className="mt-2 flex gap-2">
+              <button className="inline-flex h-8 items-center gap-2 rounded-md border border-[#1677FF] px-3 text-sm text-[#1677FF]">
+                <Archive className="h-4 w-4" />
+                All
+              </button>
+              <button className="inline-flex h-8 items-center rounded-md border border-[#1677FF] px-3 text-sm text-[#1677FF]">
+                Any status
+              </button>
+              <button className="inline-flex h-8 items-center gap-2 rounded-md border border-[#D6D6D6] px-3 text-sm text-black">
+                <Plus className="h-4 w-4" />
+                Filter
+              </button>
+            </div>
+          </div>
 
-      <Suspense fallback={<InboxWorkspaceSkeleton />}>
-        <InboxWorkspace
-          companyId={companyId}
-          currentUserId={context.user.id}
-          inboxUrlState={inboxUrlState}
-        />
-      </Suspense>
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+            {contacts.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-[#D6D6D6] p-4 text-sm text-[#777]">
+                No conversations found.
+              </div>
+            ) : (
+              <div>
+                {contacts.map((contact) => {
+                  const latestMessage = contact.messages[0];
+                  const isActive = contact.id === selectedContactId;
+                  const unreadCount = contact._count.messages;
+
+                  return (
+                    <Link
+                      key={contact.id}
+                      href={contactHref(contact.id, params.q ?? "")}
+                      className={[
+                        "grid grid-cols-[52px_minmax(0,1fr)_76px] gap-3 rounded-md px-4 py-3",
+                        isActive ? "bg-[#EFEFEF]" : "hover:bg-[#F7F7F7]",
+                      ].join(" ")}
+                    >
+                      <div className="grid h-10 w-10 place-items-center self-center rounded-full bg-[#BEBEBE] text-sm font-semibold text-white">
+                        {unreadCount > 0 ? unreadCount : initials(contact.name, contact.phoneNumber)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-xs text-[#777]">
+                          <UserRound className="mr-1 inline h-3.5 w-3.5" />
+                          {membership.company.name}
+                        </p>
+                        <p className="mt-1 truncate text-sm font-semibold text-black">
+                          {contact.name ?? `${contact.countryCode}${contact.phoneNumber}`}
+                        </p>
+                        <p className="mt-1 truncate text-sm text-[#777]">
+                          {latestMessage?.direction === "OUTBOUND" ? (
+                            <CheckCheck className="mr-1 inline h-4 w-4 text-[#18AEEB]" />
+                          ) : (
+                            <MessageCircle className="mr-1 inline h-4 w-4 text-black" />
+                          )}
+                          {latestMessage
+                            ? messagePreview(latestMessage)
+                            : "No messages yet"}
+                        </p>
+                      </div>
+                      <p className="self-center text-right text-sm text-[#777]">
+                        {latestMessage ? compactDate(latestMessage.createdAt) : ""}
+                      </p>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </aside>
+
+        <main className="flex min-h-0 flex-col bg-white">
+          {selectedContact ? (
+            <>
+              <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#E6E6E6] bg-white px-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-[#E8F4FF] text-base font-semibold text-[#081B3A] ring-1 ring-[#B9DFFF]">
+                    {initials(selectedContact.name, selectedContact.phoneNumber)}
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="truncate text-base font-bold">
+                      {selectedContact.name ?? `${selectedContact.countryCode}${selectedContact.phoneNumber}`}
+                    </h2>
+                    <p className="text-sm text-[#777]">More Details</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-5 text-black">
+                  <Star className="h-5 w-5" />
+                  <EyeOff className="h-5 w-5" />
+                  <span className="inline-flex items-center gap-2 text-sm">
+                    <CircleX className="h-5 w-5" />
+                    Close Chat
+                  </span>
+                </div>
+              </header>
+
+              <section className="min-h-0 flex-1 overflow-y-auto bg-[#eee7dd] bg-[radial-gradient(circle_at_12px_12px,rgba(120,110,100,0.13)_1px,transparent_1.5px),radial-gradient(circle_at_34px_28px,rgba(120,110,100,0.09)_1px,transparent_1.5px)] bg-[length:44px_44px] p-3">
+                <div className="flex min-h-full flex-col justify-end gap-3">
+                  {conversation?.messages.length ? (
+                    conversation.messages.map((message) => {
+                      const outbound = message.direction === "OUTBOUND";
+                      return (
+                        <div
+                          key={message.id}
+                          className={[
+                            "max-w-[48%] rounded-lg px-4 py-3 text-sm leading-6 shadow-sm",
+                            outbound
+                              ? "ml-auto bg-[#DCF8C6]"
+                              : "mr-auto bg-white",
+                          ].join(" ")}
+                        >
+                          <MessageBubbleBody message={message} />
+                          <p className="mt-1 text-right text-xs text-[#777]">
+                            {compactTime(message.createdAt)}
+                            {outbound ? (
+                              <CheckCheck className="ml-1 inline h-4 w-4 text-[#18AEEB]" />
+                            ) : null}
+                          </p>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="mx-auto rounded-lg bg-white px-4 py-3 text-sm text-[#777] shadow-sm">
+                      No messages in this conversation yet.
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <InboxChatComposer
+                contactId={selectedContact.id}
+                customerServiceWindowEndsAt={
+                  customerServiceWindowEndsAt?.toISOString() ?? null
+                }
+              />
+            </>
+          ) : (
+            <div className="grid h-full place-items-center text-center text-[#777]">
+              <div>
+                <MessageCircle className="mx-auto h-10 w-10" />
+                <p className="mt-3 text-sm">Select a conversation</p>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

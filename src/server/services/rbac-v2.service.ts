@@ -236,8 +236,8 @@ export async function assignUserRole({
     prisma.companyAccessRole.findFirst({
       where: { id: roleId, companyId, status: "ACTIVE" },
     }),
-    prisma.companyUser.findUnique({
-      where: { userId_companyId: { companyId, userId } },
+    prisma.companyUser.findFirst({
+      where: { companyId, userId },
       select: { id: true },
     }),
   ]);
