@@ -60,6 +60,15 @@ export async function getInboxContactsByCompany(
           inboxStatus: "OPEN" as const,
         }
       : {}),
+    ...(filter === "hot_leads"
+      ? {
+          inboxStatus: "OPEN" as const,
+          leadScore: {
+            gte: 50,
+          },
+          isBlocked: false,
+        }
+      : {}),
     ...(filter === "closed"
       ? {
           inboxStatus: "CLOSED" as const,
@@ -275,6 +284,21 @@ export async function getInboxContactsByCompany(
       }
 
       return bDate - aDate;
+    }
+
+    if (sort === "lead_score") {
+      const scoreDiff = (b.leadScore ?? 0) - (a.leadScore ?? 0);
+      if (scoreDiff !== 0) {
+        return scoreDiff;
+      }
+
+      const aCustomerMsg = a.inboxLastCustomerMessageAt?.getTime() ?? 0;
+      const bCustomerMsg = b.inboxLastCustomerMessageAt?.getTime() ?? 0;
+      if (bCustomerMsg !== aCustomerMsg) {
+        return bCustomerMsg - aCustomerMsg;
+      }
+
+      return b.updatedAt.getTime() - a.updatedAt.getTime();
     }
 
     if (sort === "unread") {
@@ -1281,6 +1305,7 @@ export async function getInboxStatsByCompany(
     urgentConversations,
     assignedToMeConversations,
     unassignedConversations,
+    hotLeadsConversations,
     inboundLatestCandidates,
   ] = await prisma.$transaction([
     prisma.contact.count({
@@ -1353,6 +1378,16 @@ export async function getInboxStatsByCompany(
         assignedToUserId: null,
       },
     }),
+    prisma.contact.count({
+      where: {
+        ...baseContactWhere,
+        inboxStatus: "OPEN",
+        leadScore: {
+          gte: 50,
+        },
+        isBlocked: false,
+      },
+    }),
     prisma.contact.findMany({
       where: {
         ...baseContactWhere,
@@ -1417,5 +1452,6 @@ export async function getInboxStatsByCompany(
     unassignedConversations,
     needsReplyConversations,
     overdueConversations,
+    hotLeadsConversations,
   };
 }

@@ -16,6 +16,7 @@ import {
   getConversationByContact,
   getInboxContactsByCompany,
 } from "@/server/services/inbox.service";
+import { getInboxUrlState } from "@/lib/inbox-url";
 import InboxAutoRefresh from "./inbox-auto-refresh";
 import InboxChatComposer from "./inbox-chat-composer";
 
@@ -250,11 +251,16 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
   const membership = context.membership;
   const params = await searchParams;
   const companyId = membership.companyId;
+  const inboxUrlState = getInboxUrlState(params);
   const inboxResult = await getInboxContactsByCompany(companyId, {
-    search: params.q,
-    filter: "all",
-    page: Number(params.page ?? "1"),
+    search: inboxUrlState.q,
+    filter: inboxUrlState.filter,
+    tagId: inboxUrlState.tagId,
+    priority: inboxUrlState.priority,
+    sort: inboxUrlState.sort,
+    page: inboxUrlState.page,
     pageSize: 25,
+    sla: inboxUrlState.sla,
   });
   const contacts = inboxResult.contacts;
   const selectedContactId = params.contactId ?? contacts[0]?.id ?? "";
@@ -316,7 +322,9 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
           <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
             {contacts.length === 0 ? (
               <div className="rounded-lg border border-dashed border-[#D6D6D6] p-4 text-sm text-[#777]">
-                No conversations found.
+                {inboxUrlState.filter === "hot_leads"
+                  ? "No hot leads yet. When contacts reply, book demos, or engage with campaigns, they will appear here."
+                  : "No conversations found."}
               </div>
             ) : (
               <div>
@@ -342,8 +350,11 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
                           <UserRound className="mr-1 inline h-3.5 w-3.5" />
                           {membership.company.name}
                         </p>
-                        <p className="mt-1 truncate text-sm font-semibold text-black">
-                          {contact.name ?? `${contact.countryCode}${contact.phoneNumber}`}
+                        <p className="mt-1 truncate text-sm font-semibold text-black flex items-center gap-2">
+                          <span>{contact.name ?? `${contact.countryCode}${contact.phoneNumber}`}</span>
+                          <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                            Score {contact.leadScore ?? 0}
+                          </span>
                         </p>
                         <p className="mt-1 truncate text-sm text-[#777]">
                           {latestMessage?.direction === "OUTBOUND" ? (

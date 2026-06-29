@@ -7,6 +7,7 @@ export const inboxFilters = [
   "assigned-to-me",
   "unassigned",
   "snoozed",
+  "hot_leads",
 ] as const;
 
 export type InboxFilter = (typeof inboxFilters)[number];
@@ -20,6 +21,7 @@ export const inboxFilterLabels: Record<InboxFilter, string> = {
   "assigned-to-me": "Assigned to me",
   unassigned: "Unassigned",
   snoozed: "Snoozed",
+  hot_leads: "Hot Leads",
 };
 
 export function parseInboxFilter(value: string | undefined): InboxFilter {
@@ -48,7 +50,7 @@ export function parseInboxPriorityFilter(
   return "all";
 }
 
-export const inboxSorts = ["latest", "oldest", "priority", "unread"] as const;
+export const inboxSorts = ["latest", "oldest", "priority", "unread", "lead_score"] as const;
 
 export type InboxSort = (typeof inboxSorts)[number];
 
@@ -57,6 +59,7 @@ export const inboxSortLabels: Record<InboxSort, string> = {
   oldest: "Oldest",
   priority: "Priority",
   unread: "Unread",
+  lead_score: "Lead Score",
 };
 
 export function parseInboxSort(value: string | undefined): InboxSort {

@@ -34,6 +34,31 @@ import MarkConversationRead from "./mark-conversation-read";
 import NoteCard from "./note-card";
 import NoteForm from "./note-form";
 
+const BREAKDOWN_LABELS: Record<string, string> = {
+  inbound_messages: "Inbound messages",
+  read_messages: "Read messages",
+  positive_reply: "Positive reply",
+  negative_reply: "Negative reply",
+  question_reply: "Question reply",
+  opt_out: "Opt-out",
+  demo_booked: "Demo booked",
+  payment_received: "Payment received",
+  lead_won: "Lead won",
+  lead_lost: "Lead lost",
+  decay: "Silence decay",
+  blocked_or_opted_out: "Blocked / opted out",
+  manual_high_priority: "Manual high priority bonus",
+  manual_urgent_priority: "Manual urgent priority bonus",
+};
+
+function getLeadScoreLabel(score: number) {
+  if (score >= 100) return "Urgent";
+  if (score >= 75) return "Hot";
+  if (score >= 50) return "Warm";
+  if (score >= 25) return "Low";
+  return "Cold";
+}
+
 type InboxConversationPageProps = {
   params: Promise<{
     contactId: string;
@@ -446,7 +471,9 @@ export default async function InboxConversationPage({
                       ? "No conversations found for this priority."
                       : activeFilter === "overdue"
                         ? "No overdue conversations."
-                        : "No conversations found for this filter."}
+                        : activeFilter === "hot_leads"
+                          ? "No hot leads yet. When contacts reply, book demos, or engage with campaigns, they will appear here."
+                          : "No conversations found for this filter."}
               </p>
             ) : (
               <div className="mt-6 space-y-3">
@@ -560,6 +587,10 @@ export default async function InboxConversationPage({
                             {contact.inboxPriority}
                           </span>
 
+                          <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+                            Score {contact.leadScore ?? 0}
+                          </span>
+
                           {contact.snoozedUntil &&
                           contact.snoozedUntil > now ? (
                             <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700">
@@ -648,6 +679,10 @@ export default async function InboxConversationPage({
                     inboxSlaBreachedAt={conversation.inboxSlaBreachedAt}
                   />
 
+                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                    Score: {conversation.leadScore ?? 0} ({getLeadScoreLabel(conversation.leadScore ?? 0)})
+                  </span>
+
                   {conversationNeedsReply ? (
                     <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
                       Needs reply
@@ -725,6 +760,38 @@ export default async function InboxConversationPage({
                   snoozedUntil={conversation.snoozedUntil}
                 />
               </div>
+
+              {conversation.leadScoreBreakdown && typeof conversation.leadScoreBreakdown === "object" && (
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-slate-900">Lead Score Breakdown</span>
+                    {conversation.leadScoreUpdatedAt && (
+                      <span className="text-xs text-slate-500">
+                        Updated: {new Date(conversation.leadScoreUpdatedAt).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    {Object.entries(conversation.leadScoreBreakdown as Record<string, number>).map(([key, value]) => (
+                      <div key={key} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500">
+                          {BREAKDOWN_LABELS[key] ?? key}
+                        </span>
+                        <span
+                          className={
+                            Number(value) >= 0
+                              ? "font-semibold text-green-600"
+                              : "font-semibold text-red-600"
+                          }
+                        >
+                          {Number(value) >= 0 ? "+" : ""}
+                          {String(value)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="border-b bg-yellow-50 p-6">
