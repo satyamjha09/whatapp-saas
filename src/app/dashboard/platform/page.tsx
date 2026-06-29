@@ -93,6 +93,15 @@ export default async function PlatformPage({
         </button>
       </form>
 
+      <div className="mt-4">
+        <Link
+          href="/dashboard/platform/unmapped-webhooks"
+          className="inline-flex rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700"
+        >
+          Review unmapped WhatsApp webhooks
+        </Link>
+      </div>
+
       <section className="mt-6 overflow-hidden rounded-2xl border bg-white shadow-sm">
         <div className="border-b bg-gray-50 px-6 py-4">
           <h2 className="text-lg font-semibold text-gray-900">Companies</h2>

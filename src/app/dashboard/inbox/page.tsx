@@ -56,9 +56,23 @@ function compactTime(date: Date) {
 
 type InboxMediaMetadata = {
   messageType: "MEDIA";
-  mediaType: "IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO";
+  mediaType: "IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO" | "STICKER";
   mediaName?: string | null;
   caption?: string | null;
+};
+
+type InboxLocationMetadata = {
+  messageType: "LOCATION";
+  name?: string | null;
+  address?: string | null;
+  latitude: number;
+  longitude: number;
+};
+
+type InboxReactionMetadata = {
+  messageType: "REACTION";
+  emoji?: string | null;
+  reactedToMetaMessageId?: string | null;
 };
 
 function getInboxMediaMetadata(metadata: unknown): InboxMediaMetadata | null {
@@ -71,7 +85,7 @@ function getInboxMediaMetadata(metadata: unknown): InboxMediaMetadata | null {
 
   if (
     record.messageType !== "MEDIA" ||
-    !["IMAGE", "DOCUMENT", "VIDEO", "AUDIO"].includes(mediaType)
+    !["IMAGE", "DOCUMENT", "VIDEO", "AUDIO", "STICKER"].includes(mediaType)
   ) {
     return null;
   }
@@ -84,9 +98,62 @@ function getInboxMediaMetadata(metadata: unknown): InboxMediaMetadata | null {
   };
 }
 
+function getInboxLocationMetadata(
+  metadata: unknown,
+): InboxLocationMetadata | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+
+  if (
+    record.messageType !== "LOCATION" ||
+    typeof record.latitude !== "number" ||
+    typeof record.longitude !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    messageType: "LOCATION",
+    name: typeof record.name === "string" ? record.name : null,
+    address: typeof record.address === "string" ? record.address : null,
+    latitude: record.latitude,
+    longitude: record.longitude,
+  };
+}
+
+function getInboxReactionMetadata(
+  metadata: unknown,
+): InboxReactionMetadata | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+
+  if (record.messageType !== "REACTION") {
+    return null;
+  }
+
+  return {
+    messageType: "REACTION",
+    emoji: typeof record.emoji === "string" ? record.emoji : null,
+    reactedToMetaMessageId:
+      typeof record.reactedToMetaMessageId === "string"
+        ? record.reactedToMetaMessageId
+        : null,
+  };
+}
+
 function messagePreview(message: { body: string; metadata: unknown }) {
   const media = getInboxMediaMetadata(message.metadata);
+  const location = getInboxLocationMetadata(message.metadata);
+  const reaction = getInboxReactionMetadata(message.metadata);
 
+  if (location) return `Location: ${location.name ?? location.address ?? "Shared location"}`;
+  if (reaction) return reaction.emoji ? `Reacted ${reaction.emoji}` : "Reaction";
   if (!media) return message.body;
 
   return `${media.mediaType[0]}${media.mediaType.slice(1).toLowerCase()}${
@@ -100,6 +167,36 @@ function MessageBubbleBody({
   message: { id: string; body: string; metadata: unknown };
 }) {
   const media = getInboxMediaMetadata(message.metadata);
+  const location = getInboxLocationMetadata(message.metadata);
+  const reaction = getInboxReactionMetadata(message.metadata);
+
+  if (location) {
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`;
+
+    return (
+      <div className="space-y-2">
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="block rounded-md border border-black/10 bg-white/55 px-3 py-2 font-semibold text-[#102040]"
+        >
+          Location: {location.name ?? location.address ?? "Open in Google Maps"}
+        </a>
+        {location.address ? (
+          <p className="whitespace-pre-wrap text-sm">{location.address}</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (reaction) {
+    return (
+      <p className="whitespace-pre-wrap">
+        {reaction.emoji ? `Reacted ${reaction.emoji}` : message.body}
+      </p>
+    );
+  }
 
   if (!media) {
     return <p className="whitespace-pre-wrap">{message.body}</p>;
@@ -107,13 +204,13 @@ function MessageBubbleBody({
 
   const caption = media.caption?.trim();
 
-  if (media.mediaType === "IMAGE") {
+  if (media.mediaType === "IMAGE" || media.mediaType === "STICKER") {
     return (
       <div className="space-y-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`/api/messages/${message.id}/media`}
-          alt={media.mediaName ?? "Sent image"}
+          alt={media.mediaName ?? `${media.mediaType.toLowerCase()} message`}
           className="max-h-72 w-full rounded-md object-cover"
         />
         {caption ? <p className="whitespace-pre-wrap">{caption}</p> : null}

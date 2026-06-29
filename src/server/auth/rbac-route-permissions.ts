@@ -44,6 +44,7 @@ export const RBAC_ROUTE_PERMISSION_RULES: RbacRoutePermissionRule[] = [
   { id: "whatsapp-account-view", method: "GET", pattern: /^\/api\/whatsapp\/accounts$/, permission: "WHATSAPP_SETTINGS_VIEW", description: "View WhatsApp account connection" },
   { id: "whatsapp-account-manage", method: "POST", pattern: /^\/api\/whatsapp\/(?:accounts|credentials|embedded-signup\/complete|webhooks\/subscribe)$/, permission: "WHATSAPP_SETTINGS_MANAGE", description: "Manage WhatsApp account connection" },
   { id: "whatsapp-template-sync", method: "POST", pattern: /^\/api\/whatsapp\/templates\/sync$/, permission: "TEMPLATE_SYNC", description: "Sync WhatsApp templates" },
+  { id: "template-submit", method: "POST", pattern: /^\/api\/templates\/[^/]+\/submit$/, permission: "TEMPLATE_SYNC", description: "Submit WhatsApp templates to Meta" },
   { id: "api-key-manage", method: "*", pattern: /^\/api\/developer\/api-keys(?:\/|$)/, permission: "DEVELOPER_API_KEYS_MANAGE", description: "Manage developer API keys" },
   { id: "developer-webhooks-manage", method: "*", pattern: /^\/api\/developer\/webhooks(?:\/|$)/, permission: "DEVELOPER_WEBHOOKS_MANAGE", description: "Manage developer webhooks" },
   { id: "developer-maintenance-retention", method: "POST", pattern: /^\/api\/developer\/maintenance\/retention-cleanup$/, permission: "SYSTEM_OPERATIONS_MANAGE", description: "Run developer data retention cleanup" },

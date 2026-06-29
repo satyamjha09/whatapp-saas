@@ -1,4 +1,6 @@
+import { revalidateTag, unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { companyFeatureAccessCacheTag } from "@/server/cache-tags";
 import {
   type BillingFeature,
   getBillingPlanConfig,
@@ -19,7 +21,11 @@ const FEATURE_MAP: Record<BillingFeature, FeatureEntitlementKey> = {
 };
 const ALL_BILLING_FEATURES = Object.keys(FEATURE_MAP) as BillingFeature[];
 
-export async function getCompanyFeatureAccess(companyId: string) {
+export function revalidateCompanyFeatureAccessCache(companyId: string) {
+  revalidateTag(companyFeatureAccessCacheTag(companyId), "max");
+}
+
+async function getCompanyFeatureAccessUncached(companyId: string) {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: {
@@ -53,6 +59,17 @@ export async function getCompanyFeatureAccess(companyId: string) {
       ? resolvedFeatures.filter(({ entitlement }) => entitlement.enabled).map(({ feature }) => feature)
       : [],
   };
+}
+
+export function getCompanyFeatureAccess(companyId: string) {
+  return unstable_cache(
+    async () => getCompanyFeatureAccessUncached(companyId),
+    ["company-feature-access", companyId],
+    {
+      revalidate: 60,
+      tags: [companyFeatureAccessCacheTag(companyId)],
+    },
+  )();
 }
 
 export async function hasCompanyFeature(

@@ -14,6 +14,8 @@ import { recordContactActivity } from "@/server/services/contact-activity.servic
 import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
 import { attributeInboundCampaignReply } from "@/server/services/campaign-reply-attribution.service";
 import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
+import { publishInboxRealtimeEvent } from "@/server/realtime/inbox-events";
+import { createUnmappedWebhookEvent } from "@/server/services/webhook.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
 import type { ProcessWebhookJobData } from "@/lib/queue";
@@ -51,6 +53,17 @@ function extractIncomingMessages(payload: unknown) {
   const messages = value?.messages;
 
   return Array.isArray(messages) ? messages : [];
+}
+
+function extractPhoneNumberId(payload: unknown) {
+  const root = asRecord(payload);
+  const entry = asRecord(firstArrayItem(root?.entry));
+  const change = asRecord(firstArrayItem(entry?.changes));
+  const value = asRecord(change?.value);
+  const metadata = asRecord(value?.metadata);
+  const phoneNumberId = metadata?.phone_number_id;
+
+  return typeof phoneNumberId === "string" ? phoneNumberId : null;
 }
 
 function extractWebhookContacts(payload: unknown) {
@@ -126,6 +139,110 @@ function splitInboundPhoneNumber(phoneNumber: string) {
   };
 }
 
+function getStringValue(record: JsonRecord | null, key: string) {
+  const value = record?.[key];
+
+  return typeof value === "string" ? value : null;
+}
+
+function getNumberValue(record: JsonRecord | null, key: string) {
+  const value = record?.[key];
+
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getInboundMediaType(type: unknown) {
+  switch (type) {
+    case "image":
+      return "IMAGE";
+    case "audio":
+      return "AUDIO";
+    case "video":
+      return "VIDEO";
+    case "document":
+      return "DOCUMENT";
+    case "sticker":
+      return "STICKER";
+    default:
+      return null;
+  }
+}
+
+function getInboundMessageMetadata(
+  message: JsonRecord,
+): Prisma.InputJsonObject | undefined {
+  const mediaType = getInboundMediaType(message.type);
+
+  if (mediaType) {
+    const mediaPayload = asRecord(message[String(message.type)]);
+    const caption = getStringValue(mediaPayload, "caption");
+    const filename = getStringValue(mediaPayload, "filename");
+    const mimeType = getStringValue(mediaPayload, "mime_type");
+
+    return {
+      messageType: "MEDIA",
+      direction: "INBOUND",
+      mediaType,
+      mediaId: getStringValue(mediaPayload, "id"),
+      mediaName: filename,
+      caption,
+      mimeType,
+      sha256: getStringValue(mediaPayload, "sha256"),
+      animated:
+        typeof mediaPayload?.animated === "boolean"
+          ? mediaPayload.animated
+          : null,
+    };
+  }
+
+  if (message.type === "location") {
+    const location = asRecord(message.location);
+    const latitude = getNumberValue(location, "latitude");
+    const longitude = getNumberValue(location, "longitude");
+
+    return {
+      messageType: "LOCATION",
+      direction: "INBOUND",
+      latitude,
+      longitude,
+      name: getStringValue(location, "name"),
+      address: getStringValue(location, "address"),
+    };
+  }
+
+  if (message.type === "reaction") {
+    const reaction = asRecord(message.reaction);
+
+    return {
+      messageType: "REACTION",
+      direction: "INBOUND",
+      emoji: getStringValue(reaction, "emoji"),
+      reactedToMetaMessageId: getStringValue(reaction, "message_id"),
+    };
+  }
+
+  if (message.type === "interactive") {
+    return {
+      messageType: "INTERACTIVE",
+      direction: "INBOUND",
+      interactive: message.interactive as Prisma.InputJsonValue,
+    };
+  }
+
+  if (message.type === "button") {
+    const button = asRecord(message.button);
+
+    return {
+      messageType: "BUTTON",
+      direction: "INBOUND",
+      payload: getStringValue(button, "payload"),
+      text: getStringValue(button, "text"),
+    };
+  }
+
+  return undefined;
+}
+
 function getInboundMessageBody(message: JsonRecord) {
   if (message.type === "text") {
     const text = asRecord(message.text);
@@ -143,6 +260,32 @@ function getInboundMessageBody(message: JsonRecord) {
 
   if (message.type === "interactive") {
     return JSON.stringify(message.interactive ?? {});
+  }
+
+  const mediaType = getInboundMediaType(message.type);
+
+  if (mediaType) {
+    const mediaPayload = asRecord(message[String(message.type)]);
+    const caption = getStringValue(mediaPayload, "caption");
+    const filename = getStringValue(mediaPayload, "filename");
+    const label = `${mediaType[0]}${mediaType.slice(1).toLowerCase()}`;
+
+    return caption || filename || `[${label} received]`;
+  }
+
+  if (message.type === "location") {
+    const location = asRecord(message.location);
+    const name = getStringValue(location, "name");
+    const address = getStringValue(location, "address");
+
+    return [name, address].filter(Boolean).join("\n") || "[Location received]";
+  }
+
+  if (message.type === "reaction") {
+    const reaction = asRecord(message.reaction);
+    const emoji = getStringValue(reaction, "emoji");
+
+    return emoji ? `Reacted ${emoji}` : "[Reaction received]";
   }
 
   return `[Unsupported inbound message type: ${String(message.type)}]`;
@@ -210,7 +353,30 @@ const worker = new Worker<ProcessWebhookJobData>(
       const incomingMessage = asRecord(incomingMessageValue);
       const companyId = webhookEvent.companyId;
 
-      if (!incomingMessage || !companyId) {
+      if (!incomingMessage) {
+        continue;
+      }
+
+      if (!companyId) {
+        await createUnmappedWebhookEvent({
+          payload: webhookEvent.payload,
+          eventType: webhookEvent.eventType,
+          phoneNumberId: extractPhoneNumberId(webhookEvent.payload),
+          dedupeKey: webhookEvent.dedupeKey
+            ? `worker-unmapped:${webhookEvent.dedupeKey}`
+            : `worker-unmapped:${webhookEvent.id}`,
+          reason: "WEBHOOK_EVENT_MISSING_COMPANY_ID",
+        });
+
+        await prisma.webhookEvent.update({
+          where: {
+            id: webhookEvent.id,
+          },
+          data: {
+            status: "FAILED",
+          },
+        });
+
         continue;
       }
 
@@ -241,6 +407,7 @@ const worker = new Worker<ProcessWebhookJobData>(
         fromPhoneNumber,
       );
       const body = getInboundMessageBody(incomingMessage);
+      const metadata = getInboundMessageMetadata(incomingMessage);
 
       const contact = await prisma.contact.upsert({
         where: {
@@ -277,6 +444,7 @@ const worker = new Worker<ProcessWebhookJobData>(
           body,
           variables: [],
           metaMessageId,
+          metadata,
           events: {
             create: {
               companyId,
@@ -285,6 +453,17 @@ const worker = new Worker<ProcessWebhookJobData>(
             },
           },
         },
+      });
+
+      await publishInboxRealtimeEvent({
+        type: "INBOUND_MESSAGE_CREATED",
+        companyId,
+        contactId: contact.id,
+        messageId: message.id,
+        body,
+        createdAt: message.createdAt.toISOString(),
+      }).catch((error) => {
+        console.error("INBOX_REALTIME_PUBLISH_ERROR:", error);
       });
 
       const now = new Date();

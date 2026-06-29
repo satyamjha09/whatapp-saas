@@ -24,6 +24,7 @@ import InboxStatsCards from "../inbox-stats-cards";
 import { getPriorityColorClass } from "../priority-color";
 import SlaBadge from "../sla-badge";
 import SlaFilter from "../sla-filter";
+import ConversationAssigneeSelect from "./conversation-assignee-select";
 import ConversationSnoozeControls from "./conversation-snooze-controls";
 import ConversationPrioritySelect from "./conversation-priority-select";
 import ConversationTagManager from "./conversation-tag-manager";
@@ -50,9 +51,23 @@ type InboxConversationPageProps = {
 
 type InboxMediaMetadata = {
   messageType: "MEDIA";
-  mediaType: "IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO";
+  mediaType: "IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO" | "STICKER";
   mediaName?: string | null;
   caption?: string | null;
+};
+
+type InboxLocationMetadata = {
+  messageType: "LOCATION";
+  name?: string | null;
+  address?: string | null;
+  latitude: number;
+  longitude: number;
+};
+
+type InboxReactionMetadata = {
+  messageType: "REACTION";
+  emoji?: string | null;
+  reactedToMetaMessageId?: string | null;
 };
 
 function getInboxMediaMetadata(metadata: unknown): InboxMediaMetadata | null {
@@ -65,7 +80,7 @@ function getInboxMediaMetadata(metadata: unknown): InboxMediaMetadata | null {
 
   if (
     record.messageType !== "MEDIA" ||
-    !["IMAGE", "DOCUMENT", "VIDEO", "AUDIO"].includes(mediaType)
+    !["IMAGE", "DOCUMENT", "VIDEO", "AUDIO", "STICKER"].includes(mediaType)
   ) {
     return null;
   }
@@ -78,9 +93,62 @@ function getInboxMediaMetadata(metadata: unknown): InboxMediaMetadata | null {
   };
 }
 
+function getInboxLocationMetadata(
+  metadata: unknown,
+): InboxLocationMetadata | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+
+  if (
+    record.messageType !== "LOCATION" ||
+    typeof record.latitude !== "number" ||
+    typeof record.longitude !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    messageType: "LOCATION",
+    name: typeof record.name === "string" ? record.name : null,
+    address: typeof record.address === "string" ? record.address : null,
+    latitude: record.latitude,
+    longitude: record.longitude,
+  };
+}
+
+function getInboxReactionMetadata(
+  metadata: unknown,
+): InboxReactionMetadata | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+
+  if (record.messageType !== "REACTION") {
+    return null;
+  }
+
+  return {
+    messageType: "REACTION",
+    emoji: typeof record.emoji === "string" ? record.emoji : null,
+    reactedToMetaMessageId:
+      typeof record.reactedToMetaMessageId === "string"
+        ? record.reactedToMetaMessageId
+        : null,
+  };
+}
+
 function messagePreview(message: { body: string; metadata: unknown }) {
   const media = getInboxMediaMetadata(message.metadata);
+  const location = getInboxLocationMetadata(message.metadata);
+  const reaction = getInboxReactionMetadata(message.metadata);
 
+  if (location) return `Location: ${location.name ?? location.address ?? "Shared location"}`;
+  if (reaction) return reaction.emoji ? `Reacted ${reaction.emoji}` : "Reaction";
   if (!media) return message.body;
 
   return `${media.mediaType[0]}${media.mediaType.slice(1).toLowerCase()}${
@@ -96,6 +164,40 @@ function MessageBubbleBody({
   isOutbound: boolean;
 }) {
   const media = getInboxMediaMetadata(message.metadata);
+  const location = getInboxLocationMetadata(message.metadata);
+  const reaction = getInboxReactionMetadata(message.metadata);
+
+  if (location) {
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`;
+
+    return (
+      <div className="mt-3 space-y-2">
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={`block rounded-xl border px-3 py-2 text-sm font-semibold ${
+            isOutbound
+              ? "border-white/20 bg-white/10 text-white"
+              : "border-gray-200 bg-gray-50 text-gray-900"
+          }`}
+        >
+          Location: {location.name ?? location.address ?? "Open in Google Maps"}
+        </a>
+        {location.address ? (
+          <p className="whitespace-pre-wrap text-sm">{location.address}</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (reaction) {
+    return (
+      <p className="mt-3 whitespace-pre-wrap text-sm">
+        {reaction.emoji ? `Reacted ${reaction.emoji}` : message.body}
+      </p>
+    );
+  }
 
   if (!media) {
     return (
@@ -107,13 +209,13 @@ function MessageBubbleBody({
 
   const caption = media.caption?.trim();
 
-  if (media.mediaType === "IMAGE") {
+  if (media.mediaType === "IMAGE" || media.mediaType === "STICKER") {
     return (
       <div className="mt-3 space-y-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`/api/messages/${message.id}/media`}
-          alt={media.mediaName ?? "Sent image"}
+          alt={media.mediaName ?? `${media.mediaType.toLowerCase()} message`}
           className="max-h-80 w-full rounded-xl object-cover"
         />
         {caption ? (
@@ -236,7 +338,7 @@ export default async function InboxConversationPage({
 
   return (
     <main className="p-8">
-      <InboxAutoRefresh />
+      <InboxAutoRefresh activeContactId={conversation.id} />
       <MarkConversationRead contactId={conversation.id} />
 
       <div className="mx-auto max-w-6xl">
@@ -578,12 +680,21 @@ export default async function InboxConversationPage({
                   ) : null}
 
                   <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                    {conversation.messages.length} message(s)
+                    {conversation._count.messages > conversation.messages.length
+                      ? `Latest ${conversation.messages.length} of ${conversation._count.messages} message(s)`
+                      : `${conversation.messages.length} message(s)`}
                   </span>
 
                   <ConversationPrioritySelect
                     contactId={conversation.id}
                     currentPriority={conversation.inboxPriority}
+                  />
+
+                  <ConversationAssigneeSelect
+                    contactId={conversation.id}
+                    currentAssignedToUserId={conversation.assignedToUserId}
+                    currentUserId={context.user.id}
+                    members={members}
                   />
 
                   <ConversationStatusButton

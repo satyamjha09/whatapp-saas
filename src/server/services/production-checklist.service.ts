@@ -13,6 +13,16 @@ function buildItem(input: ProductionChecklistItem): ProductionChecklistItem {
 
 export async function getProductionChecklistByCompany(companyId: string) {
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
+  const isProduction = process.env.NODE_ENV === "production";
+  const notificationEmailsEnabled =
+    process.env.NOTIFICATION_EMAILS_ENABLED === "true";
+  const smtpConfigured = Boolean(
+    process.env.SMTP_HOST &&
+      process.env.SMTP_PORT &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASSWORD &&
+      process.env.SMTP_FROM,
+  );
   const hasWebhookVerifyToken = Boolean(
     process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
   );
@@ -473,13 +483,11 @@ export async function getProductionChecklistByCompany(companyId: string) {
           id: "notification-email-alerts",
           title: "Notification email alerts enabled",
           description:
-            "Critical workspace notifications can be delivered by email according to per-user alert preferences.",
-          status:
-            process.env.NOTIFICATION_EMAILS_ENABLED === "true" &&
-            process.env.SMTP_HOST
-              ? "complete"
-              : "pending",
-          required: false,
+            notificationEmailsEnabled
+              ? "Critical workspace notifications can be delivered by email according to per-user alert preferences."
+              : "Notification emails are disabled. Agents will not receive email alerts for important events until NOTIFICATION_EMAILS_ENABLED is true.",
+          status: notificationEmailsEnabled ? "complete" : "pending",
+          required: isProduction,
           actionLabel: "Open Notification Preferences",
           actionHref: "/dashboard/notifications/preferences",
         }),
@@ -487,15 +495,13 @@ export async function getProductionChecklistByCompany(companyId: string) {
           id: "notification-email-retry-smtp-test",
           title: "Notification email retry and SMTP testing enabled",
           description:
-            "Admins can send a test email, inspect delivery status, and retry failed or skipped notification emails.",
-          status:
-            process.env.NOTIFICATION_EMAILS_ENABLED === "true" &&
-            process.env.SMTP_HOST &&
-            process.env.SMTP_USER &&
-            process.env.SMTP_PASSWORD
-              ? "complete"
-              : "pending",
-          required: false,
+            smtpConfigured
+              ? "Admins can send a test email, inspect delivery status, and retry failed or skipped notification emails."
+              : "SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM must be configured before notification emails can be sent.",
+          status: notificationEmailsEnabled && smtpConfigured
+            ? "complete"
+            : "pending",
+          required: isProduction || notificationEmailsEnabled,
           actionLabel: "Open Email Deliveries",
           actionHref: "/dashboard/notifications/email-deliveries",
         }),

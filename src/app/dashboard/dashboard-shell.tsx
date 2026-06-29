@@ -1,6 +1,5 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
 import {
   Bell,
   CalendarClock,
@@ -38,6 +37,10 @@ type DashboardShellProps = {
   userName: string;
   userRole: string;
 };
+
+function userInitial(name: string) {
+  return name.trim().charAt(0).toUpperCase() || "U";
+}
 
 const navigationIcons: Record<
   string,
@@ -463,9 +466,23 @@ export function DashboardShell({
 
             {notificationBadge}
 
-            <div className="rounded-full border border-[#D8E6F3] bg-white p-1">
-              <UserButton />
-            </div>
+            <Link
+              href="/dashboard/settings/team"
+              className="flex items-center gap-3 rounded-full border border-[#D8E6F3] bg-white py-1 pl-1 pr-3 transition hover:bg-[#F0F8FF]"
+              title="Open profile and team settings"
+            >
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-[#00A6B4] text-sm font-bold text-white">
+                {userInitial(userName)}
+              </span>
+              <span className="hidden text-left sm:block">
+                <span className="block max-w-32 truncate text-sm font-bold text-[#081B3A]">
+                  {userName}
+                </span>
+                <span className="block text-xs uppercase text-[#526173]">
+                  {userRole}
+                </span>
+              </span>
+            </Link>
           </div>
         </header>
 

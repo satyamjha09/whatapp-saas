@@ -11,6 +11,7 @@
     "worker:webhooks": "tsx src/workers/webhook.worker.ts",
     "worker:developer-webhooks": "tsx src/workers/developer-webhook.worker.ts",
     "worker:developer-webhook-outbox": "tsx src/workers/developer-webhook-outbox.worker.ts",
+    "worker:template-status-sync": "tsx src/workers/template-status-sync.worker.ts",
     "worker:inbox-sla": "tsx src/workers/inbox-sla.worker.ts",
     "worker:maintenance": "tsx src/workers/maintenance.worker.ts",
     "worker:notification-email": "tsx src/workers/notification-email.worker.ts",

@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import {
   BillingPlan,
   FeatureEntitlementKey,
@@ -5,6 +6,7 @@ import {
   SubscriptionStatus,
 } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { companyFeatureAccessCacheTag } from "@/server/cache-tags";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 
 export class FeatureEntitlementError extends Error {
@@ -192,7 +194,7 @@ export async function createCompanyEntitlementOverride(input: {
   companyId: string; featureKey: FeatureEntitlementKey; enabledOverride?: boolean | null;
   limitOverride?: number | null; reason?: string | null; expiresAt?: Date | null; createdByUserId?: string | null;
 }) {
-  return prisma.companyEntitlementOverride.create({
+  const override = await prisma.companyEntitlementOverride.create({
     data: {
       companyId: input.companyId, featureKey: input.featureKey,
       enabledOverride: input.enabledOverride ?? null, limitOverride: input.limitOverride ?? null,
@@ -200,6 +202,10 @@ export async function createCompanyEntitlementOverride(input: {
       createdByUserId: input.createdByUserId ?? null,
     },
   });
+
+  revalidateTag(companyFeatureAccessCacheTag(input.companyId), "max");
+
+  return override;
 }
 
 export async function listPlanEntitlements() {

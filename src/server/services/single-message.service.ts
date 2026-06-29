@@ -144,10 +144,19 @@ export async function sendSingleTemplateMessage(
   const body =
     input.messageType === "Template" && template
       ? renderTemplateBody(template.body, input.bodyParameters)
-      : input.media?.caption?.trim() ||
-        `[${input.media?.type.toLowerCase() ?? "media"}] ${
-          input.media?.name ?? input.media?.url ?? ""
-        }`.trim();
+      : input.messageType === "Text"
+        ? input.text?.body.trim() ?? ""
+      : input.messageType === "Media"
+        ? input.media?.caption?.trim() ||
+          `[${input.media?.type.toLowerCase() ?? "media"}] ${
+            input.media?.name ?? input.media?.url ?? ""
+          }`.trim()
+        : input.messageType === "Location" && input.location
+          ? `${input.location.name}\n${input.location.address}`
+        : input.messageType === "Interactive" && input.interactive
+          ? input.interactive.body ||
+            `[interactive] ${input.interactive.type}`.trim()
+        : "";
 
   const metadata =
     input.messageType === "Media" && input.media
@@ -159,7 +168,48 @@ export async function sendSingleTemplateMessage(
           mediaName: input.media.name ?? null,
           caption: input.media.caption ?? null,
         } satisfies Prisma.InputJsonObject)
-      : undefined;
+      : input.messageType === "Location" && input.location
+        ? ({
+            messageType: "LOCATION",
+            name: input.location.name,
+            address: input.location.address,
+            latitude: input.location.latitude,
+            longitude: input.location.longitude,
+          } satisfies Prisma.InputJsonObject)
+        : input.messageType === "Interactive" && input.interactive
+          ? ({
+              messageType: "INTERACTIVE",
+              type: input.interactive.type,
+              header: input.interactive.header ?? null,
+              body: input.interactive.body,
+              footer: input.interactive.footer ?? null,
+              primaryButton: input.interactive.primaryButton ?? null,
+              buttons: input.interactive.buttons ?? [],
+              ctaUrl: input.interactive.ctaUrl ?? null,
+              flowId: input.interactive.flowId ?? null,
+              flowAction: input.interactive.flowAction ?? null,
+              flowScreen: input.interactive.flowScreen ?? null,
+              sections:
+                input.interactive.sections?.map((section) => ({
+                  title: section.title,
+                  rows: section.rows.map((row) => ({
+                    title: row.title,
+                    description: row.description ?? null,
+                  })),
+                })) ?? [],
+            } satisfies Prisma.InputJsonObject)
+          : undefined;
+
+  const queuedReason =
+    input.messageType === "Media"
+      ? "Single media message queued"
+      : input.messageType === "Text"
+        ? "Single text message queued"
+      : input.messageType === "Location"
+        ? "Single location message queued"
+      : input.messageType === "Interactive"
+        ? "Single interactive message queued"
+        : "Single template message queued";
 
   const result = await prisma.$transaction(async (tx) => {
     const debitResult = await tx.wallet.updateMany({
@@ -194,10 +244,7 @@ export async function sendSingleTemplateMessage(
             status: "QUEUED",
             raw: {
               source: "single_message",
-              reason:
-                input.messageType === "Media"
-                  ? "Single media message queued"
-                  : "Single template message queued",
+              reason: queuedReason,
             },
           },
         },
@@ -213,7 +260,13 @@ export async function sendSingleTemplateMessage(
         description:
           input.messageType === "Media"
             ? "Single media message queued"
-            : "Single template message queued",
+            : input.messageType === "Text"
+              ? "Single text message queued"
+            : input.messageType === "Location"
+              ? "Single location message queued"
+              : input.messageType === "Interactive"
+                ? "Single interactive message queued"
+                : "Single template message queued",
         referenceType: "MESSAGE_USAGE",
         referenceId: message.id,
       },

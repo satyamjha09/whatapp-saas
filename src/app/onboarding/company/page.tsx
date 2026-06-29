@@ -1,10 +1,22 @@
-import { getCurrentAppUser } from "@/server/tenant/tenant-context";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { listUserCompanies } from "@/server/services/company-onboarding.service";
+import { getUserByClerkId } from "@/server/services/auth.service";
 import { CompanyOnboardingForm } from "./company-onboarding-form";
 
 export default async function CompanyOnboardingPage() {
-  const user = await getCurrentAppUser();
-  const memberships = await listUserCompanies(user.id);
+  const clerkUser = await currentUser();
+
+  if (!clerkUser) {
+    redirect("/sign-in");
+  }
+
+  const user = await getUserByClerkId(clerkUser.id);
+  const primaryEmail =
+    clerkUser.emailAddresses.find(
+      (email) => email.id === clerkUser.primaryEmailAddressId,
+    )?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
+  const memberships = user ? await listUserCompanies(user.id) : [];
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
@@ -21,9 +33,9 @@ export default async function CompanyOnboardingPage() {
 
       <div className="mt-8">
         <CompanyOnboardingForm
-          defaultPersonalName={user.name ?? ""}
-          defaultEmail={user.email}
-          defaultMobile={user.mobile ?? ""}
+          defaultPersonalName={user?.name ?? clerkUser.fullName ?? ""}
+          defaultEmail={user?.email ?? primaryEmail ?? ""}
+          defaultMobile={user?.mobile ?? ""}
         />
       </div>
 

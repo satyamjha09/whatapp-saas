@@ -1,6 +1,7 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getPlatformAdminEmails, isPlatformAdminEnabled } from "@/server/auth/platform-admin";
+import { getUserByClerkId } from "@/server/services/auth.service";
 import { assertCompanyHasActivePlan } from "@/server/services/company-plan-assignment.service";
 import {
   canAccessPlatform,
@@ -20,14 +21,6 @@ export class TenantAccessError extends Error {
   }
 }
 
-function primaryEmail(clerkUser: Awaited<ReturnType<typeof currentUser>>) {
-  return (
-    clerkUser?.emailAddresses?.find(
-      (item) => item.id === clerkUser.primaryEmailAddressId,
-    )?.emailAddress ?? clerkUser?.emailAddresses?.[0]?.emailAddress
-  );
-}
-
 export async function getCurrentAppUser() {
   const session = await auth();
 
@@ -35,25 +28,11 @@ export async function getCurrentAppUser() {
     throw new TenantAccessError("Authentication required.", 401);
   }
 
-  const clerkUser = await currentUser();
-  const email = primaryEmail(clerkUser);
+  const user = await getUserByClerkId(session.userId);
 
-  const user = await prisma.user.upsert({
-    where: {
-      clerkUserId: session.userId,
-    },
-    create: {
-      clerkUserId: session.userId,
-      email: email ?? `${session.userId}@unknown.local`,
-      name: clerkUser?.fullName ?? clerkUser?.firstName ?? null,
-      imageUrl: clerkUser?.imageUrl ?? null,
-    },
-    update: {
-      email: email ?? undefined,
-      name: clerkUser?.fullName ?? clerkUser?.firstName ?? undefined,
-      imageUrl: clerkUser?.imageUrl ?? undefined,
-    },
-  });
+  if (!user) {
+    throw new TenantAccessError("User profile has not been synced yet.", 403);
+  }
 
   return user;
 }

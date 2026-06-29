@@ -1,4 +1,6 @@
+import { revalidateTag, unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { companyOnboardingStateCacheTag } from "@/server/cache-tags";
 import { createAuditLog } from "@/server/services/audit.service";
 
 export type CompanyOnboardingStepKey = "profile" | "whatsapp" | "billing";
@@ -63,7 +65,11 @@ function isBillingRequired() {
   return envFlag("COMPANY_ONBOARDING_REQUIRE_BILLING", false);
 }
 
-export async function getCompanyOnboardingState(
+function revalidateCompanyOnboardingStateCache(companyId: string) {
+  revalidateTag(companyOnboardingStateCacheTag(companyId), "max");
+}
+
+async function getCompanyOnboardingStateUncached(
   companyId: string,
 ): Promise<CompanyOnboardingState> {
   const company = await prisma.company.findUnique({
@@ -164,6 +170,17 @@ export async function getCompanyOnboardingState(
   };
 }
 
+export function getCompanyOnboardingState(companyId: string) {
+  return unstable_cache(
+    async () => getCompanyOnboardingStateUncached(companyId),
+    ["company-onboarding-state", companyId],
+    {
+      revalidate: 60,
+      tags: [companyOnboardingStateCacheTag(companyId)],
+    },
+  )();
+}
+
 export async function updateCompanyOnboardingProfile({
   actorUserId,
   businessCategory,
@@ -208,6 +225,8 @@ export async function updateCompanyOnboardingProfile({
     },
   }).catch(() => undefined);
 
+  revalidateCompanyOnboardingStateCache(companyId);
+
   return company;
 }
 
@@ -247,6 +266,8 @@ export async function completeCompanyOnboardingIfReady({
       status: company.status,
     },
   }).catch(() => undefined);
+
+  revalidateCompanyOnboardingStateCache(companyId);
 
   return company;
 }

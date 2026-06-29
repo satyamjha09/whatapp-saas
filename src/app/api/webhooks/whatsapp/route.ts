@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import {
+  createUnmappedWebhookEvent,
   createWebhookEvent,
   findCompanyByPhoneNumberId,
 } from "@/server/services/webhook.service";
@@ -203,6 +204,39 @@ export async function POST(request: Request) {
       const companyId = phoneNumberId
         ? await findCompanyByPhoneNumberId(phoneNumberId)
         : null;
+
+      if (!companyId) {
+        const unmappedResult = await createUnmappedWebhookEvent({
+          payload,
+          eventType,
+          phoneNumberId,
+          dedupeKey,
+          reason: phoneNumberId
+            ? "NO_COMPANY_FOR_PHONE_NUMBER_ID"
+            : "MISSING_PHONE_NUMBER_ID",
+        });
+
+        console.error("UNMAPPED_WHATSAPP_WEBHOOK:", {
+          phoneNumberId,
+          eventType,
+          unmappedWebhookEventId:
+            unmappedResult.unmappedWebhookEvent.id,
+          duplicate: unmappedResult.isDuplicate,
+        });
+
+        await completeProviderWebhookEvent({
+          eventId: providerWebhookEvent.event.id,
+        });
+
+        return NextResponse.json(
+          {
+            received: true,
+            unmapped: true,
+            duplicate: unmappedResult.isDuplicate,
+          },
+          { status: 200 },
+        );
+      }
 
       const result = await createWebhookEvent({
         payload,

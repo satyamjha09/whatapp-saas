@@ -73,6 +73,8 @@ export function buildContentSecurityPolicy() {
     "https://*.clerk.accounts.dev",
     "https://*.clerk.com",
     "https://www.facebook.com",
+    "https://maps.google.com",
+    "https://www.google.com",
     ...parseCsv(process.env.SECURITY_EXTRA_FRAME_SRC),
   ];
 

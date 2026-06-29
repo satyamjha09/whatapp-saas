@@ -19,7 +19,6 @@ export async function getWhatsAppSettingsByCompany(companyId: string) {
         orderBy: {
           createdAt: "asc",
         },
-        take: 1,
       },
     },
   });
@@ -34,10 +33,20 @@ export async function getWhatsAppSettingsByCompany(companyId: string) {
       displayPhoneNumber: "",
       verifiedName: "",
       qualityRating: "",
+      phoneNumbers: [],
     };
   }
 
   const phoneNumber = account.phoneNumbers[0];
+  const phoneNumbers = account.phoneNumbers.map((item) => ({
+    id: item.id,
+    phoneNumberId: item.phoneNumberId ?? "",
+    displayPhoneNumber: item.displayPhoneNumber ?? "",
+    verifiedName: item.verifiedName ?? "",
+    qualityRating: item.qualityRating ?? "",
+    messagingLimitTier: "",
+    numberType: "",
+  }));
 
   return {
     accountId: account.id,
@@ -48,6 +57,7 @@ export async function getWhatsAppSettingsByCompany(companyId: string) {
     displayPhoneNumber: phoneNumber?.displayPhoneNumber ?? "",
     verifiedName: phoneNumber?.verifiedName ?? "",
     qualityRating: phoneNumber?.qualityRating ?? "",
+    phoneNumbers,
   };
 }
 

@@ -1,7 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
-import { syncUser } from "@/server/services/auth.service";
+import { getUserByClerkId } from "@/server/services/auth.service";
 
 export const getCurrentDatabaseUser = cache(async function getCurrentDatabaseUser() {
   const clerkUser = await currentUser();
@@ -10,23 +10,7 @@ export const getCurrentDatabaseUser = cache(async function getCurrentDatabaseUse
     return null;
   }
 
-  const primaryEmail =
-    clerkUser.emailAddresses.find(
-      (email) => email.id === clerkUser.primaryEmailAddressId,
-    )?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
-
-  if (!primaryEmail) {
-    throw new Error("Authenticated user has no email address");
-  }
-
-  const user = await syncUser({
-    clerkUserId: clerkUser.id,
-    email: primaryEmail,
-    name: clerkUser.fullName,
-    imageUrl: clerkUser.imageUrl,
-  });
-
-  return user;
+  return getUserByClerkId(clerkUser.id);
 });
 
 export const getCurrentWorkspaceContext = cache(async function getCurrentWorkspaceContext() {

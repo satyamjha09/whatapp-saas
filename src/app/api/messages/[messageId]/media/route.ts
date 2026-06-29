@@ -5,7 +5,7 @@ import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.servic
 
 type MediaMetadata = {
   messageType: "MEDIA";
-  mediaType: "IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO";
+  mediaType: "IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO" | "STICKER";
   mediaUrl?: string | null;
   mediaId?: string | null;
   mediaName?: string | null;
@@ -21,7 +21,7 @@ function getMediaMetadata(metadata: unknown): MediaMetadata | null {
 
   if (
     record.messageType !== "MEDIA" ||
-    !["IMAGE", "DOCUMENT", "VIDEO", "AUDIO"].includes(mediaType)
+    !["IMAGE", "DOCUMENT", "VIDEO", "AUDIO", "STICKER"].includes(mediaType)
   ) {
     return null;
   }

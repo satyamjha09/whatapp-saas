@@ -27,6 +27,23 @@ type SendWhatsAppMediaMessageInput = {
   filename?: string;
 };
 
+type SendWhatsAppLocationMessageInput = {
+  accessToken: string;
+  phoneNumberId: string;
+  to: string;
+  latitude: number;
+  longitude: number;
+  name: string;
+  address: string;
+};
+
+type SendWhatsAppInteractiveMessageInput = {
+  accessToken: string;
+  phoneNumberId: string;
+  to: string;
+  interactive: Record<string, unknown>;
+};
+
 type UploadWhatsAppMediaInput = {
   accessToken: string;
   phoneNumberId: string;
@@ -160,6 +177,75 @@ export async function sendWhatsAppMediaMessage(
       to: input.to,
       type,
       [type]: mediaPayload,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${input.accessToken}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  const metaMessageId = response.data?.messages?.[0]?.id;
+
+  if (!metaMessageId) {
+    throw new Error("Meta did not return a message ID");
+  }
+
+  return {
+    metaMessageId,
+    raw: response.data,
+  };
+}
+
+export async function sendWhatsAppLocationMessage(
+  input: SendWhatsAppLocationMessageInput,
+) {
+  const response = await axios.post(
+    getWhatsAppMessagesUrl(input.phoneNumberId),
+    {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: input.to,
+      type: "location",
+      location: {
+        latitude: input.latitude,
+        longitude: input.longitude,
+        name: input.name,
+        address: input.address,
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${input.accessToken}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  const metaMessageId = response.data?.messages?.[0]?.id;
+
+  if (!metaMessageId) {
+    throw new Error("Meta did not return a message ID");
+  }
+
+  return {
+    metaMessageId,
+    raw: response.data,
+  };
+}
+
+export async function sendWhatsAppInteractiveMessage(
+  input: SendWhatsAppInteractiveMessageInput,
+) {
+  const response = await axios.post(
+    getWhatsAppMessagesUrl(input.phoneNumberId),
+    {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: input.to,
+      type: "interactive",
+      interactive: input.interactive,
     },
     {
       headers: {

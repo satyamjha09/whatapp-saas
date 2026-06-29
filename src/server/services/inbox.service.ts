@@ -19,6 +19,7 @@ import {
 import { UpdateConversationPriorityInput } from "@/server/validators/inbox-priority.validator";
 import { UpdateConversationSnoozeInput } from "@/server/validators/inbox-snooze.validator";
 import { UpdateConversationStatusInput } from "@/server/validators/inbox-status.validator";
+import { UpdateConversationAssigneeInput } from "@/server/validators/inbox-assignee.validator";
 import type { BulkInboxActionInput } from "@/server/validators/inbox-bulk-action.validator";
 
 type GetInboxContactsInput = {
@@ -339,7 +340,7 @@ export async function getConversationByContact(
   companyId: string,
   contactId: string,
 ) {
-  return prisma.contact.findFirst({
+  const conversation = await prisma.contact.findFirst({
     where: {
       id: contactId,
       companyId,
@@ -374,11 +375,30 @@ export async function getConversationByContact(
           template: true,
         },
         orderBy: {
-          createdAt: "asc",
+          createdAt: "desc",
+        },
+        take: 50,
+      },
+      _count: {
+        select: {
+          messages: {
+            where: {
+              companyId,
+            },
+          },
         },
       },
     },
   });
+
+  if (!conversation) {
+    return null;
+  }
+
+  return {
+    ...conversation,
+    messages: [...conversation.messages].reverse(),
+  };
 }
 
 export async function createInboxNote(
@@ -614,6 +634,65 @@ export async function updateConversationPriority(
     metadata: {
       previousPriority: contact.inboxPriority,
       nextPriority: updatedContact.inboxPriority,
+    },
+  });
+
+  return updatedContact;
+}
+
+export async function updateConversationAssignee(
+  companyId: string,
+  contactId: string,
+  input: UpdateConversationAssigneeInput,
+  actorUserId?: string | null,
+) {
+  const contact = await prisma.contact.findFirst({
+    where: {
+      id: contactId,
+      companyId,
+    },
+  });
+
+  if (!contact) {
+    throw new Error("Contact not found");
+  }
+
+  if (input.assignedToUserId) {
+    const membership = await prisma.companyUser.findFirst({
+      where: {
+        companyId,
+        userId: input.assignedToUserId,
+      },
+    });
+
+    if (!membership) {
+      throw new Error("Assigned user is not a member of this company");
+    }
+  }
+
+  const updatedContact = await prisma.contact.update({
+    where: {
+      id: contact.id,
+    },
+    data: {
+      assignedToUserId: input.assignedToUserId,
+    },
+    include: {
+      assignedTo: true,
+    },
+  });
+
+  await recordContactActivity({
+    companyId,
+    contactId,
+    actorUserId,
+    type: input.assignedToUserId ? "ASSIGNED" : "UNASSIGNED",
+    title: input.assignedToUserId
+      ? "Conversation assigned"
+      : "Conversation unassigned",
+    metadata: {
+      previousAssignedToUserId: contact.assignedToUserId,
+      assignedToUserId: input.assignedToUserId,
     },
   });
 

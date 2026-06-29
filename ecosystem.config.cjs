@@ -63,6 +63,11 @@ module.exports = {
     }),
 
     tsxWorker({
+      name: "campaign-launch-worker",
+      script: "src/workers/campaign-launch.worker.ts",
+    }),
+
+    tsxWorker({
       name: "tallykonnect-webhook-worker",
       script: "src/workers/webhook.worker.ts",
     }),

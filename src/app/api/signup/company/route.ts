@@ -6,6 +6,7 @@ import { SignupAccountDetailsSchema } from "@/server/validators/signup.validator
 import { ensureCompanyUserAccessRole } from "@/server/services/rbac-v2.service";
 import { createAuditLog } from "@/server/services/audit.service";
 import { assignDefaultTrialPlan } from "@/server/services/company-plan-assignment.service";
+import { syncUser } from "@/server/services/auth.service";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -27,23 +28,12 @@ export async function POST(request: Request) {
     const body = SignupAccountDetailsSchema.parse(await request.json());
     const clerkUser = await currentUser();
 
-    const user = await prisma.user.upsert({
-      where: {
-        clerkUserId: session.userId,
-      },
-      create: {
-        clerkUserId: session.userId,
-        email: body.email,
-        name: body.personalName,
-        mobile: body.mobile,
-        imageUrl: clerkUser?.imageUrl ?? null,
-      },
-      update: {
-        email: body.email,
-        name: body.personalName,
-        mobile: body.mobile,
-        imageUrl: clerkUser?.imageUrl ?? undefined,
-      },
+    const user = await syncUser({
+      clerkUserId: session.userId,
+      email: body.email,
+      name: body.personalName,
+      mobile: body.mobile,
+      imageUrl: clerkUser?.imageUrl ?? null,
     });
 
     const existingOwnerCompany = await prisma.companyUser.findFirst({

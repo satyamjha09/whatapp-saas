@@ -1,10 +1,16 @@
 import crypto from "node:crypto";
+import { revalidateTag, unstable_cache } from "next/cache";
 import {
   Prisma,
   TrustDocumentAcceptanceSource,
   TrustDocumentType,
 } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  companyTrustAcceptanceCacheTag,
+  TRUST_CENTER_ACCEPTANCE_CACHE_TAG,
+  TRUST_CENTER_DOCUMENTS_CACHE_TAG,
+} from "@/server/cache-tags";
 
 const DEFAULT_REQUIRED_DOCUMENT_TYPES: TrustDocumentType[] = [
   "TERMS_OF_SERVICE",
@@ -52,6 +58,15 @@ export class LegalAcceptanceRequiredError extends Error {
     super(message);
     this.name = "LegalAcceptanceRequiredError";
   }
+}
+
+function revalidateTrustCenterDocumentsCache() {
+  revalidateTag(TRUST_CENTER_DOCUMENTS_CACHE_TAG, "max");
+  revalidateTag(TRUST_CENTER_ACCEPTANCE_CACHE_TAG, "max");
+}
+
+function revalidateTrustCenterAcceptanceCache(companyId: string) {
+  revalidateTag(companyTrustAcceptanceCacheTag(companyId), "max");
 }
 
 function isEnabled() {
@@ -118,10 +133,13 @@ export async function seedDefaultTrustDocuments() {
     documents.push(document);
   }
 
+  revalidateTrustCenterDocumentsCache();
+
   return documents;
 }
 
-export async function listLatestRequiredTrustDocuments() {
+export const listLatestRequiredTrustDocuments = unstable_cache(
+async function listLatestRequiredTrustDocuments() {
   const requiredTypes = requiredDocumentTypes();
   const documents = await prisma.trustDocument.findMany({
     where: {
@@ -139,16 +157,33 @@ export async function listLatestRequiredTrustDocuments() {
   return requiredTypes
     .map((type) => latestByType.get(type))
     .filter((document): document is (typeof documents)[number] => Boolean(document));
-}
+},
+  ["latest-required-trust-documents"],
+  {
+    revalidate: 60,
+    tags: [TRUST_CENTER_DOCUMENTS_CACHE_TAG],
+  },
+);
 
-export async function getPublishedTrustDocumentBySlug(slug: string) {
+async function getPublishedTrustDocumentBySlugUncached(slug: string) {
   return prisma.trustDocument.findFirst({
     where: { slug, status: "PUBLISHED" },
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
   });
 }
 
-export async function getCompanyTrustAcceptanceStatus({
+export function getPublishedTrustDocumentBySlug(slug: string) {
+  return unstable_cache(
+    async () => getPublishedTrustDocumentBySlugUncached(slug),
+    ["published-trust-document-by-slug", slug],
+    {
+      revalidate: 60,
+      tags: [TRUST_CENTER_DOCUMENTS_CACHE_TAG],
+    },
+  )();
+}
+
+async function getCompanyTrustAcceptanceStatusUncached({
   companyId,
 }: {
   companyId: string;
@@ -180,6 +215,24 @@ export async function getCompanyTrustAcceptanceStatus({
   };
 }
 
+export function getCompanyTrustAcceptanceStatus({
+  companyId,
+}: {
+  companyId: string;
+}) {
+  return unstable_cache(
+    async () => getCompanyTrustAcceptanceStatusUncached({ companyId }),
+    ["company-trust-acceptance-status", companyId],
+    {
+      revalidate: 60,
+      tags: [
+        TRUST_CENTER_DOCUMENTS_CACHE_TAG,
+        companyTrustAcceptanceCacheTag(companyId),
+      ],
+    },
+  )();
+}
+
 export async function acceptTrustDocument({
   companyId,
   userId,
@@ -203,7 +256,7 @@ export async function acceptTrustDocument({
 
   if (!document) throw new Error("Published trust document not found");
 
-  return prisma.trustDocumentAcceptance.upsert({
+  const acceptance = await prisma.trustDocumentAcceptance.upsert({
     where: { companyId_documentId: { companyId, documentId } },
     create: {
       companyId,
@@ -219,6 +272,10 @@ export async function acceptTrustDocument({
     },
     update: {},
   });
+
+  revalidateTrustCenterAcceptanceCache(companyId);
+
+  return acceptance;
 }
 
 export async function acceptAllRequiredTrustDocuments({

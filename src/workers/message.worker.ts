@@ -5,6 +5,8 @@ import { DEFAULT_MESSAGE_JOB_ATTEMPTS, getMessageQueue } from "@/lib/queue";
 import { getRedisConnection } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
 import {
+  sendWhatsAppInteractiveMessage,
+  sendWhatsAppLocationMessage,
   sendWhatsAppMediaMessage,
   sendWhatsAppTemplateMessage,
   sendWhatsAppTextMessage,
@@ -39,6 +41,39 @@ type OutboundMediaMetadata = {
   caption?: string | null;
 };
 
+type OutboundLocationMetadata = {
+  messageType: "LOCATION";
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+};
+
+type OutboundInteractiveMetadata = {
+  messageType: "INTERACTIVE";
+  type:
+    | "List Button"
+    | "Reply Button"
+    | "CTA Button"
+    | "Call Permission Request"
+    | "Location Request"
+    | "Address Request"
+    | "Flow";
+  header?: string | null;
+  body?: string | null;
+  footer?: string | null;
+  primaryButton?: string | null;
+  buttons?: string[];
+  ctaUrl?: string | null;
+  flowId?: string | null;
+  flowAction?: string | null;
+  flowScreen?: string | null;
+  sections?: {
+    title?: string | null;
+    rows: { title: string; description?: string | null }[];
+  }[];
+};
+
 function getOutboundMediaMetadata(
   metadata: unknown,
 ): OutboundMediaMetadata | null {
@@ -65,6 +100,230 @@ function getOutboundMediaMetadata(
     mediaName:
       typeof record.mediaName === "string" ? record.mediaName : null,
     caption: typeof record.caption === "string" ? record.caption : null,
+  };
+}
+
+function getOutboundLocationMetadata(
+  metadata: unknown,
+): OutboundLocationMetadata | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+
+  if (
+    record.messageType !== "LOCATION" ||
+    typeof record.name !== "string" ||
+    typeof record.address !== "string" ||
+    typeof record.latitude !== "number" ||
+    typeof record.longitude !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    messageType: "LOCATION",
+    name: record.name,
+    address: record.address,
+    latitude: record.latitude,
+    longitude: record.longitude,
+  };
+}
+
+function getOutboundInteractiveMetadata(
+  metadata: unknown,
+): OutboundInteractiveMetadata | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const type = String(record.type);
+
+  if (
+    record.messageType !== "INTERACTIVE" ||
+    ![
+      "List Button",
+      "Reply Button",
+      "CTA Button",
+      "Call Permission Request",
+      "Location Request",
+      "Address Request",
+      "Flow",
+    ].includes(type)
+  ) {
+    return null;
+  }
+
+  return {
+    messageType: "INTERACTIVE",
+    type: type as OutboundInteractiveMetadata["type"],
+    header: typeof record.header === "string" ? record.header : null,
+    body: typeof record.body === "string" ? record.body : null,
+    footer: typeof record.footer === "string" ? record.footer : null,
+    primaryButton:
+      typeof record.primaryButton === "string" ? record.primaryButton : null,
+    buttons: Array.isArray(record.buttons)
+      ? record.buttons.filter(
+          (button): button is string => typeof button === "string",
+        )
+      : [],
+    ctaUrl: typeof record.ctaUrl === "string" ? record.ctaUrl : null,
+    flowId: typeof record.flowId === "string" ? record.flowId : null,
+    flowAction:
+      typeof record.flowAction === "string" ? record.flowAction : null,
+    flowScreen:
+      typeof record.flowScreen === "string" ? record.flowScreen : null,
+    sections: Array.isArray(record.sections)
+      ? record.sections
+          .filter(
+            (section): section is Record<string, unknown> =>
+              Boolean(section) &&
+              typeof section === "object" &&
+              !Array.isArray(section),
+          )
+          .map((section) => ({
+            title: typeof section.title === "string" ? section.title : null,
+            rows: Array.isArray(section.rows)
+              ? section.rows
+                  .filter(
+                    (row): row is Record<string, unknown> =>
+                      Boolean(row) &&
+                      typeof row === "object" &&
+                      !Array.isArray(row) &&
+                      typeof row.title === "string",
+                  )
+                  .map((row) => ({
+                    title: String(row.title),
+                    description:
+                      typeof row.description === "string"
+                        ? row.description
+                        : null,
+                  }))
+              : [],
+          }))
+      : [],
+  };
+}
+
+function textComponent(text?: string | null) {
+  return text?.trim() ? { text: text.trim() } : undefined;
+}
+
+function buildInteractivePayload(metadata: OutboundInteractiveMetadata) {
+  const body = textComponent(metadata.body) ?? { text: " " };
+  const header = textComponent(metadata.header);
+  const footer = textComponent(metadata.footer);
+
+  if (metadata.type === "List Button") {
+    return {
+      type: "list",
+      ...(header ? { header: { type: "text", text: header.text } } : {}),
+      body,
+      ...(footer ? { footer } : {}),
+      action: {
+        button: metadata.primaryButton || "View options",
+        sections:
+          metadata.sections?.map((section, sectionIndex) => ({
+            title: section.title || `Section ${sectionIndex + 1}`,
+            rows: section.rows.map((row, rowIndex) => ({
+              id: `section_${sectionIndex + 1}_row_${rowIndex + 1}`,
+              title: row.title,
+              ...(row.description ? { description: row.description } : {}),
+            })),
+          })) ?? [],
+      },
+    };
+  }
+
+  if (metadata.type === "Reply Button") {
+    return {
+      type: "button",
+      ...(header ? { header: { type: "text", text: header.text } } : {}),
+      body,
+      ...(footer ? { footer } : {}),
+      action: {
+        buttons: (metadata.buttons?.length ? metadata.buttons : ["Button 1"]).map(
+          (button, index) => ({
+            type: "reply",
+            reply: {
+              id: `reply_${index + 1}`,
+              title: button,
+            },
+          }),
+        ),
+      },
+    };
+  }
+
+  if (metadata.type === "CTA Button") {
+    return {
+      type: "cta_url",
+      ...(header ? { header: { type: "text", text: header.text } } : {}),
+      body,
+      ...(footer ? { footer } : {}),
+      action: {
+        name: "cta_url",
+        parameters: {
+          display_text: metadata.primaryButton || "Open link",
+          url: metadata.ctaUrl,
+        },
+      },
+    };
+  }
+
+  if (metadata.type === "Location Request") {
+    return {
+      type: "location_request_message",
+      body,
+      action: {
+        name: "send_location",
+      },
+    };
+  }
+
+  if (metadata.type === "Address Request") {
+    return {
+      type: "address_message",
+      body,
+      action: {
+        name: "address_message",
+        parameters: {
+          country: "IN",
+        },
+      },
+    };
+  }
+
+  if (metadata.type === "Flow") {
+    return {
+      type: "flow",
+      ...(header ? { header: { type: "text", text: header.text } } : {}),
+      body,
+      ...(footer ? { footer } : {}),
+      action: {
+        name: "flow",
+        parameters: {
+          flow_message_version: "3",
+          flow_token: metadata.flowId,
+          flow_id: metadata.flowId,
+          flow_cta: metadata.primaryButton || "Open Flow",
+          flow_action: metadata.flowAction || "navigate",
+          flow_action_payload: {
+            screen: metadata.flowScreen,
+          },
+        },
+      },
+    };
+  }
+
+  return {
+    type: "call_permission_request",
+    body,
+    action: {
+      name: "call_permission_request",
+    },
   };
 }
 
@@ -616,6 +875,8 @@ const worker = new Worker<SendMessageJobData>(
 
       const decryptedAccessToken = await getWhatsAppAccessToken({ companyId });
       const media = getOutboundMediaMetadata(message.metadata);
+      const location = getOutboundLocationMetadata(message.metadata);
+      const interactive = getOutboundInteractiveMetadata(message.metadata);
 
       const result = message.template
         ? await sendWhatsAppTemplateMessage({
@@ -636,6 +897,23 @@ const worker = new Worker<SendMessageJobData>(
               mediaId: media.mediaId ?? undefined,
               caption: media.caption ?? undefined,
               filename: media.mediaName ?? undefined,
+            })
+        : location
+          ? await sendWhatsAppLocationMessage({
+              accessToken: decryptedAccessToken,
+              phoneNumberId: phoneNumber!.phoneNumberId!,
+              to: message.toPhoneNumber,
+              latitude: location.latitude,
+              longitude: location.longitude,
+              name: location.name,
+              address: location.address,
+            })
+        : interactive
+          ? await sendWhatsAppInteractiveMessage({
+              accessToken: decryptedAccessToken,
+              phoneNumberId: phoneNumber!.phoneNumberId!,
+              to: message.toPhoneNumber,
+              interactive: buildInteractivePayload(interactive),
             })
         : await sendWhatsAppTextMessage({
             accessToken: decryptedAccessToken,
@@ -676,7 +954,11 @@ const worker = new Worker<SendMessageJobData>(
           ? "Template message sent using Meta API:"
           : media
             ? "Media message sent using Meta API:"
-          : "Session reply sent using Meta API:",
+            : location
+              ? "Location message sent using Meta API:"
+              : interactive
+                ? "Interactive message sent using Meta API:"
+                : "Session reply sent using Meta API:",
         message.id,
       );
     } catch (error) {

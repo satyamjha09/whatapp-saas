@@ -1,5 +1,10 @@
+import { revalidateTag, unstable_cache } from "next/cache";
 import { BillingPlan, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  companyFeatureAccessCacheTag,
+  companyPlanAccessCacheTag,
+} from "@/server/cache-tags";
 import { getBillingPlanConfig } from "@/server/config/billing-plans";
 import { createAuditLog } from "@/server/services/audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
@@ -26,6 +31,11 @@ function defaultTrialDays() {
 
 function safeJson(value: unknown): Prisma.InputJsonValue {
   return redactSensitiveData(value) as Prisma.InputJsonValue;
+}
+
+function revalidateCompanyPlanAccessCache(companyId: string) {
+  revalidateTag(companyPlanAccessCacheTag(companyId), "max");
+  revalidateTag(companyFeatureAccessCacheTag(companyId), "max");
 }
 
 type PlanEventType =
@@ -214,6 +224,8 @@ export async function assignDefaultTrialPlan({
       await syncCompanyBillingSnapshotTx(tx, existing);
     });
 
+    revalidateCompanyPlanAccessCache(companyId);
+
     return existing;
   }
 
@@ -268,6 +280,8 @@ export async function assignDefaultTrialPlan({
     },
   });
 
+  revalidateCompanyPlanAccessCache(companyId);
+
   return assignment;
 }
 
@@ -321,6 +335,8 @@ export async function getCurrentCompanyPlan(companyId: string) {
       title: "Trial plan expired",
     });
 
+    revalidateCompanyPlanAccessCache(companyId);
+
     return expired;
   }
 
@@ -357,10 +373,62 @@ export async function getCurrentCompanyPlan(companyId: string) {
       title: "Plan period expired",
     });
 
+    revalidateCompanyPlanAccessCache(companyId);
+
     return expired;
   }
 
   return assignment;
+}
+
+async function getCompanyPlanGateStatusUncached(companyId: string) {
+    const assignment = await prisma.companyPlanAssignment.findFirst({
+      where: {
+        companyId,
+        isCurrent: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    if (!assignment) {
+      return {
+        hasPlan: false,
+        hasActiveAccess: false,
+        status: null,
+      };
+    }
+
+    const now = Date.now();
+    const status = assignment.status;
+    const trialExpired =
+      status === "TRIAL" &&
+      assignment.trialEndsAt !== null &&
+      assignment.trialEndsAt.getTime() < now;
+    const periodExpired =
+      status === "ACTIVE" &&
+      assignment.currentPeriodEndsAt !== null &&
+      assignment.currentPeriodEndsAt.getTime() < now;
+
+    return {
+      hasPlan: true,
+      hasActiveAccess:
+        (status === "TRIAL" && !trialExpired) ||
+        (status === "ACTIVE" && !periodExpired),
+      status,
+    };
+}
+
+export function getCompanyPlanGateStatus(companyId: string) {
+  return unstable_cache(
+    async () => getCompanyPlanGateStatusUncached(companyId),
+    ["company-plan-gate-status", companyId],
+    {
+      revalidate: 60,
+      tags: [companyPlanAccessCacheTag(companyId)],
+    },
+  )();
 }
 
 export async function assertCompanyHasActivePlan(companyId: string) {
@@ -371,21 +439,31 @@ export async function assertCompanyHasActivePlan(companyId: string) {
     return true;
   }
 
-  let plan = await getCurrentCompanyPlan(companyId);
+  let planStatus = await getCompanyPlanGateStatus(companyId);
 
-  if (!plan) {
-    plan = await assignDefaultTrialPlan({
+  if (!planStatus.hasPlan) {
+    const plan = await assignDefaultTrialPlan({
       companyId,
     });
+
+    if (plan) {
+      planStatus = {
+        hasPlan: true,
+        hasActiveAccess: ["TRIAL", "ACTIVE"].includes(plan.status),
+        status: plan.status,
+      };
+    }
   }
 
-  if (!plan) {
+  if (!planStatus.hasPlan) {
     throw new CompanyPlanAssignmentError("No active plan assigned.");
   }
 
-  if (!["TRIAL", "ACTIVE"].includes(plan.status)) {
+  if (!planStatus.hasActiveAccess) {
     throw new CompanyPlanAssignmentError(
-      `Company plan is ${plan.status.toLowerCase()}.`,
+      planStatus.status
+        ? `Company plan is ${planStatus.status.toLowerCase()}.`
+        : "No active plan assigned.",
     );
   }
 
@@ -482,6 +560,8 @@ export async function platformAssignCompanyPlan({
     },
   });
 
+  revalidateCompanyPlanAccessCache(companyId);
+
   return assignment;
 }
 
@@ -551,6 +631,8 @@ export async function extendCompanyTrial({
     },
   });
 
+  revalidateCompanyPlanAccessCache(companyId);
+
   return updated;
 }
 
@@ -607,6 +689,8 @@ export async function suspendCompanyPlan({
     description: reason.trim(),
   });
 
+  revalidateCompanyPlanAccessCache(companyId);
+
   return updated;
 }
 
@@ -655,6 +739,8 @@ export async function cancelCompanyPlan({
     title: "Company plan canceled",
   });
 
+  revalidateCompanyPlanAccessCache(companyId);
+
   return updated;
 }
 
@@ -685,10 +771,14 @@ export async function syncCompanyBillingSnapshotFromPlanAssignment(
     throw new CompanyPlanAssignmentError("No current plan assignment found.");
   }
 
-  return prisma.$transaction(async (tx) => {
+  const synced = await prisma.$transaction(async (tx) => {
     await syncCompanyBillingSnapshotTx(tx, assignment);
     return assignment;
   });
+
+  revalidateCompanyPlanAccessCache(companyId);
+
+  return synced;
 }
 
 export async function getCompanyPlanSnapshotMismatches({

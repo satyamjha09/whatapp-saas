@@ -183,6 +183,7 @@ export function getProductionEnvAudit() {
   });
 
   const emailEnabled = process.env.NOTIFICATION_EMAILS_ENABLED === "true";
+  const smtpRequired = emailEnabled || isProduction();
   const emailRequired = [
     "SMTP_HOST",
     "SMTP_PORT",
@@ -191,21 +192,33 @@ export function getProductionEnvAudit() {
     "SMTP_FROM",
   ];
 
-  const missingEmailEnv = emailEnabled
+  items.push({
+    id: "notification-emails-enabled",
+    title: "Notification emails enabled",
+    severity: !isProduction() || emailEnabled ? "PASS" : "FAIL",
+    message: emailEnabled
+      ? "Notification emails are enabled"
+      : isProduction()
+        ? "Notification emails are disabled. Agents will not receive email alerts for important events."
+        : "Notification emails are disabled for local development",
+    required: isProduction(),
+  });
+
+  const missingEmailEnv = smtpRequired
     ? emailRequired.filter((name) => !exists(process.env[name]))
     : [];
 
   items.push({
     id: "smtp-complete-config",
     title: "SMTP config completeness",
-    severity: missingEmailEnv.length === 0 ? "PASS" : "FAIL",
+    severity: !smtpRequired || missingEmailEnv.length === 0 ? "PASS" : "FAIL",
     message:
-      !emailEnabled
-        ? "Notification emails are disabled"
+      !smtpRequired
+        ? "SMTP is not required while notification emails are disabled outside production"
         : missingEmailEnv.length === 0
           ? "SMTP config is complete"
-          : `SMTP is enabled but missing: ${missingEmailEnv.join(", ")}`,
-    required: emailEnabled,
+          : `${emailEnabled ? "SMTP is enabled" : "Production SMTP is required"} but missing: ${missingEmailEnv.join(", ")}`,
+    required: smtpRequired,
   });
 
   const backupsEnabled = process.env.DATABASE_BACKUPS_ENABLED === "true";

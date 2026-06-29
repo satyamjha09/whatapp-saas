@@ -9,6 +9,20 @@ import RemoveMemberButton from "./remove-member-button";
 import RevokeInviteButton from "./revoke-invite-button";
 import TeamPlanLimitCard from "./team-plan-limit-card";
 
+function formatDate(value: Date | string | number | null | undefined) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return date.toLocaleDateString();
+}
+
 export default async function TeamSettingsPage() {
   const context = await getCurrentWorkspaceContext();
 
@@ -100,7 +114,7 @@ export default async function TeamSettingsPage() {
                       </td>
 
                       <td className="py-3 pr-4 text-gray-600">
-                        {member.createdAt.toLocaleDateString()}
+                        {formatDate(member.createdAt)}
                       </td>
 
                       <td className="py-3 pr-4">
@@ -195,7 +209,7 @@ export default async function TeamSettingsPage() {
                       </td>
 
                       <td className="py-3 pr-4 text-gray-600">
-                        {invite.expiresAt.toLocaleDateString()}
+                        {formatDate(invite.expiresAt)}
                       </td>
 
                       <td className="py-3 pr-4">

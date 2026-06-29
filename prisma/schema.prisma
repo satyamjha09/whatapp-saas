@@ -469,6 +469,12 @@ enum ProviderWebhookEventStatus {
   SKIPPED_DUPLICATE
 }
 
+enum UnmappedWebhookEventStatus {
+  UNRESOLVED
+  RESOLVED
+  IGNORED
+}
+
 enum IncidentSeverity {
   LOW
   MEDIUM
@@ -1095,6 +1101,7 @@ model Company {
   messages                          Message[]
   messageEvents                     MessageEvent[]
   webhookEvents                     WebhookEvent[]
+  resolvedUnmappedWebhookEvents     UnmappedWebhookEvent[]
   campaigns                         Campaign[]
   campaignContacts                  CampaignContact[]
   wallet                            Wallet?
@@ -2652,6 +2659,7 @@ model WebhookEvent {
   dedupeKey String? @unique
 
   company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  resolvedUnmappedWebhookEvents UnmappedWebhookEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2659,6 +2667,33 @@ model WebhookEvent {
   @@index([companyId])
   @@index([status])
   @@index([eventType])
+}
+
+model UnmappedWebhookEvent {
+  id String @id @default(cuid())
+
+  provider      String @default("META")
+  phoneNumberId String?
+  eventType     String?
+  payload       Json
+  reason        String
+  status        UnmappedWebhookEventStatus @default(UNRESOLVED)
+
+  dedupeKey          String? @unique
+  resolvedCompanyId String?
+  resolvedWebhookEventId String?
+  resolvedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resolvedCompany Company? @relation(fields: [resolvedCompanyId], references: [id], onDelete: SetNull)
+  resolvedWebhookEvent WebhookEvent? @relation(fields: [resolvedWebhookEventId], references: [id], onDelete: SetNull)
+
+  @@index([phoneNumberId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([resolvedCompanyId])
 }
 
 model Campaign {
@@ -5136,4 +5171,3 @@ model ContactImportRow {
   @@index([email])
   @@index([rowNumber])
 }
-

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { actionButtonClass } from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getTemplatesByCompany } from "@/server/services/template.service";
+import SubmitTemplateButton from "./submit-template-button";
 import SyncWhatsAppTemplatesButton from "./sync-whatsapp-templates-button";
 
 function templateSnippet(body: string) {
@@ -117,6 +118,11 @@ export default async function TemplatesPage() {
                   {formatTemplateDate(template.createdAt)}
                 </div>
                 <div className="flex flex-nowrap gap-2 px-5 py-4">
+                  <SubmitTemplateButton
+                    canManage={canManage}
+                    templateId={template.id}
+                    status={template.status}
+                  />
                   <Link
                     href={`/dashboard/templates/${template.id}`}
                     className="inline-flex items-center rounded-md bg-[#E4F2FF] px-3 py-2 font-medium text-[#1677FF] hover:bg-[#D8ECFF]"
