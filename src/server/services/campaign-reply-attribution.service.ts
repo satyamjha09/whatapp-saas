@@ -1,6 +1,7 @@
 import { CampaignReplyIntent, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit.service";
+import { queueLeadScoreRecalculation } from "@/server/services/lead-scoring.service";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
 import { revokeMarketingConsent } from "@/server/services/contact-consent.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
@@ -181,7 +182,7 @@ async function createConversionEvent({
     if (existing) return existing;
   }
 
-  return prisma.campaignConversionEvent.create({
+  const event = await prisma.campaignConversionEvent.create({
     data: {
       campaignId,
       companyId,
@@ -195,6 +196,12 @@ async function createConversionEvent({
       type,
     },
   });
+
+  if (contactId) {
+    await queueLeadScoreRecalculation(companyId, contactId).catch(() => undefined);
+  }
+
+  return event;
 }
 
 async function createFollowUpTaskIfNeeded({
@@ -456,6 +463,8 @@ export async function attributeInboundCampaignReply({
     }),
   }).catch(() => undefined);
 
+  await queueLeadScoreRecalculation(companyId, inbound.contactId).catch(() => undefined);
+
   return attribution;
 }
 
@@ -530,6 +539,10 @@ export async function createManualCampaignConversion({
       valuePaise,
     }),
   }).catch(() => undefined);
+
+  if (contactId) {
+    await queueLeadScoreRecalculation(companyId, contactId).catch(() => undefined);
+  }
 
   return event;
 }

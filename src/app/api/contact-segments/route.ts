@@ -21,6 +21,7 @@ const RuleSchema = z.object({
     "CREATED_AT",
     "LAST_MESSAGE_AT",
     "CUSTOM_FIELD",
+    "CAMPAIGN_OUTCOME",
   ]),
   operator: z.enum([
     "EQUALS",
@@ -39,7 +40,10 @@ const RuleSchema = z.object({
   ]),
   customFieldKey: z.string().optional().nullable(),
   value: z.string().optional().nullable(),
-  values: z.array(z.string()).optional().nullable(),
+  values: z
+    .union([z.array(z.string()), z.record(z.string(), z.unknown())])
+    .optional()
+    .nullable(),
 });
 
 const CreateSchema = z.object({

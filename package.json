@@ -15,6 +15,7 @@
     "worker:inbox-sla": "tsx src/workers/inbox-sla.worker.ts",
     "worker:maintenance": "tsx src/workers/maintenance.worker.ts",
     "worker:notification-email": "tsx src/workers/notification-email.worker.ts",
+    "worker:lead-score": "tsx src/workers/lead-score.worker.ts",
     "typecheck": "tsc --noEmit",
     "prisma:check": "prisma validate",
     "check": "prisma validate && tsc --noEmit && npm run lint",

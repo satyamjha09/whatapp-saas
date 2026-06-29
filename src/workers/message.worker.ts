@@ -66,8 +66,10 @@ type OutboundInteractiveMetadata = {
   buttons?: string[];
   ctaUrl?: string | null;
   flowId?: string | null;
+  flowToken?: string | null;
   flowAction?: string | null;
   flowScreen?: string | null;
+  flowData?: Record<string, unknown> | null;
   sections?: {
     title?: string | null;
     rows: { title: string; description?: string | null }[];
@@ -171,10 +173,18 @@ function getOutboundInteractiveMetadata(
       : [],
     ctaUrl: typeof record.ctaUrl === "string" ? record.ctaUrl : null,
     flowId: typeof record.flowId === "string" ? record.flowId : null,
+    flowToken:
+      typeof record.flowToken === "string" ? record.flowToken : null,
     flowAction:
       typeof record.flowAction === "string" ? record.flowAction : null,
     flowScreen:
       typeof record.flowScreen === "string" ? record.flowScreen : null,
+    flowData:
+      record.flowData &&
+      typeof record.flowData === "object" &&
+      !Array.isArray(record.flowData)
+        ? (record.flowData as Record<string, unknown>)
+        : null,
     sections: Array.isArray(record.sections)
       ? record.sections
           .filter(
@@ -297,6 +307,14 @@ function buildInteractivePayload(metadata: OutboundInteractiveMetadata) {
   }
 
   if (metadata.type === "Flow") {
+    if (!metadata.flowId) {
+      throw new Error("Flow ID is required");
+    }
+
+    if (!metadata.flowToken) {
+      throw new Error("Flow token is required");
+    }
+
     return {
       type: "flow",
       ...(header ? { header: { type: "text", text: header.text } } : {}),
@@ -306,12 +324,13 @@ function buildInteractivePayload(metadata: OutboundInteractiveMetadata) {
         name: "flow",
         parameters: {
           flow_message_version: "3",
-          flow_token: metadata.flowId,
+          flow_token: metadata.flowToken,
           flow_id: metadata.flowId,
           flow_cta: metadata.primaryButton || "Open Flow",
           flow_action: metadata.flowAction || "navigate",
           flow_action_payload: {
-            screen: metadata.flowScreen,
+            ...(metadata.flowScreen ? { screen: metadata.flowScreen } : {}),
+            ...(metadata.flowData ? { data: metadata.flowData } : {}),
           },
         },
       },
@@ -374,6 +393,7 @@ async function updateCampaignCompletion(campaignId: string) {
 async function markCampaignMessageSent(message: {
   campaignContactId: string | null;
   campaignId: string | null;
+  id: string;
 }) {
   if (message.campaignContactId) {
     await prisma.campaignContact.update({
@@ -387,6 +407,17 @@ async function markCampaignMessageSent(message: {
   }
 
   if (message.campaignId) {
+    await prisma.campaignSequenceExecution.updateMany({
+      where: {
+        messageId: message.id,
+        status: "QUEUED",
+      },
+      data: {
+        processedAt: new Date(),
+        status: "SENT",
+      },
+    });
+
     await prisma.campaign.update({
       where: {
         id: message.campaignId,
@@ -439,6 +470,20 @@ async function markMessageAsFailed(
           },
         },
       },
+    },
+  });
+
+  await prisma.campaignSequenceExecution.updateMany({
+    where: {
+      messageId: message.id,
+      status: {
+        in: ["PENDING", "QUEUED"],
+      },
+    },
+    data: {
+      failureReason: reason,
+      processedAt: new Date(),
+      status: "FAILED",
     },
   });
 

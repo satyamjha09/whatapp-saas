@@ -1,12 +1,48 @@
 import axios from "axios";
 
+type WhatsAppTemplateParameter =
+  | {
+      type: "text";
+      text: string;
+    }
+  | {
+      type: "image";
+      image: {
+        id?: string;
+        link?: string;
+      };
+    }
+  | {
+      type: "document";
+      document: {
+        id?: string;
+        link?: string;
+        filename?: string;
+      };
+    }
+  | {
+      type: "video";
+      video: {
+        id?: string;
+        link?: string;
+      };
+    };
+
+type WhatsAppTemplateComponent = {
+  type: "header" | "body" | "button";
+  sub_type?: "url" | "quick_reply";
+  index?: string;
+  parameters: WhatsAppTemplateParameter[];
+};
+
 type SendWhatsAppTemplateMessageInput = {
   accessToken: string;
   phoneNumberId: string;
   to: string;
   templateName: string;
   languageCode: string;
-  variables: string[];
+  variables?: string[];
+  components?: WhatsAppTemplateComponent[];
 };
 
 type SendWhatsAppTextMessageInput = {
@@ -62,23 +98,27 @@ function getWhatsAppMediaUrl(phoneNumberId: string) {
   return `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/media`;
 }
 
+function buildBodyComponents(
+  variables: string[] = [],
+): WhatsAppTemplateComponent[] {
+  return variables.length > 0
+    ? [
+        {
+          type: "body",
+          parameters: variables.map((value) => ({
+            type: "text",
+            text: value,
+          })),
+        },
+      ]
+    : [];
+}
+
 export async function sendWhatsAppTemplateMessage(
   input: SendWhatsAppTemplateMessageInput,
 ) {
   const url = getWhatsAppMessagesUrl(input.phoneNumberId);
-
-  const components =
-    input.variables.length > 0
-      ? [
-          {
-            type: "body",
-            parameters: input.variables.map((value) => ({
-              type: "text",
-              text: value,
-            })),
-          },
-        ]
-      : [];
+  const components = input.components ?? buildBodyComponents(input.variables);
 
   const response = await axios.post(
     url,
@@ -91,7 +131,7 @@ export async function sendWhatsAppTemplateMessage(
         language: {
           code: input.languageCode,
         },
-        components,
+        ...(components.length > 0 ? { components } : {}),
       },
     },
     {

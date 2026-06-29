@@ -44,6 +44,15 @@ type Contact = {
   phoneNumber: string;
 };
 
+type WhatsAppFlow = {
+  defaultCta: string;
+  defaultScreen: string | null;
+  description: string | null;
+  id: string;
+  name: string;
+  useCase: string;
+};
+
 type SendResponse = {
   message?: string;
   result?: { messageId: string; contactId: string };
@@ -115,9 +124,11 @@ function parseCoordinate(value: string) {
 
 export default function SingleTemplateMessageForm({
   contacts,
+  flows,
   templates,
 }: {
   contacts: Contact[];
+  flows: WhatsAppFlow[];
   templates: Template[];
 }) {
   const router = useRouter();
@@ -346,6 +357,22 @@ export default function SingleTemplateMessageForm({
     setTemplateId(nextTemplateId);
     const template = templates.find((item) => item.id === nextTemplateId);
     setBodyParameters(template?.variables.map(() => "") ?? []);
+  }
+
+  function chooseFlow(nextFlowId: string) {
+    setInteractiveFlowId(nextFlowId);
+
+    const flow = flows.find((item) => item.id === nextFlowId);
+
+    if (!flow) return;
+
+    setInteractiveCtaText(flow.defaultCta);
+    setInteractiveFlowAction("navigate");
+    setInteractiveFlowScreen(flow.defaultScreen ?? "START");
+    if (!interactiveHeader.trim()) setInteractiveHeader(flow.name.slice(0, 60));
+    if (!interactiveBody.trim()) {
+      setInteractiveBody((flow.description ?? flow.name).slice(0, 1024));
+    }
   }
 
   function updateParameter(index: number, value: string) {
@@ -1190,13 +1217,28 @@ export default function SingleTemplateMessageForm({
                     <select
                       id="interactiveFlowId"
                       value={interactiveFlowId}
-                      onChange={(event) => setInteractiveFlowId(event.target.value)}
+                      onChange={(event) => chooseFlow(event.target.value)}
                       className={fieldClass}
                     >
                       <option value="">Select a Flow</option>
-                      <option value="lead_capture">Lead Capture Flow</option>
-                      <option value="support_request">Support Request Flow</option>
+                      {flows.map((flow) => (
+                        <option key={flow.id} value={flow.id}>
+                          {flow.name} - {flow.useCase.replaceAll("_", " ")}
+                        </option>
+                      ))}
                     </select>
+                    {flows.length === 0 ? (
+                      <p className={helperTextClass}>
+                        No published flows yet.{" "}
+                        <Link
+                          href="/dashboard/whatsapp/flows/new"
+                          className="font-semibold text-[#1677FF] hover:underline"
+                        >
+                          Add a Flow
+                        </Link>{" "}
+                        after publishing it in Meta.
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
 

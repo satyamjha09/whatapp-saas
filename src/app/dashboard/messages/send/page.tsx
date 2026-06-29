@@ -16,7 +16,7 @@ export default async function SendSingleMessagePage() {
   if (!context.membership) redirect("/onboarding");
 
   const companyId = context.membership.companyId;
-  const [templates, contacts] = await Promise.all([
+  const [templates, contacts, flows] = await Promise.all([
     prisma.template.findMany({
       where: { companyId, status: "APPROVED" },
       orderBy: { createdAt: "desc" },
@@ -38,6 +38,18 @@ export default async function SendSingleMessagePage() {
         name: true,
         countryCode: true,
         phoneNumber: true,
+      },
+    }),
+    prisma.whatsAppFlow.findMany({
+      where: { companyId, status: "PUBLISHED" },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        defaultCta: true,
+        defaultScreen: true,
+        description: true,
+        id: true,
+        name: true,
+        useCase: true,
       },
     }),
   ]);
@@ -65,7 +77,11 @@ export default async function SendSingleMessagePage() {
         }
       />
 
-      <SingleTemplateMessageForm contacts={contacts} templates={templates} />
+      <SingleTemplateMessageForm
+        contacts={contacts}
+        flows={flows}
+        templates={templates}
+      />
     </div>
   );
 }

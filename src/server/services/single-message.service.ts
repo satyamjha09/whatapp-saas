@@ -7,6 +7,7 @@ import { assertContactCanReceiveTemplate } from "@/server/services/contact-conse
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
+import { createFlowSendMetadata } from "@/server/services/whatsapp-flow.service";
 import {
   assertUsageQuotaAvailable,
   incrementUsageQuota,
@@ -158,47 +159,64 @@ export async function sendSingleTemplateMessage(
             `[interactive] ${input.interactive.type}`.trim()
         : "";
 
-  const metadata =
-    input.messageType === "Media" && input.media
-      ? ({
+  let metadata: Prisma.InputJsonObject | undefined;
+
+  if (input.messageType === "Media" && input.media) {
+    metadata = {
           messageType: "MEDIA",
           mediaType: input.media.type,
           mediaUrl: input.media.url ?? null,
           mediaId: input.media.id ?? null,
           mediaName: input.media.name ?? null,
           caption: input.media.caption ?? null,
-        } satisfies Prisma.InputJsonObject)
-      : input.messageType === "Location" && input.location
-        ? ({
-            messageType: "LOCATION",
-            name: input.location.name,
-            address: input.location.address,
-            latitude: input.location.latitude,
-            longitude: input.location.longitude,
-          } satisfies Prisma.InputJsonObject)
-        : input.messageType === "Interactive" && input.interactive
-          ? ({
-              messageType: "INTERACTIVE",
-              type: input.interactive.type,
-              header: input.interactive.header ?? null,
-              body: input.interactive.body,
-              footer: input.interactive.footer ?? null,
-              primaryButton: input.interactive.primaryButton ?? null,
-              buttons: input.interactive.buttons ?? [],
-              ctaUrl: input.interactive.ctaUrl ?? null,
-              flowId: input.interactive.flowId ?? null,
-              flowAction: input.interactive.flowAction ?? null,
-              flowScreen: input.interactive.flowScreen ?? null,
-              sections:
-                input.interactive.sections?.map((section) => ({
-                  title: section.title,
-                  rows: section.rows.map((row) => ({
-                    title: row.title,
-                    description: row.description ?? null,
-                  })),
-                })) ?? [],
-            } satisfies Prisma.InputJsonObject)
-          : undefined;
+    };
+  } else if (input.messageType === "Location" && input.location) {
+    metadata = {
+      messageType: "LOCATION",
+      name: input.location.name,
+      address: input.location.address,
+      latitude: input.location.latitude,
+      longitude: input.location.longitude,
+    };
+  } else if (input.messageType === "Interactive" && input.interactive) {
+    if (input.interactive.type === "Flow") {
+      const flowMetadata = await createFlowSendMetadata({
+        companyId,
+        contactId: contact.id,
+        flowId: input.interactive.flowId ?? "",
+      });
+
+      metadata = {
+        ...flowMetadata,
+        body: input.interactive.body || flowMetadata.body,
+        flowAction: input.interactive.flowAction || flowMetadata.flowAction,
+        flowScreen: input.interactive.flowScreen || flowMetadata.flowScreen,
+        footer: input.interactive.footer ?? null,
+        header: input.interactive.header ?? null,
+        primaryButton:
+          input.interactive.primaryButton ?? flowMetadata.primaryButton,
+      };
+    } else {
+      metadata = {
+        messageType: "INTERACTIVE",
+        type: input.interactive.type,
+        header: input.interactive.header ?? null,
+        body: input.interactive.body,
+        footer: input.interactive.footer ?? null,
+        primaryButton: input.interactive.primaryButton ?? null,
+        buttons: input.interactive.buttons ?? [],
+        ctaUrl: input.interactive.ctaUrl ?? null,
+        sections:
+          input.interactive.sections?.map((section) => ({
+            title: section.title,
+            rows: section.rows.map((row) => ({
+              title: row.title,
+              description: row.description ?? null,
+            })),
+          })) ?? [],
+      };
+    }
+  }
 
   const queuedReason =
     input.messageType === "Media"

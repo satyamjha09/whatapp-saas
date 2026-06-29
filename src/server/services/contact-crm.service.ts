@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
+import { queueLeadScoreRecalculation } from "@/server/services/lead-scoring.service";
 
 export async function getContactCrmProfile({
   companyId,
@@ -105,6 +106,8 @@ export async function updateContactCrmProfile({
       },
     },
   });
+
+  await queueLeadScoreRecalculation(companyId, contactId).catch(() => undefined);
 
   return contact;
 }

@@ -7,6 +7,7 @@ import {
   PhoneCall,
   RefreshCw,
   ShieldCheck,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -57,6 +58,13 @@ export default async function WhatsAppSettingsPage() {
         description="Manage your Meta WhatsApp Cloud API connection without exposing stored access tokens."
         actions={
           <>
+            <Link
+              href="/dashboard/whatsapp/flows"
+              className={actionButtonClass("secondary")}
+            >
+              <Workflow className="mr-2 h-4 w-4" />
+              Flows
+            </Link>
             <Link
               href="/dashboard/whatsapp/onboarding-guide"
               className={actionButtonClass("secondary")}

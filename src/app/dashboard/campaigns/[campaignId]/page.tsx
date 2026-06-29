@@ -5,6 +5,7 @@ import { getCampaignByCompany } from "@/server/services/campaign.service";
 import { prisma } from "@/lib/prisma";
 import StartCampaignButton from "../start-campaign-button";
 import CancelScheduledCampaignButton from "../cancel-scheduled-campaign-button";
+import CampaignRetargetingCard from "./campaign-retargeting-card";
 
 type CampaignDetailPageProps = {
   params: Promise<{
@@ -265,6 +266,11 @@ export default async function CampaignDetailPage({
             )}
           </div>
         </section>
+
+        <CampaignRetargetingCard
+          campaignId={campaign.id}
+          canManage={canManage}
+        />
 
         <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold text-gray-900">

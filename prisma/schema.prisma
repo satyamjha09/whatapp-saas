@@ -141,6 +141,24 @@ enum WhatsAppAccountStatus {
   ERROR
 }
 
+enum WhatsAppFlowStatus {
+  DRAFT
+  PUBLISHED
+  DEPRECATED
+  DISABLED
+}
+
+enum WhatsAppFlowUseCase {
+  LEAD_CAPTURE
+  APPOINTMENT_BOOKING
+  FEEDBACK_SURVEY
+  PAYMENT_COLLECTION
+  CUSTOMER_SUPPORT
+  KYC
+  ORDER_ENQUIRY
+  CUSTOM
+}
+
 enum TemplateCategory {
   MARKETING
   UTILITY
@@ -265,6 +283,20 @@ enum CampaignFollowUpTaskPriority {
   LOW
   MEDIUM
   HIGH
+}
+
+enum CampaignSequenceCondition {
+  NO_REPLY
+  OPENED
+  CLICKED
+}
+
+enum CampaignSequenceExecutionStatus {
+  PENDING
+  QUEUED
+  SENT
+  SKIPPED
+  FAILED
 }
 
 enum WebhookEventStatus {
@@ -656,6 +688,7 @@ enum ContactSegmentRuleField {
   CREATED_AT
   LAST_MESSAGE_AT
   CUSTOM_FIELD
+  CAMPAIGN_OUTCOME
 }
 
 enum ContactSegmentRuleOperator {
@@ -1094,6 +1127,8 @@ model Company {
   users                             CompanyUser[]
   whatsAppAccounts                  WhatsAppAccount[]
   whatsAppPhoneNumbers              WhatsAppPhoneNumber[]
+  whatsAppFlows                     WhatsAppFlow[]
+  whatsAppFlowResponses             WhatsAppFlowResponse[]
   contactImportJobs                 ContactImportJob[]
   contactImportRows                 ContactImportRow[]
   templates                         Template[]
@@ -1105,6 +1140,7 @@ model Company {
   campaigns                         Campaign[]
   campaignContacts                  CampaignContact[]
   wallet                            Wallet?
+  leadScoringConfig                 LeadScoringConfig?
   walletTransactions                WalletTransaction[]
   invites                           CompanyInvite[]
   auditLogs                         AuditLog[]
@@ -1131,6 +1167,8 @@ model Company {
   campaignFailureInsightRuns        CampaignFailureInsightRun[]
   campaignFailureInsights           CampaignFailureInsight[]
   campaignThroughputPolicies        CampaignThroughputPolicy[]
+  campaignSequenceSteps             CampaignSequenceStep[]
+  campaignSequenceExecutions        CampaignSequenceExecution[]
   campaignThroughputEvents          CampaignThroughputEvent[]
   campaignThroughputSnapshots       CampaignThroughputSnapshot[]
   campaignCompletionReports         CampaignCompletionReport[]
@@ -1349,6 +1387,65 @@ model WhatsAppPhoneNumber {
   @@index([whatsAppAccountId])
 }
 
+model WhatsAppFlow {
+  id        String @id @default(cuid())
+  companyId String
+
+  name        String
+  description String?
+  useCase     WhatsAppFlowUseCase @default(CUSTOM)
+
+  metaFlowId String
+  status     WhatsAppFlowStatus @default(DRAFT)
+
+  defaultCta      String @default("Open form")
+  defaultScreen   String?
+  dataApiEndpoint String?
+
+  schema   Json?
+  metadata Json?
+
+  company   Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  responses WhatsAppFlowResponse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, metaFlowId])
+  @@index([companyId])
+  @@index([status])
+  @@index([useCase])
+}
+
+model WhatsAppFlowResponse {
+  id        String @id @default(cuid())
+  companyId String
+  flowId    String
+
+  contactId  String?
+  messageId  String?
+  campaignId String?
+
+  flowToken       String @unique
+  responsePayload Json
+  rawWebhook      Json?
+
+  submittedAt DateTime @default(now())
+
+  flow     WhatsAppFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  company  Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact  Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  message  Message?     @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  campaign Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([flowId])
+  @@index([contactId])
+  @@index([messageId])
+  @@index([campaignId])
+  @@index([submittedAt])
+}
+
 model Template {
   id        String @id @default(cuid())
   companyId String
@@ -1368,6 +1465,7 @@ model Template {
   messages           Message[]
   campaigns          Campaign[]
   bulkMessageBatches BulkMessageBatch[]
+  campaignSequenceSteps CampaignSequenceStep[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1413,6 +1511,11 @@ model Contact {
   inboxSlaBreachedAt         DateTime?
   inboxSlaEscalationCount    Int                     @default(0)
 
+  leadScore          Int            @default(0)
+  leadScoreUpdatedAt DateTime?
+  leadScoreBreakdown Json?
+  leadScorePriority  InboxPriority?
+
   company                   Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignedTo                User?                      @relation("ContactAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
   messages                  Message[]
@@ -1423,6 +1526,8 @@ model Contact {
   campaignReplyAttributions CampaignReplyAttribution[]
   campaignConversionEvents  CampaignConversionEvent[]
   campaignFollowUpTasks     CampaignFollowUpTask[]
+  campaignSequenceExecutions CampaignSequenceExecution[]
+  whatsAppFlowResponses     WhatsAppFlowResponse[]
   contactGroupMembers       ContactGroupMember[]
   privacyRequests           PrivacyRequest[]
   consentEvents             ContactConsentEvent[]
@@ -1450,6 +1555,11 @@ model Contact {
   @@index([marketingConsentAt])
   @@index([lastSeenAt])
   @@index([lastRepliedAt])
+
+  @@index([companyId, leadScore])
+  @@index([companyId, leadScoreUpdatedAt])
+  @@index([companyId, leadScorePriority])
+  @@index([companyId, inboxStatus, leadScore])
 }
 
 model ContactSegment {
@@ -2613,6 +2723,9 @@ model Message {
   campaignReplyAttributions         CampaignReplyAttribution[] @relation("CampaignReplyInboundMessage")
   outboundCampaignReplyAttributions CampaignReplyAttribution[] @relation("CampaignReplyOutboundMessage")
   campaignConversionEvents          CampaignConversionEvent[]
+  campaignSequenceExecutions        CampaignSequenceExecution[] @relation("CampaignSequenceMessage")
+  nextCampaignSequenceExecutions    CampaignSequenceExecution[] @relation("CampaignSequencePreviousMessage")
+  whatsAppFlowResponses             WhatsAppFlowResponse[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2726,6 +2839,9 @@ model Campaign {
   followUpTasks     CampaignFollowUpTask[]
   completionReports CampaignCompletionReport[]
   reportExports     CampaignReportExport[]
+  sequenceSteps     CampaignSequenceStep[]
+  sequenceExecutions CampaignSequenceExecution[]
+  whatsAppFlowResponses WhatsAppFlowResponse[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3182,6 +3298,8 @@ model CampaignContact {
   @@index([campaignId])
   @@index([contactId])
   @@index([status])
+  @@index([companyId, campaignId, status])
+  @@index([companyId, campaignId, status, contactId])
 }
 
 model CampaignAnalyticsSnapshot {
@@ -3285,6 +3403,7 @@ model CampaignReplyAttribution {
   @@index([repliedAt])
   @@index([replyReceivedAt])
   @@index([createdAt])
+  @@index([companyId, campaignId, contactId, status])
 }
 
 model CampaignConversionEvent {
@@ -3373,6 +3492,81 @@ model CampaignFollowUpTask {
   @@index([ignoredByUserId])
   @@index([status])
   @@index([priority])
+  @@index([dueAt])
+  @@index([createdAt])
+}
+
+model CampaignSequenceStep {
+  id String @id @default(cuid())
+
+  companyId  String
+  campaignId String
+  templateId String
+
+  order Int
+
+  delayMinutes Int @default(0)
+  condition    CampaignSequenceCondition @default(NO_REPLY)
+  isActive     Boolean @default(true)
+
+  variables String[]
+  metadata  Json?
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign  Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  template  Template @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  executions CampaignSequenceExecution[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, order])
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([templateId])
+  @@index([condition])
+  @@index([isActive])
+  @@index([order])
+}
+
+model CampaignSequenceExecution {
+  id String @id @default(cuid())
+
+  companyId  String
+  campaignId String
+  stepId     String
+  contactId  String
+
+  previousMessageId String?
+  messageId         String?
+
+  status CampaignSequenceExecutionStatus @default(PENDING)
+
+  dueAt       DateTime
+  processedAt DateTime?
+  skippedAt   DateTime?
+
+  failureReason String?
+  metadata      Json?
+
+  company         Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign        Campaign             @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  step            CampaignSequenceStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  contact         Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  previousMessage Message?             @relation("CampaignSequencePreviousMessage", fields: [previousMessageId], references: [id], onDelete: SetNull)
+  message         Message?             @relation("CampaignSequenceMessage", fields: [messageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([stepId, contactId])
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([stepId])
+  @@index([contactId])
+  @@index([previousMessageId])
+  @@index([messageId])
+  @@index([status])
   @@index([dueAt])
   @@index([createdAt])
 }
@@ -5171,3 +5365,38 @@ model ContactImportRow {
   @@index([email])
   @@index([rowNumber])
 }
+
+model LeadScoringConfig {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  isEnabled Boolean @default(true)
+
+  pointsInboundMessage  Int @default(5)
+  pointsCampaignRead    Int @default(3)
+  pointsPositiveReply   Int @default(15)
+  pointsNegativeReply   Int @default(-10)
+  pointsQuestionReply   Int @default(8)
+  pointsOptOut          Int @default(-50)
+
+  pointsDemoBooked      Int @default(25)
+  pointsPaymentReceived Int @default(50)
+  pointsLeadWon         Int @default(100)
+  pointsLeadLost        Int @default(-20)
+
+  pointsHighPriority    Int @default(10)
+  pointsUrgentPriority  Int @default(20)
+
+  pointsDecayPerDay     Int @default(-2)
+  decayStartAfterDays   Int @default(7)
+
+  thresholdLow          Int @default(25)
+  thresholdNormal       Int @default(50)
+  thresholdHigh         Int @default(75)
+  thresholdUrgent       Int @default(100)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+

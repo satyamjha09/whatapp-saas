@@ -7,6 +7,7 @@ let messageQueue: Queue | undefined;
 let webhookQueue: Queue | undefined;
 let developerWebhookQueue: Queue | undefined;
 let maintenanceQueue: Queue | undefined;
+let leadScoreQueue: Queue | undefined;
 
 export function getMessageQueue() {
   messageQueue ??= new Queue("message-queue", {
@@ -55,6 +56,23 @@ export function getMaintenanceQueue() {
   return maintenanceQueue;
 }
 
+export function getLeadScoreQueue() {
+  leadScoreQueue ??= new Queue("lead-score-queue", {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 30_000,
+      },
+      removeOnComplete: 1000,
+      removeOnFail: 5000,
+    },
+  });
+
+  return leadScoreQueue;
+}
+
 export type SendMessageJobData = {
   messageId: string;
   companyId: string;
@@ -67,3 +85,9 @@ export type ProcessWebhookJobData = {
 export type DeliverDeveloperWebhookJobData = {
   deliveryId: string;
 };
+
+export type LeadScoreJobData = {
+  companyId: string;
+  contactId: string;
+};
+

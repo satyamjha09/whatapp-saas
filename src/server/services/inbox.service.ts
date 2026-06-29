@@ -11,6 +11,7 @@ import type {
   InboxSort,
 } from "@/lib/inbox-options";
 import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
+import { queueLeadScoreRecalculation } from "@/server/services/lead-scoring.service";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
 import {
   CreateInboxNoteInput,
@@ -636,6 +637,8 @@ export async function updateConversationPriority(
       nextPriority: updatedContact.inboxPriority,
     },
   });
+
+  await queueLeadScoreRecalculation(companyId, contactId).catch(() => undefined);
 
   return updatedContact;
 }

@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
+import type { CampaignContactStatus } from "@/generated/prisma/enums";
 
 export class ContactSegmentBuilderError extends Error {
   constructor(message: string) {
@@ -22,7 +23,8 @@ export type SegmentRuleInput = {
     | "UTILITY_CONSENT"
     | "CREATED_AT"
     | "LAST_MESSAGE_AT"
-    | "CUSTOM_FIELD";
+    | "CUSTOM_FIELD"
+    | "CAMPAIGN_OUTCOME";
   operator:
     | "EQUALS"
     | "NOT_EQUALS"
@@ -39,7 +41,13 @@ export type SegmentRuleInput = {
     | "BETWEEN";
   customFieldKey?: string | null;
   value?: string | null;
-  values?: string[] | null;
+  values?: unknown;
+};
+
+type CampaignOutcomeRuleValues = {
+  campaignId?: unknown;
+  replyCondition?: unknown;
+  statuses?: unknown;
 };
 
 function isEnabled() {
@@ -65,7 +73,9 @@ function clean(value?: string | null) {
 }
 
 function values(rule: SegmentRuleInput) {
-  return (rule.values ?? []).map((value) => clean(value)).filter(Boolean);
+  return Array.isArray(rule.values)
+    ? rule.values.map((value) => clean(value)).filter(Boolean)
+    : [];
 }
 
 function stringCondition(operator: SegmentRuleInput["operator"], value?: string | null) {
@@ -107,7 +117,81 @@ function dateCondition(rule: SegmentRuleInput) {
   return undefined;
 }
 
-function buildContactWhereFromRule(rule: SegmentRuleInput): Prisma.ContactWhereInput {
+function campaignOutcomeWhere(
+  companyId: string,
+  rawValues: unknown,
+): Prisma.ContactWhereInput {
+  const ruleValues =
+    rawValues && typeof rawValues === "object"
+      ? (rawValues as CampaignOutcomeRuleValues)
+      : {};
+  const campaignId =
+    typeof ruleValues.campaignId === "string"
+      ? ruleValues.campaignId.trim()
+      : "";
+  const statuses = Array.isArray(ruleValues.statuses)
+    ? ruleValues.statuses
+        .filter((status): status is CampaignContactStatus =>
+          ["SENT", "DELIVERED", "READ", "FAILED", "SKIPPED"].includes(
+            String(status),
+          ),
+        )
+    : [];
+  const replyCondition =
+    ruleValues.replyCondition === "REPLIED" ||
+    ruleValues.replyCondition === "NOT_REPLIED"
+      ? ruleValues.replyCondition
+      : "ANY";
+
+  if (!campaignId || statuses.length === 0) {
+    throw new ContactSegmentBuilderError(
+      "Invalid campaign outcome segment rule.",
+    );
+  }
+
+  const where: Prisma.ContactWhereInput = {
+    isBlocked: false,
+    marketingConsentStatus: {
+      not: "REVOKED",
+    },
+    campaignContacts: {
+      some: {
+        campaignId,
+        companyId,
+        status: {
+          in: statuses,
+        },
+      },
+    },
+  };
+
+  if (replyCondition === "REPLIED") {
+    where.campaignReplyAttributions = {
+      some: {
+        campaignId,
+        companyId,
+        status: "ATTRIBUTED",
+      },
+    };
+  }
+
+  if (replyCondition === "NOT_REPLIED") {
+    where.campaignReplyAttributions = {
+      none: {
+        campaignId,
+        companyId,
+        status: "ATTRIBUTED",
+      },
+    };
+  }
+
+  return where;
+}
+
+function buildContactWhereFromRule(
+  companyId: string,
+  rule: SegmentRuleInput,
+): Prisma.ContactWhereInput {
   const list = values(rule);
 
   if (rule.field === "PHONE") return { phoneNumber: stringCondition(rule.operator, rule.value) } as Prisma.ContactWhereInput;
@@ -118,6 +202,7 @@ function buildContactWhereFromRule(rule: SegmentRuleInput): Prisma.ContactWhereI
   if (rule.field === "UTILITY_CONSENT") return { utilityConsentStatus: enumCondition(rule) } as Prisma.ContactWhereInput;
   if (rule.field === "CREATED_AT") return { createdAt: dateCondition(rule) } as Prisma.ContactWhereInput;
   if (rule.field === "LAST_MESSAGE_AT") return { lastRepliedAt: dateCondition(rule) } as Prisma.ContactWhereInput;
+  if (rule.field === "CAMPAIGN_OUTCOME") return campaignOutcomeWhere(companyId, rule.values);
   if (rule.field === "TAG") {
     return {
       inboxTags: {
@@ -138,7 +223,9 @@ function buildSegmentWhere(input: {
   matchMode: "ALL" | "ANY";
   rules: SegmentRuleInput[];
 }): Prisma.ContactWhereInput {
-  const ruleWhere = input.rules.map(buildContactWhereFromRule);
+  const ruleWhere = input.rules.map((rule) =>
+    buildContactWhereFromRule(input.companyId, rule),
+  );
 
   return {
     companyId: input.companyId,
@@ -152,7 +239,11 @@ function normalizeRules(rules: { field: string; operator: string; customFieldKey
     operator: rule.operator as SegmentRuleInput["operator"],
     customFieldKey: rule.customFieldKey,
     value: rule.value,
-    values: Array.isArray(rule.values) ? rule.values.map(String) : [],
+    values: Array.isArray(rule.values)
+      ? rule.values.map(String)
+      : rule.values && typeof rule.values === "object"
+        ? rule.values
+        : [],
   }));
 }
 

@@ -68,6 +68,11 @@ module.exports = {
     }),
 
     tsxWorker({
+      name: "tallykonnect-campaign-sequence-worker",
+      script: "src/workers/campaign-sequence.worker.ts",
+    }),
+
+    tsxWorker({
       name: "tallykonnect-webhook-worker",
       script: "src/workers/webhook.worker.ts",
     }),
@@ -100,6 +105,11 @@ module.exports = {
     tsxWorker({
       name: "tallykonnect-template-status-sync-worker",
       script: "src/workers/template-status-sync.worker.ts",
+    }),
+
+    tsxWorker({
+      name: "tallykonnect-lead-score-worker",
+      script: "src/workers/lead-score.worker.ts",
     }),
   ],
 };

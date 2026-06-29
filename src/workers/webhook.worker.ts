@@ -14,8 +14,10 @@ import { recordContactActivity } from "@/server/services/contact-activity.servic
 import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
 import { attributeInboundCampaignReply } from "@/server/services/campaign-reply-attribution.service";
 import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
+import { queueLeadScoreRecalculation } from "@/server/services/lead-scoring.service";
 import { publishInboxRealtimeEvent } from "@/server/realtime/inbox-events";
 import { createUnmappedWebhookEvent } from "@/server/services/webhook.service";
+import { recordWhatsAppFlowResponse } from "@/server/services/whatsapp-flow.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
 import type { ProcessWebhookJobData } from "@/lib/queue";
@@ -143,6 +145,33 @@ function getStringValue(record: JsonRecord | null, key: string) {
   const value = record?.[key];
 
   return typeof value === "string" ? value : null;
+}
+
+function safeJsonParse(value: string) {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+function getFlowResponseFromInteractive(interactive: unknown) {
+  const record = asRecord(interactive);
+  const nfmReply = asRecord(record?.nfm_reply);
+
+  if (!nfmReply) return null;
+
+  const flowToken = getStringValue(nfmReply, "flow_token");
+  const responseJson = nfmReply.response_json;
+
+  return {
+    flowToken,
+    raw: record,
+    responsePayload:
+      typeof responseJson === "string"
+        ? safeJsonParse(responseJson)
+        : responseJson ?? {},
+  };
 }
 
 function getNumberValue(record: JsonRecord | null, key: string) {
@@ -455,6 +484,29 @@ const worker = new Worker<ProcessWebhookJobData>(
         },
       });
 
+      if (incomingMessage.type === "interactive") {
+        const flowResponse = getFlowResponseFromInteractive(
+          incomingMessage.interactive,
+        );
+
+        if (flowResponse?.flowToken) {
+          await recordWhatsAppFlowResponse({
+            companyId,
+            contactId: contact.id,
+            flowToken: flowResponse.flowToken,
+            inboundMessageId: message.id,
+            rawWebhook: incomingMessage,
+            responsePayload: flowResponse.responsePayload,
+          }).catch((error) => {
+            console.error("WHATSAPP_FLOW_RESPONSE_RECORD_ERROR:", {
+              error: error instanceof Error ? error.message : error,
+              flowToken: flowResponse.flowToken,
+              messageId: message.id,
+            });
+          });
+        }
+      }
+
       await publishInboxRealtimeEvent({
         type: "INBOUND_MESSAGE_CREATED",
         companyId,
@@ -544,6 +596,7 @@ const worker = new Worker<ProcessWebhookJobData>(
       }).catch(() => undefined);
 
       await enqueueDeveloperInboundMessageWebhook(companyId, message.id);
+      await queueLeadScoreRecalculation(companyId, contact.id).catch(() => undefined);
     }
 
     for (const statusEventValue of statuses) {
