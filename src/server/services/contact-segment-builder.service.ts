@@ -24,7 +24,8 @@ export type SegmentRuleInput = {
     | "CREATED_AT"
     | "LAST_MESSAGE_AT"
     | "CUSTOM_FIELD"
-    | "CAMPAIGN_OUTCOME";
+    | "CAMPAIGN_OUTCOME"
+    | "LEAD_SCORE";
   operator:
     | "EQUALS"
     | "NOT_EQUALS"
@@ -38,7 +39,9 @@ export type SegmentRuleInput = {
     | "NOT_EXISTS"
     | "BEFORE"
     | "AFTER"
-    | "BETWEEN";
+    | "BETWEEN"
+    | "GREATER_THAN"
+    | "LESS_THAN";
   customFieldKey?: string | null;
   value?: string | null;
   values?: unknown;
@@ -188,6 +191,41 @@ function campaignOutcomeWhere(
   return where;
 }
 
+function leadScoreWhere(rule: SegmentRuleInput): Prisma.ContactWhereInput {
+  const numericValue = Number(rule.value);
+  if (rule.operator === "EQUALS") {
+    return {
+      leadScore: numericValue,
+    };
+  }
+  if (rule.operator === "GREATER_THAN") {
+    return {
+      leadScore: {
+        gt: numericValue,
+      },
+    };
+  }
+  if (rule.operator === "LESS_THAN") {
+    return {
+      leadScore: {
+        lt: numericValue,
+      },
+    };
+  }
+  if (rule.operator === "BETWEEN") {
+    const valuesList = Array.isArray(rule.values) ? rule.values : [];
+    const min = Number(valuesList[0]);
+    const max = Number(valuesList[1]);
+    return {
+      leadScore: {
+        gte: min,
+        lte: max,
+      },
+    };
+  }
+  throw new ContactSegmentBuilderError(`Unsupported lead score segment operator: ${rule.operator}`);
+}
+
 function buildContactWhereFromRule(
   companyId: string,
   rule: SegmentRuleInput,
@@ -203,6 +241,7 @@ function buildContactWhereFromRule(
   if (rule.field === "CREATED_AT") return { createdAt: dateCondition(rule) } as Prisma.ContactWhereInput;
   if (rule.field === "LAST_MESSAGE_AT") return { lastRepliedAt: dateCondition(rule) } as Prisma.ContactWhereInput;
   if (rule.field === "CAMPAIGN_OUTCOME") return campaignOutcomeWhere(companyId, rule.values);
+  if (rule.field === "LEAD_SCORE") return leadScoreWhere(rule);
   if (rule.field === "TAG") {
     return {
       inboxTags: {
@@ -247,6 +286,42 @@ function normalizeRules(rules: { field: string; operator: string; customFieldKey
   }));
 }
 
+function validateRules(rules: SegmentRuleInput[]) {
+  for (const rule of rules) {
+    if (rule.field === "LEAD_SCORE") {
+      const allowedOps = ["EQUALS", "GREATER_THAN", "LESS_THAN", "BETWEEN"];
+      if (!allowedOps.includes(rule.operator)) {
+        throw new ContactSegmentBuilderError(`Lead score field only supports operators: ${allowedOps.join(", ")}`);
+      }
+      if (rule.operator === "BETWEEN") {
+        const valuesList = Array.isArray(rule.values) ? rule.values : [];
+        if (valuesList.length !== 2) {
+          throw new ContactSegmentBuilderError("Lead score BETWEEN operator requires exactly two values.");
+        }
+        const min = Number(valuesList[0]);
+        const max = Number(valuesList[1]);
+        if (Number.isNaN(min) || Number.isNaN(max)) {
+          throw new ContactSegmentBuilderError("Lead score BETWEEN operator values must be numeric.");
+        }
+        if (min < 0 || max < 0 || min > 1000 || max > 1000) {
+          throw new ContactSegmentBuilderError("Lead score BETWEEN values must be between 0 and 1000.");
+        }
+        if (min > max) {
+          throw new ContactSegmentBuilderError("Lead score BETWEEN min value cannot be greater than max value.");
+        }
+      } else {
+        const val = Number(rule.value);
+        if (Number.isNaN(val)) {
+          throw new ContactSegmentBuilderError("Lead score operator value must be numeric.");
+        }
+        if (val < 0 || val > 1000) {
+          throw new ContactSegmentBuilderError("Lead score value must be between 0 and 1000.");
+        }
+      }
+    }
+  }
+}
+
 export async function createContactSegment(input: {
   companyId: string;
   actorUserId?: string | null;
@@ -258,6 +333,7 @@ export async function createContactSegment(input: {
   if (!isEnabled()) throw new ContactSegmentBuilderError("Segment Builder is disabled.");
   if (!input.name.trim()) throw new ContactSegmentBuilderError("Segment name is required.");
   if (input.rules.length > maxRules()) throw new ContactSegmentBuilderError(`Segment cannot exceed ${maxRules()} rules.`);
+  validateRules(input.rules);
 
   const segment = await prisma.$transaction(async (tx) => {
     const created = await tx.contactSegment.create({
@@ -308,6 +384,7 @@ export async function updateContactSegment(input: {
   rules?: SegmentRuleInput[];
 }) {
   if (input.rules && input.rules.length > maxRules()) throw new ContactSegmentBuilderError(`Segment cannot exceed ${maxRules()} rules.`);
+  if (input.rules) validateRules(input.rules);
 
   const existing = await prisma.contactSegment.findFirst({
     where: { id: input.segmentId, companyId: input.companyId },

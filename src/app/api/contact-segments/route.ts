@@ -22,6 +22,7 @@ const RuleSchema = z.object({
     "LAST_MESSAGE_AT",
     "CUSTOM_FIELD",
     "CAMPAIGN_OUTCOME",
+    "LEAD_SCORE",
   ]),
   operator: z.enum([
     "EQUALS",
@@ -37,11 +38,13 @@ const RuleSchema = z.object({
     "BEFORE",
     "AFTER",
     "BETWEEN",
+    "GREATER_THAN",
+    "LESS_THAN",
   ]),
   customFieldKey: z.string().optional().nullable(),
   value: z.string().optional().nullable(),
   values: z
-    .union([z.array(z.string()), z.record(z.string(), z.unknown())])
+    .union([z.array(z.any()), z.record(z.string(), z.unknown())])
     .optional()
     .nullable(),
 });

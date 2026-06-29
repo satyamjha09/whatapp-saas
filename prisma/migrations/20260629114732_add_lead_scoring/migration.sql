@@ -50,6 +50,3 @@ CREATE INDEX "Contact_companyId_inboxStatus_leadScore_idx" ON "Contact"("company
 
 -- AddForeignKey
 ALTER TABLE "LeadScoringConfig" ADD CONSTRAINT "LeadScoringConfig_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- RenameIndex
-ALTER INDEX "CampaignReplyAttribution_companyId_campaignId_contactId_status_" RENAME TO "CampaignReplyAttribution_companyId_campaignId_contactId_sta_idx";

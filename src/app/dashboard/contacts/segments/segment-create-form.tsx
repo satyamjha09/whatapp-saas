@@ -13,18 +13,35 @@ const fields = [
   "TAG",
   "CREATED_AT",
   "LAST_MESSAGE_AT",
+  "LEAD_SCORE",
 ];
 
-const operators = [
-  "EQUALS",
-  "NOT_EQUALS",
-  "CONTAINS",
-  "NOT_CONTAINS",
-  "IN",
-  "EXISTS",
-  "BEFORE",
-  "AFTER",
-];
+const FIELD_LABELS: Record<string, string> = {
+  MARKETING_CONSENT: "Marketing Consent",
+  UTILITY_CONSENT: "Utility Consent",
+  SOURCE: "Source",
+  NAME: "Name",
+  EMAIL: "Email",
+  PHONE: "Phone",
+  TAG: "Tag",
+  CREATED_AT: "Created At",
+  LAST_MESSAGE_AT: "Last Message At",
+  LEAD_SCORE: "Lead Score",
+};
+
+const OPERATOR_LABELS: Record<string, string> = {
+  EQUALS: "is equal to",
+  NOT_EQUALS: "is not equal to",
+  CONTAINS: "contains",
+  NOT_CONTAINS: "does not contain",
+  IN: "is in list",
+  EXISTS: "exists",
+  BEFORE: "is before",
+  AFTER: "is after",
+  BETWEEN: "is between",
+  GREATER_THAN: "is greater than",
+  LESS_THAN: "is less than",
+};
 
 export function SegmentCreateForm() {
   const router = useRouter();
@@ -33,9 +50,40 @@ export function SegmentCreateForm() {
   const [field, setField] = useState("MARKETING_CONSENT");
   const [operator, setOperator] = useState("EQUALS");
   const [value, setValue] = useState("GRANTED");
+  const [minValue, setMinValue] = useState("");
+  const [maxValue, setMaxValue] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  const getOperatorsForField = (f: string) => {
+    if (f === "LEAD_SCORE") {
+      return ["EQUALS", "GREATER_THAN", "LESS_THAN", "BETWEEN"];
+    }
+    return [
+      "EQUALS",
+      "NOT_EQUALS",
+      "CONTAINS",
+      "NOT_CONTAINS",
+      "IN",
+      "EXISTS",
+      "BEFORE",
+      "AFTER",
+    ];
+  };
+
+  const handleFieldChange = (newField: string) => {
+    setField(newField);
+    const allowed = getOperatorsForField(newField);
+    if (!allowed.includes(operator)) {
+      setOperator(allowed[0]);
+    }
+    if (newField === "LEAD_SCORE") {
+      setValue("75");
+    } else {
+      setValue("GRANTED");
+    }
+  };
 
   async function create() {
     setIsSaving(true);
@@ -53,8 +101,13 @@ export function SegmentCreateForm() {
             {
               field,
               operator,
-              value,
-              values: operator === "IN" ? value.split(",").map((item) => item.trim()) : null,
+              value: operator === "BETWEEN" ? null : value,
+              values:
+                operator === "BETWEEN"
+                  ? [Number(minValue), Number(maxValue)]
+                  : operator === "IN"
+                    ? value.split(",").map((item) => item.trim())
+                    : null,
             },
           ],
         }),
@@ -68,6 +121,8 @@ export function SegmentCreateForm() {
 
       setMessage("Segment created.");
       setName("");
+      setMinValue("");
+      setMaxValue("");
       router.refresh();
     } catch {
       setError("Unable to create segment.");
@@ -106,11 +161,11 @@ export function SegmentCreateForm() {
           <span className="text-sm font-medium text-gray-700">Field</span>
           <select
             value={field}
-            onChange={(event) => setField(event.target.value)}
+            onChange={(event) => handleFieldChange(event.target.value)}
             className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
           >
             {fields.map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>{FIELD_LABELS[item] ?? item}</option>
             ))}
           </select>
         </label>
@@ -122,21 +177,51 @@ export function SegmentCreateForm() {
             onChange={(event) => setOperator(event.target.value)}
             className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
           >
-            {operators.map((item) => (
-              <option key={item}>{item}</option>
+            {getOperatorsForField(field).map((item) => (
+              <option key={item} value={item}>{OPERATOR_LABELS[item] ?? item}</option>
             ))}
           </select>
         </label>
 
-        <label className="block">
-          <span className="text-sm font-medium text-gray-700">Value</span>
-          <input
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
-            placeholder="GRANTED"
-          />
-        </label>
+        {field === "LEAD_SCORE" && operator === "BETWEEN" ? (
+          <>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Min Score</span>
+              <input
+                type="number"
+                value={minValue}
+                onChange={(event) => setMinValue(event.target.value)}
+                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                placeholder="50"
+                min="0"
+                max="1000"
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Max Score</span>
+              <input
+                type="number"
+                value={maxValue}
+                onChange={(event) => setMaxValue(event.target.value)}
+                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                placeholder="100"
+                min="0"
+                max="1000"
+              />
+            </label>
+          </>
+        ) : (
+          <label className="block">
+            <span className="text-sm font-medium text-gray-700">Value</span>
+            <input
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+              placeholder={field === "LEAD_SCORE" ? "75" : "GRANTED"}
+              type={field === "LEAD_SCORE" ? "number" : "text"}
+            />
+          </label>
+        )}
       </div>
 
       <button

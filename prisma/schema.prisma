@@ -689,6 +689,7 @@ enum ContactSegmentRuleField {
   LAST_MESSAGE_AT
   CUSTOM_FIELD
   CAMPAIGN_OUTCOME
+  LEAD_SCORE
 }
 
 enum ContactSegmentRuleOperator {
@@ -705,6 +706,8 @@ enum ContactSegmentRuleOperator {
   BEFORE
   AFTER
   BETWEEN
+  GREATER_THAN
+  LESS_THAN
 }
 
 enum TemplateVariableMappingStatus {
