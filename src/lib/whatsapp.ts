@@ -51,13 +51,13 @@ type UploadWhatsAppMediaInput = {
 };
 
 function getWhatsAppMessagesUrl(phoneNumberId: string) {
-  const apiVersion = process.env.WHATSAPP_API_VERSION ?? "v21.0";
+  const apiVersion = process.env.WHATSAPP_API_VERSION ?? "v25.0";
 
   return `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
 }
 
 function getWhatsAppMediaUrl(phoneNumberId: string) {
-  const apiVersion = process.env.WHATSAPP_API_VERSION ?? "v21.0";
+  const apiVersion = process.env.WHATSAPP_API_VERSION ?? "v25.0";
 
   return `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/media`;
 }

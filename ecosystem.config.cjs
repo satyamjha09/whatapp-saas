@@ -96,5 +96,10 @@ module.exports = {
       name: "tallykonnect-notification-email-worker",
       script: "src/workers/notification-email.worker.ts",
     }),
+
+    tsxWorker({
+      name: "tallykonnect-template-status-sync-worker",
+      script: "src/workers/template-status-sync.worker.ts",
+    }),
   ],
 };

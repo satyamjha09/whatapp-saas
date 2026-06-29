@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { syncPendingTemplateStatusesFromMeta } from "@/server/services/meta-template.service";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
