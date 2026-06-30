@@ -12,5 +12,4 @@ ALTER TYPE "ContactSegmentRuleField" ADD VALUE 'LEAD_SCORE';
 ALTER TYPE "ContactSegmentRuleOperator" ADD VALUE 'GREATER_THAN';
 ALTER TYPE "ContactSegmentRuleOperator" ADD VALUE 'LESS_THAN';
 
--- RenameIndex
-ALTER INDEX "CampaignReplyAttribution_companyId_campaignId_contactId_status_" RENAME TO "CampaignReplyAttribution_companyId_campaignId_contactId_sta_idx";
+
