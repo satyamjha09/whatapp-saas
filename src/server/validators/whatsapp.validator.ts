@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  META_NUMERIC_ID_PATTERN,
+  NUMERIC_PHONE_NUMBER_ID_MESSAGE,
+  NUMERIC_WABA_ID_MESSAGE,
+} from "@/server/whatsapp/meta-ids";
 
 export const createWhatsAppAccountSchema = z.object({
   businessName: z
@@ -13,9 +18,17 @@ export type CreateWhatsAppAccountInput = z.infer<
 >;
 
 export const saveWhatsAppCredentialsSchema = z.object({
-  wabaId: z.string().trim().min(1, "WABA ID is required"),
+  wabaId: z
+    .string()
+    .trim()
+    .min(1, "WABA ID is required")
+    .regex(META_NUMERIC_ID_PATTERN, NUMERIC_WABA_ID_MESSAGE),
 
-  phoneNumberId: z.string().trim().min(1, "Phone number ID is required"),
+  phoneNumberId: z
+    .string()
+    .trim()
+    .min(1, "Phone number ID is required")
+    .regex(META_NUMERIC_ID_PATTERN, NUMERIC_PHONE_NUMBER_ID_MESSAGE),
 
   displayPhoneNumber: z
     .string()

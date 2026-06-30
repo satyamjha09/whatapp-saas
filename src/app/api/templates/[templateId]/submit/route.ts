@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { submitTemplateForMetaApproval } from "@/server/services/meta-template.service";
+import { NUMERIC_WABA_ID_MESSAGE } from "@/server/whatsapp/meta-ids";
 
 type RouteContext = {
   params: Promise<{
@@ -49,11 +50,13 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     if (
       error instanceof Error &&
-      [
+      ([
         "Template not found",
         "Only draft or rejected templates can be submitted",
         "WhatsApp account is not connected",
-      ].includes(error.message)
+        NUMERIC_WABA_ID_MESSAGE,
+      ].includes(error.message) ||
+        error.message.startsWith("Meta rejected WABA ID"))
     ) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }

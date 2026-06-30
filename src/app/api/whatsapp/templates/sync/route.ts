@@ -4,6 +4,7 @@ import { createAuditLog } from "@/server/services/audit.service";
 import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
 import { syncWhatsAppTemplatesFromMeta } from "@/server/services/whatsapp-template-sync.service";
 import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
+import { NUMERIC_WABA_ID_MESSAGE } from "@/server/whatsapp/meta-ids";
 
 export async function POST() {
   try {
@@ -55,7 +56,9 @@ export async function POST() {
 
     if (
       error instanceof Error &&
-      error.message === "WhatsApp account is not connected"
+      (error.message === "WhatsApp account is not connected" ||
+        error.message === NUMERIC_WABA_ID_MESSAGE ||
+        error.message.startsWith("Meta rejected WABA ID"))
     ) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }

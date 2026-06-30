@@ -5,6 +5,10 @@ import {
   incrementUsageQuota,
 } from "@/server/services/usage-quota.service";
 import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
+import {
+  isMetaNumericId,
+  NUMERIC_WABA_ID_MESSAGE,
+} from "@/server/whatsapp/meta-ids";
 
 type MetaTemplateComponent = {
   type: string;
@@ -152,6 +156,23 @@ function serializeComponents(
   return JSON.parse(JSON.stringify(components)) as Prisma.InputJsonValue;
 }
 
+function getMetaTemplatesFetchErrorMessage(
+  data: MetaTemplatesResponse,
+  wabaId: string,
+) {
+  const message = data.error?.message;
+
+  if (!message) {
+    return "Unable to fetch WhatsApp templates";
+  }
+
+  if (message.toLowerCase().includes("unsupported get request")) {
+    return `Meta rejected WABA ID "${wabaId}". Confirm the WABA ID is a real numeric WhatsApp Business Account ID and that this access token has permission for that WABA.`;
+  }
+
+  return message;
+}
+
 async function fetchMetaTemplatePage({
   accessToken,
   after,
@@ -161,6 +182,10 @@ async function fetchMetaTemplatePage({
   after?: string;
   wabaId: string;
 }) {
+  if (!isMetaNumericId(wabaId)) {
+    throw new Error(NUMERIC_WABA_ID_MESSAGE);
+  }
+
   const url = new URL(`${getMetaGraphBaseUrl()}/${wabaId}/message_templates`);
   url.searchParams.set(
     "fields",
@@ -180,7 +205,7 @@ async function fetchMetaTemplatePage({
   const data = (await response.json()) as MetaTemplatesResponse;
 
   if (!response.ok || data.error) {
-    throw new Error(data.error?.message ?? "Unable to fetch WhatsApp templates");
+    throw new Error(getMetaTemplatesFetchErrorMessage(data, wabaId));
   }
 
   return data;

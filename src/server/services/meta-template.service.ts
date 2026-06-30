@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit.service";
 import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
 import { syncWhatsAppTemplatesFromMeta } from "@/server/services/whatsapp-template-sync.service";
+import {
+  isMetaNumericId,
+  NUMERIC_WABA_ID_MESSAGE,
+} from "@/server/whatsapp/meta-ids";
 
 type MetaTemplateComponent = {
   type: string;
@@ -19,6 +23,8 @@ type MetaTemplateSubmitResponse = {
   category?: string;
   error?: {
     message?: string;
+    code?: number;
+    type?: string;
   };
 };
 
@@ -103,6 +109,23 @@ function buildMetaComponents({
   );
 }
 
+function getMetaTemplateSubmitErrorMessage(
+  data: MetaTemplateSubmitResponse,
+  wabaId: string,
+) {
+  const message = data.error?.message;
+
+  if (!message) {
+    return "Unable to submit template to Meta";
+  }
+
+  if (message.toLowerCase().includes("unsupported post request")) {
+    return `Meta rejected WABA ID "${wabaId}". Confirm the WABA ID is a real numeric WhatsApp Business Account ID and that this access token has permission for that WABA.`;
+  }
+
+  return message;
+}
+
 async function submitTemplateToMeta({
   accessToken,
   body,
@@ -120,6 +143,10 @@ async function submitTemplateToMeta({
   name: string;
   wabaId: string;
 }) {
+  if (!isMetaNumericId(wabaId)) {
+    throw new Error(NUMERIC_WABA_ID_MESSAGE);
+  }
+
   const response = await fetch(
     `${getMetaGraphBaseUrl()}/${wabaId}/message_templates`,
     {
@@ -140,7 +167,7 @@ async function submitTemplateToMeta({
   const data = (await response.json()) as MetaTemplateSubmitResponse;
 
   if (!response.ok || data.error) {
-    throw new Error(data.error?.message ?? "Unable to submit template to Meta");
+    throw new Error(getMetaTemplateSubmitErrorMessage(data, wabaId));
   }
 
   return data;
