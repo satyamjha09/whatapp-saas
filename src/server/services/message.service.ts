@@ -89,6 +89,17 @@ export async function createQueuedTemplateMessage(
   const body = renderTemplateBody(template.body, input.variables);
 
   const message = await prisma.$transaction(async (tx) => {
+    await tx.wallet.upsert({
+      where: {
+        companyId,
+      },
+      update: {},
+      create: {
+        companyId,
+        balancePaise: 0,
+      },
+    });
+
     const debitResult = await tx.wallet.updateMany({
       where: {
         companyId,
@@ -163,6 +174,8 @@ export async function createQueuedTemplateMessage(
   await getMessageQueue().add("send-template-message", {
     messageId: message.id,
     companyId,
+  }, {
+    jobId: message.id,
   });
 
   return message;
