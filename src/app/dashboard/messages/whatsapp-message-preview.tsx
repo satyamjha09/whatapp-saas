@@ -82,12 +82,12 @@ export default function WhatsAppMessagePreview({
       aria-label={`Message preview for ${recipientLabel}`}
       className="overflow-hidden rounded-xl border border-[#D8E6F3] bg-white"
     >
-      <div className="border-b border-[#D8E6F3] px-7 py-6">
-        <h3 className="text-xl font-bold text-[#081B3A]">Preview</h3>
+      <div className="border-b border-[#D8E6F3] px-4 py-3">
+        <h3 className="text-sm font-bold text-[#081B3A]">Preview</h3>
       </div>
 
-      <div className="min-h-[430px] bg-[#eee7dd] bg-[radial-gradient(circle_at_12px_12px,rgba(120,110,100,0.13)_1px,transparent_1.5px),radial-gradient(circle_at_34px_28px,rgba(120,110,100,0.09)_1px,transparent_1.5px)] bg-[length:44px_44px] p-4">
-        <div className="mx-auto mb-3 w-fit rounded-full bg-white px-3 py-2 text-xs text-[#526173] shadow-sm">
+      <div className="min-h-[300px] bg-[#eee7dd] bg-[radial-gradient(circle_at_12px_12px,rgba(120,110,100,0.13)_1px,transparent_1.5px),radial-gradient(circle_at_34px_28px,rgba(120,110,100,0.09)_1px,transparent_1.5px)] bg-[length:44px_44px] p-3">
+        <div className="mx-auto mb-2 w-fit rounded-full bg-white px-2 py-1 text-[10px] text-[#526173] shadow-sm">
           Today
         </div>
 
@@ -99,10 +99,10 @@ export default function WhatsAppMessagePreview({
                 <img
                   src={media.url}
                   alt={media.name}
-                  className="max-h-72 w-full object-cover"
+                  className="max-h-36 w-full object-cover"
                 />
               ) : (
-                <div className="flex min-h-36 items-center justify-center bg-[#F0F8FF] px-4 text-center text-sm font-medium text-[#526173]">
+                <div className="flex min-h-24 items-center justify-center bg-[#F0F8FF] px-3 text-center text-xs font-medium text-[#526173]">
                   {media.type}: {media.name}
                 </div>
               )}
@@ -116,7 +116,7 @@ export default function WhatsAppMessagePreview({
               rel="noreferrer"
               className="block bg-white text-[#102040]"
             >
-              <div className="relative h-56 overflow-hidden bg-[#F5F5F3]">
+              <div className="relative h-28 overflow-hidden bg-[#F5F5F3]">
                 <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0,transparent_22%,#E6E8B6_22%,#E6E8B6_25%,transparent_25%,transparent_48%,#E6E8B6_48%,#E6E8B6_51%,transparent_51%,transparent_100%),linear-gradient(0deg,transparent_0,transparent_34%,#E6E8B6_34%,#E6E8B6_39%,transparent_39%,transparent_100%)]" />
                 <div className="absolute left-[13%] top-0 h-full w-3 bg-[#E6E8B6]" />
                 <div className="absolute right-[10%] top-0 h-full w-3 bg-[#E6E8B6]" />
