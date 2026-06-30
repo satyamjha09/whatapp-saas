@@ -1,7 +1,14 @@
 "use client";
 
-import { LoaderCircle, LogIn, RotateCw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  LoaderCircle,
+  LogIn,
+  RotateCw,
+  XCircle,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { actionButtonClass } from "@/app/dashboard/dashboard-ui";
 
@@ -38,8 +45,32 @@ type EmbeddedSignupEvent = {
   errorMessage?: string;
 };
 
+type SignupPhoneResult = {
+  phoneNumberId: string;
+  displayPhoneNumber?: string | null;
+  verifiedName?: string | null;
+  qualityRating?: string | null;
+  success: boolean;
+  skipped?: boolean;
+  messages?: string[];
+  error?: { message?: string } | string | null;
+};
+
+type SignupResult = {
+  phones: SignupPhoneResult[];
+  webhooksSubscribed?: boolean;
+};
+
 type ConnectResponse = {
   message?: string;
+  connection?: {
+    phones?: SignupPhoneResult[];
+    webhooksSubscribed?: boolean;
+    phoneNumberId?: string;
+    displayPhoneNumber?: string | null;
+    verifiedName?: string | null;
+    qualityRating?: string | null;
+  };
 };
 
 function isConfigured(value: string | undefined, placeholder: string) {
@@ -68,15 +99,33 @@ function extractSignupEvent(eventData: unknown): EmbeddedSignupEvent | null {
   if (!eventData || typeof eventData !== "object") return null;
 
   const root = eventData as Record<string, unknown>;
+  const eventName = stringValue(root.event) ?? stringValue(root.type);
 
-  if (root.type !== "WA_EMBEDDED_SIGNUP") return null;
+  if (eventName !== "WA_EMBEDDED_SIGNUP") return null;
 
   const data = root.data;
+  const currentStep =
+    stringValue(root.currentStep) ??
+    stringValue(root.current_step) ??
+    (data && typeof data === "object"
+      ? stringValue((data as Record<string, unknown>).current_step) ??
+        stringValue((data as Record<string, unknown>).currentStep)
+      : undefined);
+
+  const errorMessage =
+    stringValue(root.errorMessage) ??
+    stringValue(root.error_message) ??
+    (data && typeof data === "object"
+      ? stringValue((data as Record<string, unknown>).error_message) ??
+        stringValue((data as Record<string, unknown>).errorMessage)
+      : undefined);
 
   if (!data || typeof data !== "object") {
     return {
-      event: stringValue(root.event),
+      event: eventName,
       session: null,
+      currentStep,
+      errorMessage,
     };
   }
 
@@ -87,7 +136,7 @@ function extractSignupEvent(eventData: unknown): EmbeddedSignupEvent | null {
     stringValue(signupData.phoneNumberId);
 
   return {
-    event: stringValue(root.event),
+    event: eventName,
     session:
       wabaId || phoneNumberId
         ? {
@@ -95,8 +144,8 @@ function extractSignupEvent(eventData: unknown): EmbeddedSignupEvent | null {
             phoneNumberId,
           }
         : null,
-    currentStep: stringValue(signupData.current_step),
-    errorMessage: stringValue(signupData.error_message),
+    currentStep,
+    errorMessage,
   };
 }
 
@@ -148,6 +197,165 @@ function getSdkBlockedMessage() {
   return "Unable to load the Facebook SDK. Disable ad blockers or browser tracking protection for this site, then retry.";
 }
 
+function createFlowSessionId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getPhoneError(phone: SignupPhoneResult) {
+  if (!phone.error) return "";
+  if (typeof phone.error === "string") return phone.error;
+  return phone.error.message ?? "Phone registration failed.";
+}
+
+function phoneLabel(phone: SignupPhoneResult) {
+  return phone.displayPhoneNumber
+    ? `+${phone.displayPhoneNumber}`
+    : phone.phoneNumberId;
+}
+
+function SignupResultModal({
+  onClose,
+  result,
+}: {
+  onClose: () => void;
+  result: SignupResult;
+}) {
+  const total = result.phones.length;
+  const failed = result.phones.filter((phone) => !phone.success).length;
+  const skipped = result.phones.filter((phone) => phone.success && phone.skipped).length;
+  const connected = result.phones.filter((phone) => phone.success && !phone.skipped).length;
+  const status =
+    total === 0
+      ? "warning"
+      : failed === total
+        ? "error"
+        : failed > 0 || skipped > 0
+          ? "warning"
+          : "success";
+  const title =
+    status === "success"
+      ? "Signup completed successfully"
+      : status === "warning"
+        ? "Signup completed with notes"
+        : "Signup failed";
+  const description =
+    total === 0
+      ? "Meta completed the flow but did not return any phone numbers."
+      : status === "success"
+        ? `${connected} phone number${connected === 1 ? "" : "s"} connected and ready.`
+        : `${connected} connected, ${skipped} skipped, ${failed} failed.`;
+  const Icon =
+    status === "success"
+      ? CheckCircle2
+      : status === "warning"
+        ? AlertTriangle
+        : XCircle;
+  const iconClass =
+    status === "success"
+      ? "text-[#15803d]"
+      : status === "warning"
+        ? "text-[#B7791F]"
+        : "text-rose-700";
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#081B3A]/45 p-4">
+      <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-[0_24px_80px_rgba(8,27,58,0.28)]">
+        <div className="flex items-start gap-4">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#F0F8FF]">
+            <Icon className={`h-6 w-6 ${iconClass}`} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-[#081B3A]">{title}</h2>
+            <p className="mt-1 text-sm leading-6 text-[#526173]">
+              {description}
+            </p>
+            {result.webhooksSubscribed ? (
+              <p className="mt-2 text-xs font-semibold text-[#15803d]">
+                Webhooks subscribed for this WABA.
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-6 max-h-80 space-y-3 overflow-auto pr-1">
+          {result.phones.length === 0 ? (
+            <div className="rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] p-4 text-sm text-[#526173]">
+              No phone result rows were returned.
+            </div>
+          ) : (
+            result.phones.map((phone) => {
+              const rowStatus = !phone.success
+                ? "Failed"
+                : phone.skipped
+                  ? "Skipped"
+                  : "Connected";
+              const rowClass = !phone.success
+                ? "bg-rose-50 text-rose-700 ring-rose-200"
+                : phone.skipped
+                  ? "bg-[#F8C830]/15 text-[#102040] ring-[#F8C830]/40"
+                  : "bg-[#22C55E]/10 text-[#15803d] ring-[#22C55E]/25";
+
+              return (
+                <div
+                  key={phone.phoneNumberId}
+                  className="rounded-xl border border-[#D8E6F3] p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-[#081B3A]">
+                        {phoneLabel(phone)}
+                      </p>
+                      <p className="mt-1 text-xs text-[#526173]">
+                        Phone ID: {phone.phoneNumberId}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${rowClass}`}
+                    >
+                      {rowStatus}
+                    </span>
+                  </div>
+
+                  {phone.verifiedName || phone.qualityRating ? (
+                    <p className="mt-3 text-xs text-[#526173]">
+                      {phone.verifiedName || "Unverified name"} · Quality{" "}
+                      {phone.qualityRating || "UNKNOWN"}
+                    </p>
+                  ) : null}
+
+                  {phone.messages?.length ? (
+                    <ul className="mt-3 space-y-1 text-xs text-[#526173]">
+                      {phone.messages.map((message) => (
+                        <li key={message}>{message}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+
+                  {!phone.success ? (
+                    <p className="mt-3 rounded-lg bg-rose-50 p-2 text-xs text-rose-700">
+                      {getPhoneError(phone)}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button type="button" onClick={onClose} className={actionButtonClass()}>
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MetaEmbeddedSignupButton({
   graphVersion,
 }: {
@@ -158,7 +366,9 @@ export default function MetaEmbeddedSignupButton({
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState("");
   const [sdkLoadAttempt, setSdkLoadAttempt] = useState(0);
+  const [signupResult, setSignupResult] = useState<SignupResult | null>(null);
   const signupSessionRef = useRef<SignupSession | null>(null);
+  const flowSessionIdRef = useRef<string | null>(null);
 
   const appId = process.env.NEXT_PUBLIC_META_APP_ID;
   const configId = process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID;
@@ -177,6 +387,40 @@ export default function MetaEmbeddedSignupButton({
   const visibleError = error || configurationError || runtimeOriginError;
   const canRetrySdkLoad = error === getSdkBlockedMessage();
 
+  const saveSignupEvent = useCallback(
+    async ({
+      currentStep,
+      eventType,
+      payload,
+      phoneNumberId,
+      wabaId,
+    }: {
+      eventType: string;
+      currentStep?: string;
+      wabaId?: string;
+      phoneNumberId?: string;
+      payload?: unknown;
+    }) => {
+      try {
+        await fetch("/api/whatsapp/embedded-signup/events", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            flowSessionId: flowSessionIdRef.current,
+            eventType,
+            currentStep,
+            wabaId,
+            phoneNumberId,
+            payload,
+          }),
+        });
+      } catch {
+        // Signup must continue even if diagnostic event logging fails.
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
       if (!isFacebookOrigin(event.origin)) return;
@@ -194,6 +438,14 @@ export default function MetaEmbeddedSignupButton({
       const signupEvent = extractSignupEvent(parsedData);
 
       if (!signupEvent) return;
+
+      void saveSignupEvent({
+        eventType: signupEvent.event ?? "WA_EMBEDDED_SIGNUP",
+        currentStep: signupEvent.currentStep,
+        wabaId: signupEvent.session?.wabaId,
+        phoneNumberId: signupEvent.session?.phoneNumberId,
+        payload: parsedData,
+      });
 
       if (signupEvent.event === "ERROR") {
         setError(
@@ -219,7 +471,7 @@ export default function MetaEmbeddedSignupButton({
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, [saveSignupEvent]);
 
   useEffect(() => {
     if (!hasAppId || !appId) return;
@@ -283,6 +535,7 @@ export default function MetaEmbeddedSignupButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code,
+          flowSessionId: flowSessionIdRef.current,
           wabaId: session.wabaId,
           phoneNumberId: session.phoneNumberId,
         }),
@@ -294,7 +547,28 @@ export default function MetaEmbeddedSignupButton({
         return;
       }
 
-      router.push("/dashboard/whatsapp");
+      const fallbackPhone =
+        data.connection?.phoneNumberId && session.phoneNumberId
+          ? [
+              {
+                phoneNumberId: data.connection.phoneNumberId,
+                displayPhoneNumber: data.connection.displayPhoneNumber,
+                verifiedName: data.connection.verifiedName,
+                qualityRating: data.connection.qualityRating,
+                success: true,
+                skipped: false,
+                messages: ["Selected phone number connected"],
+                error: null,
+              },
+            ]
+          : [];
+
+      setSignupResult({
+        phones: data.connection?.phones?.length
+          ? data.connection.phones
+          : fallbackPhone,
+        webhooksSubscribed: data.connection?.webhooksSubscribed,
+      });
       router.refresh();
     } catch {
       setError("Unable to complete WhatsApp connection.");
@@ -305,7 +579,17 @@ export default function MetaEmbeddedSignupButton({
 
   function startEmbeddedSignup() {
     setError("");
+    setSignupResult(null);
     signupSessionRef.current = null;
+    flowSessionIdRef.current = createFlowSessionId();
+
+    void saveSignupEvent({
+      eventType: "CLIENT_FLOW_STARTED",
+      payload: {
+        graphVersion,
+        hasConfigId,
+      },
+    });
 
     if (!window.FB || !isSdkReady) {
       setError("Facebook SDK is not ready yet.");
@@ -330,6 +614,14 @@ export default function MetaEmbeddedSignupButton({
       (response) => {
         const code = response.authResponse?.code;
 
+        void saveSignupEvent({
+          eventType: code ? "FB_LOGIN_CODE_RECEIVED" : "FB_LOGIN_CANCELLED",
+          payload: {
+            status: response.status,
+            hasCode: Boolean(code),
+          },
+        });
+
         if (!code) {
           setError("Meta signup was cancelled or returned no authorization code.");
           return;
@@ -337,7 +629,15 @@ export default function MetaEmbeddedSignupButton({
 
         void waitForSignupSession(signupSessionRef).then((session) => {
           if (!session?.wabaId || !session.phoneNumberId) {
-            setError(getMissingSessionMessage(session));
+            const message = getMissingSessionMessage(session);
+
+            void saveSignupEvent({
+              eventType: "CLIENT_SESSION_MISSING",
+              wabaId: session?.wabaId,
+              phoneNumberId: session?.phoneNumberId,
+              payload: { message },
+            });
+            setError(message);
             return;
           }
 
@@ -349,7 +649,12 @@ export default function MetaEmbeddedSignupButton({
         auth_type: "rerequest",
         response_type: "code",
         override_default_response_type: true,
-        extras: { sessionInfoVersion: 3 },
+        extras: {
+          version: "v4",
+          setup: {},
+          featureType: "whatsapp_business_app_onboarding",
+          sessionInfoVersion: "3",
+        },
       },
     );
   }
@@ -396,6 +701,17 @@ export default function MetaEmbeddedSignupButton({
             </button>
           ) : null}
         </div>
+      ) : null}
+
+      {signupResult ? (
+        <SignupResultModal
+          result={signupResult}
+          onClose={() => {
+            setSignupResult(null);
+            router.push("/dashboard/whatsapp");
+            router.refresh();
+          }}
+        />
       ) : null}
     </div>
   );
