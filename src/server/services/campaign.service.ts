@@ -195,27 +195,36 @@ export async function startCampaignForCompany(
   });
 
   const requiredBalancePaise = pendingContacts.length * MESSAGE_PRICE_PAISE;
-  const wallet = await prisma.wallet.findUnique({
-    where: {
-      companyId,
-    },
-  });
 
-  if (!wallet || wallet.balancePaise < requiredBalancePaise) {
-    throw new Error("Insufficient wallet balance");
-  }
+  const createdMessages = await prisma.$transaction(async (tx) => {
+    const debitResult = await tx.wallet.updateMany({
+      where: {
+        companyId,
+        balancePaise: {
+          gte: requiredBalancePaise,
+        },
+      },
+      data: {
+        balancePaise: {
+          decrement: requiredBalancePaise,
+        },
+      },
+    });
 
-  const createdMessages = [];
+    if (debitResult.count !== 1) {
+      throw new Error("Insufficient wallet balance");
+    }
 
-  for (const campaignContact of pendingContacts) {
-    const toPhoneNumber = `${campaignContact.contact.countryCode}${campaignContact.contact.phoneNumber}`;
+    const messages: Array<{ id: string }> = [];
 
-    const body = renderTemplateBody(
-      campaign.template.body,
-      campaignContact.variables,
-    );
+    for (const campaignContact of pendingContacts) {
+      const toPhoneNumber = `${campaignContact.contact.countryCode}${campaignContact.contact.phoneNumber}`;
 
-    const message = await prisma.$transaction(async (tx) => {
+      const body = renderTemplateBody(
+        campaign.template.body,
+        campaignContact.variables,
+      );
+
       const createdMessage = await tx.message.create({
         data: {
           companyId,
@@ -251,17 +260,6 @@ export async function startCampaignForCompany(
         },
       });
 
-      await tx.wallet.update({
-        where: {
-          companyId,
-        },
-        data: {
-          balancePaise: {
-            decrement: MESSAGE_PRICE_PAISE,
-          },
-        },
-      });
-
       const walletTransaction = await tx.walletTransaction.create({
         data: {
           companyId,
@@ -284,22 +282,22 @@ export async function startCampaignForCompany(
         },
       });
 
-      return createdMessage;
+      messages.push(createdMessage);
+    }
+
+    await tx.campaign.update({
+      where: {
+        id: campaign.id,
+      },
+      data: {
+        status: "RUNNING",
+        queuedCount: {
+          increment: messages.length,
+        },
+      },
     });
 
-    createdMessages.push(message);
-  }
-
-  await prisma.campaign.update({
-    where: {
-      id: campaign.id,
-    },
-    data: {
-      status: "RUNNING",
-      queuedCount: {
-        increment: createdMessages.length,
-      },
-    },
+    return messages;
   });
 
   for (const message of createdMessages) {

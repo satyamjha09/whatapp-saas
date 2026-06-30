@@ -82,21 +82,39 @@ export async function debitWalletForMessage(
   description: string,
   referenceId?: string,
 ) {
-  const wallet = await getOrCreateWallet(companyId);
-
-  if (wallet.balancePaise < amountPaise) {
-    throw new Error("Insufficient wallet balance");
-  }
-
   const result = await prisma.$transaction(async (tx) => {
-    const updatedWallet = await tx.wallet.update({
+    await tx.wallet.upsert({
       where: {
         companyId,
+      },
+      update: {},
+      create: {
+        companyId,
+        balancePaise: 0,
+      },
+    });
+
+    const debit = await tx.wallet.updateMany({
+      where: {
+        companyId,
+        balancePaise: {
+          gte: amountPaise,
+        },
       },
       data: {
         balancePaise: {
           decrement: amountPaise,
         },
+      },
+    });
+
+    if (debit.count === 0) {
+      throw new Error("Insufficient wallet balance");
+    }
+
+    const updatedWallet = await tx.wallet.findUniqueOrThrow({
+      where: {
+        companyId,
       },
     });
 

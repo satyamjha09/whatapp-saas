@@ -89,13 +89,21 @@ export async function createQueuedTemplateMessage(
   const body = renderTemplateBody(template.body, input.variables);
 
   const message = await prisma.$transaction(async (tx) => {
-    const wallet = await tx.wallet.findUnique({
+    const debitResult = await tx.wallet.updateMany({
       where: {
         companyId,
+        balancePaise: {
+          gte: MESSAGE_PRICE_PAISE,
+        },
+      },
+      data: {
+        balancePaise: {
+          decrement: MESSAGE_PRICE_PAISE,
+        },
       },
     });
 
-    if (!wallet || wallet.balancePaise < MESSAGE_PRICE_PAISE) {
+    if (debitResult.count !== 1) {
       throw new Error("Insufficient wallet balance");
     }
 
@@ -124,17 +132,6 @@ export async function createQueuedTemplateMessage(
         contact: true,
         template: true,
         events: true,
-      },
-    });
-
-    await tx.wallet.update({
-      where: {
-        companyId,
-      },
-      data: {
-        balancePaise: {
-          decrement: MESSAGE_PRICE_PAISE,
-        },
       },
     });
 

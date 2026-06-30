@@ -307,16 +307,21 @@ async function queueSequenceMessage({
   const toPhoneNumber = `${context.contact.countryCode}${context.contact.phoneNumber}`;
 
   const result = await prisma.$transaction(async (tx) => {
-    const wallet = await tx.wallet.findUnique({
+    const debitResult = await tx.wallet.updateMany({
       where: {
         companyId: step.companyId,
+        balancePaise: {
+          gte: MESSAGE_PRICE_PAISE,
+        },
       },
-      select: {
-        balancePaise: true,
+      data: {
+        balancePaise: {
+          decrement: MESSAGE_PRICE_PAISE,
+        },
       },
     });
 
-    if (!wallet || wallet.balancePaise < MESSAGE_PRICE_PAISE) {
+    if (debitResult.count !== 1) {
       const execution = await tx.campaignSequenceExecution.create({
         data: {
           campaignId: step.campaignId,
@@ -381,17 +386,6 @@ async function queueSequenceMessage({
         processedAt: new Date(),
         status: "QUEUED",
         stepId: step.id,
-      },
-    });
-
-    await tx.wallet.update({
-      where: {
-        companyId: step.companyId,
-      },
-      data: {
-        balancePaise: {
-          decrement: MESSAGE_PRICE_PAISE,
-        },
       },
     });
 
