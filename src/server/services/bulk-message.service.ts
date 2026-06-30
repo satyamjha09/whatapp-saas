@@ -14,6 +14,7 @@ import {
   incrementUsageQuota,
 } from "@/server/services/usage-quota.service";
 import { buildCampaignRecipientsFromSegmentAndMapping } from "@/server/services/template-variable-mapping.service";
+import { getSegmentContactsForCampaign } from "@/server/services/contact-segment-builder.service";
 import type { SendBulkTemplateMessageInput } from "@/server/validators/bulk-message.validator";
 
 function normalizePhoneNumber(value: string) {
@@ -109,15 +110,34 @@ export async function sendBulkTemplateMessages(
   if (!template) throw new Error("Approved template not found");
   if (!whatsAppAccount) throw new Error("WhatsApp account is not connected");
 
+  const hasFallbackParameters =
+    template.variables.length === 0 ||
+    input.bodyParameters.length === template.variables.length;
   const segmentRecipients = input.segmentId
-    ? await buildCampaignRecipientsFromSegmentAndMapping({
-        companyId,
-        segmentId: input.segmentId,
-        templateName: template.name,
-        templateLanguage: template.language,
-        templateBody: template.body,
-        limit: plan.maxBulkRecipients + 1,
-      })
+    ? hasFallbackParameters
+      ? (
+          await getSegmentContactsForCampaign({
+            companyId,
+            segmentId: input.segmentId,
+            limit: plan.maxBulkRecipients + 1,
+          })
+        ).map((contact) => ({
+          contactId: contact.id,
+          countryCode: contact.countryCode,
+          phoneNumber: contact.phoneNumber,
+          phone: `${contact.countryCode}${contact.phoneNumber}`,
+          name: contact.name ?? undefined,
+          isBlocked: contact.isBlocked,
+          bodyParameters: input.bodyParameters,
+        }))
+      : await buildCampaignRecipientsFromSegmentAndMapping({
+          companyId,
+          segmentId: input.segmentId,
+          templateName: template.name,
+          templateLanguage: template.language,
+          templateBody: template.body,
+          limit: plan.maxBulkRecipients + 1,
+        })
     : null;
 
   const sourceRecipients = segmentRecipients

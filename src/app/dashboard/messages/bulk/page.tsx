@@ -37,7 +37,7 @@ export default async function BulkMessagePage({
     );
   }
 
-  const [templates, groups] = await Promise.all([
+  const [templates, groups, campaigns] = await Promise.all([
     prisma.template.findMany({
       where: {
         companyId: context.membership.companyId,
@@ -57,6 +57,26 @@ export default async function BulkMessagePage({
       where: { companyId: context.membership.companyId },
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { members: true } } },
+    }),
+    prisma.campaign.findMany({
+      where: { companyId: context.membership.companyId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        totalContacts: true,
+        deliveredCount: true,
+        readCount: true,
+        failedCount: true,
+        createdAt: true,
+        template: {
+          select: {
+            name: true,
+          },
+        },
+      },
     }),
   ]);
   const canManage =
@@ -101,6 +121,10 @@ export default async function BulkMessagePage({
         canManage={canManage}
         templates={templates}
         groups={groups}
+        campaigns={campaigns.map((campaign) => ({
+          ...campaign,
+          createdAt: campaign.createdAt.toISOString(),
+        }))}
         initialGroupId={params.groupId}
         plan={{
           name: plan.name,
