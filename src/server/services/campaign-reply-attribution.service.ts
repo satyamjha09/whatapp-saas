@@ -135,6 +135,9 @@ async function applyOptOutIfNeeded({
       optedOutAt: now,
       optOutReason: `Campaign reply: ${previewText(replyBody)}`,
       optOutSource: "CAMPAIGN_REPLY",
+      inboxStatus: "OPEN",
+      snoozedUntil: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000 * 10),
+      inboxSlaDueAt: null,
     },
   });
 

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getLeadScoreQueue } from "@/lib/queue";
 import { Prisma } from "@/generated/prisma/client";
 import type { InboxPriority, LeadScoringConfig } from "@/generated/prisma/client";
+import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
 
 const PRIORITY_RANK: Record<InboxPriority, number> = {
   LOW: 1,
@@ -192,6 +193,8 @@ export async function calculateLeadScore(companyId: string, contactId: string) {
 
   if (shouldElevatePriority(contact.inboxPriority, leadScorePriority)) {
     data.inboxPriority = leadScorePriority;
+    data.inboxSlaDueAt = calculateInboxSlaDueAt(leadScorePriority, new Date());
+    data.inboxSlaBreachedAt = null;
   }
 
   await prisma.contact.update({

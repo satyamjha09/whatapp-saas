@@ -528,7 +528,10 @@ const worker = new Worker<ProcessWebhookJobData>(
         data: {
           inboxStatus: "OPEN",
           inboxClosedAt: null,
-          snoozedUntil: null,
+          snoozedUntil:
+            consentKeyword === "STOP"
+              ? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000 * 10)
+              : null,
           ...(consentKeyword === "STOP"
             ? {
                 isBlocked: true,
@@ -549,7 +552,10 @@ const worker = new Worker<ProcessWebhookJobData>(
             : {}),
           inboxLastCustomerMessageAt: now,
           lastSeenAt: now,
-          inboxSlaDueAt: calculateInboxSlaDueAt(contact.inboxPriority, now),
+          inboxSlaDueAt:
+            consentKeyword === "STOP"
+              ? null
+              : calculateInboxSlaDueAt(contact.inboxPriority, now),
           inboxSlaBreachedAt: null,
           inboxSlaEscalationCount: 0,
         },
