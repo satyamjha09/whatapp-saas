@@ -59,6 +59,7 @@ export function buildContentSecurityPolicy() {
     "https://api.clerk.com",
     "https://*.clerk.accounts.dev",
     "https://*.clerk.com",
+    "https://clerk-telemetry.com",
     "https://api.razorpay.com",
     "https://*.razorpay.com",
     "https://graph.facebook.com",

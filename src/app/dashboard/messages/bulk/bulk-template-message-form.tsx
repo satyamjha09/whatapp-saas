@@ -592,7 +592,7 @@ export default function BulkTemplateMessageForm({
       </div>
 
       <form onSubmit={sendBulkMessage} className="mt-6">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_438px]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
             {/* Plan Usage Limit Badge */}
             <div className={`rounded-xl border p-4 ${isPlanReady ? "border-[#D8E6F3] bg-[#F0F8FF]" : "border-rose-200 bg-rose-50"}`}>

@@ -672,7 +672,7 @@ export default function SingleTemplateMessageForm({
       />
 
       <form onSubmit={sendMessage} className="mt-6">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_438px]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
         {contacts.length ? (
           <div>

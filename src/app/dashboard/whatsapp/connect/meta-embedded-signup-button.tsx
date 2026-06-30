@@ -163,12 +163,12 @@ export default function MetaEmbeddedSignupButton({
   const appId = process.env.NEXT_PUBLIC_META_APP_ID;
   const configId = process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  const runtimeOriginError = getHttpsRequirementMessage(appUrl);
   const hasAppId = isConfigured(appId, "your_meta_app_id");
   const hasConfigId = isConfigured(
     configId,
     "your_embedded_signup_config_id",
   );
+  const runtimeOriginError = getHttpsRequirementMessage(appUrl);
   const configurationError = !hasAppId
     ? "Meta App ID is not configured."
     : !hasConfigId

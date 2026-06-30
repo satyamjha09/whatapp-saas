@@ -43,6 +43,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${plusJakartaSans.variable} antialiased`}>
         <ClerkProvider
+          dynamic
           allowedRedirectOrigins={allowedRedirectOrigins}
           allowedRedirectProtocols={['http', 'https']}
         >
