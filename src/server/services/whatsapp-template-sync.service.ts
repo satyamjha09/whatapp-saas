@@ -59,12 +59,51 @@ function extractTemplateBody(components: MetaTemplateComponent[] = []) {
   return components.find((component) => component.type === "BODY")?.text ?? "";
 }
 
-function extractTemplateVariables(body: string) {
-  return Array.from(new Set(body.match(/{{\d+}}/g) ?? [])).sort(
-    (left, right) => {
-      return Number(left.slice(2, -2)) - Number(right.slice(2, -2));
-    },
-  );
+function extractAllTemplateVariables(components: MetaTemplateComponent[] = []) {
+  const variables: string[] = [];
+
+  for (const component of components) {
+    if (component.type === "HEADER") {
+      if (component.format === "TEXT" && component.text) {
+        const matches = Array.from(new Set(component.text.match(/{{\d+}}/g) ?? [])).sort(
+          (left, right) => Number(left.slice(2, -2)) - Number(right.slice(2, -2))
+        );
+        for (const m of matches) {
+          const num = m.slice(2, -2);
+          variables.push(`HEADER_${num}`);
+        }
+      } else if (["IMAGE", "VIDEO", "DOCUMENT"].includes(component.format || "")) {
+        variables.push("HEADER_MEDIA");
+      }
+    }
+
+    if (component.type === "BODY" && component.text) {
+      const matches = Array.from(new Set(component.text.match(/{{\d+}}/g) ?? [])).sort(
+        (left, right) => Number(left.slice(2, -2)) - Number(right.slice(2, -2))
+      );
+      for (const m of matches) {
+        const num = m.slice(2, -2);
+        variables.push(`BODY_${num}`);
+      }
+    }
+
+    if (component.type === "BUTTONS" && Array.isArray(component.buttons)) {
+      component.buttons.forEach((button, btnIdx) => {
+        const btn = button as Record<string, unknown>;
+        if (typeof btn.url === "string") {
+          const matches = Array.from(new Set(btn.url.match(/{{\d+}}/g) ?? [])).sort(
+            (left, right) => Number(left.slice(2, -2)) - Number(right.slice(2, -2))
+          );
+          for (const m of matches) {
+            const num = m.slice(2, -2);
+            variables.push(`BUTTON_${btnIdx}_${num}`);
+          }
+        }
+      });
+    }
+  }
+
+  return variables;
 }
 
 function normalizeTemplateStatus(status: string): TemplateStatus | null {
@@ -260,7 +299,7 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
         category,
         status,
         body,
-        variables: extractTemplateVariables(body),
+        variables: extractAllTemplateVariables(components),
         components: serializeComponents(components),
       },
       create: {
@@ -271,7 +310,7 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
         category,
         status,
         body,
-        variables: extractTemplateVariables(body),
+        variables: extractAllTemplateVariables(components),
         components: serializeComponents(components),
       },
     });

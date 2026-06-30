@@ -1,6 +1,6 @@
 import axios from "axios";
 
-type WhatsAppTemplateParameter =
+export type WhatsAppTemplateParameter =
   | {
       type: "text";
       text: string;
@@ -28,7 +28,7 @@ type WhatsAppTemplateParameter =
       };
     };
 
-type WhatsAppTemplateComponent = {
+export type WhatsAppTemplateComponent = {
   type: "header" | "body" | "button";
   sub_type?: "url" | "quick_reply";
   index?: string;

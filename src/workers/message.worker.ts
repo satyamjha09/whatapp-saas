@@ -10,6 +10,8 @@ import {
   sendWhatsAppMediaMessage,
   sendWhatsAppTemplateMessage,
   sendWhatsAppTextMessage,
+  type WhatsAppTemplateComponent,
+  type WhatsAppTemplateParameter,
 } from "@/lib/whatsapp";
 import { enqueueDeveloperMessageStatusWebhook } from "@/server/services/developer-webhook.service";
 import { publishCampaignDeveloperWebhookEvent } from "@/server/services/developer-webhook-event-publisher.service";
@@ -131,6 +133,106 @@ function getOutboundLocationMetadata(
     latitude: record.latitude,
     longitude: record.longitude,
   };
+}
+
+type MetaComponentType = {
+  type: string;
+  format?: string;
+  text?: string;
+  buttons?: Array<Record<string, unknown>>;
+};
+
+function buildMetaComponentsPayload(
+  components: MetaComponentType[],
+  variableMap: Map<string, string>,
+): WhatsAppTemplateComponent[] {
+  const result: WhatsAppTemplateComponent[] = [];
+
+  for (const component of components) {
+    if (component.type === "HEADER") {
+      if (component.format === "TEXT") {
+        const matches = Array.from(new Set(component.text?.match(/{{\d+}}/g) ?? [])) as string[];
+        matches.sort((left, right) => Number(left.slice(2, -2)) - Number(right.slice(2, -2)));
+
+        if (matches.length > 0) {
+          result.push({
+            type: "header",
+            parameters: matches.map((m) => {
+              const num = m.slice(2, -2);
+              const val = variableMap.get(`HEADER_${num}`) || "";
+              return {
+                type: "text",
+                text: val,
+              };
+            }),
+          });
+        }
+      } else if (["IMAGE", "VIDEO", "DOCUMENT"].includes(component.format || "")) {
+        const mediaUrl = variableMap.get("HEADER_MEDIA") || "";
+        if (mediaUrl) {
+          const format = component.format || "";
+          const type = format.toLowerCase() as "image" | "video" | "document";
+          result.push({
+            type: "header",
+            parameters: [
+              {
+                type,
+                [type]: {
+                  link: mediaUrl,
+                },
+              } as unknown as WhatsAppTemplateParameter,
+            ],
+          });
+        }
+      }
+    }
+
+    if (component.type === "BODY") {
+      const matches = Array.from(new Set(component.text?.match(/{{\d+}}/g) ?? [])) as string[];
+      matches.sort((left, right) => Number(left.slice(2, -2)) - Number(right.slice(2, -2)));
+
+      if (matches.length > 0) {
+        result.push({
+          type: "body",
+          parameters: matches.map((m) => {
+            const num = m.slice(2, -2);
+            const val = variableMap.get(`BODY_${num}`) || "";
+            return {
+              type: "text",
+              text: val,
+            };
+          }),
+        });
+      }
+    }
+
+    if (component.type === "BUTTONS" && Array.isArray(component.buttons)) {
+      component.buttons.forEach((button: Record<string, unknown>, btnIdx: number) => {
+        if (button.type === "URL" && typeof button.url === "string") {
+          const matches = Array.from(new Set(button.url.match(/{{\d+}}/g) ?? [])) as string[];
+          matches.sort((left, right) => Number(left.slice(2, -2)) - Number(right.slice(2, -2)));
+
+          if (matches.length > 0) {
+            result.push({
+              type: "button",
+              sub_type: "url",
+              index: String(btnIdx),
+              parameters: matches.map((m) => {
+                const num = m.slice(2, -2);
+                const val = variableMap.get(`BUTTON_${btnIdx}_${num}`) || "";
+                return {
+                  type: "text",
+                  text: val,
+                };
+              }),
+            });
+          }
+        }
+      });
+    }
+  }
+
+  return result;
 }
 
 function getOutboundInteractiveMetadata(
@@ -923,15 +1025,32 @@ const worker = new Worker<SendMessageJobData>(
       const location = getOutboundLocationMetadata(message.metadata);
       const interactive = getOutboundInteractiveMetadata(message.metadata);
 
-      const result = message.template
-        ? await sendWhatsAppTemplateMessage({
-            accessToken: decryptedAccessToken,
-            phoneNumberId: phoneNumber!.phoneNumberId!,
-            to: message.toPhoneNumber,
-            templateName: message.template.name,
-            languageCode: message.template.language,
-            variables: message.variables,
-          })
+      const template = message.template;
+      const result = template
+        ? await (async () => {
+            const templateComponents = (template.components as MetaComponentType[]) || [];
+            const variableMap = new Map<string, string>();
+            const templateKeys = (template.variables as string[]) || [];
+            templateKeys.forEach((key, idx) => {
+              variableMap.set(key, message.variables[idx] || "");
+            });
+
+            const hasNamespace = templateKeys.some((k) => k.startsWith("BODY_") || k.startsWith("HEADER_") || k.startsWith("BUTTON_"));
+
+            const components = hasNamespace
+              ? buildMetaComponentsPayload(templateComponents, variableMap)
+              : undefined;
+
+            return sendWhatsAppTemplateMessage({
+              accessToken: decryptedAccessToken,
+              phoneNumberId: phoneNumber!.phoneNumberId!,
+              to: message.toPhoneNumber,
+              templateName: template.name,
+              languageCode: template.language,
+              variables: components ? undefined : message.variables,
+              components: components ?? undefined,
+            });
+          })()
         : media
           ? await sendWhatsAppMediaMessage({
               accessToken: decryptedAccessToken,
