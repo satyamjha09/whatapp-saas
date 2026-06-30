@@ -204,9 +204,10 @@ export async function reconcileSinglePlanCheckout({
   }
 
   if (checkout.expiresAt && checkout.expiresAt < new Date()) {
-    await prisma.planCheckout.update({
+    const expired = await prisma.planCheckout.updateMany({
       where: {
         id: checkout.id,
+        status: "CREATED",
       },
       data: {
         status: "EXPIRED",
@@ -214,6 +215,19 @@ export async function reconcileSinglePlanCheckout({
         failureReason: "Checkout expired",
       },
     });
+
+    if (expired.count === 0) {
+      await createReconciliationEvent({
+        companyId: checkout.companyId,
+        checkoutId: checkout.id,
+        status: "SKIPPED",
+        source: "scheduled-scan",
+        cashfreeOrderId: checkout.cashfreeOrderId,
+        message: "Checkout status changed before expiry update",
+      });
+
+      return null;
+    }
 
     await createReconciliationEvent({
       companyId: checkout.companyId,
@@ -288,9 +302,10 @@ export async function reconcileSinglePlanCheckout({
       };
     }
 
-    await prisma.planCheckout.update({
+    const manualReview = await prisma.planCheckout.updateMany({
       where: {
         id: checkout.id,
+        status: "CREATED",
       },
       data: {
         status: "MANUAL_REVIEW",
@@ -309,6 +324,24 @@ export async function reconcileSinglePlanCheckout({
           "Successful payment found during scheduled scan. Manual verification required.",
       },
     });
+
+    if (manualReview.count === 0) {
+      await createReconciliationEvent({
+        companyId: checkout.companyId,
+        checkoutId: checkout.id,
+        status: "SKIPPED",
+        source: "scheduled-scan",
+        cashfreeOrderId: checkout.cashfreeOrderId,
+        cashfreePaymentId:
+          paidPayment.cf_payment_id !== undefined
+            ? String(paidPayment.cf_payment_id)
+            : null,
+        message: "Checkout status changed before manual review update",
+        metadata: paidPayment,
+      });
+
+      return null;
+    }
 
     await createReconciliationEvent({
       companyId: checkout.companyId,

@@ -236,9 +236,27 @@ export async function POST(request: Request) {
     }
 
     if (eventType.toUpperCase().includes("REFUND")) {
-      await processRefundWebhookPayload({
+      const refundResult = await processRefundWebhookPayload({
         payload: payload as CashfreeRefundWebhookPayload,
-      }).catch(() => undefined);
+      });
+
+      if ("skipped" in refundResult && refundResult.skipped) {
+        const reason =
+          "reason" in refundResult && typeof refundResult.reason === "string"
+            ? refundResult.reason
+            : "Refund status already reconciled";
+
+        await markEvent({
+          eventRecordId,
+          status: "IGNORED",
+          errorMessage: reason,
+        });
+
+        return completeAndRespond({
+          message: "Cashfree refund webhook ignored",
+          reason,
+        });
+      }
 
       await markEvent({
         eventRecordId,

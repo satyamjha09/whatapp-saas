@@ -55,6 +55,12 @@ export type CashfreeWebhookPayload = {
       payment_currency?: string;
       payment_message?: string;
     };
+    refund?: {
+      cf_refund_id?: number | string;
+      refund_id?: string;
+      refund_status?: string;
+      order_id?: string;
+    };
   };
 };
 
@@ -107,6 +113,10 @@ function cashfreeHeaders() {
     "x-client-id": clientId,
     "x-client-secret": clientSecret,
   };
+}
+
+function isWebhookSignatureVerificationEnabled() {
+  return process.env.WEBHOOK_SIGNATURE_VERIFICATION_ENABLED !== "false";
 }
 
 function amountRupees(amountPaise: number) {
@@ -359,6 +369,10 @@ export function verifyCashfreeWebhookSignature({
   signatureHeader: string | null;
   timestampHeader: string | null;
 }) {
+  if (!isWebhookSignatureVerificationEnabled()) {
+    return true;
+  }
+
   const { clientSecret } = getCashfreeCredentials();
 
   if (!signatureHeader) {
@@ -393,13 +407,18 @@ export function getCashfreeWebhookEventId({
 }) {
   const payment = body.data?.payment;
   const order = body.data?.order;
+  const refund = body.data?.refund;
   const paymentId =
     payment?.cf_payment_id !== undefined ? String(payment.cf_payment_id) : "";
+  const refundId =
+    refund?.refund_id ??
+    (refund?.cf_refund_id !== undefined ? String(refund.cf_refund_id) : "");
 
   return [
     body.type ?? "cashfree.webhook",
-    order?.order_id ?? "",
+    order?.order_id ?? refund?.order_id ?? "",
     paymentId,
+    refundId,
     body.event_time ?? timestamp ?? signature ?? "",
   ]
     .filter(Boolean)

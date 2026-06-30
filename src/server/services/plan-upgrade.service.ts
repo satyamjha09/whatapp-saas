@@ -275,9 +275,10 @@ export async function completePlanCheckout({
   }
 
   if (checkout.expiresAt && checkout.expiresAt < new Date()) {
-    await prisma.planCheckout.update({
+    const expired = await prisma.planCheckout.updateMany({
       where: {
         id: checkout.id,
+        status: "CREATED",
       },
       data: {
         status: "EXPIRED",
@@ -285,6 +286,15 @@ export async function completePlanCheckout({
         failureReason: "Checkout expired before verification",
       },
     });
+
+    if (expired.count === 0) {
+      const currentCheckout = await prisma.planCheckout.findUniqueOrThrow({
+        where: {
+          id: checkout.id,
+        },
+      });
+      throw new PlanUpgradeError(`Checkout is ${currentCheckout.status}.`);
+    }
 
     throw new PlanUpgradeError("Checkout expired.");
   }
@@ -338,15 +348,49 @@ export async function completePlanCheckout({
   const newMonthlyMessageLimit = getPlanMonthlyMessageLimit(checkout.toPlan);
 
   const result = await prisma.$transaction(async (tx) => {
-    const updatedCheckout = await tx.planCheckout.update({
+    const claim = await tx.planCheckout.updateMany({
       where: {
         id: checkout.id,
+        status: "CREATED",
       },
       data: {
         status: "PAID",
         cashfreeOrderId: cashfreeOrderId,
         cashfreePaymentId: verifiedPaymentId,
         paidAt: new Date(),
+      },
+    });
+
+    if (claim.count === 0) {
+      const currentCheckout = await tx.planCheckout.findUniqueOrThrow({
+        where: {
+          id: checkout.id,
+        },
+      });
+      const planChange = await tx.companyPlanChange.findFirst({
+        where: {
+          companyId,
+          checkoutId: checkout.id,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      if (currentCheckout.status === "PAID") {
+        return {
+          checkout: currentCheckout,
+          planChange,
+          alreadyCompleted: true,
+        };
+      }
+
+      throw new PlanUpgradeError(`Checkout is ${currentCheckout.status}.`);
+    }
+
+    const updatedCheckout = await tx.planCheckout.findUniqueOrThrow({
+      where: {
+        id: checkout.id,
       },
     });
 
@@ -390,8 +434,17 @@ export async function completePlanCheckout({
     return {
       checkout: updatedCheckout,
       planChange,
+      alreadyCompleted: false,
     };
   });
+
+  if (result.alreadyCompleted) {
+    return result;
+  }
+
+  if (!result.planChange) {
+    throw new PlanUpgradeError("Plan change was not created.");
+  }
 
   await createAuditLog({
     companyId,

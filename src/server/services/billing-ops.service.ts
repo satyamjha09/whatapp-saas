@@ -164,9 +164,10 @@ export async function approveManualPlanCheckout({
   const newMonthlyMessageLimit = getPlanMonthlyMessageLimit(checkout.toPlan);
 
   const result = await prisma.$transaction(async (tx) => {
-    const updatedCheckout = await tx.planCheckout.update({
+    const claim = await tx.planCheckout.updateMany({
       where: {
         id: checkout.id,
+        status: "MANUAL_REVIEW",
       },
       data: {
         status: "PAID",
@@ -176,6 +177,21 @@ export async function approveManualPlanCheckout({
         manualReviewDecision: "APPROVED",
         manualReviewNotes: notes ?? null,
         lastReconciliationError: null,
+      },
+    });
+
+    if (claim.count === 0) {
+      const currentCheckout = await tx.planCheckout.findUniqueOrThrow({
+        where: {
+          id: checkout.id,
+        },
+      });
+      throw new BillingOpsError(`Checkout is ${currentCheckout.status}, not MANUAL_REVIEW.`);
+    }
+
+    const updatedCheckout = await tx.planCheckout.findUniqueOrThrow({
+      where: {
+        id: checkout.id,
       },
     });
 
@@ -318,9 +334,10 @@ export async function rejectManualPlanCheckout({
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    const updatedCheckout = await tx.planCheckout.update({
+    const claim = await tx.planCheckout.updateMany({
       where: {
         id: checkout.id,
+        status: "MANUAL_REVIEW",
       },
       data: {
         status: "FAILED",
@@ -330,6 +347,21 @@ export async function rejectManualPlanCheckout({
         manualReviewedByUserId: reviewedByUserId,
         manualReviewDecision: "REJECTED",
         manualReviewNotes: notes ?? null,
+      },
+    });
+
+    if (claim.count === 0) {
+      const currentCheckout = await tx.planCheckout.findUniqueOrThrow({
+        where: {
+          id: checkout.id,
+        },
+      });
+      throw new BillingOpsError(`Checkout is ${currentCheckout.status}, not MANUAL_REVIEW.`);
+    }
+
+    const updatedCheckout = await tx.planCheckout.findUniqueOrThrow({
+      where: {
+        id: checkout.id,
       },
     });
 
@@ -401,9 +433,10 @@ export async function expireStaleManualReviews() {
   let expired = 0;
 
   for (const checkout of stale) {
-    await prisma.planCheckout.update({
+    const result = await prisma.planCheckout.updateMany({
       where: {
         id: checkout.id,
+        status: "MANUAL_REVIEW",
       },
       data: {
         status: "FAILED",
@@ -413,6 +446,10 @@ export async function expireStaleManualReviews() {
         manualReviewedAt: new Date(),
       },
     });
+
+    if (result.count === 0) {
+      continue;
+    }
 
     await prisma.planCheckoutReconciliationEvent.create({
       data: {
