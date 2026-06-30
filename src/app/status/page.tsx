@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getPublicStatusPage } from "@/server/services/status-page.service";
 
+export const dynamic = "force-dynamic";
+
 function componentClass(status: string) {
   if (status === "OPERATIONAL") return "bg-green-50 text-green-700 border-green-200";
   if (status === "DEGRADED") return "bg-yellow-50 text-yellow-700 border-yellow-200";

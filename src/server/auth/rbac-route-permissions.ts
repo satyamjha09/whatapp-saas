@@ -46,6 +46,8 @@ export const RBAC_ROUTE_PERMISSION_RULES: RbacRoutePermissionRule[] = [
   { id: "whatsapp-settings-manage", method: "*", pattern: /^\/api\/whatsapp\/settings(?:\/|$)/, permission: "WHATSAPP_SETTINGS_MANAGE", description: "Manage WhatsApp settings" },
   { id: "whatsapp-account-view", method: "GET", pattern: /^\/api\/whatsapp\/accounts$/, permission: "WHATSAPP_SETTINGS_VIEW", description: "View WhatsApp account connection" },
   { id: "whatsapp-account-manage", method: "POST", pattern: /^\/api\/whatsapp\/(?:accounts|credentials|embedded-signup\/complete|webhooks\/subscribe)$/, permission: "WHATSAPP_SETTINGS_MANAGE", description: "Manage WhatsApp account connection" },
+  { id: "whatsapp-flows-view", method: "GET", pattern: /^\/api\/whatsapp-flows(?:\/[^/]+)?$/, permission: "WHATSAPP_SETTINGS_VIEW", description: "View WhatsApp Flows" },
+  { id: "whatsapp-flows-manage", method: "*", pattern: /^\/api\/whatsapp-flows(?:\/[^/]+(?:\/send-test)?)?$/, permission: "WHATSAPP_SETTINGS_MANAGE", description: "Create, update, and test WhatsApp Flows" },
   { id: "whatsapp-template-sync", method: "POST", pattern: /^\/api\/whatsapp\/templates\/sync$/, permission: "TEMPLATE_SYNC", description: "Sync WhatsApp templates" },
   { id: "template-submit", method: "POST", pattern: /^\/api\/templates\/[^/]+\/submit$/, permission: "TEMPLATE_SYNC", description: "Submit WhatsApp templates to Meta" },
   { id: "api-key-manage", method: "*", pattern: /^\/api\/developer\/api-keys(?:\/|$)/, permission: "DEVELOPER_API_KEYS_MANAGE", description: "Manage developer API keys" },
@@ -78,6 +80,7 @@ export const RBAC_ROUTE_PERMISSION_RULES: RbacRoutePermissionRule[] = [
   { id: "team-invite-delete", method: "DELETE", pattern: /^\/api\/team\/invites\/[^/]+$/, permission: "TEAM_INVITE", description: "Revoke team invites" },
   { id: "team-member-manage", method: "*", pattern: /^\/api\/team\/(?:members\/[^/]+|[^/]+\/role)$/, permission: "TEAM_MANAGE_ROLES", description: "Manage team members" },
   { id: "public-api-message-send", method: "POST", pattern: /^\/api\/public\/messages\/send-template$/, permission: null, description: "Public API key scoped message send" },
+  { id: "dev-whatsapp-bulk-test", method: "POST", pattern: /^\/api\/dev\/whatsapp-bulk-test$/, permission: null, description: "Developer-only WhatsApp bulk test endpoint" },
   { id: "provider-webhooks", method: "*", pattern: /^\/api\/webhooks\/(?:razorpay|whatsapp)$/, permission: null, description: "Provider webhook ingestion endpoints" },
 ];
 
