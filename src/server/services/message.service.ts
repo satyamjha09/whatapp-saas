@@ -235,35 +235,92 @@ export async function createQueuedInboxReply(
     throw new Error("Customer service window has expired");
   }
 
-  const message = await prisma.message.create({
-    data: {
-      companyId,
-      contactId: contact.id,
-      toPhoneNumber: `${contact.countryCode}${contact.phoneNumber}`,
-      body: input.body,
-      variables: [],
-      status: "QUEUED",
-      direction: "OUTBOUND",
-      events: {
-        create: {
-          companyId,
-          status: "QUEUED",
-          raw: {
-            source: "inbox_reply",
-            reason: "Customer service window reply queued",
+  const message = await prisma.$transaction(async (tx) => {
+    await tx.wallet.upsert({
+      where: {
+        companyId,
+      },
+      update: {},
+      create: {
+        companyId,
+        balancePaise: 0,
+      },
+    });
+
+    const debitResult = await tx.wallet.updateMany({
+      where: {
+        companyId,
+        balancePaise: {
+          gte: MESSAGE_PRICE_PAISE,
+        },
+      },
+      data: {
+        balancePaise: {
+          decrement: MESSAGE_PRICE_PAISE,
+        },
+      },
+    });
+
+    if (debitResult.count !== 1) {
+      throw new Error("Insufficient wallet balance");
+    }
+
+    const createdMessage = await tx.message.create({
+      data: {
+        companyId,
+        contactId: contact.id,
+        toPhoneNumber: `${contact.countryCode}${contact.phoneNumber}`,
+        body: input.body,
+        variables: [],
+        status: "QUEUED",
+        direction: "OUTBOUND",
+        events: {
+          create: {
+            companyId,
+            status: "QUEUED",
+            raw: {
+              source: "inbox_reply",
+              reason: "Customer service window reply queued",
+            },
           },
         },
       },
-    },
-    include: {
-      contact: true,
-      events: true,
-    },
+      include: {
+        contact: true,
+        events: true,
+      },
+    });
+
+    const walletTransaction = await tx.walletTransaction.create({
+      data: {
+        companyId,
+        type: "DEBIT",
+        status: "SUCCESS",
+        amountPaise: MESSAGE_PRICE_PAISE,
+        description: "Inbox reply queued",
+        referenceType: "MESSAGE_USAGE",
+        referenceId: createdMessage.id,
+      },
+    });
+
+    await tx.messageUsageLedger.create({
+      data: {
+        companyId,
+        messageId: createdMessage.id,
+        walletTransactionId: walletTransaction.id,
+        status: "CHARGED",
+        amountPaise: MESSAGE_PRICE_PAISE,
+      },
+    });
+
+    return createdMessage;
   });
 
   await getMessageQueue().add("send-session-message", {
     messageId: message.id,
     companyId,
+  }, {
+    jobId: message.id,
   });
 
   await incrementUsageQuota({
