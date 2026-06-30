@@ -28,7 +28,7 @@ export default async function BillingRefundsPage() {
  ]);
 
  const paidInvoices = invoices.filter(
-   (invoice) => invoice.status === "PAID" && invoice.razorpayPaymentId,
+   (invoice) => invoice.status === "PAID" && invoice.cashfreePaymentId,
  );
 
  return (
@@ -74,10 +74,10 @@ export default async function BillingRefundsPage() {
                <th className="px-5 py-3">Invoice</th>
                <th className="px-5 py-3">Type</th>
                <th className="px-5 py-3">Status</th>
-               <th className="px-5 py-3">Razorpay Status</th>
+               <th className="px-5 py-3">Cashfree Status</th>
                <th className="px-5 py-3">Attempts</th>
                <th className="px-5 py-3">Amount</th>
-               <th className="px-5 py-3">Razorpay Refund</th>
+               <th className="px-5 py-3">Cashfree Refund</th>
                <th className="px-5 py-3">Credit Note</th>
                <th className="px-5 py-3">Requested By</th>
              </tr>
@@ -92,13 +92,13 @@ export default async function BillingRefundsPage() {
                  </td>
                  <td className="px-5 py-4">{refund.type}</td>
                  <td className="px-5 py-4 font-semibold">{refund.status}</td>
-                 <td className="px-5 py-4">{refund.razorpayStatus ?? "-"}</td>
+                 <td className="px-5 py-4">{refund.cashfreeStatus ?? "-"}</td>
                  <td className="px-5 py-4">{refund.reconciliationAttempts}</td>
                  <td className="px-5 py-4">
                    {money(refund.amountPaise, refund.currency)}
                  </td>
                  <td className="px-5 py-4 text-xs">
-                   {refund.razorpayRefundId ?? "-"}
+                   {refund.cashfreeRefundId ?? "-"}
                  </td>
                  <td className="px-5 py-4">
                    {refund.creditNote ? (

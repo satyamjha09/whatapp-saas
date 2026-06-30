@@ -157,8 +157,8 @@ export async function approveManualPlanCheckout({
     throw new BillingOpsError(`Checkout is ${checkout.status}, not MANUAL_REVIEW.`);
   }
 
-  if (!checkout.razorpayOrderId || !checkout.razorpayPaymentId) {
-    throw new BillingOpsError("Checkout is missing Razorpay payment reference.");
+  if (!checkout.cashfreeOrderId || !checkout.cashfreePaymentId) {
+    throw new BillingOpsError("Checkout is missing Cashfree payment reference.");
   }
 
   const newMonthlyMessageLimit = getPlanMonthlyMessageLimit(checkout.toPlan);
@@ -208,8 +208,8 @@ export async function approveManualPlanCheckout({
         newMonthlyMessageLimit,
         reason: "manual-payment-review-approved",
         metadata: safeJson({
-          razorpayOrderId: checkout.razorpayOrderId,
-          razorpayPaymentId: checkout.razorpayPaymentId,
+          cashfreeOrderId: checkout.cashfreeOrderId,
+          cashfreePaymentId: checkout.cashfreePaymentId,
           notes,
         }),
       },
@@ -221,8 +221,8 @@ export async function approveManualPlanCheckout({
         checkoutId: checkout.id,
         status: "COMPLETED",
         source: "manual-review",
-        razorpayOrderId: checkout.razorpayOrderId,
-        razorpayPaymentId: checkout.razorpayPaymentId,
+        cashfreeOrderId: checkout.cashfreeOrderId,
+        cashfreePaymentId: checkout.cashfreePaymentId,
         message: "Manual payment review approved by admin.",
         metadata: safeJson({
           reviewedByUserId,
@@ -246,8 +246,8 @@ export async function approveManualPlanCheckout({
     toPlan: checkout.toPlan,
     amountPaise: checkout.amountPaise,
     currency: checkout.currency,
-    razorpayOrderId: checkout.razorpayOrderId,
-    razorpayPaymentId: checkout.razorpayPaymentId,
+    cashfreeOrderId: checkout.cashfreeOrderId,
+    cashfreePaymentId: checkout.cashfreePaymentId,
   }).catch(() => undefined);
 
   await createAuditLog({
@@ -259,8 +259,8 @@ export async function approveManualPlanCheckout({
     metadata: {
       fromPlan: checkout.fromPlan,
       toPlan: checkout.toPlan,
-      razorpayOrderId: checkout.razorpayOrderId,
-      razorpayPaymentId: checkout.razorpayPaymentId,
+      cashfreeOrderId: checkout.cashfreeOrderId,
+      cashfreePaymentId: checkout.cashfreePaymentId,
       planChangeId: result.planChange.id,
       notes,
     },
@@ -339,8 +339,8 @@ export async function rejectManualPlanCheckout({
         checkoutId: checkout.id,
         status: "FAILED",
         source: "manual-review",
-        razorpayOrderId: checkout.razorpayOrderId,
-        razorpayPaymentId: checkout.razorpayPaymentId,
+        cashfreeOrderId: checkout.cashfreeOrderId,
+        cashfreePaymentId: checkout.cashfreePaymentId,
         message: "Manual payment review rejected by admin.",
         errorMessage: notes ?? null,
         metadata: safeJson({
@@ -360,8 +360,8 @@ export async function rejectManualPlanCheckout({
     entityType: "PlanCheckout",
     entityId: checkout.id,
     metadata: {
-      razorpayOrderId: checkout.razorpayOrderId,
-      razorpayPaymentId: checkout.razorpayPaymentId,
+      cashfreeOrderId: checkout.cashfreeOrderId,
+      cashfreePaymentId: checkout.cashfreePaymentId,
       notes,
     },
   }).catch(() => undefined);
@@ -420,8 +420,8 @@ export async function expireStaleManualReviews() {
         checkoutId: checkout.id,
         status: "EXPIRED",
         source: "billing-ops-expiry",
-        razorpayOrderId: checkout.razorpayOrderId,
-        razorpayPaymentId: checkout.razorpayPaymentId,
+        cashfreeOrderId: checkout.cashfreeOrderId,
+        cashfreePaymentId: checkout.cashfreePaymentId,
         message: "Manual review expired.",
       },
     });

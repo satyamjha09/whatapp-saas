@@ -5,7 +5,7 @@ TallyKonnect uses Redis-backed IP rate limits for sensitive endpoints.
 ## Protected areas
 
 - WhatsApp webhook POST
-- Razorpay order creation
+- Cashfree order creation
 - subscription order creation
 - campaign preflight
 - bulk message creation

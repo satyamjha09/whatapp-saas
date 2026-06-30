@@ -4,6 +4,25 @@ import { ArrowUpRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+type CashfreeCheckoutResult = {
+  error?: { message?: string };
+  paymentDetails?: unknown;
+  redirect?: boolean;
+};
+
+type CashfreeInstance = {
+  checkout: (options: {
+    paymentSessionId: string;
+    redirectTarget?: "_modal" | "_self" | "_blank";
+  }) => Promise<CashfreeCheckoutResult>;
+};
+
+declare global {
+  interface Window {
+    Cashfree?: (options: { mode: "production" | "sandbox" }) => CashfreeInstance;
+  }
+}
+
 export function UpgradePlanButton({
   toPlan,
   label,
@@ -15,12 +34,12 @@ export function UpgradePlanButton({
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
 
-  async function loadRazorpayScript() {
-    if (window.Razorpay) return true;
+  async function loadCashfreeScript() {
+    if (window.Cashfree) return true;
 
     return new Promise<boolean>((resolve) => {
       const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
       script.onload = () => resolve(true);
       script.onerror = () => resolve(false);
       document.body.appendChild(script);
@@ -32,14 +51,14 @@ export function UpgradePlanButton({
     setError("");
 
     try {
-      const scriptLoaded = await loadRazorpayScript();
+      const scriptLoaded = await loadCashfreeScript();
 
       if (!scriptLoaded) {
-        setError("Unable to load Razorpay checkout.");
+        setError("Unable to load Cashfree checkout.");
         return;
       }
-      if (!window.Razorpay) {
-        setError("Razorpay checkout is unavailable.");
+      if (!window.Cashfree) {
+        setError("Cashfree checkout is unavailable.");
         return;
       }
 
@@ -60,54 +79,48 @@ export function UpgradePlanButton({
       }
 
       const checkoutId = data.checkout.id;
-      const razorpay = new window.Razorpay!({
-        key: data.razorpay.keyId,
-        amount: data.razorpay.amountPaise,
-        currency: data.razorpay.currency,
-        name: "TallyKonnect",
-        description: `${toPlan} plan upgrade`,
-        order_id: data.razorpay.orderId,
-        theme: { color: "#111827" },
-        handler: async (payment: {
-          razorpay_order_id: string;
-          razorpay_payment_id: string;
-          razorpay_signature: string;
-        }) => {
-          const verifyResponse = await fetch(
-            `/api/billing/plan-checkouts/${checkoutId}/verify`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                razorpayOrderId: payment.razorpay_order_id,
-                razorpayPaymentId: payment.razorpay_payment_id,
-                razorpaySignature: payment.razorpay_signature,
-              }),
-            },
-          );
-          const verifyData = await verifyResponse.json();
+      if (!data.cashfree?.paymentSessionId || !data.cashfree?.orderId) {
+        setError("Cashfree checkout details are missing.");
+        return;
+      }
 
-          if (!verifyResponse.ok) {
-            setError(verifyData.message ?? "Payment verification failed.");
-            return;
-          }
-
-          router.push(data.redirects?.success ?? "/dashboard/billing");
-          router.refresh();
-        },
-        modal: {
-          ondismiss: () => {
-            if (data.redirects?.cancel) {
-              router.push(data.redirects.cancel);
-            }
-            setIsCreating(false);
-          },
-        },
+      const cashfree = window.Cashfree({
+        mode: data.cashfree.checkoutMode,
+      });
+      const checkoutResult = await cashfree.checkout({
+        paymentSessionId: data.cashfree.paymentSessionId,
+        redirectTarget: "_modal",
       });
 
-      razorpay.open();
+      if (checkoutResult.error) {
+        setError(checkoutResult.error.message ?? "Cashfree payment failed.");
+        if (data.redirects?.cancel) {
+          router.push(data.redirects.cancel);
+        }
+        return;
+      }
+
+      const verifyResponse = await fetch(
+        `/api/billing/plan-checkouts/${checkoutId}/verify`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            cashfreeOrderId: data.cashfree.orderId,
+          }),
+        },
+      );
+      const verifyData = await verifyResponse.json();
+
+      if (!verifyResponse.ok) {
+        setError(verifyData.message ?? "Payment verification failed.");
+        return;
+      }
+
+      router.push(data.redirects?.success ?? "/dashboard/billing");
+      router.refresh();
     } catch {
       setError("Unable to start upgrade.");
     } finally {

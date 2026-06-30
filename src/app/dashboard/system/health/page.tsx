@@ -1058,7 +1058,7 @@ export default async function SystemHealthPage() {
               </h2>
 
               <p className="mt-1 text-sm text-gray-600">
-                Self-serve plan upgrades with Razorpay verification and plan change ledger.
+                Self-serve plan upgrades with Cashfree verification and plan change ledger.
               </p>
             </div>
 
@@ -1232,7 +1232,7 @@ export default async function SystemHealthPage() {
               </h2>
 
               <p className="mt-1 text-sm text-gray-600">
-                Refund processing, credit notes, Razorpay refund IDs, and downgrade-on-full-refund safety.
+                Refund processing, credit notes, Cashfree refund IDs, and downgrade-on-full-refund safety.
               </p>
             </div>
 
@@ -1294,7 +1294,7 @@ export default async function SystemHealthPage() {
                 Refund Reconciliation
               </h2>
               <p className="mt-1 text-sm text-gray-600">
-                Tracks Razorpay refund status via webhooks and scheduled reconciliation.
+                Tracks Cashfree refund status via webhooks and scheduled reconciliation.
               </p>
             </div>
             <span
@@ -2777,7 +2777,7 @@ export default async function SystemHealthPage() {
               </h2>
 
               <p className="mt-1 text-sm text-gray-600">
-                Idempotency and processing ledger for Meta and Razorpay webhook events.
+                Idempotency and processing ledger for Meta and Cashfree webhook events.
               </p>
             </div>
 
@@ -2891,7 +2891,7 @@ export default async function SystemHealthPage() {
               </h2>
 
               <p className="mt-1 text-sm text-gray-600">
-                Verifies Meta and Razorpay webhook signatures before processing payloads.
+                Verifies Meta and Cashfree webhook signatures before processing payloads.
               </p>
             </div>
 
@@ -2922,9 +2922,9 @@ export default async function SystemHealthPage() {
             </div>
 
             <div className="rounded-xl bg-gray-50 p-4">
-              <p className="text-sm text-gray-500">Razorpay Secret</p>
+              <p className="text-sm text-gray-500">Cashfree Secret</p>
               <p className="mt-1 font-semibold text-gray-900">
-                {webhookSignatures.razorpay.configured
+                {webhookSignatures.cashfree.configured
                   ? "Configured"
                   : "Missing"}
               </p>

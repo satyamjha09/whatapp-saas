@@ -464,7 +464,7 @@ enum SubscriptionPaymentStatus {
   FAILED
 }
 
-enum RazorpayWebhookEventStatus {
+enum CashfreeWebhookEventStatus {
   RECEIVED
   PROCESSED
   FAILED
@@ -492,6 +492,7 @@ enum DatabaseBackupVerificationStatus {
 enum ProviderWebhookProvider {
   META
   RAZORPAY
+  CASHFREE
 }
 
 enum ProviderWebhookEventStatus {
@@ -1181,7 +1182,7 @@ model Company {
   contactGroups                     ContactGroup[]
   creditPurchases                   CreditPurchase[]
   subscriptionPayments              SubscriptionPayment[]
-  razorpayWebhookEvents             RazorpayWebhookEvent[]
+  cashfreeWebhookEvents             CashfreeWebhookEvent[]
   maintenanceJobRuns                MaintenanceJobRun[]
   developerApiUsage                 DeveloperApiUsage[]
   developerApiRequestLogs           DeveloperApiRequestLog[]
@@ -2281,9 +2282,9 @@ model PlanCheckout {
   amountPaise Int
   currency    String @default("INR")
 
-  razorpayOrderId   String?
-  razorpayPaymentId String?
-  razorpaySignature String?
+  cashfreeOrderId   String?
+  cashfreePaymentId String?
+  cashfreeSignature String?
 
   paidAt   DateTime?
   failedAt DateTime?
@@ -2319,8 +2320,8 @@ model PlanCheckout {
   @@index([fromPlan])
   @@index([toPlan])
   @@index([status])
-  @@index([razorpayOrderId])
-  @@index([razorpayPaymentId])
+  @@index([cashfreeOrderId])
+  @@index([cashfreePaymentId])
   @@index([expiresAt])
   @@index([webhookProcessedAt])
   @@index([lastReconciliationAt])
@@ -2473,8 +2474,8 @@ model BillingInvoice {
   sellerAddress String?
   sellerTaxId   String?
 
-  razorpayOrderId   String?
-  razorpayPaymentId String?
+  cashfreeOrderId   String?
+  cashfreePaymentId String?
 
   planCheckoutId String?
   planChangeId   String?
@@ -2502,8 +2503,8 @@ model BillingInvoice {
   @@index([status])
   @@index([issuedAt])
   @@index([paidAt])
-  @@index([razorpayOrderId])
-  @@index([razorpayPaymentId])
+  @@index([cashfreeOrderId])
+  @@index([cashfreePaymentId])
   @@index([planCheckoutId])
 }
 
@@ -3688,9 +3689,9 @@ model CreditPurchase {
   currency    String               @default("INR")
   status      CreditPurchaseStatus @default(CREATED)
 
-  razorpayOrderId   String  @unique
-  razorpayPaymentId String? @unique
-  razorpaySignature String?
+  cashfreeOrderId   String  @unique
+  cashfreePaymentId String? @unique
+  cashfreeSignature String?
 
   paidAt        DateTime?
   failedAt      DateTime?
@@ -3719,9 +3720,9 @@ model SubscriptionPayment {
 
   billingPeriodStart DateTime?
   billingPeriodEnd   DateTime?
-  razorpayOrderId    String    @unique
-  razorpayPaymentId  String?   @unique
-  razorpaySignature  String?
+  cashfreeOrderId    String    @unique
+  cashfreePaymentId  String?   @unique
+  cashfreeSignature  String?
   paidAt             DateTime?
   failedAt           DateTime?
   failureReason      String?
@@ -3738,12 +3739,12 @@ model SubscriptionPayment {
   @@index([createdAt])
 }
 
-model RazorpayWebhookEvent {
+model CashfreeWebhookEvent {
   id              String                     @id @default(cuid())
   companyId       String?
-  razorpayEventId String?                    @unique
+  cashfreeEventId String?                    @unique
   eventType       String
-  status          RazorpayWebhookEventStatus @default(RECEIVED)
+  status          CashfreeWebhookEventStatus @default(RECEIVED)
   payload         Json
   errorMessage    String?
   processedAt     DateTime?
@@ -4849,8 +4850,8 @@ model PlanCheckoutReconciliationEvent {
 
   source String
 
-  razorpayOrderId   String?
-  razorpayPaymentId String?
+  cashfreeOrderId   String?
+  cashfreePaymentId String?
 
   attemptNumber Int @default(1)
 
@@ -4868,8 +4869,8 @@ model PlanCheckoutReconciliationEvent {
   @@index([checkoutId])
   @@index([status])
   @@index([source])
-  @@index([razorpayOrderId])
-  @@index([razorpayPaymentId])
+  @@index([cashfreeOrderId])
+  @@index([cashfreePaymentId])
   @@index([createdAt])
 }
 
@@ -4915,9 +4916,9 @@ model BillingRefund {
   reason           String?
   confirmationText String?
 
-  razorpayPaymentId String?
-  razorpayRefundId  String?
-  razorpayStatus    String?
+  cashfreePaymentId String?
+  cashfreeRefundId  String?
+  cashfreeStatus    String?
 
   processedAt   DateTime?
   failedAt      DateTime?
@@ -4950,8 +4951,8 @@ model BillingRefund {
   @@index([requestedByUserId])
   @@index([status])
   @@index([type])
-  @@index([razorpayPaymentId])
-  @@index([razorpayRefundId])
+  @@index([cashfreePaymentId])
+  @@index([cashfreeRefundId])
   @@index([createdAt])
   @@index([lastReconciliationAt])
   @@index([webhookProcessedAt])
@@ -5009,9 +5010,9 @@ model BillingRefundReconciliationEvent {
   refundId          String
   status            BillingRefundReconciliationStatus
   source            String
-  razorpayRefundId  String?
-  razorpayPaymentId String?
-  razorpayStatus    String?
+  cashfreeRefundId  String?
+  cashfreePaymentId String?
+  cashfreeStatus    String?
   attemptNumber     Int                               @default(1)
   message           String?
   errorMessage      String?
@@ -5026,9 +5027,9 @@ model BillingRefundReconciliationEvent {
   @@index([refundId])
   @@index([status])
   @@index([source])
-  @@index([razorpayRefundId])
-  @@index([razorpayPaymentId])
-  @@index([razorpayStatus])
+  @@index([cashfreeRefundId])
+  @@index([cashfreePaymentId])
+  @@index([cashfreeStatus])
   @@index([createdAt])
 }
 
@@ -5402,4 +5403,3 @@ model LeadScoringConfig {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-

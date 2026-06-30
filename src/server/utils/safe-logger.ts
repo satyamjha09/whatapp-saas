@@ -22,7 +22,7 @@ const SENSITIVE_KEYWORDS = [
   "private",
   "signature",
   "webhook_secret",
-  "razorpay_key_secret",
+  "cashfree_client_secret",
   "meta_app_secret",
   "encryption_key",
 ];

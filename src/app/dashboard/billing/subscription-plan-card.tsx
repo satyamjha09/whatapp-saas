@@ -9,44 +9,39 @@ import {
   formatPlanPrice,
 } from "@/server/config/billing-plans";
 
-type RazorpayResponse = {
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
+type CashfreeCheckoutResult = {
+  error?: { message?: string };
+  paymentDetails?: unknown;
+  redirect?: boolean;
 };
 
-type RazorpayOptions = {
-  key: string;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  order_id: string;
-  handler: (response: RazorpayResponse) => Promise<void>;
-  theme: { color: string };
-  modal: { ondismiss: () => void };
+type CashfreeInstance = {
+  checkout: (options: {
+    paymentSessionId: string;
+    redirectTarget?: "_modal" | "_self" | "_blank";
+  }) => Promise<CashfreeCheckoutResult>;
 };
 
 declare global {
   interface Window {
-    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
+    Cashfree?: (options: { mode: "production" | "sandbox" }) => CashfreeInstance;
   }
 }
 
-function loadRazorpayScript() {
+function loadCashfreeScript() {
   return new Promise<boolean>((resolve) => {
     const existing = document.querySelector<HTMLScriptElement>(
-      'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
+      'script[src="https://sdk.cashfree.com/js/v3/cashfree.js"]',
     );
 
     if (existing) {
-      if (window.Razorpay) resolve(true);
+      if (window.Cashfree) resolve(true);
       else existing.addEventListener("load", () => resolve(true), { once: true });
       return;
     }
 
     const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
     script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
@@ -97,15 +92,15 @@ export default function SubscriptionPlanCard({
   }
 
   async function payForPlan() {
-    if (!window.confirm(`Continue to Razorpay for ${plan.name} at ${formatPlanPrice(plan.monthlyPricePaise)}?`)) return;
+    if (!window.confirm(`Continue to Cashfree for ${plan.name} at ${formatPlanPrice(plan.monthlyPricePaise)}?`)) return;
 
     setError("");
     setIsChanging(true);
     try {
-      const loaded = await loadRazorpayScript();
-      if (!loaded || !window.Razorpay) throw new Error("Unable to load Razorpay Checkout.");
+      const loaded = await loadCashfreeScript();
+      if (!loaded || !window.Cashfree) throw new Error("Unable to load Cashfree Checkout.");
 
-      const orderResponse = await fetch("/api/billing/subscription/razorpay/create-order", {
+      const orderResponse = await fetch("/api/billing/subscription/cashfree/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan: plan.id }),
@@ -113,48 +108,42 @@ export default function SubscriptionPlanCard({
       const orderData = (await orderResponse.json()) as {
         message: string;
         result?: {
-          keyId: string;
-          order: { id: string; amount: number; currency: string };
+          checkoutMode: "production" | "sandbox";
+          order: {
+            id: string;
+            amount: number;
+            currency: string;
+            paymentSessionId: string;
+          };
         };
       };
 
       if (!orderResponse.ok || !orderData.result) throw new Error(orderData.message);
 
-      const checkout = new window.Razorpay({
-        key: orderData.result.keyId,
-        amount: orderData.result.order.amount,
-        currency: orderData.result.order.currency,
-        name: "TallyKonnect",
-        description: `${plan.name} monthly subscription`,
-        order_id: orderData.result.order.id,
-        theme: { color: "#0052CC" },
-        modal: { ondismiss: () => setIsChanging(false) },
-        handler: async (payment) => {
-          try {
-            const verifyResponse = await fetch("/api/billing/subscription/razorpay/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpayOrderId: payment.razorpay_order_id,
-                razorpayPaymentId: payment.razorpay_payment_id,
-                razorpaySignature: payment.razorpay_signature,
-              }),
-            });
-            const verifyData = (await verifyResponse.json()) as { message: string };
-
-            if (!verifyResponse.ok) throw new Error(verifyData.message);
-            router.refresh();
-          } catch (caughtError) {
-            setError(caughtError instanceof Error ? caughtError.message : "Unable to verify payment.");
-          } finally {
-            setIsChanging(false);
-          }
-        },
+      const cashfree = window.Cashfree({ mode: orderData.result.checkoutMode });
+      const checkoutResult = await cashfree.checkout({
+        paymentSessionId: orderData.result.order.paymentSessionId,
+        redirectTarget: "_modal",
       });
 
-      checkout.open();
+      if (checkoutResult.error) {
+        throw new Error(checkoutResult.error.message ?? "Cashfree payment failed.");
+      }
+
+      const verifyResponse = await fetch("/api/billing/subscription/cashfree/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cashfreeOrderId: orderData.result.order.id,
+        }),
+      });
+      const verifyData = (await verifyResponse.json()) as { message: string };
+
+      if (!verifyResponse.ok) throw new Error(verifyData.message);
+      router.refresh();
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to start payment.");
+    } finally {
       setIsChanging(false);
     }
   }

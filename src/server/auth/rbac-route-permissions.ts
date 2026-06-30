@@ -17,7 +17,7 @@ export const RBAC_ROUTE_PERMISSION_RULES: RbacRoutePermissionRule[] = [
   { id: "billing-plan-checkouts-reconcile", method: "POST", pattern: /^\/api\/billing\/plan-checkouts\/reconcile$/, permission: "BILLING_MANAGE", description: "Reconcile plan checkout state" },
   { id: "billing-manual-reviews", method: "*", pattern: /^\/api\/billing\/ops\/manual-reviews(?:\/[^/]+\/(?:approve|reject))?$/, permission: "BILLING_MANAGE", description: "Review manual billing checkouts" },
   { id: "billing-refunds", method: "*", pattern: /^\/api\/billing\/refunds(?:\/reconcile)?$/, permission: "BILLING_MANAGE", description: "Manage billing refunds" },
-  { id: "billing-subscription", method: "POST", pattern: /^\/api\/billing\/subscription\/(?:cancel|change-plan|check-expiry|free|resume|razorpay\/create-order|razorpay\/verify)$/, permission: "BILLING_MANAGE", description: "Manage subscription lifecycle" },
+  { id: "billing-subscription", method: "POST", pattern: /^\/api\/billing\/subscription\/(?:cancel|change-plan|check-expiry|free|resume|cashfree\/(?:create-order|verify))$/, permission: "BILLING_MANAGE", description: "Manage subscription lifecycle" },
   { id: "billing-usage-quota-alerts", method: "POST", pattern: /^\/api\/billing\/usage-quota-alerts(?:\/scan|\/[^/]+\/(?:acknowledge|resolve))$/, permission: "BILLING_MANAGE", description: "Manage usage quota alerts" },
   { id: "campaign-create", method: "POST", pattern: /^\/api\/campaigns$/, permission: "CAMPAIGN_CREATE", description: "Create campaign" },
   { id: "campaign-view", method: "GET", pattern: /^\/api\/campaigns$/, permission: "CAMPAIGN_VIEW", description: "View campaigns" },
@@ -81,7 +81,7 @@ export const RBAC_ROUTE_PERMISSION_RULES: RbacRoutePermissionRule[] = [
   { id: "team-member-manage", method: "*", pattern: /^\/api\/team\/(?:members\/[^/]+|[^/]+\/role)$/, permission: "TEAM_MANAGE_ROLES", description: "Manage team members" },
   { id: "public-api-message-send", method: "POST", pattern: /^\/api\/public\/messages\/send-template$/, permission: null, description: "Public API key scoped message send" },
   { id: "dev-whatsapp-bulk-test", method: "POST", pattern: /^\/api\/dev\/whatsapp-bulk-test$/, permission: null, description: "Developer-only WhatsApp bulk test endpoint" },
-  { id: "provider-webhooks", method: "*", pattern: /^\/api\/webhooks\/(?:razorpay|whatsapp)$/, permission: null, description: "Provider webhook ingestion endpoints" },
+  { id: "provider-webhooks", method: "*", pattern: /^\/api\/webhooks\/(?:cashfree|whatsapp)$/, permission: null, description: "Provider webhook ingestion endpoints" },
 ];
 
 export function getRequiredPermissionForRoute({

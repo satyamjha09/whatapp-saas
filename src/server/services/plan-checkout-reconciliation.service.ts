@@ -1,9 +1,9 @@
-import axios from "axios";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   completePlanCheckout,
 } from "@/server/services/plan-upgrade.service";
+import { fetchCashfreePaymentsForOrder } from "@/server/services/cashfree-payment.service";
 import { createCompanyNotification } from "@/server/services/company-notification.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 
@@ -20,27 +20,13 @@ function safeJson(value: unknown): Prisma.InputJsonValue {
   return redactSensitiveData(value) as Prisma.InputJsonValue;
 }
 
-function razorpayAuth() {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-  if (!keyId || !keySecret) {
-    throw new Error("Razorpay credentials are not configured.");
-  }
-
-  return {
-    username: keyId,
-    password: keySecret,
-  };
-}
-
 async function createReconciliationEvent({
   companyId,
   checkoutId,
   status,
   source,
-  razorpayOrderId,
-  razorpayPaymentId,
+  cashfreeOrderId,
+  cashfreePaymentId,
   attemptNumber,
   message,
   errorMessage,
@@ -50,8 +36,8 @@ async function createReconciliationEvent({
   checkoutId: string;
   status: "PENDING" | "COMPLETED" | "FAILED" | "EXPIRED" | "SKIPPED";
   source: string;
-  razorpayOrderId?: string | null;
-  razorpayPaymentId?: string | null;
+  cashfreeOrderId?: string | null;
+  cashfreePaymentId?: string | null;
   attemptNumber?: number;
   message?: string | null;
   errorMessage?: string | null;
@@ -63,8 +49,8 @@ async function createReconciliationEvent({
       checkoutId,
       status,
       source,
-      razorpayOrderId: razorpayOrderId ?? null,
-      razorpayPaymentId: razorpayPaymentId ?? null,
+      cashfreeOrderId: cashfreeOrderId ?? null,
+      cashfreePaymentId: cashfreePaymentId ?? null,
       attemptNumber: attemptNumber ?? 1,
       message: message ?? null,
       errorMessage: errorMessage ?? null,
@@ -74,14 +60,16 @@ async function createReconciliationEvent({
 }
 
 export async function completePlanCheckoutFromWebhook({
-  razorpayOrderId,
-  razorpayPaymentId,
-  razorpaySignature,
+  cashfreeOrderId,
+  cashfreePaymentId,
+  amountPaise,
+  currency,
   payload,
 }: {
-  razorpayOrderId: string;
-  razorpayPaymentId: string;
-  razorpaySignature: string;
+  cashfreeOrderId: string;
+  cashfreePaymentId: string;
+  amountPaise?: number;
+  currency?: string;
   payload?: unknown;
 }) {
   if (!isEnabled()) {
@@ -93,14 +81,14 @@ export async function completePlanCheckoutFromWebhook({
 
   const checkout = await prisma.planCheckout.findFirst({
     where: {
-      razorpayOrderId,
+      cashfreeOrderId: cashfreeOrderId,
     },
   });
 
   if (!checkout) {
     return {
       skipped: true,
-      reason: "No plan checkout found for Razorpay order",
+      reason: "No plan checkout found for Cashfree order",
     };
   }
 
@@ -109,9 +97,9 @@ export async function completePlanCheckoutFromWebhook({
       companyId: checkout.companyId,
       checkoutId: checkout.id,
       status: "SKIPPED",
-      source: "razorpay-webhook",
-      razorpayOrderId,
-      razorpayPaymentId,
+      source: "cashfree-webhook",
+      cashfreeOrderId: cashfreeOrderId,
+      cashfreePaymentId: cashfreePaymentId,
       message: "Checkout already paid",
       metadata: payload,
     });
@@ -128,9 +116,10 @@ export async function completePlanCheckoutFromWebhook({
       companyId: checkout.companyId,
       checkoutId: checkout.id,
       actorUserId: null,
-      razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature,
+      cashfreeOrderId,
+      cashfreePaymentId,
+      amountPaise,
+      currency,
     });
 
     await prisma.planCheckout.update({
@@ -148,10 +137,10 @@ export async function completePlanCheckoutFromWebhook({
       companyId: checkout.companyId,
       checkoutId: checkout.id,
       status: "COMPLETED",
-      source: "razorpay-webhook",
-      razorpayOrderId,
-      razorpayPaymentId,
-      message: "Checkout completed from Razorpay webhook",
+      source: "cashfree-webhook",
+      cashfreeOrderId: cashfreeOrderId,
+      cashfreePaymentId: cashfreePaymentId,
+      message: "Checkout completed from Cashfree webhook",
       metadata: payload,
     });
 
@@ -175,9 +164,9 @@ export async function completePlanCheckoutFromWebhook({
       companyId: checkout.companyId,
       checkoutId: checkout.id,
       status: "FAILED",
-      source: "razorpay-webhook",
-      razorpayOrderId,
-      razorpayPaymentId,
+      source: "cashfree-webhook",
+      cashfreeOrderId: cashfreeOrderId,
+      cashfreePaymentId: cashfreePaymentId,
       errorMessage:
         error instanceof Error ? error.message : "Unknown webhook reconciliation error",
       metadata: payload,
@@ -185,25 +174,6 @@ export async function completePlanCheckoutFromWebhook({
 
     throw error;
   }
-}
-
-async function fetchRazorpayPaymentsForOrder(orderId: string) {
-  const response = await axios.get(
-    `https://api.razorpay.com/v1/orders/${orderId}/payments`,
-    {
-      auth: razorpayAuth(),
-    },
-  );
-
-  return response.data as {
-    items: Array<{
-      id: string;
-      status: string;
-      captured: boolean;
-      amount: number;
-      order_id: string;
-    }>;
-  };
 }
 
 export async function reconcileSinglePlanCheckout({
@@ -225,8 +195,8 @@ export async function reconcileSinglePlanCheckout({
       checkoutId: checkout.id,
       status: "SKIPPED",
       source: "scheduled-scan",
-      razorpayOrderId: checkout.razorpayOrderId,
-      razorpayPaymentId: checkout.razorpayPaymentId,
+      cashfreeOrderId: checkout.cashfreeOrderId,
+      cashfreePaymentId: checkout.cashfreePaymentId,
       message: `Checkout is ${checkout.status}`,
     });
 
@@ -250,7 +220,7 @@ export async function reconcileSinglePlanCheckout({
       checkoutId: checkout.id,
       status: "EXPIRED",
       source: "scheduled-scan",
-      razorpayOrderId: checkout.razorpayOrderId,
+      cashfreeOrderId: checkout.cashfreeOrderId,
       message: "Checkout expired",
     });
 
@@ -260,7 +230,7 @@ export async function reconcileSinglePlanCheckout({
     };
   }
 
-  if (!checkout.razorpayOrderId) {
+  if (!checkout.cashfreeOrderId) {
     return null;
   }
 
@@ -270,7 +240,7 @@ export async function reconcileSinglePlanCheckout({
       checkoutId: checkout.id,
       status: "SKIPPED",
       source: "scheduled-scan",
-      razorpayOrderId: checkout.razorpayOrderId,
+      cashfreeOrderId: checkout.cashfreeOrderId,
       message: "Max reconciliation attempts reached",
     });
 
@@ -278,13 +248,14 @@ export async function reconcileSinglePlanCheckout({
   }
 
   try {
-    const payments = await fetchRazorpayPaymentsForOrder(checkout.razorpayOrderId);
+    const payments = await fetchCashfreePaymentsForOrder(checkout.cashfreeOrderId);
 
-    const paidPayment = payments.items.find(
+    const paidPayment = payments.find(
       (payment) =>
-        payment.order_id === checkout.razorpayOrderId &&
-        payment.amount === checkout.amountPaise &&
-        (payment.status === "captured" || payment.captured),
+        payment.order_id === checkout.cashfreeOrderId &&
+        payment.payment_amount !== undefined &&
+        Math.round(payment.payment_amount * 100) === checkout.amountPaise &&
+        payment.payment_status?.toUpperCase() === "SUCCESS",
     );
 
     if (!paidPayment) {
@@ -305,9 +276,9 @@ export async function reconcileSinglePlanCheckout({
         checkoutId: checkout.id,
         status: "PENDING",
         source: "scheduled-scan",
-        razorpayOrderId: checkout.razorpayOrderId,
+        cashfreeOrderId: checkout.cashfreeOrderId,
         attemptNumber: checkout.reconciliationAttempts + 1,
-        message: "No captured payment found yet",
+        message: "No successful Cashfree payment found yet",
         metadata: payments,
       });
 
@@ -324,15 +295,18 @@ export async function reconcileSinglePlanCheckout({
       data: {
         status: "MANUAL_REVIEW",
         manualReviewReason:
-          "Captured Razorpay payment found but trusted checkout signature is unavailable.",
+          "Successful Cashfree payment found during scheduled reconciliation; manual review is required before updating the plan.",
         manualReviewOpenedAt: new Date(),
-        razorpayPaymentId: paidPayment.id,
+        cashfreePaymentId:
+          paidPayment.cf_payment_id !== undefined
+            ? String(paidPayment.cf_payment_id)
+            : null,
         reconciliationAttempts: {
           increment: 1,
         },
         lastReconciliationAt: new Date(),
         lastReconciliationError:
-          "Captured payment found, but frontend signature is unavailable. Manual verification required.",
+          "Successful payment found during scheduled scan. Manual verification required.",
       },
     });
 
@@ -341,12 +315,15 @@ export async function reconcileSinglePlanCheckout({
       checkoutId: checkout.id,
       status: "FAILED",
       source: "scheduled-scan",
-      razorpayOrderId: checkout.razorpayOrderId,
-      razorpayPaymentId: paidPayment.id,
+      cashfreeOrderId: checkout.cashfreeOrderId,
+      cashfreePaymentId:
+        paidPayment.cf_payment_id !== undefined
+          ? String(paidPayment.cf_payment_id)
+          : null,
       attemptNumber: checkout.reconciliationAttempts + 1,
-      message: "Captured payment found without signature",
+      message: "Successful Cashfree payment found during scheduled scan",
       errorMessage:
-        "Manual verification required because scheduled scan cannot verify checkout signature.",
+        "Manual verification required before updating the plan.",
       metadata: paidPayment,
     });
 
@@ -361,15 +338,21 @@ export async function reconcileSinglePlanCheckout({
       idempotencyKey: `plan-checkout-manual-review:${checkout.id}`,
       metadata: {
         checkoutId: checkout.id,
-        razorpayOrderId: checkout.razorpayOrderId,
-        razorpayPaymentId: paidPayment.id,
+        cashfreeOrderId: checkout.cashfreeOrderId,
+        cashfreePaymentId:
+          paidPayment.cf_payment_id !== undefined
+            ? String(paidPayment.cf_payment_id)
+            : null,
       },
     }).catch(() => undefined);
 
     return {
       manualReview: true,
       checkoutId: checkout.id,
-      paymentId: paidPayment.id,
+      paymentId:
+        paidPayment.cf_payment_id !== undefined
+          ? String(paidPayment.cf_payment_id)
+          : null,
     };
   } catch (error) {
     await prisma.planCheckout.update({
@@ -391,7 +374,7 @@ export async function reconcileSinglePlanCheckout({
       checkoutId: checkout.id,
       status: "FAILED",
       source: "scheduled-scan",
-      razorpayOrderId: checkout.razorpayOrderId,
+      cashfreeOrderId: checkout.cashfreeOrderId,
       attemptNumber: checkout.reconciliationAttempts + 1,
       errorMessage:
         error instanceof Error ? error.message : "Unknown reconciliation error",
@@ -490,7 +473,7 @@ export async function getPlanCheckoutReconciliationHealth() {
         where: {
           status: "FAILED",
           message: {
-            contains: "Captured payment found",
+            contains: "Successful Cashfree payment found",
           },
           createdAt: {
             gte: new Date(Date.now() - 24 * 60 * 60 * 1000),

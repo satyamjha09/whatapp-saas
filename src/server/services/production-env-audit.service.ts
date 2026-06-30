@@ -158,27 +158,28 @@ export function getProductionEnvAudit() {
     required: true,
   });
 
-  const razorpayValues = [
-    process.env.RAZORPAY_KEY_ID,
-    process.env.RAZORPAY_KEY_SECRET,
-    process.env.RAZORPAY_WEBHOOK_SECRET,
+  const cashfreeValues = [
+    process.env.CASHFREE_CLIENT_ID,
+    process.env.CASHFREE_CLIENT_SECRET,
+    process.env.CASHFREE_API_VERSION,
+    process.env.CASHFREE_ENV,
   ];
 
-  const razorpayConfiguredCount = razorpayValues.filter(exists).length;
+  const cashfreeConfiguredCount = cashfreeValues.filter(exists).length;
 
   items.push({
-    id: "razorpay-complete-config",
-    title: "Razorpay config completeness",
+    id: "cashfree-complete-config",
+    title: "Cashfree config completeness",
     severity:
-      razorpayConfiguredCount === 0 || razorpayConfiguredCount === 3
+      cashfreeConfiguredCount === 0 || cashfreeConfiguredCount === 4
         ? "PASS"
         : "FAIL",
     message:
-      razorpayConfiguredCount === 0
-        ? "Razorpay is not configured"
-        : razorpayConfiguredCount === 3
-          ? "Razorpay checkout and webhook secrets are configured"
-          : "Razorpay is partially configured. Set key ID, key secret, and webhook secret together.",
+      cashfreeConfiguredCount === 0
+        ? "Cashfree is not configured"
+        : cashfreeConfiguredCount === 4
+          ? "Cashfree checkout and webhook credentials are configured"
+          : "Cashfree is partially configured. Set client ID, client secret, API version, and environment together.",
     required: true,
   });
 
@@ -542,12 +543,12 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
-    id: "razorpay-webhook-secret-configured",
-    title: "Razorpay webhook secret configured",
-    severity: exists(process.env.RAZORPAY_WEBHOOK_SECRET) ? "PASS" : "FAIL",
-    message: exists(process.env.RAZORPAY_WEBHOOK_SECRET)
-      ? "RAZORPAY_WEBHOOK_SECRET is configured"
-      : "RAZORPAY_WEBHOOK_SECRET is required to verify payment webhook signatures",
+    id: "cashfree-client-secret-configured",
+    title: "Cashfree client secret configured",
+    severity: exists(process.env.CASHFREE_CLIENT_SECRET) ? "PASS" : "FAIL",
+    message: exists(process.env.CASHFREE_CLIENT_SECRET)
+      ? "CASHFREE_CLIENT_SECRET is configured"
+      : "CASHFREE_CLIENT_SECRET is required to verify payment webhook signatures",
     required: true,
   });
 
@@ -1187,18 +1188,18 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
-    id: "plan-upgrade-razorpay-configured",
-    title: "Plan upgrade Razorpay credentials configured",
+    id: "plan-upgrade-cashfree-configured",
+    title: "Plan upgrade Cashfree credentials configured",
     severity:
-      exists(process.env.RAZORPAY_KEY_ID) &&
-      exists(process.env.RAZORPAY_KEY_SECRET)
+      exists(process.env.CASHFREE_CLIENT_ID) &&
+      exists(process.env.CASHFREE_CLIENT_SECRET)
         ? "PASS"
         : "FAIL",
     message:
-      exists(process.env.RAZORPAY_KEY_ID) &&
-      exists(process.env.RAZORPAY_KEY_SECRET)
-        ? "Razorpay credentials are configured"
-        : "RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are required",
+      exists(process.env.CASHFREE_CLIENT_ID) &&
+      exists(process.env.CASHFREE_CLIENT_SECRET)
+        ? "Cashfree credentials are configured"
+        : "CASHFREE_CLIENT_ID and CASHFREE_CLIENT_SECRET are required",
     required: true,
   });
 

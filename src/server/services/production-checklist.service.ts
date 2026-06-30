@@ -3,8 +3,7 @@ import {
   type ProductionChecklistItem,
 } from "@/lib/production-checklist";
 import { prisma } from "@/lib/prisma";
-import { isRazorpayWebhookConfigured } from "@/server/services/razorpay-credit.service";
-import { isRazorpayCheckoutConfigured } from "@/server/services/razorpay-subscription.service";
+import { isCashfreeCheckoutConfigured } from "@/server/services/cashfree-payment.service";
 import type { UpdateProductionChecklistSettingsInput } from "@/server/validators/production-checklist.validator";
 
 function buildItem(input: ProductionChecklistItem): ProductionChecklistItem {
@@ -239,12 +238,12 @@ export async function getProductionChecklistByCompany(companyId: string) {
           actionHref: "/dashboard/billing",
         }),
         buildItem({
-          id: "razorpay-webhook",
-          title: "Razorpay webhook backup enabled",
-          description: isRazorpayWebhookConfigured()
-            ? "Signed Razorpay events are processed idempotently for credit purchases and subscription upgrades."
-            : "Configure the Razorpay webhook secret before accepting payments.",
-          status: isRazorpayWebhookConfigured() ? "complete" : "pending",
+          id: "cashfree-webhook",
+          title: "Cashfree webhook backup enabled",
+          description: isCashfreeCheckoutConfigured()
+            ? "Signed Cashfree events are processed idempotently for subscription upgrades."
+            : "Configure the Cashfree client ID and client secret before accepting payments.",
+          status: isCashfreeCheckoutConfigured() ? "complete" : "pending",
           required: true,
           actionLabel: "Open Credit Center",
           actionHref: "/dashboard/billing",
@@ -739,7 +738,7 @@ export async function getProductionChecklistByCompany(companyId: string) {
           id: "webhook-signature-verification",
           title: "Webhook signature verification enabled",
           description:
-            "Meta and Razorpay webhook payloads are verified using raw-body HMAC signatures, replay attempts are detected, and signature failures are logged as security events.",
+            "Meta and Cashfree webhook payloads are verified using raw-body HMAC signatures, replay attempts are detected, and signature failures are logged as security events.",
           status: "complete",
           required: true,
           actionLabel: "Open System Health",
@@ -749,7 +748,7 @@ export async function getProductionChecklistByCompany(companyId: string) {
           id: "provider-webhook-idempotency",
           title: "Provider webhook idempotency enabled",
           description:
-            "Meta and Razorpay webhook events are stored in an idempotency ledger so provider retries cannot duplicate messages, wallet credits, or subscription updates.",
+            "Meta and Cashfree webhook events are stored in an idempotency ledger so provider retries cannot duplicate messages, wallet credits, or subscription updates.",
           status: "complete",
           required: true,
           actionLabel: "Open System Health",
@@ -959,7 +958,7 @@ export async function getProductionChecklistByCompany(companyId: string) {
           id: "plan-upgrade-checkout",
           title: "Self-serve plan upgrade checkout enabled",
           description:
-            "Companies can upgrade plans using Razorpay checkout with server-side payment verification, plan change ledger, audit logs, and quota upgrade nudges.",
+            "Companies can upgrade plans using Cashfree checkout with server-side payment verification, plan change ledger, audit logs, and quota upgrade nudges.",
           status: "complete",
           required: true,
           actionLabel: "Open Upgrade Plan",
@@ -1019,7 +1018,7 @@ export async function getProductionChecklistByCompany(companyId: string) {
           id: "billing-refunds-credit-notes",
           title: "Billing refunds and credit notes enabled",
           description:
-            "Admins can create full or partial refunds with Razorpay, credit notes, audit logs, notifications, and downgrade-on-full-refund safety.",
+            "Admins can create full or partial refunds with Cashfree, credit notes, audit logs, notifications, and downgrade-on-full-refund safety.",
           status: "complete",
           required: true,
           actionLabel: "Open Refunds",
@@ -1028,7 +1027,7 @@ export async function getProductionChecklistByCompany(companyId: string) {
         buildItem({
           id: "billing-refund-reconciliation",
           title: "Billing refund reconciliation enabled",
-          description: "Refund status is reconciled through Razorpay webhooks and scheduled polling, with stale refund detection, failed refund alerts, and credit note status sync.",
+          description: "Refund status is reconciled through Cashfree webhooks and scheduled polling, with stale refund detection, failed refund alerts, and credit note status sync.",
           status: "complete",
           required: true,
           actionLabel: "Open Refunds",
@@ -1127,10 +1126,10 @@ export async function getProductionChecklistByCompany(companyId: string) {
         buildItem({
           id: "paid-plan-upgrade",
           title: "Paid plan upgrade enabled",
-          description: isRazorpayCheckoutConfigured()
-            ? "Paid plans activate only after Razorpay payment verification."
-            : "Configure the Razorpay key ID and key secret before accepting plan payments.",
-          status: isRazorpayCheckoutConfigured() ? "complete" : "pending",
+          description: isCashfreeCheckoutConfigured()
+            ? "Paid plans activate only after Cashfree payment verification."
+            : "Configure the Cashfree client ID and client secret before accepting plan payments.",
+          status: isCashfreeCheckoutConfigured() ? "complete" : "pending",
           required: true,
           actionLabel: "Open Billing",
           actionHref: "/dashboard/billing",
@@ -1138,10 +1137,10 @@ export async function getProductionChecklistByCompany(companyId: string) {
         buildItem({
           id: "subscription-renewal-flow",
           title: "Subscription renewal flow enabled",
-          description: isRazorpayCheckoutConfigured()
-            ? "Past-due and expiring paid plans can renew through verified Razorpay checkout."
-            : "Configure Razorpay credentials to enable paid plan renewals.",
-          status: isRazorpayCheckoutConfigured() ? "complete" : "pending",
+          description: isCashfreeCheckoutConfigured()
+            ? "Past-due and expiring paid plans can renew through verified Cashfree checkout."
+            : "Configure Cashfree credentials to enable paid plan renewals.",
+          status: isCashfreeCheckoutConfigured() ? "complete" : "pending",
           required: true,
           actionLabel: "Open Billing",
           actionHref: "/dashboard/billing",

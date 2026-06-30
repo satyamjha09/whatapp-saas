@@ -30,10 +30,10 @@ PLAN_UPGRADE_CANCEL_REDIRECT="/dashboard/billing/usage-quotas"
 
 User clicks Upgrade.
 System creates a PlanCheckout.
-Razorpay order is created.
-User pays in Razorpay Checkout.
-Frontend sends payment ID, order ID, and signature to the verify API.
-Signature is verified server-side.
+Cashfree order is created.
+User pays in Cashfree Checkout.
+Frontend sends the Cashfree order ID to the verify API.
+Payment state is verified server-side with Cashfree.
 Company plan is updated.
 Plan change ledger is created.
 Audit log is created.
@@ -41,6 +41,6 @@ Audit log is created.
 ## Safety
 
 Never trust frontend payment success alone.
-Always verify Razorpay signature server-side.
+Always verify Cashfree payment state server-side.
 Store checkout and plan change history.
 Update company plan only after verification.

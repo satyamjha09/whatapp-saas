@@ -1,0 +1,1 @@
+ALTER TYPE "ProviderWebhookProvider" ADD VALUE IF NOT EXISTS 'CASHFREE';

@@ -60,7 +60,7 @@ function hasGuard(content: string) {
     content.includes("getCurrentWorkspaceContext") ||
     content.includes("authenticatePublicApiRequest") ||
     content.includes("verifyMetaWebhookSignature") ||
-    content.includes("verifyRazorpayWebhookSignature")
+    content.includes("verifyCashfreeWebhookSignature")
   );
 }
 

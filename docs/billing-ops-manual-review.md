@@ -15,9 +15,9 @@ BILLING_OPS_MAX_PENDING_REVIEW_AGE_HOURS="72"
 `/dashboard/billing/ops`
 
 ## When to approve
-Only approve after matching all of these in Razorpay Dashboard:
-* Razorpay order ID
-* Razorpay payment ID
+Only approve after matching all of these in Cashfree Dashboard:
+* Cashfree order ID
+* Cashfree payment ID
 * captured status
 * amount
 * currency

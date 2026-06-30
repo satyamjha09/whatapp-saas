@@ -86,8 +86,8 @@ export default async function BillingInvoicePage({ params }: PageProps) {
         <div className="mt-8 grid gap-2 text-sm text-gray-700">
           <p>Issued: {invoice.issuedAt?.toLocaleString() ?? "-"}</p>
           <p>Paid: {invoice.paidAt?.toLocaleString() ?? "-"}</p>
-          {invoice.razorpayPaymentId && (
-            <p>Payment ID: {invoice.razorpayPaymentId}</p>
+          {invoice.cashfreePaymentId && (
+            <p>Payment ID: {invoice.cashfreePaymentId}</p>
           )}
         </div>
 

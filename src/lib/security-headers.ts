@@ -43,11 +43,11 @@ function directive(name: string, values: string[]) {
 export function buildContentSecurityPolicy() {
   const scriptSrc = [
     "'self'",
-    /* Next.js/Clerk/Razorpay may need inline bootstrap scripts. Keep CSP in report-only first. Tighten later after checking reports. */
+    /* Next.js/Clerk/Cashfree may need inline bootstrap scripts. Keep CSP in report-only first. Tighten later after checking reports. */
     "'unsafe-inline'",
     ...(isProduction() ? [] : ["'unsafe-eval'"]),
-    "https://checkout.razorpay.com",
-    "https://*.razorpay.com",
+    "https://sdk.cashfree.com",
+    "https://*.cashfree.com",
     "https://*.clerk.accounts.dev",
     "https://*.clerk.com",
     "https://connect.facebook.net",
@@ -60,17 +60,19 @@ export function buildContentSecurityPolicy() {
     "https://*.clerk.accounts.dev",
     "https://*.clerk.com",
     "https://clerk-telemetry.com",
-    "https://api.razorpay.com",
-    "https://*.razorpay.com",
+    "https://api.cashfree.com",
+    "https://sandbox.cashfree.com",
+    "https://*.cashfree.com",
     "https://graph.facebook.com",
     "https://www.facebook.com",
     ...parseCsv(process.env.SECURITY_EXTRA_CONNECT_SRC),
   ];
 
   const frameSrc = [
-    "https://checkout.razorpay.com",
-    "https://api.razorpay.com",
-    "https://*.razorpay.com",
+    "https://sdk.cashfree.com",
+    "https://api.cashfree.com",
+    "https://sandbox.cashfree.com",
+    "https://*.cashfree.com",
     "https://*.clerk.accounts.dev",
     "https://*.clerk.com",
     "https://www.facebook.com",

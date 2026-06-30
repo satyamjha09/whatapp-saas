@@ -8,9 +8,7 @@ import {
 import { createAuthorizationErrorResponse } from "@/server/utils/api-authorization-error";
 
 const VerifyCheckoutSchema = z.object({
-  razorpayOrderId: z.string().min(1),
-  razorpayPaymentId: z.string().min(1),
-  razorpaySignature: z.string().min(1),
+  cashfreeOrderId: z.string().min(1),
 });
 
 type RouteContext = {
@@ -37,9 +35,7 @@ export async function POST(request: Request, context: RouteContext) {
       companyId: workspace.membership.companyId,
       checkoutId,
       actorUserId: workspace.user.id,
-      razorpayOrderId: body.razorpayOrderId,
-      razorpayPaymentId: body.razorpayPaymentId,
-      razorpaySignature: body.razorpaySignature,
+      cashfreeOrderId: body.cashfreeOrderId,
     });
 
     return NextResponse.json({

@@ -18,7 +18,7 @@ export class WebhookReplayError extends Error {
   }
 }
 
-type WebhookProvider = "META" | "RAZORPAY";
+type WebhookProvider = "META" | "CASHFREE";
 
 function isVerificationEnabled() {
   return process.env.WEBHOOK_SIGNATURE_VERIFICATION_ENABLED !== "false";
@@ -64,36 +64,6 @@ export function verifyMetaWebhookSignature({
 
   if (!timingSafeEqualString(expected, signatureHeader)) {
     throw new WebhookSignatureError("Invalid Meta webhook signature");
-  }
-
-  return true;
-}
-
-export function verifyRazorpayWebhookSignature({
-  rawBody,
-  signatureHeader,
-  webhookSecret,
-}: {
-  rawBody: string;
-  signatureHeader: string | null;
-  webhookSecret: string | undefined;
-}) {
-  if (!isVerificationEnabled()) {
-    return true;
-  }
-
-  if (!webhookSecret) {
-    throw new WebhookSignatureError("RAZORPAY_WEBHOOK_SECRET is not configured");
-  }
-
-  if (!signatureHeader) {
-    throw new WebhookSignatureError("Missing x-razorpay-signature header");
-  }
-
-  const expected = hmacSha256Hex(webhookSecret, rawBody);
-
-  if (!timingSafeEqualString(expected, signatureHeader)) {
-    throw new WebhookSignatureError("Invalid Razorpay webhook signature");
   }
 
   return true;
@@ -196,9 +166,9 @@ export function getWebhookSignatureHealth() {
       configured: Boolean(process.env.META_APP_SECRET),
       header: "x-hub-signature-256",
     },
-    razorpay: {
-      configured: Boolean(process.env.RAZORPAY_WEBHOOK_SECRET),
-      header: "x-razorpay-signature",
+    cashfree: {
+      configured: Boolean(process.env.CASHFREE_CLIENT_SECRET),
+      header: "x-webhook-signature",
     },
   };
 }

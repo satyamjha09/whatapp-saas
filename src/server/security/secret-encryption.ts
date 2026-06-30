@@ -7,7 +7,6 @@ const SECRET_VERSION = "v2";
 export type SecretPurpose =
   | "whatsapp_access_token"
   | "developer_webhook_signing_secret"
-  | "razorpay_signature"
   | "generic_secret";
 
 type Keyring = Record<string, Buffer>;

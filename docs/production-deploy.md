@@ -147,7 +147,7 @@ The doctor checks:
 - healthcheck token strength
 - suspicious NEXT_PUBLIC_* secret leakage
 - dummy-looking production secrets
-- Razorpay completeness
+- Cashfree completeness
 - SMTP completeness
 - database backup config
 - remote backup config

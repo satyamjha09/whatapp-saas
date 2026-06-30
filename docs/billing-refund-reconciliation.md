@@ -1,6 +1,6 @@
 # Billing Refund Reconciliation
 
-Refund reconciliation syncs local refund status with Razorpay refund webhooks and scheduled polling.
+Refund reconciliation syncs local refund status with Cashfree refund webhooks and scheduled polling.
 
 ## Environment
 
@@ -25,8 +25,8 @@ refund.failed
 
 ## Flow
 1. Admin creates refund.
-2. Refund is marked PROCESSING or PROCESSED based on Razorpay response.
-3. Razorpay webhook updates local refund status.
+2. Refund is marked PROCESSING or PROCESSED based on Cashfree response.
+3. Cashfree webhook updates local refund status.
 4. Scheduled worker reconciles pending refunds.
 5. Failed refund voids credit note and notifies billing admins.
 6. System Health shows stale or failed refund states.
@@ -35,4 +35,4 @@ refund.failed
 - Refund status updates are idempotent.
 - Failed refunds void related credit note.
 - Stale processing refunds appear in System Health.
-- Webhook processing uses existing Razorpay raw-body verification.
+- Webhook processing uses existing Cashfree raw-body verification.

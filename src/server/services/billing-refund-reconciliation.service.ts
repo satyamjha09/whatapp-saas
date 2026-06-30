@@ -1,9 +1,9 @@
-import axios from "axios";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createCompanyNotification } from "@/server/services/company-notification.service";
 import { createAuditLog } from "@/server/services/audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
+import { fetchCashfreeRefund } from "@/server/services/cashfree-payment.service";
 
 export class BillingRefundReconciliationError extends Error {
   constructor(message: string) {
@@ -34,26 +34,17 @@ function safeJson(value: unknown): Prisma.InputJsonValue {
   return redactSensitiveData(value) as Prisma.InputJsonValue;
 }
 
-function razorpayAuth() {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-  if (!keyId || !keySecret) {
-    throw new BillingRefundReconciliationError(
-      "Razorpay credentials are not configured.",
-    );
-  }
-
-  return {
-    username: keyId,
-    password: keySecret,
-  };
-}
-
 function normalizeRefundStatus(status?: string | null) {
-  const normalized = String(status ?? "").toLowerCase();
-  if (normalized === "processed") return "PROCESSED";
-  if (normalized === "failed") return "FAILED";
+  const normalized = String(status ?? "").toUpperCase();
+  if (normalized === "SUCCESS" || normalized === "PROCESSED") return "PROCESSED";
+  if (
+    normalized === "FAILED" ||
+    normalized === "FAILURE" ||
+    normalized === "CANCELLED" ||
+    normalized === "CANCELED"
+  ) {
+    return "FAILED";
+  }
   return "PENDING";
 }
 
@@ -62,9 +53,9 @@ async function createRefundReconciliationEvent({
   refundId,
   status,
   source,
-  razorpayRefundId,
-  razorpayPaymentId,
-  razorpayStatus,
+  cashfreeRefundId,
+  cashfreePaymentId,
+  cashfreeStatus,
   attemptNumber,
   message,
   errorMessage,
@@ -74,9 +65,9 @@ async function createRefundReconciliationEvent({
   refundId: string;
   status: "PENDING" | "PROCESSED" | "FAILED" | "SKIPPED";
   source: string;
-  razorpayRefundId?: string | null;
-  razorpayPaymentId?: string | null;
-  razorpayStatus?: string | null;
+  cashfreeRefundId?: string | null;
+  cashfreePaymentId?: string | null;
+  cashfreeStatus?: string | null;
   attemptNumber?: number;
   message?: string | null;
   errorMessage?: string | null;
@@ -88,9 +79,9 @@ async function createRefundReconciliationEvent({
       refundId,
       status,
       source,
-      razorpayRefundId: razorpayRefundId ?? null,
-      razorpayPaymentId: razorpayPaymentId ?? null,
-      razorpayStatus: razorpayStatus ?? null,
+      cashfreeRefundId: cashfreeRefundId ?? null,
+      cashfreePaymentId: cashfreePaymentId ?? null,
+      cashfreeStatus: cashfreeStatus ?? null,
       attemptNumber: attemptNumber ?? 1,
       message: message ?? null,
       errorMessage: errorMessage ?? null,
@@ -131,12 +122,12 @@ async function notifyRefundFailed({
 
 export async function applyRefundStatusUpdate({
   refundId,
-  razorpayStatus,
+  cashfreeStatus,
   source,
   payload,
 }: {
   refundId: string;
-  razorpayStatus: string;
+  cashfreeStatus: string;
   source: string;
   payload?: unknown;
 }) {
@@ -153,7 +144,7 @@ export async function applyRefundStatusUpdate({
     throw new BillingRefundReconciliationError("Refund not found.");
   }
 
-  const nextStatus = normalizeRefundStatus(razorpayStatus);
+  const nextStatus = normalizeRefundStatus(cashfreeStatus);
 
   if (refund.status === nextStatus) {
     await createRefundReconciliationEvent({
@@ -161,9 +152,9 @@ export async function applyRefundStatusUpdate({
       refundId: refund.id,
       status: "SKIPPED",
       source,
-      razorpayRefundId: refund.razorpayRefundId,
-      razorpayPaymentId: refund.razorpayPaymentId,
-      razorpayStatus,
+      cashfreeRefundId: refund.cashfreeRefundId,
+      cashfreePaymentId: refund.cashfreePaymentId,
+      cashfreeStatus,
       message: `Refund already ${nextStatus}`,
       metadata: payload,
     });
@@ -177,9 +168,9 @@ export async function applyRefundStatusUpdate({
       },
       data: {
         status: "PROCESSED",
-        razorpayStatus,
+        cashfreeStatus,
         processedAt: refund.processedAt ?? new Date(),
-        webhookProcessedAt: source === "razorpay-webhook" ? new Date() : refund.webhookProcessedAt,
+        webhookProcessedAt: source === "cashfree-webhook" ? new Date() : refund.webhookProcessedAt,
         lastReconciliationAt: new Date(),
         lastReconciliationError: null,
       },
@@ -190,9 +181,9 @@ export async function applyRefundStatusUpdate({
       refundId: refund.id,
       status: "PROCESSED",
       source,
-      razorpayRefundId: refund.razorpayRefundId,
-      razorpayPaymentId: refund.razorpayPaymentId,
-      razorpayStatus,
+      cashfreeRefundId: refund.cashfreeRefundId,
+      cashfreePaymentId: refund.cashfreePaymentId,
+      cashfreeStatus,
       message: "Refund marked processed.",
       metadata: payload,
     });
@@ -205,8 +196,8 @@ export async function applyRefundStatusUpdate({
       entityId: refund.id,
       metadata: {
         source,
-        razorpayRefundId: refund.razorpayRefundId,
-        razorpayPaymentId: refund.razorpayPaymentId,
+        cashfreeRefundId: refund.cashfreeRefundId,
+        cashfreePaymentId: refund.cashfreePaymentId,
       },
     }).catch(() => undefined);
 
@@ -220,12 +211,12 @@ export async function applyRefundStatusUpdate({
       },
       data: {
         status: "FAILED",
-        razorpayStatus,
+        cashfreeStatus,
         failedAt: new Date(),
-        failureReason: "Razorpay refund failed",
-        webhookProcessedAt: source === "razorpay-webhook" ? new Date() : refund.webhookProcessedAt,
+        failureReason: "Cashfree refund failed",
+        webhookProcessedAt: source === "cashfree-webhook" ? new Date() : refund.webhookProcessedAt,
         lastReconciliationAt: new Date(),
-        lastReconciliationError: "Razorpay refund failed",
+        lastReconciliationError: "Cashfree refund failed",
       },
     });
 
@@ -246,11 +237,11 @@ export async function applyRefundStatusUpdate({
       refundId: refund.id,
       status: "FAILED",
       source,
-      razorpayRefundId: refund.razorpayRefundId,
-      razorpayPaymentId: refund.razorpayPaymentId,
-      razorpayStatus,
+      cashfreeRefundId: refund.cashfreeRefundId,
+      cashfreePaymentId: refund.cashfreePaymentId,
+      cashfreeStatus,
       message: "Refund marked failed.",
-      errorMessage: "Razorpay refund failed",
+      errorMessage: "Cashfree refund failed",
       metadata: payload,
     });
 
@@ -258,7 +249,7 @@ export async function applyRefundStatusUpdate({
       companyId: refund.companyId,
       refundId: refund.id,
       amountPaise: refund.amountPaise,
-      reason: "Razorpay refund failed",
+      reason: "Cashfree refund failed",
     });
 
     await createAuditLog({
@@ -269,8 +260,8 @@ export async function applyRefundStatusUpdate({
       entityId: refund.id,
       metadata: {
         source,
-        razorpayRefundId: refund.razorpayRefundId,
-        razorpayPaymentId: refund.razorpayPaymentId,
+        cashfreeRefundId: refund.cashfreeRefundId,
+        cashfreePaymentId: refund.cashfreePaymentId,
       },
     }).catch(() => undefined);
 
@@ -283,7 +274,7 @@ export async function applyRefundStatusUpdate({
     },
     data: {
       status: "PROCESSING",
-      razorpayStatus,
+      cashfreeStatus,
       lastReconciliationAt: new Date(),
     },
   });
@@ -293,9 +284,9 @@ export async function applyRefundStatusUpdate({
     refundId: refund.id,
     status: "PENDING",
     source,
-    razorpayRefundId: refund.razorpayRefundId,
-    razorpayPaymentId: refund.razorpayPaymentId,
-    razorpayStatus,
+    cashfreeRefundId: refund.cashfreeRefundId,
+    cashfreePaymentId: refund.cashfreePaymentId,
+    cashfreeStatus,
     message: "Refund is still pending.",
     metadata: payload,
   });
@@ -303,14 +294,14 @@ export async function applyRefundStatusUpdate({
   return { refund: updatedRefund };
 }
 
-export interface RazorpayRefundWebhookPayload {
-  event?: string;
-  payload?: {
+export interface CashfreeRefundWebhookPayload {
+  type?: string;
+  data?: {
     refund?: {
-      entity?: {
-        id?: string;
-        status?: string;
-      };
+      cf_refund_id?: number | string;
+      refund_id?: string;
+      refund_status?: string;
+      order_id?: string;
     };
   };
 }
@@ -318,61 +309,43 @@ export interface RazorpayRefundWebhookPayload {
 export async function processRefundWebhookPayload({
   payload,
 }: {
-  payload: RazorpayRefundWebhookPayload;
+  payload: CashfreeRefundWebhookPayload;
 }) {
   if (!isEnabled()) {
     return { skipped: true, reason: "Billing refund reconciliation disabled" };
   }
 
-  const event = payload?.event;
-  const refundEntity = payload?.payload?.refund?.entity;
+  const refundEntity = payload?.data?.refund;
+  const refundId =
+    refundEntity?.refund_id ??
+    (refundEntity?.cf_refund_id !== undefined
+      ? String(refundEntity.cf_refund_id)
+      : undefined);
 
-  if (!refundEntity?.id) {
+  if (!refundEntity || !refundId) {
     return { skipped: true, reason: "No refund entity in payload" };
   }
 
   const refund = await prisma.billingRefund.findFirst({
     where: {
-      razorpayRefundId: refundEntity.id,
+      cashfreeRefundId: refundId,
     },
   });
 
   if (!refund) {
     return {
       skipped: true,
-      reason: "No local refund matched Razorpay refund id",
-      razorpayRefundId: refundEntity.id,
+      reason: "No local refund matched Cashfree refund id",
+      cashfreeRefundId: refundId,
     };
   }
 
-  const status = event === "refund.failed" ? "failed" : event === "refund.processed" ? "processed" : (refundEntity.status ?? "");
-
   return applyRefundStatusUpdate({
     refundId: refund.id,
-    razorpayStatus: status,
-    source: "razorpay-webhook",
+    cashfreeStatus: refundEntity.refund_status ?? "",
+    source: "cashfree-webhook",
     payload,
   });
-}
-
-async function fetchRazorpayRefund({
-  razorpayRefundId,
-}: {
-  razorpayRefundId: string;
-}) {
-  const response = await axios.get(
-    `https://api.razorpay.com/v1/refunds/${razorpayRefundId}`,
-    {
-      auth: razorpayAuth(),
-    },
-  );
-
-  return response.data as {
-    id: string;
-    payment_id: string;
-    amount: number;
-    status: string;
-  };
 }
 
 export async function reconcileSingleBillingRefund({
@@ -388,6 +361,13 @@ export async function reconcileSingleBillingRefund({
     where: {
       id: refundId,
     },
+    include: {
+      invoice: {
+        select: {
+          cashfreeOrderId: true,
+        },
+      },
+    },
   });
 
   if (!refund) return null;
@@ -398,22 +378,35 @@ export async function reconcileSingleBillingRefund({
       refundId: refund.id,
       status: "SKIPPED",
       source: "scheduled-scan",
-      razorpayRefundId: refund.razorpayRefundId,
-      razorpayPaymentId: refund.razorpayPaymentId,
-      razorpayStatus: refund.razorpayStatus,
+      cashfreeRefundId: refund.cashfreeRefundId,
+      cashfreePaymentId: refund.cashfreePaymentId,
+      cashfreeStatus: refund.cashfreeStatus,
       message: `Refund is ${refund.status}`,
     });
     return null;
   }
 
-  if (!refund.razorpayRefundId) {
+  if (!refund.cashfreeRefundId) {
     await createRefundReconciliationEvent({
       companyId: refund.companyId,
       refundId: refund.id,
       status: "FAILED",
       source: "scheduled-scan",
-      razorpayPaymentId: refund.razorpayPaymentId,
-      errorMessage: "Refund has no Razorpay refund id",
+      cashfreePaymentId: refund.cashfreePaymentId,
+      errorMessage: "Refund has no Cashfree refund id",
+    });
+    return null;
+  }
+
+  if (!refund.invoice?.cashfreeOrderId) {
+    await createRefundReconciliationEvent({
+      companyId: refund.companyId,
+      refundId: refund.id,
+      status: "FAILED",
+      source: "scheduled-scan",
+      cashfreeRefundId: refund.cashfreeRefundId,
+      cashfreePaymentId: refund.cashfreePaymentId,
+      errorMessage: "Refund has no Cashfree order id",
     });
     return null;
   }
@@ -424,16 +417,17 @@ export async function reconcileSingleBillingRefund({
       refundId: refund.id,
       status: "SKIPPED",
       source: "scheduled-scan",
-      razorpayRefundId: refund.razorpayRefundId,
-      razorpayPaymentId: refund.razorpayPaymentId,
+      cashfreeRefundId: refund.cashfreeRefundId,
+      cashfreePaymentId: refund.cashfreePaymentId,
       message: "Max reconciliation attempts reached",
     });
     return null;
   }
 
   try {
-    const razorpayRefund = await fetchRazorpayRefund({
-      razorpayRefundId: refund.razorpayRefundId,
+    const cashfreeRefund = await fetchCashfreeRefund({
+      orderId: refund.invoice.cashfreeOrderId,
+      refundId: refund.cashfreeRefundId,
     });
 
     await prisma.billingRefund.update({
@@ -450,9 +444,9 @@ export async function reconcileSingleBillingRefund({
 
     return applyRefundStatusUpdate({
       refundId: refund.id,
-      razorpayStatus: razorpayRefund.status,
+      cashfreeStatus: cashfreeRefund.refund_status ?? "",
       source: "scheduled-scan",
-      payload: razorpayRefund,
+      payload: cashfreeRefund,
     });
   } catch (error) {
     await prisma.billingRefund.update({
@@ -473,8 +467,8 @@ export async function reconcileSingleBillingRefund({
       refundId: refund.id,
       status: "FAILED",
       source: "scheduled-scan",
-      razorpayRefundId: refund.razorpayRefundId,
-      razorpayPaymentId: refund.razorpayPaymentId,
+      cashfreeRefundId: refund.cashfreeRefundId,
+      cashfreePaymentId: refund.cashfreePaymentId,
       attemptNumber: refund.reconciliationAttempts + 1,
       errorMessage: error instanceof Error ? error.message : "Unknown refund reconciliation error",
     });

@@ -380,7 +380,7 @@ export default async function BillingPage() {
       <Panel className="mt-5">
         <PanelTitle
           title="Subscription payments"
-          description="Razorpay orders for workspace plan upgrades."
+          description="Cashfree orders for workspace plan upgrades."
         />
         {overview.subscriptionPayments.length === 0 ? (
           <div className="mt-5"><EmptyState>No subscription payments yet.</EmptyState></div>
@@ -395,8 +395,8 @@ export default async function BillingPage() {
                     <td className="py-3 pr-4 font-semibold text-[#102040]">{payment.plan}</td>
                     <td className="py-3 pr-4 font-semibold text-[#081B3A]">{formatMoney(payment.amountPaise)}</td>
                     <td className="py-3 pr-4"><StatusPill tone={payment.status === "PAID" ? "green" : payment.status === "FAILED" ? "red" : "amber"}>{payment.status}</StatusPill></td>
-                    <td className="max-w-48 truncate py-3 pr-4 text-[#526173]">{payment.razorpayOrderId}</td>
-                    <td className="max-w-48 truncate py-3 text-[#526173]">{payment.razorpayPaymentId ?? "-"}</td>
+                    <td className="max-w-48 truncate py-3 pr-4 text-[#526173]">{payment.cashfreeOrderId}</td>
+                    <td className="max-w-48 truncate py-3 text-[#526173]">{payment.cashfreePaymentId ?? "-"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -449,11 +449,11 @@ export default async function BillingPage() {
       <Panel className="mt-5">
         <PanelTitle
           title="Credit purchases"
-          description="Recent Razorpay checkout orders for this workspace."
+          description="Recent Cashfree checkout orders for this workspace."
         />
         {overview.creditPurchases.length === 0 ? (
           <div className="mt-5">
-            <EmptyState>No Razorpay credit purchases yet.</EmptyState>
+            <EmptyState>No Cashfree credit purchases yet.</EmptyState>
           </div>
         ) : (
           <div className="mt-5 overflow-x-auto">
@@ -500,7 +500,7 @@ export default async function BillingPage() {
                       </StatusPill>
                     </td>
                     <td className="max-w-52 truncate py-3 text-[#526173]">
-                      {purchase.razorpayOrderId}
+                      {purchase.cashfreeOrderId}
                     </td>
                   </tr>
                 ))}
@@ -512,12 +512,12 @@ export default async function BillingPage() {
 
       <Panel className="mt-5">
         <PanelTitle
-          title="Razorpay webhooks"
+          title="Cashfree webhooks"
           description="Signed payment events attributed to this workspace."
         />
-        {overview.razorpayWebhookEvents.length === 0 ? (
+        {overview.cashfreeWebhookEvents.length === 0 ? (
           <div className="mt-5">
-            <EmptyState>No Razorpay webhook events yet.</EmptyState>
+            <EmptyState>No Cashfree webhook events yet.</EmptyState>
           </div>
         ) : (
           <div className="mt-5 overflow-x-auto">
@@ -532,7 +532,7 @@ export default async function BillingPage() {
                 </tr>
               </thead>
               <tbody>
-                {overview.razorpayWebhookEvents.map((event) => (
+                {overview.cashfreeWebhookEvents.map((event) => (
                   <tr
                     key={event.id}
                     className="border-b border-[#D8E6F3]/70 last:border-0"

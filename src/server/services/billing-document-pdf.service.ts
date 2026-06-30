@@ -261,8 +261,8 @@ export async function generateInvoicePdf({
 
     doc.text(`Paid: ${invoice.paidAt?.toLocaleString() ?? "-"}`, 50, 275);
 
-    if (invoice.razorpayPaymentId) {
-      doc.text(`Payment ID: ${invoice.razorpayPaymentId}`, 50, 290);
+    if (invoice.cashfreePaymentId) {
+      doc.text(`Payment ID: ${invoice.cashfreePaymentId}`, 50, 290);
     }
 
     let y = 335;
@@ -428,8 +428,8 @@ export async function generateCreditNotePdf({
       doc.text(`Against Invoice: ${creditNote.invoice.invoiceNumber}`, 50, 265);
     }
 
-    if (creditNote.refund?.razorpayRefundId) {
-      doc.text(`Refund ID: ${creditNote.refund.razorpayRefundId}`, 50, 280);
+    if (creditNote.refund?.cashfreeRefundId) {
+      doc.text(`Refund ID: ${creditNote.refund.cashfreeRefundId}`, 50, 280);
     }
 
     let y = 335;

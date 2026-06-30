@@ -5,7 +5,7 @@ TallyKonnect verifies provider webhook signatures before processing webhook payl
 ## Providers
 
 - Meta WhatsApp webhook: `x-hub-signature-256`
-- Razorpay webhook: `x-razorpay-signature`
+- Cashfree webhook: `x-webhook-signature` with `x-webhook-timestamp`
 
 ## Environment
 
@@ -13,7 +13,7 @@ TallyKonnect verifies provider webhook signatures before processing webhook payl
 WEBHOOK_SIGNATURE_VERIFICATION_ENABLED="true"
 
 META_APP_SECRET=""
-RAZORPAY_WEBHOOK_SECRET=""
+CASHFREE_CLIENT_SECRET=""
 
 WEBHOOK_REPLAY_GUARD_MODE="log"
 WEBHOOK_REPLAY_TTL_SECONDS="86400"

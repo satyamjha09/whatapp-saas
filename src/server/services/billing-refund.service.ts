@@ -1,10 +1,13 @@
-import axios from "axios";
 import { BillingPlan, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit.service";
 import { createCompanyNotification } from "@/server/services/company-notification.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 import { autoSendCreditNoteEmail } from "@/server/services/billing-document-email.service";
+import {
+  createCashfreeRefund,
+  type CashfreeRefundResponse,
+} from "@/server/services/cashfree-payment.service";
 
 export class BillingRefundError extends Error {
   constructor(message: string) {
@@ -50,20 +53,6 @@ function safeJson(value: unknown): Prisma.InputJsonValue {
   return redactSensitiveData(value) as Prisma.InputJsonValue;
 }
 
-function razorpayAuth() {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-  if (!keyId || !keySecret) {
-    throw new BillingRefundError("Razorpay credentials are not configured.");
-  }
-
-  return {
-    username: keyId,
-    password: keySecret,
-  };
-}
-
 function addDays(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
@@ -83,47 +72,40 @@ async function nextCreditNoteNumber() {
   return `CN-${year}-${String(count + 1).padStart(6, "0")}`;
 }
 
-async function createRazorpayRefund({
-  paymentId,
+async function createProviderRefund({
   amountPaise,
-  receipt,
-  notes,
+  orderId,
+  refundId,
+  reason,
 }: {
-  paymentId: string;
   amountPaise: number;
-  receipt: string;
-  notes: Record<string, string>;
-}) {
+  orderId: string;
+  refundId: string;
+  reason?: string | null;
+}): Promise<CashfreeRefundResponse> {
   if (dryRun()) {
     return {
-      id: `dry_rfnd_${Date.now()}`,
-      status: "processed",
-      amount: amountPaise,
-      payment_id: paymentId,
-      notes,
-      receipt,
-      dryRun: true,
+      cf_refund_id: `dry_refund_${Date.now()}`,
+      refund_id: refundId,
+      order_id: orderId,
+      refund_amount: amountPaise / 100,
+      refund_status: "SUCCESS",
+      refund_note: reason ?? "dry-run",
     };
   }
 
-  const response = await axios.post(
-    `https://api.razorpay.com/v1/payments/${paymentId}/refund`,
-    {
-      amount: amountPaise,
-      receipt,
-      notes,
-    },
-    {
-      auth: razorpayAuth(),
-    },
-  );
+  return createCashfreeRefund({
+    orderId,
+    refundId,
+    amountPaise,
+    note: reason,
+  });
+}
 
-  return response.data as {
-    id: string;
-    status: string;
-    amount: number;
-    payment_id: string;
-  };
+function isCashfreeRefundProcessed(refund: CashfreeRefundResponse) {
+  return ["SUCCESS", "PROCESSED"].includes(
+    String(refund.refund_status ?? "").toUpperCase(),
+  );
 }
 
 export async function getRefundableInvoiceState({
@@ -195,8 +177,8 @@ export async function createBillingRefund({
 
   const { invoice, refundablePaise } = state;
 
-  if (!invoice.razorpayPaymentId) {
-    throw new BillingRefundError("Invoice does not have a Razorpay payment ID.");
+  if (!invoice.cashfreeOrderId) {
+    throw new BillingRefundError("Invoice does not have a Cashfree order ID.");
   }
 
   if (amountPaise > refundablePaise) {
@@ -222,7 +204,7 @@ export async function createBillingRefund({
       currency: invoice.currency,
       reason: reason ?? null,
       confirmationText: requireConfirmation() ? confirmationText() : null,
-      razorpayPaymentId: invoice.razorpayPaymentId,
+      cashfreePaymentId: invoice.cashfreePaymentId,
       metadata: safeJson({
         invoiceNumber: invoice.invoiceNumber,
         invoiceTotalPaise: invoice.totalPaise,
@@ -232,18 +214,14 @@ export async function createBillingRefund({
   });
 
   try {
-    const razorpayRefund = await createRazorpayRefund({
-      paymentId: invoice.razorpayPaymentId,
+    const cashfreeRefund = await createProviderRefund({
+      orderId: invoice.cashfreeOrderId,
       amountPaise,
-      receipt: refund.id,
-      notes: {
-        companyId,
-        invoiceId: invoice.id,
-        refundId: refund.id,
-      },
+      refundId: refund.id,
+      reason,
     });
 
-    const processed = razorpayRefund.status === "processed";
+    const processed = isCashfreeRefundProcessed(cashfreeRefund);
 
     const result = await prisma.$transaction(async (tx) => {
       const updatedRefund = await tx.billingRefund.update({
@@ -252,11 +230,11 @@ export async function createBillingRefund({
         },
         data: {
           status: processed ? "PROCESSED" : "PROCESSING",
-          razorpayRefundId: razorpayRefund.id,
-          razorpayStatus: razorpayRefund.status,
+          cashfreeRefundId: cashfreeRefund.refund_id ?? refund.id,
+          cashfreeStatus: cashfreeRefund.refund_status,
           processedAt: processed ? new Date() : null,
           metadata: safeJson({
-            razorpayRefund,
+            cashfreeRefund,
           }),
         },
       });
@@ -275,7 +253,8 @@ export async function createBillingRefund({
           reason: reason ?? "billing-refund",
           metadata: safeJson({
             invoiceNumber: invoice.invoiceNumber,
-            razorpayRefundId: razorpayRefund.id,
+            cashfreeRefundId: cashfreeRefund.refund_id ?? refund.id,
+            cashfreeProviderRefundId: cashfreeRefund.cf_refund_id,
           }),
         },
       });
@@ -359,7 +338,8 @@ export async function createBillingRefund({
         invoiceNumber: invoice.invoiceNumber,
         amountPaise,
         refundType,
-        razorpayRefundId: razorpayRefund.id,
+        cashfreeRefundId: cashfreeRefund.refund_id ?? refund.id,
+        cashfreeProviderRefundId: cashfreeRefund.cf_refund_id,
         planChangeId: result.planChangeId,
       },
     }).catch(() => undefined);

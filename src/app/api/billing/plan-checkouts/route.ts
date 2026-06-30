@@ -13,6 +13,27 @@ const CreateCheckoutSchema = z.object({
   toPlan: z.enum(BillingPlan),
 });
 
+function getPaymentSessionId(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const cashfreeOrder = (metadata as Record<string, unknown>).cashfreeOrder;
+
+  if (
+    !cashfreeOrder ||
+    typeof cashfreeOrder !== "object" ||
+    Array.isArray(cashfreeOrder)
+  ) {
+    return null;
+  }
+
+  const paymentSessionId = (cashfreeOrder as Record<string, unknown>)
+    .payment_session_id;
+
+  return typeof paymentSessionId === "string" ? paymentSessionId : null;
+}
+
 export async function POST(request: Request) {
   let workspace;
 
@@ -34,11 +55,12 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       checkout,
-      razorpay: {
-        keyId: process.env.RAZORPAY_KEY_ID,
-        orderId: checkout.razorpayOrderId,
+      cashfree: {
+        checkoutMode: process.env.CASHFREE_ENV === "sandbox" ? "sandbox" : "production",
+        orderId: checkout.cashfreeOrderId,
         amountPaise: checkout.amountPaise,
         currency: checkout.currency,
+        paymentSessionId: getPaymentSessionId(checkout.metadata),
       },
       redirects: getPlanUpgradeRedirects(),
     });

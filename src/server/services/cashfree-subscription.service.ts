@@ -1,40 +1,22 @@
-import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getBillingPlanConfig } from "@/server/config/billing-plans";
+import {
+  createCashfreeOrder,
+  getCashfreeCheckoutMode,
+  getPaidCashfreePaymentForOrder,
+} from "@/server/services/cashfree-payment.service";
 import { addOneMonth } from "@/server/services/subscription.service";
 import type {
-  CreateRazorpaySubscriptionOrderInput,
-  VerifyRazorpaySubscriptionPaymentInput,
-} from "@/server/validators/razorpay-subscription.validator";
+  CreateCashfreeSubscriptionOrderInput,
+  VerifyCashfreeSubscriptionPaymentInput,
+} from "@/server/validators/cashfree-subscription.validator";
 
-const placeholderValues = new Set([
-  "your_razorpay_key_id",
-  "your_razorpay_key_secret",
-]);
-
-export function getRazorpayCredentials() {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-  if (
-    !keyId ||
-    !keySecret ||
-    placeholderValues.has(keyId) ||
-    placeholderValues.has(keySecret)
-  ) {
-    throw new Error("Razorpay credentials are not configured");
-  }
-
-  return { keyId, keySecret };
-}
-
-export function isRazorpayCheckoutConfigured() {
-  try {
-    getRazorpayCredentials();
-    return true;
-  } catch {
-    return false;
-  }
+function getAppUrl() {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.APP_URL ??
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
 }
 
 function getNextBillingPeriod(currentPeriodEnd?: Date | null) {
@@ -45,98 +27,35 @@ function getNextBillingPeriod(currentPeriodEnd?: Date | null) {
   return { periodStart, periodEnd: addOneMonth(periodStart) };
 }
 
-function verifyPaymentSignature({
-  orderId,
-  paymentId,
-  signature,
-  secret,
-}: {
-  orderId: string;
-  paymentId: string;
-  signature: string;
-  secret: string;
-}) {
-  if (!/^[a-f\d]{64}$/i.test(signature)) return false;
-
-  const expected = crypto
-    .createHmac("sha256", secret)
-    .update(`${orderId}|${paymentId}`)
-    .digest("hex");
-  const expectedBuffer = Buffer.from(expected, "hex");
-  const receivedBuffer = Buffer.from(signature, "hex");
-
-  return (
-    expectedBuffer.length === receivedBuffer.length &&
-    crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
-  );
-}
-
-type RazorpayOrderResponse = {
-  id?: string;
-  amount?: number;
-  currency?: string;
-  status?: string;
-  error?: { description?: string };
-};
-
-export async function createRazorpaySubscriptionOrder({
+export async function createCashfreeSubscriptionOrder({
   companyId,
   userId,
   input,
 }: {
   companyId: string;
   userId: string;
-  input: CreateRazorpaySubscriptionOrderInput;
+  input: CreateCashfreeSubscriptionOrderInput;
 }) {
   const plan = getBillingPlanConfig(input.plan);
 
   if (plan.id === "FREE") throw new Error("Free plan does not require payment");
 
-  const { keyId, keySecret } = getRazorpayCredentials();
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { billingPlan: true, currentPeriodEnd: true },
+    select: { billingPlan: true, currentPeriodEnd: true, name: true },
+  });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, mobile: true, name: true },
   });
 
   if (!company) throw new Error("Company not found");
+  if (!user) throw new Error("User not found");
 
   const isSamePlanRenewal = company.billingPlan === plan.id;
   const { periodStart, periodEnd } = getNextBillingPeriod(
     isSamePlanRenewal ? company.currentPeriodEnd : null,
   );
-  const receipt = `sub_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`.slice(0, 40);
-  const response = await fetch("https://api.razorpay.com/v1/orders", {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      amount: plan.monthlyPricePaise,
-      currency: "INR",
-      receipt,
-      notes: {
-        type: "SUBSCRIPTION_PLAN",
-        companyId,
-        userId,
-        plan: plan.id,
-        monthlyMessageLimit: String(plan.monthlyMessageLimit),
-      },
-    }),
-  });
-  const data = (await response.json()) as RazorpayOrderResponse;
-
-  if (!response.ok) {
-    throw new Error(data.error?.description ?? "Unable to create Razorpay order");
-  }
-  if (
-    !data.id ||
-    data.amount !== plan.monthlyPricePaise ||
-    data.currency?.toUpperCase() !== "INR"
-  ) {
-    throw new Error("Razorpay returned an invalid order");
-  }
-
   const payment = await prisma.subscriptionPayment.create({
     data: {
       companyId,
@@ -146,18 +65,44 @@ export async function createRazorpaySubscriptionOrder({
       currency: "INR",
       billingPeriodStart: periodStart,
       billingPeriodEnd: periodEnd,
-      razorpayOrderId: data.id,
+      cashfreeOrderId: `sub_${Date.now().toString(36)}`,
+    },
+  });
+  const order = await createCashfreeOrder({
+    orderId: payment.id,
+    amountPaise: plan.monthlyPricePaise,
+    currency: "INR",
+    customer: {
+      id: userId,
+      email: user.email,
+      name: user.name,
+      phone: user.mobile,
+    },
+    returnUrl: `${getAppUrl()}/dashboard/billing/subscription?cashfree_order_id={order_id}`,
+    notifyUrl: `${getAppUrl()}/api/webhooks/cashfree`,
+    tags: {
+      type: "SUBSCRIPTION_PLAN",
+      companyId,
+      userId,
+      plan: plan.id,
+    },
+  });
+  const updatedPayment = await prisma.subscriptionPayment.update({
+    where: { id: payment.id },
+    data: {
+      cashfreeOrderId: order.order_id!,
     },
   });
 
   return {
-    keyId,
-    payment,
+    checkoutMode: getCashfreeCheckoutMode(),
+    payment: updatedPayment,
     order: {
-      id: data.id,
-      amount: data.amount,
-      currency: data.currency,
-      status: data.status ?? "created",
+      id: order.order_id!,
+      amount: plan.monthlyPricePaise,
+      currency: "INR",
+      status: order.order_status ?? "ACTIVE",
+      paymentSessionId: order.payment_session_id!,
     },
     plan,
   };
@@ -166,27 +111,25 @@ export async function createRazorpaySubscriptionOrder({
 async function activateSubscriptionPayment({
   amountPaise,
   currency,
-  razorpayOrderId,
-  razorpayPaymentId,
-  razorpaySignature,
+  cashfreeOrderId,
+  cashfreePaymentId,
 }: {
   amountPaise?: number;
   currency?: string;
-  razorpayOrderId: string;
-  razorpayPaymentId: string;
-  razorpaySignature?: string;
+  cashfreeOrderId: string;
+  cashfreePaymentId: string;
 }) {
   return prisma.$transaction(async (tx) => {
     const payment = await tx.subscriptionPayment.findUnique({
-      where: { razorpayOrderId },
+      where: { cashfreeOrderId: cashfreeOrderId },
     });
 
     if (!payment) throw new Error("Subscription payment not found");
     if (amountPaise !== undefined && amountPaise !== payment.amountPaise) {
-      throw new Error("Razorpay payment amount mismatch");
+      throw new Error("Cashfree payment amount mismatch");
     }
     if (currency && currency.toUpperCase() !== payment.currency.toUpperCase()) {
-      throw new Error("Razorpay payment currency mismatch");
+      throw new Error("Cashfree payment currency mismatch");
     }
     if (payment.status === "PAID") {
       return { alreadyPaid: true, payment, company: null, plan: getBillingPlanConfig(payment.plan) };
@@ -196,8 +139,7 @@ async function activateSubscriptionPayment({
       where: { id: payment.id, status: { not: "PAID" } },
       data: {
         status: "PAID",
-        razorpayPaymentId,
-        razorpaySignature: razorpaySignature ?? payment.razorpaySignature,
+        cashfreePaymentId: cashfreePaymentId,
         paidAt: new Date(),
         failedAt: null,
         failureReason: null,
@@ -233,66 +175,67 @@ async function activateSubscriptionPayment({
   });
 }
 
-export async function verifyRazorpaySubscriptionPayment({
+export async function verifyCashfreeSubscriptionPayment({
   companyId,
   input,
 }: {
   companyId: string;
   userId: string;
-  input: VerifyRazorpaySubscriptionPaymentInput;
+  input: VerifyCashfreeSubscriptionPaymentInput;
 }) {
-  const { keySecret } = getRazorpayCredentials();
   const payment = await prisma.subscriptionPayment.findFirst({
-    where: { companyId, razorpayOrderId: input.razorpayOrderId },
+    where: { companyId, cashfreeOrderId: input.cashfreeOrderId },
   });
 
   if (!payment) throw new Error("Subscription payment not found");
-  if (
-    !verifyPaymentSignature({
-      orderId: input.razorpayOrderId,
-      paymentId: input.razorpayPaymentId,
-      signature: input.razorpaySignature,
-      secret: keySecret,
-    })
-  ) {
+
+  const cashfreePayment = await getPaidCashfreePaymentForOrder(
+    input.cashfreeOrderId,
+  );
+
+  if (!cashfreePayment.isPaid || !cashfreePayment.payment?.cf_payment_id) {
     await prisma.subscriptionPayment.updateMany({
       where: { id: payment.id, status: { not: "PAID" } },
       data: {
         status: "FAILED",
         failedAt: new Date(),
-        failureReason: "Invalid Razorpay signature",
+        failureReason: "Cashfree payment not successful",
       },
     });
-    throw new Error("Invalid Razorpay signature");
+    throw new Error("Cashfree payment not successful");
   }
 
   return activateSubscriptionPayment({
-    razorpayOrderId: input.razorpayOrderId,
-    razorpayPaymentId: input.razorpayPaymentId,
-    razorpaySignature: input.razorpaySignature,
+    cashfreeOrderId: input.cashfreeOrderId,
+    cashfreePaymentId: String(cashfreePayment.payment.cf_payment_id),
+    amountPaise:
+      cashfreePayment.payment.payment_amount !== undefined
+        ? Math.round(cashfreePayment.payment.payment_amount * 100)
+        : undefined,
+    currency: cashfreePayment.payment.payment_currency,
   });
 }
 
-export async function markRazorpaySubscriptionPaymentPaidFromWebhook(input: {
+export async function markCashfreeSubscriptionPaymentPaidFromWebhook(input: {
   amountPaise?: number;
   currency?: string;
-  razorpayOrderId: string;
-  razorpayPaymentId: string;
+  cashfreeOrderId: string;
+  cashfreePaymentId: string;
 }) {
   return activateSubscriptionPayment(input);
 }
 
-export async function markRazorpaySubscriptionPaymentFailedFromWebhook({
+export async function markCashfreeSubscriptionPaymentFailedFromWebhook({
   failureReason,
-  razorpayOrderId,
-  razorpayPaymentId,
+  cashfreeOrderId,
+  cashfreePaymentId,
 }: {
   failureReason?: string;
-  razorpayOrderId: string;
-  razorpayPaymentId?: string;
+  cashfreeOrderId: string;
+  cashfreePaymentId?: string;
 }) {
   const payment = await prisma.subscriptionPayment.findUnique({
-    where: { razorpayOrderId },
+    where: { cashfreeOrderId: cashfreeOrderId },
   });
 
   if (!payment) throw new Error("Subscription payment not found");
@@ -300,9 +243,9 @@ export async function markRazorpaySubscriptionPaymentFailedFromWebhook({
     where: { id: payment.id, status: { not: "PAID" } },
     data: {
       status: "FAILED",
-      razorpayPaymentId: razorpayPaymentId ?? payment.razorpayPaymentId,
+      cashfreePaymentId: cashfreePaymentId ?? payment.cashfreePaymentId,
       failedAt: new Date(),
-      failureReason: failureReason ?? "Razorpay payment failed",
+      failureReason: failureReason ?? "Cashfree payment failed",
     },
   });
 

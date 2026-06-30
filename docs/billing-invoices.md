@@ -42,7 +42,7 @@ Use accountant-approved tax settings before production.
 ## Flow
 
 User upgrades plan.
-Razorpay payment is verified.
+Cashfree payment is verified.
 Company plan updates.
 Plan change ledger is created.
 Billing invoice is created.

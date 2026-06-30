@@ -50,8 +50,8 @@ export async function createPaidPlanUpgradeInvoice({
   toPlan,
   amountPaise,
   currency = "INR",
-  razorpayOrderId,
-  razorpayPaymentId,
+  cashfreeOrderId,
+  cashfreePaymentId,
 }: {
   companyId: string;
   userId?: string | null;
@@ -60,8 +60,8 @@ export async function createPaidPlanUpgradeInvoice({
   toPlan: BillingPlan;
   amountPaise: number;
   currency?: string;
-  razorpayOrderId?: string | null;
-  razorpayPaymentId?: string | null;
+  cashfreeOrderId?: string | null;
+  cashfreePaymentId?: string | null;
 }) {
   if (!isEnabled()) return null;
 
@@ -111,8 +111,8 @@ export async function createPaidPlanUpgradeInvoice({
       sellerAddress: process.env.BILLING_SELLER_ADDRESS || null,
       sellerTaxId: process.env.BILLING_SELLER_TAX_ID || null,
 
-      razorpayOrderId: razorpayOrderId ?? null,
-      razorpayPaymentId: razorpayPaymentId ?? null,
+      cashfreeOrderId: cashfreeOrderId ?? null,
+      cashfreePaymentId: cashfreePaymentId ?? null,
 
       planCheckoutId: planCheckoutId ?? null,
       planChangeId: planChangeId ?? null,
@@ -173,8 +173,8 @@ export async function createPaidPlanUpgradeInvoice({
       currency: invoice.currency,
       planCheckoutId,
       planChangeId,
-      razorpayOrderId,
-      razorpayPaymentId,
+      cashfreeOrderId,
+      cashfreePaymentId,
     },
   }).catch(() => undefined);
 

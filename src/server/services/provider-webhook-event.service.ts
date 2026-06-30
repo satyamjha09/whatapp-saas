@@ -75,7 +75,7 @@ export function getMetaWebhookEventType(body: unknown) {
   return "whatsapp";
 }
 
-export function getRazorpayWebhookEventId({
+export function getCashfreeWebhookEventId({
   body,
   eventIdHeader,
 }: {
@@ -101,10 +101,10 @@ export function getRazorpayWebhookEventId({
   return `${eventName}:${String(entityId)}`;
 }
 
-export function getRazorpayWebhookEventType(body: unknown) {
+export function getCashfreeWebhookEventType(body: unknown) {
   const root = asRecord(body);
 
-  return typeof root.event === "string" ? root.event : "razorpay.webhook";
+  return typeof root.event === "string" ? root.event : "cashfree.webhook";
 }
 
 export async function startProviderWebhookEvent({

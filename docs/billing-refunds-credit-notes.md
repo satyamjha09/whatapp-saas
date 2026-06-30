@@ -20,7 +20,7 @@ BILLING_REFUNDS_AUTO_DOWNGRADE_ON_FULL_REFUND="true"
 1. Admin selects paid invoice.
 2. Admin enters refund amount.
 3. Admin types confirmation text.
-4. System creates Razorpay refund.
+4. System creates Cashfree refund.
 5. System creates BillingRefund row.
 6. System creates BillingCreditNote row.
 7. Full refund can downgrade company to FREE.

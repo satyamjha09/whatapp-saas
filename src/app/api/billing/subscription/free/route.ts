@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
-import { changeWorkspaceToFreePlan } from "@/server/services/razorpay-subscription.service";
+import { changeWorkspaceToFreePlan } from "@/server/services/cashfree-subscription.service";
 
 export async function POST() {
   try {

@@ -46,7 +46,7 @@ export default async function BillingOpsPage() {
             Manual Payment Reviews
           </h2>
           <p className="mt-1 text-sm text-yellow-800">
-            Only approve after matching Razorpay Dashboard order ID, payment ID,
+            Only approve after matching Cashfree Dashboard order ID, payment ID,
             amount, and captured status.
           </p>
         </div>
@@ -65,8 +65,8 @@ export default async function BillingOpsPage() {
 
                 <div className="mt-3 grid gap-1 text-xs text-gray-500">
                   <p>Checkout ID: {checkout.id}</p>
-                  <p>Razorpay Order: {checkout.razorpayOrderId ?? "-"}</p>
-                  <p>Razorpay Payment: {checkout.razorpayPaymentId ?? "-"}</p>
+                  <p>Cashfree Order: {checkout.cashfreeOrderId ?? "-"}</p>
+                  <p>Cashfree Payment: {checkout.cashfreePaymentId ?? "-"}</p>
                   <p>Reason: {checkout.manualReviewReason ?? "-"}</p>
                   <p>Opened: {checkout.manualReviewOpenedAt?.toLocaleString() ?? "-"}</p>
                 </div>
@@ -132,7 +132,7 @@ export default async function BillingOpsPage() {
                   </td>
                   <td className="px-5 py-4 font-semibold">{checkout.status}</td>
                   <td className="px-5 py-4 text-xs">
-                    {checkout.razorpayPaymentId ?? "-"}
+                    {checkout.cashfreePaymentId ?? "-"}
                   </td>
                   <td className="px-5 py-4">
                     {checkout.createdAt.toLocaleString()}

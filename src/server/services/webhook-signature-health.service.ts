@@ -6,6 +6,6 @@ export function getWebhookSignatureSecurityHealth() {
   return {
     ...health,
     isHealthy:
-      health.enabled && health.meta.configured && health.razorpay.configured,
+      health.enabled && health.meta.configured && health.cashfree.configured,
   };
 }

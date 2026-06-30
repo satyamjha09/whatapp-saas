@@ -1,9 +1,12 @@
-import crypto from "node:crypto";
 import { BillingPlan, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getBillingPlanConfig } from "@/server/config/billing-plans";
 import { createAuditLog } from "@/server/services/audit.service";
 import { createPaidPlanUpgradeInvoice } from "@/server/services/billing-invoice.service";
+import {
+  createCashfreeOrder,
+  getPaidCashfreePaymentForOrder,
+} from "@/server/services/cashfree-payment.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 
 export class PlanUpgradeError extends Error {
@@ -13,22 +16,20 @@ export class PlanUpgradeError extends Error {
   }
 }
 
-type RazorpayOrderResponse = {
-  id?: string;
-  amount?: number;
-  currency?: string;
-  status?: string;
-  error?: {
-    description?: string;
-  };
-};
-
 function isEnabled() {
   return process.env.PLAN_UPGRADES_ENABLED !== "false";
 }
 
 function currency() {
   return process.env.PLAN_UPGRADE_CURRENCY || "INR";
+}
+
+function getAppUrl() {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.APP_URL ??
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
 }
 
 export function getPlanUpgradeRedirects() {
@@ -114,101 +115,6 @@ function assertUpgradeablePlan(plan: BillingPlan) {
   }
 }
 
-function razorpayAuthHeader() {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-  if (!keyId || !keySecret) {
-    throw new PlanUpgradeError("Razorpay credentials are not configured.");
-  }
-
-  return {
-    keyId,
-    authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString(
-      "base64",
-    )}`,
-  };
-}
-
-async function createRazorpayOrder({
-  amountPaise,
-  receipt,
-  notes,
-}: {
-  amountPaise: number;
-  receipt: string;
-  notes: Record<string, string>;
-}) {
-  const { authorization } = razorpayAuthHeader();
-  const response = await fetch("https://api.razorpay.com/v1/orders", {
-    method: "POST",
-    headers: {
-      Authorization: authorization,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      amount: amountPaise,
-      currency: currency(),
-      receipt,
-      notes,
-    }),
-  });
-  const data = (await response.json()) as RazorpayOrderResponse;
-
-  if (!response.ok) {
-    throw new PlanUpgradeError(
-      data.error?.description ?? "Unable to create Razorpay order.",
-    );
-  }
-
-  if (
-    !data.id ||
-    data.amount !== amountPaise ||
-    data.currency?.toUpperCase() !== currency().toUpperCase()
-  ) {
-    throw new PlanUpgradeError("Razorpay returned an invalid order.");
-  }
-
-  return {
-    id: data.id,
-    amount: data.amount,
-    currency: data.currency,
-    status: data.status ?? "created",
-  };
-}
-
-function verifyRazorpaySignature({
-  orderId,
-  paymentId,
-  signature,
-}: {
-  orderId: string;
-  paymentId: string;
-  signature: string;
-}) {
-  const secret = process.env.RAZORPAY_KEY_SECRET;
-
-  if (!secret) {
-    throw new PlanUpgradeError("RAZORPAY_KEY_SECRET is missing.");
-  }
-
-  if (!/^[a-f\d]{64}$/i.test(signature)) {
-    return false;
-  }
-
-  const expected = crypto
-    .createHmac("sha256", secret)
-    .update(`${orderId}|${paymentId}`)
-    .digest("hex");
-  const expectedBuffer = Buffer.from(expected, "hex");
-  const receivedBuffer = Buffer.from(signature, "hex");
-
-  return (
-    expectedBuffer.length === receivedBuffer.length &&
-    crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
-  );
-}
-
 function checkoutExpiryDate() {
   const minutes = Number(process.env.PLAN_CHECKOUT_EXPIRY_MINUTES ?? 60);
   const safeMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : 60;
@@ -241,6 +147,18 @@ export async function createPlanCheckout({
       billingPlan: true,
     },
   });
+  const requester = requestedByUserId
+    ? await prisma.user.findUnique({
+        where: {
+          id: requestedByUserId,
+        },
+        select: {
+          email: true,
+          mobile: true,
+          name: true,
+        },
+      })
+    : null;
 
   if (!company) {
     throw new PlanUpgradeError("Company not found.");
@@ -271,10 +189,19 @@ export async function createPlanCheckout({
     },
   });
 
-  const order = await createRazorpayOrder({
+  const order = await createCashfreeOrder({
     amountPaise,
-    receipt: checkout.id,
-    notes: {
+    currency: currency(),
+    orderId: checkout.id,
+    customer: {
+      id: requestedByUserId ?? companyId,
+      email: requester?.email,
+      name: requester?.name ?? company.name,
+      phone: requester?.mobile,
+    },
+    returnUrl: `${getAppUrl()}${getPlanUpgradeRedirects().success}?cashfree_order_id={order_id}`,
+    notifyUrl: `${getAppUrl()}/api/webhooks/cashfree`,
+    tags: {
       companyId,
       checkoutId: checkout.id,
       fromPlan: company.billingPlan,
@@ -287,10 +214,10 @@ export async function createPlanCheckout({
       id: checkout.id,
     },
     data: {
-      razorpayOrderId: order.id,
+      cashfreeOrderId: order.order_id,
       metadata: safeJson({
         companyName: company.name,
-        razorpayOrder: order,
+        cashfreeOrder: order,
       }),
     },
   });
@@ -300,16 +227,18 @@ export async function completePlanCheckout({
   companyId,
   checkoutId,
   actorUserId,
-  razorpayOrderId,
-  razorpayPaymentId,
-  razorpaySignature,
+  cashfreeOrderId,
+  cashfreePaymentId,
+  amountPaise,
+  currency: paymentCurrency,
 }: {
   companyId: string;
   checkoutId: string;
   actorUserId?: string | null;
-  razorpayOrderId: string;
-  razorpayPaymentId: string;
-  razorpaySignature: string;
+  cashfreeOrderId: string;
+  cashfreePaymentId?: string | null;
+  amountPaise?: number;
+  currency?: string | null;
 }) {
   const checkout = await prisma.planCheckout.findFirst({
     where: {
@@ -360,17 +289,28 @@ export async function completePlanCheckout({
     throw new PlanUpgradeError("Checkout expired.");
   }
 
-  if (checkout.razorpayOrderId !== razorpayOrderId) {
-    throw new PlanUpgradeError("Razorpay order mismatch.");
+  if (checkout.cashfreeOrderId !== cashfreeOrderId) {
+    throw new PlanUpgradeError("Cashfree order mismatch.");
   }
 
-  const verified = verifyRazorpaySignature({
-    orderId: razorpayOrderId,
-    paymentId: razorpayPaymentId,
-    signature: razorpaySignature,
-  });
+  let verifiedPaymentId = cashfreePaymentId ?? null;
+  let verifiedAmountPaise = amountPaise;
+  let verifiedCurrency = paymentCurrency ?? null;
 
-  if (!verified) {
+  if (!verifiedPaymentId) {
+    const cashfreePayment = await getPaidCashfreePaymentForOrder(cashfreeOrderId);
+
+    if (cashfreePayment.payment?.cf_payment_id) {
+      verifiedPaymentId = String(cashfreePayment.payment.cf_payment_id);
+      verifiedAmountPaise =
+        cashfreePayment.payment.payment_amount !== undefined
+          ? Math.round(cashfreePayment.payment.payment_amount * 100)
+          : verifiedAmountPaise;
+      verifiedCurrency = cashfreePayment.payment.payment_currency ?? verifiedCurrency;
+    }
+  }
+
+  if (!verifiedPaymentId) {
     await prisma.planCheckout.update({
       where: {
         id: checkout.id,
@@ -378,11 +318,21 @@ export async function completePlanCheckout({
       data: {
         status: "FAILED",
         failedAt: new Date(),
-        failureReason: "Invalid Razorpay signature",
+        failureReason: "Cashfree payment not successful",
       },
     });
 
-    throw new PlanUpgradeError("Invalid payment signature.");
+    throw new PlanUpgradeError("Cashfree payment not successful.");
+  }
+
+  if (verifiedAmountPaise !== undefined && verifiedAmountPaise !== checkout.amountPaise) {
+    throw new PlanUpgradeError("Cashfree payment amount mismatch.");
+  }
+  if (
+    verifiedCurrency &&
+    verifiedCurrency.toUpperCase() !== checkout.currency.toUpperCase()
+  ) {
+    throw new PlanUpgradeError("Cashfree payment currency mismatch.");
   }
 
   const newMonthlyMessageLimit = getPlanMonthlyMessageLimit(checkout.toPlan);
@@ -394,9 +344,8 @@ export async function completePlanCheckout({
       },
       data: {
         status: "PAID",
-        razorpayOrderId,
-        razorpayPaymentId,
-        razorpaySignature,
+        cashfreeOrderId: cashfreeOrderId,
+        cashfreePaymentId: verifiedPaymentId,
         paidAt: new Date(),
       },
     });
@@ -431,8 +380,9 @@ export async function completePlanCheckout({
         newMonthlyMessageLimit,
         reason: "self-serve-plan-upgrade",
         metadata: safeJson({
-          razorpayOrderId,
-          razorpayPaymentId,
+          provider: "CASHFREE",
+          cashfreeOrderId,
+          cashfreePaymentId: verifiedPaymentId,
         }),
       },
     });
@@ -453,8 +403,9 @@ export async function completePlanCheckout({
       checkoutId,
       fromPlan: checkout.fromPlan,
       toPlan: checkout.toPlan,
-      razorpayOrderId,
-      razorpayPaymentId,
+      provider: "CASHFREE",
+      cashfreeOrderId,
+      cashfreePaymentId: verifiedPaymentId,
     },
   }).catch(() => undefined);
 
@@ -466,8 +417,8 @@ export async function completePlanCheckout({
     toPlan: checkout.toPlan,
     amountPaise: checkout.amountPaise,
     currency: checkout.currency,
-    razorpayOrderId,
-    razorpayPaymentId,
+    cashfreeOrderId: cashfreeOrderId,
+    cashfreePaymentId: verifiedPaymentId,
   }).catch(() => undefined);
 
   return result;

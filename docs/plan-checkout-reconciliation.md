@@ -19,7 +19,7 @@ Frontend payment success is not enough. Users may close the browser after paymen
 1. User creates checkout.
 2. Checkout receives an expiry timestamp.
 3. Frontend verification can complete payment.
-4. Razorpay webhook can also complete payment.
+4. Cashfree webhook can also complete payment.
 5. Scheduled reconciliation expires old unpaid checkouts.
 6. Captured payments without signature create manual review notification.
 

@@ -62,9 +62,10 @@ jobs:
      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_dummy
      CLERK_SECRET_KEY: sk_test_dummy
 
-     RAZORPAY_KEY_ID: rzp_test_dummy
-     RAZORPAY_KEY_SECRET: dummy
-     RAZORPAY_WEBHOOK_SECRET: dummy
+     CASHFREE_CLIENT_ID: dummy
+     CASHFREE_CLIENT_SECRET: dummy
+     CASHFREE_API_VERSION: "2025-01-01"
+     CASHFREE_ENV: sandbox
 
      HEALTHCHECK_TOKEN: ci_healthcheck_token
 

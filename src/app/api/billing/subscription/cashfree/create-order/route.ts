@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
-import { createRazorpaySubscriptionOrder } from "@/server/services/razorpay-subscription.service";
+import { createCashfreeSubscriptionOrder } from "@/server/services/cashfree-subscription.service";
 import {
   assertSystemWritesAllowed,
   SystemMaintenanceModeError,
 } from "@/server/services/system-maintenance-mode.service";
-import { createRazorpaySubscriptionOrderSchema } from "@/server/validators/razorpay-subscription.validator";
+import { createCashfreeSubscriptionOrderSchema } from "@/server/validators/cashfree-subscription.validator";
 import { RATE_LIMIT_RULES } from "@/server/config/rate-limits";
 import {
   enforceApiRateLimit,
@@ -53,11 +53,11 @@ export async function POST(request: Request) {
       return createRequestBodyErrorResponse({
         request,
         error,
-        source: "subscription-order-create",
+        source: "subscription-cashfree-order-create",
       });
     }
 
-    const validation = createRazorpaySubscriptionOrderSchema.safeParse(body);
+    const validation = createCashfreeSubscriptionOrderSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         { message: "Invalid subscription plan", errors: validation.error.flatten().fieldErrors },
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       operation: "Creating billing orders",
     });
 
-    const result = await createRazorpaySubscriptionOrder({
+    const result = await createCashfreeSubscriptionOrder({
       companyId: context.membership.companyId,
       userId: context.user.id,
       input: validation.data,
@@ -81,28 +81,29 @@ export async function POST(request: Request) {
       entityType: "SubscriptionPayment",
       entityId: result.payment.id,
       metadata: {
+        provider: "CASHFREE",
         plan: result.plan.id,
         amountPaise: result.plan.monthlyPricePaise,
-        razorpayOrderId: result.order.id,
+        cashfreeOrderId: result.order.id,
       },
     });
 
     return NextResponse.json({
       message: "Subscription payment order created",
       result: {
-        keyId: result.keyId,
+        checkoutMode: result.checkoutMode,
         order: result.order,
         plan: result.plan,
       },
     });
   } catch (error) {
-    console.error("CREATE_SUBSCRIPTION_ORDER_ERROR:", error);
+    console.error("CREATE_CASHFREE_SUBSCRIPTION_ORDER_ERROR:", error);
     if (error instanceof SystemMaintenanceModeError) {
       return NextResponse.json({ message: error.message }, { status: 503 });
     }
     const message = error instanceof Error ? error.message : "";
 
-    if (["Invalid billing plan", "Free plan does not require payment", "Razorpay credentials are not configured"].includes(message)) {
+    if (["Invalid billing plan", "Free plan does not require payment", "Cashfree credentials are not configured"].includes(message)) {
       return NextResponse.json({ message }, { status: 400 });
     }
     return NextResponse.json({ message: "Unable to create subscription payment order" }, { status: 500 });

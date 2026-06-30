@@ -1,6 +1,6 @@
 # Provider Webhook Idempotency
 
-TallyKonnect stores Meta and Razorpay webhook events in a provider webhook ledger before processing.
+TallyKonnect stores Meta and Cashfree webhook events in a provider webhook ledger before processing.
 
 ## Why
 
@@ -16,7 +16,7 @@ Providers retry webhooks. Without idempotency, retries can create duplicate:
 
 Meta uses message/status IDs when available, otherwise the raw body hash.
 
-Razorpay uses `x-razorpay-event-id` when available, otherwise event/entity information.
+Cashfree uses event type, order ID, payment/refund ID, and event timestamp when available.
 
 ## Statuses
 

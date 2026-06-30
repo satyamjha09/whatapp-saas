@@ -22,7 +22,7 @@ Start production with:
 SECURITY_CSP_MODE="report-only"
 ```
 
-After testing dashboard, Clerk login, Meta embedded signup, and Razorpay checkout, switch to:
+After testing dashboard, Clerk login, Meta embedded signup, and Cashfree checkout, switch to:
 
 ```env
 SECURITY_CSP_MODE="enforce"

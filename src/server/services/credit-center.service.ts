@@ -8,7 +8,7 @@ import { COMPANY_NOTIFICATION_RETENTION_JOB } from "@/server/jobs/company-notifi
 import { COMPANY_NOTIFICATION_EMAIL_MAINTENANCE_JOB } from "@/server/jobs/company-notification-email-maintenance.job";
 
 export async function getCreditCenterOverview(companyId: string) {
-  const [billingSummary, creditPurchases, subscriptionPayments, razorpayWebhookEvents, recentSubscriptionExpiryRuns, recentSubscriptionCancellationRuns, recentDeveloperDataRetentionRuns, recentCompanyNotificationRetentionRuns, recentCompanyNotificationEmailMaintenanceRuns] =
+  const [billingSummary, creditPurchases, subscriptionPayments, cashfreeWebhookEvents, recentSubscriptionExpiryRuns, recentSubscriptionCancellationRuns, recentDeveloperDataRetentionRuns, recentCompanyNotificationRetentionRuns, recentCompanyNotificationEmailMaintenanceRuns] =
     await Promise.all([
       getBillingSummary(companyId),
       prisma.creditPurchase.findMany({
@@ -21,7 +21,7 @@ export async function getCreditCenterOverview(companyId: string) {
         orderBy: { createdAt: "desc" },
         take: 50,
       }),
-      prisma.razorpayWebhookEvent.findMany({
+      prisma.cashfreeWebhookEvent.findMany({
         where: { companyId },
         orderBy: { createdAt: "desc" },
         take: 50,
@@ -43,7 +43,7 @@ export async function getCreditCenterOverview(companyId: string) {
     ...billingSummary,
     creditPurchases,
     subscriptionPayments,
-    razorpayWebhookEvents,
+    cashfreeWebhookEvents,
     recentSubscriptionExpiryRuns,
     recentSubscriptionCancellationRuns,
     recentDeveloperDataRetentionRuns,
