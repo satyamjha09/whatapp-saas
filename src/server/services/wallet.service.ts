@@ -82,6 +82,14 @@ export async function debitWalletForMessage(
   description: string,
   referenceId?: string,
 ) {
+  if (
+    !Number.isFinite(amountPaise) ||
+    !Number.isInteger(amountPaise) ||
+    amountPaise <= 0
+  ) {
+    throw new Error("Debit amount must be positive");
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     await tx.wallet.upsert({
       where: {
@@ -94,7 +102,8 @@ export async function debitWalletForMessage(
       },
     });
 
-    const debit = await tx.wallet.updateMany({
+    // The balance check and decrement must remain in one database statement.
+    const debitResult = await tx.wallet.updateMany({
       where: {
         companyId,
         balancePaise: {
@@ -108,7 +117,7 @@ export async function debitWalletForMessage(
       },
     });
 
-    if (debit.count === 0) {
+    if (debitResult.count !== 1) {
       throw new Error("Insufficient wallet balance");
     }
 
