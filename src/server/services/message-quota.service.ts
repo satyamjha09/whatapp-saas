@@ -28,6 +28,9 @@ export async function getCompanyMessageQuota(companyId: string) {
     where: {
       companyId,
       direction: "OUTBOUND",
+      status: {
+        not: "CANCELED",
+      },
       createdAt: { gte: periodStart, lt: periodEnd },
     },
   });

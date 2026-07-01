@@ -64,10 +64,7 @@ export async function uploadSingleMessageMedia(
   });
 }
 
-export async function sendSingleTemplateMessage(
-  companyId: string,
-  input: SendSingleTemplateMessageInput,
-) {
+export async function assertSingleMessageSendPreconditions(companyId: string) {
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId);
   await assertUsageQuotaAvailable({
@@ -75,6 +72,22 @@ export async function sendSingleTemplateMessage(
     featureKey: "BULK_MESSAGING",
     amount: 1,
   });
+
+  const wallet = await prisma.wallet.findUnique({
+    where: { companyId },
+    select: { balancePaise: true },
+  });
+
+  if (!wallet || wallet.balancePaise < MESSAGE_PRICE_PAISE) {
+    throw new Error("Insufficient wallet balance");
+  }
+}
+
+export async function sendSingleTemplateMessage(
+  companyId: string,
+  input: SendSingleTemplateMessageInput,
+) {
+  await assertSingleMessageSendPreconditions(companyId);
 
   const phoneNumber = normalizePhoneNumber(input.phoneNumber);
   const countryCode = normalizePhoneNumber(input.countryCode);

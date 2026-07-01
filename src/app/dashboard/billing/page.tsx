@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CheckCircle2,
   CreditCard,
+  Download,
   MessageCircle,
   ReceiptText,
   Users,
@@ -120,6 +121,13 @@ export default async function BillingPage() {
         actions={
           <>
             {canManage ? <CheckSubscriptionExpiryButton /> : null}
+            <Link
+              href="/dashboard/billing/export-center"
+              className={actionButtonClass("secondary")}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export Center
+            </Link>
             <Link href="/dashboard/wallet" className={actionButtonClass()}>
               <Wallet className="mr-2 h-4 w-4" />
               Open Wallet

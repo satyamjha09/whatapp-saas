@@ -1,6 +1,7 @@
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { getMessageQueue } from "@/lib/queue";
 import { prisma } from "@/lib/prisma";
+import { decrementUsageQuota } from "@/server/services/usage-quota.service";
 import { refundWalletForMessage } from "@/server/services/wallet.service";
 
 async function removeDelayedJob(queueJobId: string) {
@@ -33,6 +34,7 @@ export async function cancelScheduledSingleMessage(
     where: { id: messageId, companyId },
     select: {
       id: true,
+      createdAt: true,
       scheduledAt: true,
       status: true,
     },
@@ -79,6 +81,7 @@ export async function cancelScheduledSingleMessage(
       where: { id: message.id },
       select: {
         id: true,
+        createdAt: true,
         scheduledAt: true,
         status: true,
       },
@@ -92,6 +95,20 @@ export async function cancelScheduledSingleMessage(
     "Scheduled single message cancellation refund",
     message.id,
   );
+  const quotaRestoration = await decrementUsageQuota({
+    companyId,
+    featureKey: "BULK_MESSAGING",
+    amount: 1,
+    idempotencyKey: `scheduled-single-message-canceled:${message.id}`,
+    periodDate: message.createdAt,
+    reason: "scheduled-single-message-canceled",
+    metadata: {
+      messageId: message.id,
+      createdAt: message.createdAt.toISOString(),
+      scheduledAt: message.scheduledAt?.toISOString() ?? null,
+      canceledAt: canceledAt.toISOString(),
+    },
+  });
 
   return {
     messageId: canceledMessage.id,
@@ -100,5 +117,7 @@ export async function cancelScheduledSingleMessage(
     jobRemovalResult,
     refundCreated: refund.refunded,
     refundTransactionId: refund.transaction?.id ?? null,
+    quotaRestored: Boolean(quotaRestoration),
+    quotaEventId: quotaRestoration?.id ?? null,
   };
 }

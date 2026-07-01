@@ -82,6 +82,10 @@ export const dashboardNavigation: DashboardNavGroup[] = [
         href: "/dashboard/billing/refunds",
       },
       {
+        label: "Export Center",
+        href: "/dashboard/billing/export-center",
+      },
+      {
         label: "Billing Ops",
         href: "/dashboard/billing/ops",
       },

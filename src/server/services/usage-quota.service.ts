@@ -100,7 +100,7 @@ function getPeriodTypeForFeature(
   return configuredPeriod("USAGE_QUOTAS_MESSAGE_PERIOD", "MONTHLY");
 }
 
-function getPeriodWindow(periodType: FeatureUsagePeriodType) {
+function getPeriodWindow(periodType: FeatureUsagePeriodType, date = new Date()) {
   if (periodType === "LIFETIME") {
     return {
       periodStart: lifetimeStart(),
@@ -109,8 +109,8 @@ function getPeriodWindow(periodType: FeatureUsagePeriodType) {
   }
 
   return {
-    periodStart: startOfMonth(),
-    periodEnd: startOfNextMonth(),
+    periodStart: startOfMonth(date),
+    periodEnd: startOfNextMonth(date),
   };
 }
 
@@ -141,13 +141,15 @@ async function upsertUsageCounter(
   {
     companyId,
     featureKey,
+    periodDate,
   }: {
     companyId: string;
     featureKey: FeatureEntitlementKey;
+    periodDate?: Date;
   },
 ) {
   const periodType = getPeriodTypeForFeature(featureKey);
-  const { periodStart, periodEnd } = getPeriodWindow(periodType);
+  const { periodStart, periodEnd } = getPeriodWindow(periodType, periodDate);
 
   return client.featureUsageCounter.upsert({
     where: {
@@ -384,6 +386,7 @@ export async function decrementUsageQuota({
   featureKey,
   amount = 1,
   idempotencyKey,
+  periodDate,
   reason,
   metadata,
 }: {
@@ -391,6 +394,7 @@ export async function decrementUsageQuota({
   featureKey: FeatureEntitlementKey;
   amount?: number;
   idempotencyKey?: string | null;
+  periodDate?: Date;
   reason?: string | null;
   metadata?: unknown;
 }) {
@@ -422,6 +426,7 @@ export async function decrementUsageQuota({
     const counter = await upsertUsageCounter(tx, {
       companyId,
       featureKey,
+      periodDate,
     });
 
     const beforeCount = counter.usedCount;

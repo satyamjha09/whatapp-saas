@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
+import {
+  assertRoutePermission,
+  createRoutePermissionErrorResponse,
+} from "@/server/auth/route-permission-guard";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { ConsentRequiredError } from "@/server/services/contact-consent.service";
 import {
+  assertSingleMessageSendPreconditions,
   sendSingleTemplateMessage,
   uploadSingleMessageMedia,
 } from "@/server/services/single-message.service";
@@ -14,45 +19,79 @@ import {
 import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 import { sendSingleTemplateMessageSchema } from "@/server/validators/single-message.validator";
 
+const PENDING_MEDIA_UPLOAD_ID = "__pending_media_upload__";
+
+type SingleMessageRequest = {
+  body: unknown;
+  mediaFile?: File;
+};
+
+function stringValue(value: FormDataEntryValue | null) {
+  return value?.toString() || undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readMediaFile(formData: FormData) {
+  const mediaFile = formData.get("mediaFile");
+
+  return mediaFile instanceof File && mediaFile.size > 0
+    ? mediaFile
+    : undefined;
+}
+
+function createValidationBody(input: SingleMessageRequest) {
+  if (!input.mediaFile || !isRecord(input.body)) return input.body;
+  if (input.body.messageType !== "Media") return input.body;
+
+  const media = isRecord(input.body.media) ? input.body.media : {};
+  if (media.id || media.url) return input.body;
+
+  return {
+    ...input.body,
+    media: {
+      ...media,
+      id: PENDING_MEDIA_UPLOAD_ID,
+    },
+  };
+}
+
 async function readSingleMessageRequest(
   request: Request,
-  companyId: string,
-) {
+): Promise<SingleMessageRequest> {
   const contentType = request.headers.get("content-type") ?? "";
 
   if (!contentType.includes("multipart/form-data")) {
-    return request.json();
+    return { body: await request.json() };
   }
 
   const formData = await request.formData();
-  const mediaFile = formData.get("mediaFile");
-  let uploadedMediaId: string | undefined;
-
-  if (mediaFile instanceof File && mediaFile.size > 0) {
-    const upload = await uploadSingleMessageMedia(companyId, mediaFile);
-    uploadedMediaId = upload.mediaId;
-  }
 
   return {
-    messageType: formData.get("messageType")?.toString(),
-    countryCode: formData.get("countryCode")?.toString(),
-    phoneNumber: formData.get("phoneNumber")?.toString(),
-    name: formData.get("name")?.toString() || undefined,
-    scheduledAt: formData.get("scheduledAt")?.toString() || undefined,
-    templateId: formData.get("templateId")?.toString() || undefined,
-    bodyParameters: formData.getAll("bodyParameters").map((value) =>
-      value.toString(),
-    ),
-    media:
-      formData.get("messageType")?.toString() === "Media"
-        ? {
-            type: formData.get("mediaType")?.toString(),
-            id: uploadedMediaId,
-            url: formData.get("mediaUrl")?.toString() || undefined,
-            name: formData.get("mediaName")?.toString() || undefined,
-            caption: formData.get("mediaCaption")?.toString() || undefined,
-          }
-        : undefined,
+    mediaFile: readMediaFile(formData),
+    body: {
+      messageType: stringValue(formData.get("messageType")),
+      countryCode: stringValue(formData.get("countryCode")),
+      phoneNumber: stringValue(formData.get("phoneNumber")),
+      name: stringValue(formData.get("name")),
+      scheduledAt: stringValue(formData.get("scheduledAt")),
+      templateId: stringValue(formData.get("templateId")),
+      bodyParameters: formData.getAll("bodyParameters").map((value) =>
+        value.toString(),
+      ),
+      media:
+        formData.get("messageType")?.toString() === "Media"
+          ? {
+              type: stringValue(formData.get("mediaType")),
+              id: stringValue(formData.get("mediaId")),
+              url: stringValue(formData.get("mediaUrl")),
+              name: stringValue(formData.get("mediaName")),
+              caption: stringValue(formData.get("mediaCaption")),
+            }
+          : undefined,
+    },
   };
 }
 
@@ -71,11 +110,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const body: unknown = await readSingleMessageRequest(
-      request,
-      context.membership.companyId,
+    try {
+      await assertRoutePermission({
+        request,
+        workspace: context,
+        permission: "CAMPAIGN_SEND",
+      });
+    } catch (error) {
+      return createRoutePermissionErrorResponse(error);
+    }
+
+    const requestInput = await readSingleMessageRequest(request);
+    const validation = sendSingleTemplateMessageSchema.safeParse(
+      createValidationBody(requestInput),
     );
-    const validation = sendSingleTemplateMessageSchema.safeParse(body);
 
     if (!validation.success) {
       return NextResponse.json(
@@ -91,9 +139,31 @@ export async function POST(request: Request) {
       operation: "Sending messages",
     });
 
+    await assertSingleMessageSendPreconditions(context.membership.companyId);
+
+    let messageInput = validation.data;
+    if (
+      requestInput.mediaFile &&
+      messageInput.messageType === "Media" &&
+      messageInput.media
+    ) {
+      const upload = await uploadSingleMessageMedia(
+        context.membership.companyId,
+        requestInput.mediaFile,
+      );
+
+      messageInput = {
+        ...messageInput,
+        media: {
+          ...messageInput.media,
+          id: upload.mediaId,
+        },
+      };
+    }
+
     const result = await sendSingleTemplateMessage(
       context.membership.companyId,
-      validation.data,
+      messageInput,
     );
 
     await createAuditLog({
@@ -106,7 +176,7 @@ export async function POST(request: Request) {
         contactId: result.contact.id,
         templateId: result.template?.id ?? null,
         templateName: result.template?.name ?? null,
-        messageType: validation.data.messageType,
+        messageType: messageInput.messageType,
         scheduledAt: result.message.scheduledAt,
       },
     });
