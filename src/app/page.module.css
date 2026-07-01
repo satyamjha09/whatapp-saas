@@ -1687,3 +1687,268 @@
 .navDashboardButton:hover {
   border-color: #128c7e;
 }
+
+/* Motion: hero cinematic background (gradient blobs + drifting particles) */
+.heroBlobs {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(10px);
+  opacity: 0.5;
+  will-change: transform;
+  animation: blobFloat 16s ease-in-out infinite;
+}
+
+.blobOne {
+  top: -10%;
+  left: 2%;
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, rgba(18, 140, 126, 0.32) 0%, transparent 70%);
+  animation-duration: 18s;
+}
+
+.blobTwo {
+  top: 10%;
+  right: -6%;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(0, 82, 204, 0.22) 0%, transparent 70%);
+  animation-duration: 22s;
+  animation-delay: -4s;
+}
+
+.blobThree {
+  bottom: -14%;
+  left: 30%;
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, rgba(248, 200, 48, 0.22) 0%, transparent 70%);
+  animation-duration: 20s;
+  animation-delay: -9s;
+}
+
+@keyframes blobFloat {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(26px, 18px) scale(1.08);
+  }
+  66% {
+    transform: translate(-18px, 24px) scale(0.96);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+.particle {
+  position: absolute;
+  bottom: -12px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #22c55e;
+  opacity: 0;
+  animation: particleRise linear infinite;
+}
+
+@keyframes particleRise {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.55;
+  }
+  85% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(-620px) scale(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob,
+  .particle,
+  .chartBars i,
+  .whatsappBubble::after {
+    animation: none !important;
+  }
+}
+
+/* Motion: hero product visual */
+.chartBars i {
+  transform-origin: bottom;
+  animation: barGrow 0.9s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.chartBars i:nth-child(1) { animation-delay: 0.05s; }
+.chartBars i:nth-child(2) { animation-delay: 0.15s; }
+.chartBars i:nth-child(3) { animation-delay: 0.25s; }
+.chartBars i:nth-child(4) { animation-delay: 0.35s; }
+.chartBars i:nth-child(5) { animation-delay: 0.45s; }
+.chartBars i:nth-child(6) { animation-delay: 0.55s; }
+.chartBars i:nth-child(7) { animation-delay: 0.65s; }
+
+@keyframes barGrow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.whatsappBubble {
+  animation: bubblePop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.6s backwards;
+}
+
+.whatsappBubble::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 2px solid #22c55e;
+  animation: waPulse 2.4s ease-out infinite;
+}
+
+@keyframes bubblePop {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes waPulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.productVisual {
+  animation: visualFloat 6s ease-in-out infinite;
+}
+
+@keyframes visualFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Motion: hover micro-interactions */
+.primaryButton,
+.secondaryButton,
+.navDashboardButton {
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.primaryButton:hover,
+.navDashboardButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(18, 140, 126, 0.28);
+}
+
+.secondaryButton:hover {
+  transform: translateY(-2px);
+}
+
+.primaryButton:active,
+.secondaryButton:active,
+.navDashboardButton:active {
+  transform: translateY(0);
+}
+
+.featureCard,
+.stepCard,
+.testimonialCard,
+.planCard,
+.metricCard,
+.faqCard,
+.inboxMockup,
+.clientStrip span,
+.integrationGrid span {
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.featureCard:hover,
+.testimonialCard:hover,
+.faqCard:hover {
+  transform: translateY(-6px);
+  border-color: #128c7e;
+  box-shadow: 0 22px 50px rgba(18, 140, 126, 0.14);
+}
+
+.stepCard:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 22px 50px #bfe9d0;
+}
+
+.planCard:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 26px 60px #bfe9d0;
+}
+
+.popularPlan:hover {
+  transform: translateY(-6px);
+}
+
+.clientStrip span:hover,
+.integrationGrid span:hover {
+  transform: translateY(-4px);
+  border-color: #128c7e;
+}
+
+.navLinks a {
+  position: relative;
+  transition: color 160ms ease;
+}
+
+.navLinks a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -4px;
+  height: 2px;
+  border-radius: 999px;
+  background: #128c7e;
+  transition: right 220ms ease;
+}
+
+.navLinks a:hover {
+  color: #128c7e;
+}
+
+.navLinks a:hover::after {
+  right: 0;
+}
+
+.brandMark {
+  transition: transform 220ms ease;
+}
+
+.brand:hover .brandMark {
+  transform: scale(1.06) rotate(-3deg);
+}

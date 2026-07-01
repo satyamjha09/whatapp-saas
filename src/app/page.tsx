@@ -1,6 +1,18 @@
 import Link from 'next/link'
 import styles from './page.module.css'
 import { FileText, Clock, CheckCircle2, XCircle, Shield, Zap } from 'lucide-react'
+import { Reveal, RevealGroup, RevealItem } from './Reveal'
+
+const particles = [
+  { left: '6%', duration: 9, delay: 0 },
+  { left: '16%', duration: 11, delay: 2 },
+  { left: '27%', duration: 8, delay: 4 },
+  { left: '41%', duration: 12, delay: 1 },
+  { left: '58%', duration: 10, delay: 3 },
+  { left: '69%', duration: 9, delay: 5 },
+  { left: '80%', duration: 13, delay: 0.5 },
+  { left: '91%', duration: 10, delay: 2.5 },
+]
 
 
 
@@ -73,31 +85,57 @@ export default function Home() {
       </nav>
 
       <section className={styles.hero}>
+        <div className={styles.heroBlobs} aria-hidden="true">
+          <span className={`${styles.blob} ${styles.blobOne}`} />
+          <span className={`${styles.blob} ${styles.blobTwo}`} />
+          <span className={`${styles.blob} ${styles.blobThree}`} />
+          {particles.map((particle, index) => (
+            <span
+              key={index}
+              className={styles.particle}
+              style={{
+                left: particle.left,
+                animationDuration: `${particle.duration}s`,
+                animationDelay: `${particle.delay}s`,
+              }}
+            />
+          ))}
+        </div>
         <div className={styles.heroContainer}>
           <div className={styles.heroContent}>
-            <span className={styles.badge}>WhatsApp + Tally, connected for growth</span>
-            <h1>
-              Automate WhatsApp. Manage Business.
-              <br />
-              <span>Grow More.</span>
-            </h1>
-            <p>
-              TallyKonnect helps finance teams and businesses automate WhatsApp conversations,
-              manage customer communication and sync important data with Tally from one clean platform.
-            </p>
-            <div className={styles.heroActions}>
-              <Link className={styles.primaryButton} href="/sign-up">
-                Start Free Trial
-              </Link>
-              <Link className={styles.secondaryButton} href="/sign-in">
-                Book a Demo
-              </Link>
-            </div>
-            <div className={styles.trustRow}>
-              <span>No credit card required</span>
-              <span>14-day free trial</span>
-              <span>Cancel anytime</span>
-            </div>
+            <Reveal direction="up">
+              <span className={styles.badge}>WhatsApp + Tally, connected for growth</span>
+            </Reveal>
+            <Reveal direction="up" delay={0.08}>
+              <h1>
+                Automate WhatsApp. Manage Business.
+                <br />
+                <span>Grow More.</span>
+              </h1>
+            </Reveal>
+            <Reveal direction="up" delay={0.16}>
+              <p>
+                TallyKonnect helps finance teams and businesses automate WhatsApp conversations,
+                manage customer communication and sync important data with Tally from one clean platform.
+              </p>
+            </Reveal>
+            <Reveal direction="up" delay={0.24}>
+              <div className={styles.heroActions}>
+                <Link className={styles.primaryButton} href="/sign-up">
+                  Start Free Trial
+                </Link>
+                <Link className={styles.secondaryButton} href="/sign-in">
+                  Book a Demo
+                </Link>
+              </div>
+            </Reveal>
+            <Reveal direction="up" delay={0.32}>
+              <div className={styles.trustRow}>
+                <span>No credit card required</span>
+                <span>14-day free trial</span>
+                <span>Cancel anytime</span>
+              </div>
+            </Reveal>
           </div>
 
           <div className={styles.productVisual} aria-label="TallyKonnect dashboard preview">
@@ -157,75 +195,83 @@ export default function Home() {
       </section>
 
       <section className={styles.clientStrip} aria-label="Trusted businesses">
-        <div className={styles.clientStripContainer}>
+        <RevealGroup className={styles.clientStripContainer}>
           {['Sree Balaji Enterprises', 'Gupta & Co.', 'KVR Consultants', 'Jain Traders', 'Mehta Finance Solutions'].map((client) => (
-            <span key={client}>{client}</span>
+            <RevealItem key={client}>
+              <span>{client}</span>
+            </RevealItem>
           ))}
-        </div>
+        </RevealGroup>
       </section>
 
       <section className={styles.featuresSection} id="features">
         <div className={styles.sectionContainer}>
-          <div className={styles.sectionHeading}>
+          <Reveal className={styles.sectionHeading}>
             <span className={styles.kicker}>Everything you need</span>
             <h2>
               Automate and scale on <span>WhatsApp</span>
             </h2>
-          </div>
-          <div className={styles.featureGrid}>
+          </Reveal>
+          <RevealGroup className={styles.featureGrid}>
             {features.map(([title, copy], index) => (
-              <article className={styles.featureCard} key={title}>
-                <span className={styles.icon}>{String(index + 1).padStart(2, '0')}</span>
-                <h3>{title}</h3>
-                <p>{copy}</p>
-              </article>
+              <RevealItem key={title}>
+                <article className={styles.featureCard}>
+                  <span className={styles.icon}>{String(index + 1).padStart(2, '0')}</span>
+                  <h3>{title}</h3>
+                  <p>{copy}</p>
+                </article>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
         </div>
       </section>
 
       <section className={styles.integrationBand} id="integrations">
         <div className={styles.integrationBandContainer}>
-          <div>
+          <Reveal direction="left">
             <span className={styles.badgeDark}>Powerful integrations</span>
             <h2>Works seamlessly with your tools</h2>
             <p>Connect TallyKonnect with the platforms you already use and automate communication, reminders and data flow.</p>
-          </div>
-          <div className={styles.integrationGrid}>
+          </Reveal>
+          <RevealGroup className={styles.integrationGrid}>
             {integrations.map((integration) => (
-              <span key={integration}>{integration}</span>
+              <RevealItem key={integration} direction="right">
+                <span>{integration}</span>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
         </div>
       </section>
 
       <section className={styles.workflowSection}>
         <div className={styles.sectionContainer}>
-          <div className={styles.sectionHeading}>
+          <Reveal className={styles.sectionHeading}>
             <span className={styles.kicker}>How it works</span>
             <h2>
               Get started in <span>3 simple steps</span>
             </h2>
-          </div>
-          <div className={styles.steps}>
+          </Reveal>
+          <RevealGroup className={styles.steps}>
             {[
               ['Connect WhatsApp', 'Connect your WhatsApp number in a few clicks.'],
               ['Set up automation', 'Create templates, replies and workflows.'],
               ['Engage and grow', 'Launch campaigns and convert conversations.'],
             ].map(([title, copy], index) => (
-              <article className={styles.stepCard} key={title}>
-                <span>{index + 1}</span>
-                <h3>{title}</h3>
-                <p>{copy}</p>
-              </article>
+              <RevealItem key={title}>
+                <article className={styles.stepCard}>
+                  <span>{index + 1}</span>
+                  <h3>{title}</h3>
+                  <p>{copy}</p>
+                </article>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
         </div>
       </section>
 
       <section className={styles.conversationSection}>
         <div className={styles.conversationSectionContainer}>
-          <div>
+          <Reveal direction="left">
             <span className={styles.kicker}>Built for businesses</span>
             <h2>A better way to manage customer conversations</h2>
             <ul>
@@ -233,8 +279,8 @@ export default function Home() {
               <li>Quick replies, tags and notes to close conversations faster</li>
               <li>Secure, reliable and built for scale</li>
             </ul>
-          </div>
-          <div className={styles.inboxMockup}>
+          </Reveal>
+          <Reveal direction="right" className={styles.inboxMockup}>
             <div className={styles.inboxList}>
               <strong>Inbox</strong>
               {['Ravi Kumar', 'Priya Sharma', 'Amit Verma', 'Neha Jain'].map((name, index) => (
@@ -251,62 +297,70 @@ export default function Home() {
               <p>Can you share the pricing details?</p>
               <p className={styles.reply}>Sure. Please find the details here.</p>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* NEW: Tally Automated Reminders Workflow Showcase */}
       <section className={styles.showcaseSection}>
         <div className={styles.sectionContainer}>
-          <div className={styles.sectionHeading}>
+          <Reveal className={styles.sectionHeading}>
             <span className={styles.kicker}>Tally ERP Automation</span>
             <h2>Built Specifically for <span>Tally ERP Workflows</span></h2>
             <p style={{ marginTop: '12px', color: '#526173' }}>
               No manual uploads. TallyKonnect connects directly with your Tally ERP database to automate major business communications in real time.
             </p>
-          </div>
-          <div className={styles.showcaseGrid}>
-            <article className={styles.showcaseCard}>
-              <div className={styles.showcaseIcon}>
-                <FileText className="h-6 w-6" />
-              </div>
-              <h3>Sales Invoices</h3>
-              <p>Send clean PDF invoices on WhatsApp as soon as they are made in Tally. Fast, official, and direct.</p>
-            </article>
-            <article className={styles.showcaseCard}>
-              <div className={styles.showcaseIcon}>
-                <Clock className="h-6 w-6" />
-              </div>
-              <h3>Outstanding Reminders</h3>
-              <p>Automatically schedule friendly payment alerts for ledgers with outstanding balances to reduce delay times.</p>
-            </article>
-            <article className={styles.showcaseCard}>
-              <div className={styles.showcaseIcon}>
-                <Shield className="h-6 w-6" />
-              </div>
-              <h3>Ledger Statements</h3>
-              <p>Let clients request their balance and ledger statements by typing a keyword on WhatsApp.</p>
-            </article>
-            <article className={styles.showcaseCard}>
-              <div className={styles.showcaseIcon}>
-                <Zap className="h-6 w-6" />
-              </div>
-              <h3>Payment Receipts</h3>
-              <p>Instantly confirm transactions by auto-sending WhatsApp payment receipts as soon as vouchers are recorded.</p>
-            </article>
-          </div>
+          </Reveal>
+          <RevealGroup className={styles.showcaseGrid}>
+            <RevealItem>
+              <article className={styles.showcaseCard}>
+                <div className={styles.showcaseIcon}>
+                  <FileText className="h-6 w-6" />
+                </div>
+                <h3>Sales Invoices</h3>
+                <p>Send clean PDF invoices on WhatsApp as soon as they are made in Tally. Fast, official, and direct.</p>
+              </article>
+            </RevealItem>
+            <RevealItem>
+              <article className={styles.showcaseCard}>
+                <div className={styles.showcaseIcon}>
+                  <Clock className="h-6 w-6" />
+                </div>
+                <h3>Outstanding Reminders</h3>
+                <p>Automatically schedule friendly payment alerts for ledgers with outstanding balances to reduce delay times.</p>
+              </article>
+            </RevealItem>
+            <RevealItem>
+              <article className={styles.showcaseCard}>
+                <div className={styles.showcaseIcon}>
+                  <Shield className="h-6 w-6" />
+                </div>
+                <h3>Ledger Statements</h3>
+                <p>Let clients request their balance and ledger statements by typing a keyword on WhatsApp.</p>
+              </article>
+            </RevealItem>
+            <RevealItem>
+              <article className={styles.showcaseCard}>
+                <div className={styles.showcaseIcon}>
+                  <Zap className="h-6 w-6" />
+                </div>
+                <h3>Payment Receipts</h3>
+                <p>Instantly confirm transactions by auto-sending WhatsApp payment receipts as soon as vouchers are recorded.</p>
+              </article>
+            </RevealItem>
+          </RevealGroup>
         </div>
       </section>
 
       {/* NEW: Manual vs TallyKonnect Comparison Section */}
       <section className={styles.comparisonSection}>
         <div className={styles.sectionContainer}>
-          <div className={styles.sectionHeading}>
+          <Reveal className={styles.sectionHeading}>
             <span className={styles.kicker}>Why TallyKonnect?</span>
             <h2>Automate the <span>Heavy Lifting</span></h2>
-          </div>
-          <div className={styles.comparisonGrid}>
-            <div className={`${styles.comparisonCol} ${styles.manual}`}>
+          </Reveal>
+          <RevealGroup className={styles.comparisonGrid}>
+            <RevealItem direction="left" className={`${styles.comparisonCol} ${styles.manual}`}>
               <h3>Manual WhatsApp Reminders</h3>
               <ul className={styles.comparisonList}>
                 <li className={styles.comparisonItem}>
@@ -326,8 +380,8 @@ export default function Home() {
                   <span>Takes 5 to 10 minutes per reminder. Impossible to scale.</span>
                 </li>
               </ul>
-            </div>
-            <div className={`${styles.comparisonCol} ${styles.automated}`}>
+            </RevealItem>
+            <RevealItem direction="right" className={`${styles.comparisonCol} ${styles.automated}`}>
               <h3>TallyKonnect Automation</h3>
               <ul className={styles.comparisonList}>
                 <li className={styles.comparisonItem}>
@@ -347,88 +401,100 @@ export default function Home() {
                   <span>Takes less than 5 seconds. Send thousands of reminders at once.</span>
                 </li>
               </ul>
-            </div>
-          </div>
+            </RevealItem>
+          </RevealGroup>
         </div>
       </section>
 
       <section className={styles.testimonials}>
-        <div className={styles.testimonialsContainer}>
-          <div>
+        <RevealGroup className={styles.testimonialsContainer}>
+          <RevealItem>
             <span className={styles.kicker}>What our clients say</span>
             <h2>Loved by businesses, trusted for results</h2>
-          </div>
+          </RevealItem>
           {testimonials.map(([name, company, quote]) => (
-            <article className={styles.testimonialCard} key={name}>
-              <span className={styles.stars}>5 star rating</span>
-              <p>{quote}</p>
-              <strong>{name}</strong>
-              <small>{company}</small>
-            </article>
+            <RevealItem key={name}>
+              <article className={styles.testimonialCard}>
+                <span className={styles.stars}>5 star rating</span>
+                <p>{quote}</p>
+                <strong>{name}</strong>
+                <small>{company}</small>
+              </article>
+            </RevealItem>
           ))}
-        </div>
+        </RevealGroup>
       </section>
 
       {/* NEW: FAQ Section */}
       <section className={styles.faqSection}>
         <div className={styles.sectionContainer}>
-          <div className={styles.sectionHeading}>
+          <Reveal className={styles.sectionHeading}>
             <span className={styles.kicker}>Frequently Asked Questions</span>
             <h2>Got Questions? <span>We Have Answers</span></h2>
-          </div>
-          <div className={styles.faqGrid}>
-            <div className={styles.faqCard}>
-              <h3>How does the Tally integration work?</h3>
-              <p>We provide a secure, lightweight connector that runs alongside your Tally ERP installation. It reads ledger balances and invoice details and pushes them securely to TallyKonnect to trigger updates.</p>
-            </div>
-            <div className={styles.faqCard}>
-              <h3>Do I need a WhatsApp Business API account?</h3>
-              <p>Yes. TallyKonnect uses the official Meta Cloud API to ensure delivery rates and prevent number bans. We provide embedded onboarding inside our app to help you set it up in under 5 minutes.</p>
-            </div>
-            <div className={styles.faqCard}>
-              <h3>Can I use my existing WhatsApp phone number?</h3>
-              <p>Yes, you can register your current number. However, you must first disconnect it from normal mobile/web WhatsApp apps so it can connect to the Cloud API.</p>
-            </div>
-            <div className={styles.faqCard}>
-              <h3>Is my financial data safe and secure?</h3>
-              <p>Data security is our top priority. We only sync data points that are necessary for generating templates and reminders. All information is encrypted in transit and at rest.</p>
-            </div>
-          </div>
+          </Reveal>
+          <RevealGroup className={styles.faqGrid}>
+            <RevealItem>
+              <div className={styles.faqCard}>
+                <h3>How does the Tally integration work?</h3>
+                <p>We provide a secure, lightweight connector that runs alongside your Tally ERP installation. It reads ledger balances and invoice details and pushes them securely to TallyKonnect to trigger updates.</p>
+              </div>
+            </RevealItem>
+            <RevealItem>
+              <div className={styles.faqCard}>
+                <h3>Do I need a WhatsApp Business API account?</h3>
+                <p>Yes. TallyKonnect uses the official Meta Cloud API to ensure delivery rates and prevent number bans. We provide embedded onboarding inside our app to help you set it up in under 5 minutes.</p>
+              </div>
+            </RevealItem>
+            <RevealItem>
+              <div className={styles.faqCard}>
+                <h3>Can I use my existing WhatsApp phone number?</h3>
+                <p>Yes, you can register your current number. However, you must first disconnect it from normal mobile/web WhatsApp apps so it can connect to the Cloud API.</p>
+              </div>
+            </RevealItem>
+            <RevealItem>
+              <div className={styles.faqCard}>
+                <h3>Is my financial data safe and secure?</h3>
+                <p>Data security is our top priority. We only sync data points that are necessary for generating templates and reminders. All information is encrypted in transit and at rest.</p>
+              </div>
+            </RevealItem>
+          </RevealGroup>
         </div>
       </section>
 
       <section className={styles.pricingSection} id="pricing">
         <div className={styles.sectionContainer}>
-          <div className={styles.sectionHeading}>
+          <Reveal className={styles.sectionHeading}>
             <span className={styles.kicker}>Simple pricing</span>
             <h2>Choose the plan that fits your business</h2>
-          </div>
-          <div className={styles.pricingGrid}>
+          </Reveal>
+          <RevealGroup className={styles.pricingGrid}>
             {plans.map((plan, index) => (
-              <article className={`${styles.planCard} ${index === 1 ? styles.popularPlan : ''}`} key={plan.name}>
-                {index === 1 && <span className={styles.popularBadge}>Most Popular</span>}
-                <h3>{plan.name}</h3>
-                <strong>
-                  {plan.price}
-                  <small>/month</small>
-                </strong>
-                <p>{plan.detail}</p>
-                <ul>
-                  {plan.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-                <Link className={styles.primaryButton} href="/sign-up">
-                  Start Free Trial
-                </Link>
-              </article>
+              <RevealItem key={plan.name}>
+                <article className={`${styles.planCard} ${index === 1 ? styles.popularPlan : ''}`}>
+                  {index === 1 && <span className={styles.popularBadge}>Most Popular</span>}
+                  <h3>{plan.name}</h3>
+                  <strong>
+                    {plan.price}
+                    <small>/month</small>
+                  </strong>
+                  <p>{plan.detail}</p>
+                  <ul>
+                    {plan.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                  <Link className={styles.primaryButton} href="/sign-up">
+                    Start Free Trial
+                  </Link>
+                </article>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
         </div>
       </section>
 
       <section className={styles.ctaSection}>
-        <div className={styles.ctaSectionContainer}>
+        <Reveal className={styles.ctaSectionContainer}>
           <div className={styles.ctaIcon}>WA</div>
           <div>
             <h2>Ready to automate your business with WhatsApp and Tally?</h2>
@@ -437,7 +503,7 @@ export default function Home() {
           <Link className={styles.secondaryButton} href="/sign-up">
             Start Free Trial
           </Link>
-        </div>
+        </Reveal>
       </section>
 
       <footer className={styles.footer} id="footer">
