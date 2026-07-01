@@ -59,7 +59,7 @@ export default function InboxReplyForm({
 
   if (!windowIsOpen) {
     return (
-      <div className="border-t border-[#D8E6F3] bg-white p-4">
+      <div className="border-t border-[#BFE9D0] bg-white p-4">
         <p className="rounded-xl border border-[#F8C830]/40 bg-[#F8C830]/15 p-3 text-sm text-[#102040]">
           The 24-hour reply window is closed. Send an approved template from
           Messages to restart the conversation.
@@ -71,7 +71,7 @@ export default function InboxReplyForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-t border-[#D8E6F3] bg-white p-4"
+      className="border-t border-[#BFE9D0] bg-white p-4"
     >
       <div className="flex items-end gap-3">
         <div className="min-w-0 flex-1">
@@ -86,14 +86,14 @@ export default function InboxReplyForm({
             rows={2}
             maxLength={4096}
             required
-            className="w-full resize-none rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] px-4 py-3 text-sm text-[#102040] outline-none transition placeholder:text-[#526173]/70 focus:border-[#0052CC]/40 focus:bg-white focus:ring-4 focus:ring-[#0052CC]/10"
+            className="w-full resize-none rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] px-4 py-3 text-sm text-[#102040] outline-none transition placeholder:text-[#526173]/70 focus:border-[#128C7E]/40 focus:bg-white focus:ring-4 focus:ring-[#128C7E]/10"
           />
         </div>
 
         <button
           type="submit"
           disabled={isSending || body.trim().length === 0}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0052CC] px-4 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,82,204,0.20)] transition hover:bg-[#003F9E] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#128C7E] px-4 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,82,204,0.20)] transition hover:bg-[#075E54] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Send className="h-4 w-4" />
           {isSending ? "Queuing..." : "Send"}

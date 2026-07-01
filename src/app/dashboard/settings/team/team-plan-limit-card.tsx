@@ -19,7 +19,7 @@ export default function TeamPlanLimitCard({ usage }: TeamPlanLimitCardProps) {
   );
 
   return (
-    <section className="mb-5 rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_14px_36px_rgba(8,27,58,0.07)]">
+    <section className="mb-5 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_14px_36px_rgba(8,27,58,0.07)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-[#081B3A]">Team seat usage</h2>
@@ -39,15 +39,15 @@ export default function TeamPlanLimitCard({ usage }: TeamPlanLimitCardProps) {
           ["Used", usage.usedSeats],
           ["Remaining", usage.remainingSeats],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] p-3">
+          <div key={label} className="rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] p-3">
             <p className="text-xs text-[#526173]">{label}</p>
             <p className="mt-1 text-xl font-bold text-[#081B3A]">{value}</p>
           </div>
         ))}
       </div>
 
-      <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#D8E6F3]/70">
-        <div className="h-full rounded-full bg-[#0052CC]" style={{ width: `${percentage}%` }} />
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#BFE9D0]/70">
+        <div className="h-full rounded-full bg-[#128C7E]" style={{ width: `${percentage}%` }} />
       </div>
       {!usage.canInvite ? (
         <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">

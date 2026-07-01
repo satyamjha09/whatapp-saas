@@ -79,7 +79,7 @@ export default async function CampaignReportDetailPage({
       </section>
 
       <Panel className="overflow-hidden p-0 sm:p-0">
-        <div className="border-b border-[#D8E6F3] px-5 py-4 sm:px-6">
+        <div className="border-b border-[#BFE9D0] px-5 py-4 sm:px-6">
           <PanelTitle
             title="Recipient delivery status"
             description={`${recipients.length} stored recipient record${recipients.length === 1 ? "" : "s"}; ${summary.canceled} canceled.`}
@@ -93,7 +93,7 @@ export default async function CampaignReportDetailPage({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1080px] text-left text-sm">
-              <thead className="bg-[#F0F8FF] text-xs uppercase text-[#526173]">
+              <thead className="bg-[#E7F8EF] text-xs uppercase text-[#526173]">
                 <tr>
                   <th className="px-5 py-3">Phone</th>
                   <th className="px-5 py-3">Name</th>
@@ -104,7 +104,7 @@ export default async function CampaignReportDetailPage({
                   <th className="px-5 py-3">Updated</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#D8E6F3]">
+              <tbody className="divide-y divide-[#BFE9D0]">
                 {recipients.map((recipient) => {
                   const messageStatus = recipient.messageStatus ?? "NOT_CREATED";
 

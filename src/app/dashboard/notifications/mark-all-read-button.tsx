@@ -39,7 +39,7 @@ export default function MarkAllReadButton() {
         type="button"
         onClick={markAllRead}
         disabled={isSaving}
-        className="rounded-lg bg-[#0052CC] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#003D99] disabled:opacity-60"
+        className="rounded-lg bg-[#128C7E] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#003D99] disabled:opacity-60"
       >
         {isSaving ? "Saving..." : "Mark All Read"}
       </button>

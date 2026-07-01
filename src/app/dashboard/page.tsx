@@ -397,13 +397,13 @@ async function getDashboardOverviewData(
   });
 
   const statusColors: Record<string, string> = {
-    DELIVERED: "#2070B0",
+    DELIVERED: "#128C7E",
     FAILED: "#e11d48",
     QUEUED: "#F8C830",
     RETRY_PENDING: "#f59e0b",
-    READ: "#0052CC",
-    RECEIVED: "#384080",
-    SENDING: "#2070B0",
+    READ: "#128C7E",
+    RECEIVED: "#075E54",
+    SENDING: "#128C7E",
     SENT: "#22C55E",
   };
 

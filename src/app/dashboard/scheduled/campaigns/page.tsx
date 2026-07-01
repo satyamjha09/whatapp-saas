@@ -48,7 +48,7 @@ export default async function ScheduledCampaignsPage() {
       />
 
       <Panel className="overflow-hidden p-0 sm:p-0">
-        <div className="border-b border-[#D8E6F3] px-5 py-4 sm:px-6">
+        <div className="border-b border-[#BFE9D0] px-5 py-4 sm:px-6">
           <PanelTitle
             title="Upcoming campaigns"
             description={`${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"} scheduled.`}
@@ -62,7 +62,7 @@ export default async function ScheduledCampaignsPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[780px] text-left text-sm">
-              <thead className="bg-[#F0F8FF] text-xs uppercase text-[#526173]">
+              <thead className="bg-[#E7F8EF] text-xs uppercase text-[#526173]">
                 <tr>
                   <th className="px-5 py-3">Template</th>
                   <th className="px-5 py-3">Scheduled For</th>
@@ -72,7 +72,7 @@ export default async function ScheduledCampaignsPage() {
                   <th className="px-5 py-3">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#D8E6F3]">
+              <tbody className="divide-y divide-[#BFE9D0]">
                 {campaigns.map((campaign) => (
                   <tr key={campaign.id}>
                     <td className="px-5 py-4 font-semibold text-[#081B3A]">
@@ -95,7 +95,7 @@ export default async function ScheduledCampaignsPage() {
                       <div className="flex flex-wrap items-center gap-3">
                         <Link
                           href={`/dashboard/campaigns/${campaign.id}`}
-                          className="font-semibold text-[#0052CC] hover:underline"
+                          className="font-semibold text-[#128C7E] hover:underline"
                         >
                           View
                         </Link>

@@ -50,7 +50,7 @@ export default function MessageReportFilters({
   return (
     <form
       onSubmit={applyFilters}
-      className="mb-6 rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)]"
+      className="mb-6 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)]"
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div>

@@ -160,7 +160,7 @@ export default async function CampaignAnalyticsDetailPage({
             {campaign.replyAttributions.map((reply) => (
               <div
                 key={reply.id}
-                className="rounded-xl border border-[#D8E6F3] bg-[#F8FBFF] p-4"
+                className="rounded-xl border border-[#BFE9D0] bg-[#F4FCF7] p-4"
               >
                 <p className="font-semibold text-[#081B3A]">
                   {reply.contact.name ?? reply.contact.phoneNumber}
@@ -190,7 +190,7 @@ export default async function CampaignAnalyticsDetailPage({
             {campaign.messages.map((message) => (
               <div
                 key={message.id}
-                className="rounded-xl border border-[#D8E6F3] bg-[#F8FBFF] p-4"
+                className="rounded-xl border border-[#BFE9D0] bg-[#F4FCF7] p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">

@@ -115,14 +115,14 @@ export default function EditApiKeyButton({
         type="button"
         onClick={() => setIsOpen(true)}
         disabled={disabled}
-        className="rounded-lg border border-[#D8E6F3] bg-white px-3 py-2 text-xs font-medium text-[#0052CC] disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-lg border border-[#BFE9D0] bg-white px-3 py-2 text-xs font-medium text-[#128C7E] disabled:cursor-not-allowed disabled:opacity-60"
       >
         Edit
       </button>
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#081B3A]/40 p-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-[#D8E6F3] bg-white p-6 shadow-xl">
+          <div className="w-full max-w-2xl rounded-2xl border border-[#BFE9D0] bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-[#081B3A]">
@@ -137,7 +137,7 @@ export default function EditApiKeyButton({
               <button
                 type="button"
                 onClick={closeEditor}
-                className="rounded-lg border border-[#D8E6F3] px-3 py-1 text-sm font-medium text-[#526173]"
+                className="rounded-lg border border-[#BFE9D0] px-3 py-1 text-sm font-medium text-[#526173]"
               >
                 Close
               </button>
@@ -156,7 +156,7 @@ export default function EditApiKeyButton({
                   type="text"
                   value={draftName}
                   onChange={(event) => setDraftName(event.target.value)}
-                  className="w-full rounded-lg border border-[#D8E6F3] px-4 py-3 text-[#102040] outline-none focus:border-[#0052CC]"
+                  className="w-full rounded-lg border border-[#BFE9D0] px-4 py-3 text-[#102040] outline-none focus:border-[#128C7E]"
                 />
               </div>
 
@@ -166,7 +166,7 @@ export default function EditApiKeyButton({
                   {DEVELOPER_API_SCOPES.map((scope) => (
                     <label
                       key={scope.id}
-                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#D8E6F3] p-4"
+                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#BFE9D0] p-4"
                     >
                       <input
                         type="checkbox"
@@ -198,7 +198,7 @@ export default function EditApiKeyButton({
                   onChange={(event) => setAllowedIpsText(event.target.value)}
                   rows={4}
                   placeholder={"Optional. One per line:\n103.10.20.30\n103.10.20.0/24"}
-                  className="w-full rounded-lg border border-[#D8E6F3] px-4 py-2 text-sm text-[#102040] outline-none focus:border-[#0052CC]"
+                  className="w-full rounded-lg border border-[#BFE9D0] px-4 py-2 text-sm text-[#102040] outline-none focus:border-[#128C7E]"
                 />
 
                 <p className="mt-2 text-xs text-[#526173]">
@@ -215,7 +215,7 @@ export default function EditApiKeyButton({
                   type="datetime-local"
                   value={draftExpiresAt}
                   onChange={(event) => setDraftExpiresAt(event.target.value)}
-                  className="w-full rounded-lg border border-[#D8E6F3] px-4 py-2 text-sm text-[#102040] outline-none focus:border-[#0052CC]"
+                  className="w-full rounded-lg border border-[#BFE9D0] px-4 py-2 text-sm text-[#102040] outline-none focus:border-[#128C7E]"
                 />
 
                 <p className="mt-2 text-xs text-[#526173]">
@@ -234,7 +234,7 @@ export default function EditApiKeyButton({
               <button
                 type="button"
                 onClick={closeEditor}
-                className="rounded-lg border border-[#D8E6F3] px-4 py-2 text-sm font-semibold text-[#526173]"
+                className="rounded-lg border border-[#BFE9D0] px-4 py-2 text-sm font-semibold text-[#526173]"
               >
                 Cancel
               </button>
@@ -242,7 +242,7 @@ export default function EditApiKeyButton({
                 type="button"
                 onClick={saveChanges}
                 disabled={isSaving}
-                className="rounded-lg bg-[#0052CC] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSaving ? "Saving..." : "Save changes"}
               </button>

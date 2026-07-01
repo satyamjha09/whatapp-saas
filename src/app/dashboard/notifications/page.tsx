@@ -10,7 +10,7 @@ function severityClass(severity: string) {
   if (severity === "ERROR") return "bg-red-50 text-red-700";
   if (severity === "WARNING") return "bg-yellow-50 text-yellow-700";
   if (severity === "SUCCESS") return "bg-green-50 text-green-700";
-  return "bg-blue-50 text-blue-700";
+  return "bg-emerald-50 text-emerald-700";
 }
 
 export default async function NotificationsPage() {
@@ -38,13 +38,13 @@ export default async function NotificationsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/dashboard/notifications/preferences"
-            className="rounded-lg border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-medium text-[#526173] transition hover:bg-[#F0F8FF]"
+            className="rounded-lg border border-[#BFE9D0] bg-white px-4 py-2 text-sm font-medium text-[#526173] transition hover:bg-[#E7F8EF]"
           >
             Preferences
           </Link>
           <Link
             href="/dashboard/notifications/email-deliveries"
-            className="rounded-lg border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-medium text-[#526173] transition hover:bg-[#F0F8FF]"
+            className="rounded-lg border border-[#BFE9D0] bg-white px-4 py-2 text-sm font-medium text-[#526173] transition hover:bg-[#E7F8EF]"
           >
             Email Deliveries
           </Link>
@@ -53,13 +53,13 @@ export default async function NotificationsPage() {
       </div>
 
       <section className="mb-6 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-sm">
           <p className="text-sm text-[#526173]">Unread</p>
           <p className="mt-1 text-2xl font-bold text-[#081B3A]">
             {notificationCenter.unreadCount}
           </p>
         </div>
-        <div className="rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-sm">
           <p className="text-sm text-[#526173]">Visible Notifications</p>
           <p className="mt-1 text-2xl font-bold text-[#081B3A]">
             {notificationCenter.notifications.length}
@@ -67,13 +67,13 @@ export default async function NotificationsPage() {
         </div>
       </section>
 
-      <section className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+      <section className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-blue-900">
+            <h2 className="text-lg font-semibold text-emerald-900">
               Notification Retention
             </h2>
-            <p className="mt-1 max-w-3xl text-sm text-blue-800">
+            <p className="mt-1 max-w-3xl text-sm text-emerald-800">
               Read notifications are automatically archived after 30 days. Old
               resolved notifications are deleted after 180 days. Unread alerts
               are preserved.
@@ -85,7 +85,7 @@ export default async function NotificationsPage() {
 
       <section className="space-y-4">
         {notificationCenter.notifications.length === 0 ? (
-          <div className="rounded-2xl border border-[#D8E6F3] bg-white p-8 text-sm text-[#526173] shadow-sm">
+          <div className="rounded-2xl border border-[#BFE9D0] bg-white p-8 text-sm text-[#526173] shadow-sm">
             No notifications yet.
           </div>
         ) : (
@@ -94,8 +94,8 @@ export default async function NotificationsPage() {
               key={notification.id}
               className={`rounded-2xl border bg-white p-5 shadow-sm ${
                 notification.status === "UNREAD"
-                  ? "border-[#0052CC]"
-                  : "border-[#D8E6F3]"
+                  ? "border-[#128C7E]"
+                  : "border-[#BFE9D0]"
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -106,11 +106,11 @@ export default async function NotificationsPage() {
                     >
                       {notification.severity}
                     </span>
-                    <span className="rounded-full bg-[#F0F8FF] px-3 py-1 text-xs font-medium text-[#526173]">
+                    <span className="rounded-full bg-[#E7F8EF] px-3 py-1 text-xs font-medium text-[#526173]">
                       {notification.type}
                     </span>
                     {notification.status === "UNREAD" ? (
-                      <span className="rounded-full bg-[#0052CC] px-3 py-1 text-xs font-medium text-white">
+                      <span className="rounded-full bg-[#128C7E] px-3 py-1 text-xs font-medium text-white">
                         Unread
                       </span>
                     ) : null}
@@ -129,7 +129,7 @@ export default async function NotificationsPage() {
                   {notification.actionHref ? (
                     <Link
                       href={notification.actionHref}
-                      className="mt-4 inline-flex rounded-lg bg-[#0052CC] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#003D99]"
+                      className="mt-4 inline-flex rounded-lg bg-[#128C7E] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#003D99]"
                     >
                       Open
                     </Link>

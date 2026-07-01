@@ -44,12 +44,12 @@ export default function InboxSearchForm({
         name="q"
         defaultValue={searchQuery}
         placeholder="Search name, phone, or message..."
-        className="min-w-0 flex-1 rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-sm text-[#102040] outline-none transition placeholder:text-[#526173]/80 focus:border-[#0052CC]/40 focus:bg-white focus:ring-4 focus:ring-[#0052CC]/10"
+        className="min-w-0 flex-1 rounded-xl border border-[#BFE9D0] bg-white px-3 py-2 text-sm text-[#102040] outline-none transition placeholder:text-[#526173]/80 focus:border-[#128C7E]/40 focus:bg-white focus:ring-4 focus:ring-[#128C7E]/10"
       />
 
       <button
         type="submit"
-        className="rounded-xl bg-[#0052CC] px-3 py-2 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(0,82,204,0.22)] transition hover:bg-[#003F9E] disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-xl bg-[#128C7E] px-3 py-2 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(18,140,126,0.22)] transition hover:bg-[#075E54] disabled:cursor-not-allowed disabled:opacity-60"
       >
         Search
       </button>
@@ -63,7 +63,7 @@ export default function InboxSearchForm({
             sort: activeSort,
             sla,
           })}
-          className="rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-sm font-semibold text-[#0052CC] transition hover:bg-[#F0F8FF]"
+          className="rounded-xl border border-[#BFE9D0] bg-white px-3 py-2 text-sm font-semibold text-[#128C7E] transition hover:bg-[#E7F8EF]"
         >
           Clear
         </Link>

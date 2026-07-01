@@ -32,6 +32,7 @@ export async function GET(request: Request) {
       [
         "Message ID",
         "Created At",
+        "Scheduled At",
         "Direction",
         "Status",
         "Contact Name",
@@ -45,6 +46,7 @@ export async function GET(request: Request) {
       ...messages.map((message) => [
         message.id,
         message.createdAt,
+        message.scheduledAt,
         message.direction,
         message.status,
         message.contact.name ?? "",

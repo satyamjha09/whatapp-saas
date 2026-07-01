@@ -29,7 +29,7 @@ export default async function NotificationPreferencesPage() {
 
         <Link
           href="/dashboard/notifications"
-          className="rounded-lg border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-medium text-[#526173] transition hover:bg-[#F0F8FF]"
+          className="rounded-lg border border-[#BFE9D0] bg-white px-4 py-2 text-sm font-medium text-[#526173] transition hover:bg-[#E7F8EF]"
         >
           Back to Notifications
         </Link>

@@ -31,5 +31,5 @@ export function getChecklistStatusClasses(status: ProductionChecklistStatus) {
     return "bg-[#F8C830]/18 text-[#755b00] ring-[#F8C830]/35";
   }
 
-  return "bg-[#F0F8FF] text-[#526173] ring-[#D8E6F3]";
+  return "bg-[#E7F8EF] text-[#526173] ring-[#BFE9D0]";
 }

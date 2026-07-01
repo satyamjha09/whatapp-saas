@@ -114,7 +114,7 @@ export default async function MessageReportsPage({
         {statusCards.map(([label, value]) => (
           <div
             key={label}
-            className="rounded-2xl border border-[#D8E6F3] bg-white p-4 shadow-[0_12px_28px_rgba(8,27,58,0.06)]"
+            className="rounded-2xl border border-[#BFE9D0] bg-white p-4 shadow-[0_12px_28px_rgba(8,27,58,0.06)]"
           >
             <p className="text-sm text-[#526173]">{label}</p>
             <p className="mt-1 text-xl font-bold text-[#081B3A]">
@@ -127,7 +127,7 @@ export default async function MessageReportsPage({
       <MessageReportFilters initialFilters={filters} />
 
       <Panel className="overflow-hidden p-0 sm:p-0">
-        <div className="border-b border-[#D8E6F3] px-5 py-4 sm:px-6">
+        <div className="border-b border-[#BFE9D0] px-5 py-4 sm:px-6">
           <PanelTitle
             title="Message log"
             description={`Page ${report.page} of ${report.totalPages}; up to ${report.pageSize} messages per page.`}
@@ -140,10 +140,11 @@ export default async function MessageReportsPage({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1180px] text-left text-sm">
-              <thead className="bg-[#F0F8FF] text-xs uppercase text-[#526173]">
+            <table className="w-full min-w-[1280px] text-left text-sm">
+              <thead className="bg-[#E7F8EF] text-xs uppercase text-[#526173]">
                 <tr>
                   <th className="px-5 py-3">Created</th>
+                  <th className="px-5 py-3">Scheduled</th>
                   <th className="px-5 py-3">Direction</th>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Contact</th>
@@ -152,11 +153,16 @@ export default async function MessageReportsPage({
                   <th className="px-5 py-3">Body</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#D8E6F3]">
+              <tbody className="divide-y divide-[#BFE9D0]">
                 {report.messages.map((message) => (
                   <tr key={message.id}>
                     <td className="px-5 py-4 text-[#526173]">
                       {message.createdAt.toLocaleString()}
+                    </td>
+                    <td className="px-5 py-4 text-[#526173]">
+                      {message.scheduledAt
+                        ? message.scheduledAt.toLocaleString()
+                        : "-"}
                     </td>
                     <td className="px-5 py-4">{message.direction}</td>
                     <td className="px-5 py-4">
@@ -180,7 +186,7 @@ export default async function MessageReportsPage({
                     <td className="max-w-xs px-5 py-4 font-mono text-xs">
                       <Link
                         href={`/dashboard/messages/${message.id}`}
-                        className="block truncate font-semibold text-[#0052CC] hover:underline"
+                        className="block truncate font-semibold text-[#128C7E] hover:underline"
                       >
                         {message.id}
                       </Link>
@@ -200,7 +206,7 @@ export default async function MessageReportsPage({
           </div>
         )}
 
-        <div className="flex items-center justify-between border-t border-[#D8E6F3] bg-[#F0F8FF] px-5 py-4 text-sm sm:px-6">
+        <div className="flex items-center justify-between border-t border-[#BFE9D0] bg-[#E7F8EF] px-5 py-4 text-sm sm:px-6">
           <p className="text-[#526173]">
             Page {report.page} of {report.totalPages}
           </p>

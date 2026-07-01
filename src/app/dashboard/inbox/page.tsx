@@ -286,7 +286,7 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
                 name="q"
                 defaultValue={params.q ?? ""}
                 placeholder="Search with phone number"
-                className="h-9 min-w-0 flex-1 rounded-l-md border border-[#D6D6D6] px-3 text-sm outline-none placeholder:text-[#B7B7B7] focus:border-[#1677FF]"
+                className="h-9 min-w-0 flex-1 rounded-l-md border border-[#D6D6D6] px-3 text-sm outline-none placeholder:text-[#B7B7B7] focus:border-[#128C7E]"
               />
               <button
                 type="submit"
@@ -297,7 +297,7 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
               </button>
               <button
                 type="button"
-                className="ml-2 grid h-9 w-9 place-items-center rounded-md bg-[#1677FF] text-white"
+                className="ml-2 grid h-9 w-9 place-items-center rounded-md bg-[#128C7E] text-white"
                 aria-label="New contact"
               >
                 <UserRound className="h-4 w-4" />
@@ -305,11 +305,11 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
             </form>
 
             <div className="mt-2 flex gap-2">
-              <button className="inline-flex h-8 items-center gap-2 rounded-md border border-[#1677FF] px-3 text-sm text-[#1677FF]">
+              <button className="inline-flex h-8 items-center gap-2 rounded-md border border-[#128C7E] px-3 text-sm text-[#128C7E]">
                 <Archive className="h-4 w-4" />
                 All
               </button>
-              <button className="inline-flex h-8 items-center rounded-md border border-[#1677FF] px-3 text-sm text-[#1677FF]">
+              <button className="inline-flex h-8 items-center rounded-md border border-[#128C7E] px-3 text-sm text-[#128C7E]">
                 Any status
               </button>
               <button className="inline-flex h-8 items-center gap-2 rounded-md border border-[#D6D6D6] px-3 text-sm text-black">
@@ -352,7 +352,7 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
                         </p>
                         <p className="mt-1 truncate text-sm font-semibold text-black flex items-center gap-2">
                           <span>{contact.name ?? `${contact.countryCode}${contact.phoneNumber}`}</span>
-                          <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                          <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
                             Score {contact.leadScore ?? 0}
                           </span>
                         </p>

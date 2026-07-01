@@ -171,14 +171,14 @@ export default function InboxBulkActions({
   }
 
   const controlClass =
-    "w-full rounded-lg border border-[#D8E6F3] bg-white px-2.5 py-1.5 text-xs text-[#102040] outline-none transition focus:border-[#0052CC]/40 focus:ring-2 focus:ring-[#0052CC]/10";
+    "w-full rounded-lg border border-[#BFE9D0] bg-white px-2.5 py-1.5 text-xs text-[#102040] outline-none transition focus:border-[#128C7E]/40 focus:ring-2 focus:ring-[#128C7E]/10";
   const secondaryButtonClass =
-    "rounded-lg border border-[#D8E6F3] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#0052CC] transition hover:bg-[#F0F8FF]";
+    "rounded-lg border border-[#BFE9D0] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#128C7E] transition hover:bg-[#E7F8EF]";
   const primaryButtonClass =
-    "rounded-lg bg-[#0052CC] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#003F9E] disabled:cursor-not-allowed disabled:opacity-60";
+    "rounded-lg bg-[#128C7E] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#075E54] disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
-    <div className="rounded-2xl border border-[#D8E6F3] bg-white p-3">
+    <div className="rounded-2xl border border-[#BFE9D0] bg-white p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-[#081B3A]">
@@ -200,7 +200,7 @@ export default function InboxBulkActions({
       </div>
 
       <div className="mt-3 grid gap-2">
-        <div className="max-h-20 overflow-y-auto rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] p-1.5">
+        <div className="max-h-20 overflow-y-auto rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] p-1.5">
           <div className="space-y-1">
             {contacts.map((contact) => (
               <label
@@ -364,7 +364,7 @@ export default function InboxBulkActions({
               </select>
             </>
           ) : (
-            <div className="rounded-lg border border-[#D8E6F3] bg-[#F0F8FF] p-2 text-xs leading-5 text-[#526173]">
+            <div className="rounded-lg border border-[#BFE9D0] bg-[#E7F8EF] p-2 text-xs leading-5 text-[#526173]">
               No extra value needed for this action.
             </div>
           )}

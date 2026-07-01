@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 function componentClass(status: string) {
   if (status === "OPERATIONAL") return "bg-green-50 text-green-700 border-green-200";
   if (status === "DEGRADED") return "bg-yellow-50 text-yellow-700 border-yellow-200";
-  if (status === "MAINTENANCE") return "bg-blue-50 text-blue-700 border-blue-200";
+  if (status === "MAINTENANCE") return "bg-emerald-50 text-emerald-700 border-emerald-200";
   return "bg-red-50 text-red-700 border-red-200";
 }
 
@@ -35,7 +35,7 @@ function overallStatus(components: Array<{ status: string }>) {
   if (components.some((item) => item.status === "MAINTENANCE")) {
     return {
       label: "Maintenance in progress",
-      className: "bg-blue-50 text-blue-700 border-blue-100",
+      className: "bg-emerald-50 text-emerald-700 border-emerald-100",
     };
   }
 

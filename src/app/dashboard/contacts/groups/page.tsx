@@ -77,7 +77,7 @@ export default async function ContactGroupsPage() {
       <ContactGroupCreateForm canManage={canManage} />
 
       <Panel className="overflow-hidden p-0 sm:p-0">
-        <div className="border-b border-[#D8E6F3] px-5 py-4 sm:px-6">
+        <div className="border-b border-[#BFE9D0] px-5 py-4 sm:px-6">
           <PanelTitle title="Groups" description="Open a group to manage its contacts." />
         </div>
         {groups.length === 0 ? (
@@ -90,12 +90,12 @@ export default async function ContactGroupsPage() {
               <Link
                 key={group.id}
                 href={`/dashboard/contacts/groups/${group.id}`}
-                className="rounded-2xl border border-[#D8E6F3] bg-white p-5 transition hover:border-[#0052CC]/30 hover:bg-[#F0F8FF]"
+                className="rounded-2xl border border-[#BFE9D0] bg-white p-5 transition hover:border-[#128C7E]/30 hover:bg-[#E7F8EF]"
               >
                 <div className="flex items-start gap-3">
                   <span
                     className="mt-1 h-4 w-4 shrink-0 rounded-full ring-2 ring-white"
-                    style={{ backgroundColor: group.color ?? "#0052CC" }}
+                    style={{ backgroundColor: group.color ?? "#128C7E" }}
                   />
                   <div className="min-w-0">
                     <h3 className="truncate font-bold text-[#081B3A]">
@@ -104,7 +104,7 @@ export default async function ContactGroupsPage() {
                     <p className="mt-1 line-clamp-2 text-sm text-[#526173]">
                       {group.description || "No description"}
                     </p>
-                    <p className="mt-3 text-sm font-semibold text-[#0052CC]">
+                    <p className="mt-3 text-sm font-semibold text-[#128C7E]">
                       {group._count.members} contact(s)
                     </p>
                   </div>

@@ -38,7 +38,7 @@ export default async function PlatformCompanyDetailPage({
         <div>
           <Link
             href="/platform/companies"
-            className="text-sm font-semibold text-blue-700 underline"
+            className="text-sm font-semibold text-emerald-700 underline"
           >
             Back to companies
           </Link>
@@ -193,7 +193,7 @@ export default async function PlatformCompanyDetailPage({
                 href={`/platform/companies/${child.id}`}
                 className="block py-3"
               >
-                <p className="font-semibold text-blue-700 underline">
+                <p className="font-semibold text-emerald-700 underline">
                   {child.name}
                 </p>
                 <p className="text-sm text-gray-500">

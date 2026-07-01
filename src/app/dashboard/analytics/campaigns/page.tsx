@@ -92,7 +92,7 @@ export default async function CampaignAnalyticsPage() {
       </section>
 
       <Panel className="overflow-hidden p-0 sm:p-0">
-        <div className="border-b border-[#D8E6F3] px-5 py-4 sm:px-6">
+        <div className="border-b border-[#BFE9D0] px-5 py-4 sm:px-6">
           <PanelTitle
             title="Campaign funnel"
             description="Snapshot metrics refresh on schedule and can be synced manually."
@@ -106,7 +106,7 @@ export default async function CampaignAnalyticsPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] text-left text-sm">
-              <thead className="bg-[#F0F8FF] text-xs uppercase text-[#526173]">
+              <thead className="bg-[#E7F8EF] text-xs uppercase text-[#526173]">
                 <tr>
                   <th className="px-5 py-3">Campaign</th>
                   <th className="px-5 py-3">Status</th>
@@ -121,7 +121,7 @@ export default async function CampaignAnalyticsPage() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-[#D8E6F3]">
+              <tbody className="divide-y divide-[#BFE9D0]">
                 {campaigns.map((campaign) => {
                   const snapshot = campaign.analyticsSnapshot;
 

@@ -19,7 +19,7 @@ export default function ComingSoonPage({
       />
       <Panel className="flex min-h-64 items-center justify-center">
         <div className="max-w-md text-center">
-          <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[#F0F8FF] text-[#0052CC]">
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[#E7F8EF] text-[#128C7E]">
             <Construction className="h-6 w-6" />
           </div>
           <p className="mt-4 text-sm font-bold text-[#081B3A]">Coming soon</p>

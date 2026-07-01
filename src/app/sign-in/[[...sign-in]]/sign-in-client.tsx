@@ -21,8 +21,8 @@ export default function SignInClient() {
       </ClerkLoaded>
 
       <ClerkLoading>
-        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-[#D8E6F3]">
-          <LoaderCircle className="mx-auto h-6 w-6 animate-spin text-[#0052CC]" />
+        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-[#BFE9D0]">
+          <LoaderCircle className="mx-auto h-6 w-6 animate-spin text-[#128C7E]" />
           <h2 className="mt-4 text-lg font-bold text-[#081B3A]">
             Loading secure sign in
           </h2>

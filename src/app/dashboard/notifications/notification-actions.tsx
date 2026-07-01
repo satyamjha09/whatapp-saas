@@ -49,7 +49,7 @@ export default function NotificationActions({
           type="button"
           onClick={() => runAction("read")}
           disabled={isSaving}
-          className="rounded-lg border border-[#D8E6F3] px-3 py-2 text-xs font-medium text-[#526173] transition hover:bg-[#F0F8FF] disabled:opacity-60"
+          className="rounded-lg border border-[#BFE9D0] px-3 py-2 text-xs font-medium text-[#526173] transition hover:bg-[#E7F8EF] disabled:opacity-60"
         >
           Mark Read
         </button>
@@ -59,7 +59,7 @@ export default function NotificationActions({
         type="button"
         onClick={() => runAction("archive")}
         disabled={isSaving}
-        className="rounded-lg border border-[#D8E6F3] px-3 py-2 text-xs font-medium text-[#526173] transition hover:bg-[#F0F8FF] disabled:opacity-60"
+        className="rounded-lg border border-[#BFE9D0] px-3 py-2 text-xs font-medium text-[#526173] transition hover:bg-[#E7F8EF] disabled:opacity-60"
       >
         Archive
       </button>

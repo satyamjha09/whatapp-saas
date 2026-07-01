@@ -40,6 +40,7 @@ export const sendSingleTemplateMessageSchema = z
     bodyParameters: z
       .array(z.string().trim().min(1, "Parameter value cannot be empty"))
       .default([]),
+    scheduledAt: z.string().datetime().optional().nullable(),
     text: z
       .object({
         body: z
@@ -140,6 +141,21 @@ export const sendSingleTemplateMessageSchema = z
         path: ["phoneNumber"],
         message: "Country code and phone number cannot exceed 15 digits",
       });
+    }
+
+    if (input.scheduledAt) {
+      const scheduledAt = new Date(input.scheduledAt);
+
+      if (
+        Number.isNaN(scheduledAt.getTime()) ||
+        scheduledAt.getTime() <= Date.now()
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["scheduledAt"],
+          message: "Schedule time must be in the future",
+        });
+      }
     }
 
     if (input.messageType === "Template" && !input.templateId?.trim()) {

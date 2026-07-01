@@ -70,7 +70,7 @@ export default async function WhatsAppOnboardingGuidePage() {
         }
       />
 
-      <section className="rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
+      <section className="rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
         <h2 className="text-lg font-bold text-[#081B3A]">
           WhatsApp Account Setup
         </h2>
@@ -79,10 +79,10 @@ export default async function WhatsAppOnboardingGuidePage() {
           {onboardingSteps.map((step, index) => (
             <article
               key={step.title}
-              className="rounded-2xl border border-[#D8E6F3] p-5"
+              className="rounded-2xl border border-[#BFE9D0] p-5"
             >
               <div className="flex items-start gap-4">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#0052CC] text-sm font-bold text-white">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#128C7E] text-sm font-bold text-white">
                   {index + 1}
                 </span>
                 <div>
@@ -97,13 +97,13 @@ export default async function WhatsAppOnboardingGuidePage() {
         </div>
       </section>
 
-      <section className="mt-5 rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
+      <section className="mt-5 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
         <h2 className="text-lg font-bold text-[#081B3A]">Important Points</h2>
 
         <ul className="mt-5 space-y-3">
           {importantPoints.map((point) => (
             <li key={point} className="flex gap-3 text-sm text-[#102040]">
-              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#0052CC]" />
+              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#128C7E]" />
               <span>{point}</span>
             </li>
           ))}

@@ -140,7 +140,7 @@ export default async function CampaignDetailPage({
                         {recipient.messageId ? (
                           <Link
                             href={`/dashboard/messages/${recipient.messageId}`}
-                            className="font-medium text-blue-600 hover:underline"
+                            className="font-medium text-emerald-600 hover:underline"
                           >
                             View message
                           </Link>
@@ -257,7 +257,7 @@ export default async function CampaignDetailPage({
                 {campaign.variables.map((variable, index) => (
                   <span
                     key={`${variable}-${index}`}
-                    className="rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
+                    className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
                   >
                     {variable}
                   </span>
@@ -313,7 +313,7 @@ export default async function CampaignDetailPage({
                       {campaignContact.message ? (
                         <Link
                           href={`/dashboard/messages/${campaignContact.message.id}`}
-                          className="font-medium text-blue-600 hover:text-blue-800"
+                          className="font-medium text-emerald-600 hover:text-emerald-800"
                         >
                           View message
                         </Link>

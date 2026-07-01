@@ -1,4 +1,4 @@
-import { Inbox, LayoutTemplate } from "lucide-react";
+import { Inbox, LayoutTemplate, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -7,6 +7,7 @@ import {
 } from "@/app/dashboard/dashboard-ui";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import WhatsAppConnectionRequiredCard from "../whatsapp-connection-required-card";
 import SingleTemplateMessageForm from "./single-template-message-form";
 
 export default async function SendSingleMessagePage() {
@@ -16,6 +17,41 @@ export default async function SendSingleMessagePage() {
   if (!context.membership) redirect("/onboarding");
 
   const companyId = context.membership.companyId;
+  const connectedWhatsAppAccount = await prisma.whatsAppAccount.findFirst({
+    where: {
+      companyId,
+      status: "CONNECTED",
+      accessToken: { not: null },
+      phoneNumbers: {
+        some: { phoneNumberId: { not: null } },
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!connectedWhatsAppAccount) {
+    return (
+      <div>
+        <PageHeader
+          eyebrow={context.membership.company.name}
+          title="Send Single Message"
+          description="Connect a WhatsApp Business Account before sending one-to-one messages."
+          actions={
+            <Link
+              href="/dashboard/whatsapp/connect"
+              className={actionButtonClass()}
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Connect WhatsApp
+            </Link>
+          }
+        />
+
+        <WhatsAppConnectionRequiredCard />
+      </div>
+    );
+  }
+
   const [templates, contacts, flows] = await Promise.all([
     prisma.template.findMany({
       where: { companyId, status: "APPROVED" },

@@ -126,12 +126,12 @@ export default async function NotificationEmailDeliveriesPage() {
           </div>
         </section>
 
-        <section className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-          <h2 className="text-lg font-semibold text-blue-900">
+        <section className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+          <h2 className="text-lg font-semibold text-emerald-900">
             Email Delivery Retention
           </h2>
 
-          <p className="mt-1 text-sm text-blue-800">
+          <p className="mt-1 text-sm text-emerald-800">
             Sent and skipped email delivery rows are kept for 90 days. Failed
             rows are kept for 180 days. Pending rows are never deleted by
             retention cleanup and stale pending deliveries are automatically

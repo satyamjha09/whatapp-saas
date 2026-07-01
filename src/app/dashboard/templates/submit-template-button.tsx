@@ -53,17 +53,21 @@ export default function SubmitTemplateButton({
   }
 
   return (
-    <div>
+    <div className="inline-flex shrink-0">
       <button
         type="button"
         onClick={submitTemplate}
         disabled={isSubmitting}
-        className="inline-flex items-center rounded-md bg-[#E8F7EF] px-3 py-2 font-medium text-[#087443] hover:bg-[#D8F0E4] disabled:cursor-not-allowed disabled:opacity-60"
+        title={isSubmitting ? "Submitting template" : "Submit template"}
+        aria-label={isSubmitting ? "Submitting template" : "Submit template"}
+        className="inline-grid h-8 w-8 place-items-center rounded-md bg-[#E8F7EF] text-[#087443] hover:bg-[#D8F0E4] disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <Send className="mr-2 h-4 w-4" />
-        {isSubmitting ? "Submitting..." : "Submit"}
+        <Send className="h-4 w-4" />
+        <span className="sr-only">
+          {isSubmitting ? "Submitting..." : "Submit"}
+        </span>
       </button>
-      {error ? <p className="mt-2 text-xs text-rose-600">{error}</p> : null}
+      {error ? <p className="sr-only">{error}</p> : null}
     </div>
   );
 }

@@ -119,10 +119,10 @@ const quickActions = [
 function cardTone(tone: DashboardMetric["tone"]) {
   const tones: Record<DashboardMetric["tone"], string> = {
     amber: "bg-[#F8C830]/20 text-[#081B3A] ring-[#F8C830]/35",
-    cyan: "bg-[#2070B0]/10 text-[#2070B0] ring-[#2070B0]/20",
+    cyan: "bg-[#128C7E]/10 text-[#128C7E] ring-[#128C7E]/20",
     emerald: "bg-[#22C55E]/10 text-[#15803d] ring-[#22C55E]/25",
-    indigo: "bg-[#0052CC]/10 text-[#0052CC] ring-[#0052CC]/20",
-    violet: "bg-[#384080]/10 text-[#384080] ring-[#384080]/20",
+    indigo: "bg-[#128C7E]/10 text-[#128C7E] ring-[#128C7E]/20",
+    violet: "bg-[#075E54]/10 text-[#075E54] ring-[#075E54]/20",
   };
 
   return tones[tone];
@@ -150,7 +150,7 @@ function ChartTooltip({
   }
 
   return (
-    <div className="rounded-xl border border-[#D8E6F3] bg-white px-3 py-2 text-xs shadow-[0_16px_40px_rgba(8,27,58,0.14)]">
+    <div className="rounded-xl border border-[#BFE9D0] bg-white px-3 py-2 text-xs shadow-[0_16px_40px_rgba(8,27,58,0.14)]">
       {label && <p className="mb-1 font-semibold text-[#081B3A]">{label}</p>}
       <div className="space-y-1">
         {payload.map((item) => (
@@ -180,7 +180,7 @@ function Panel({
   return (
     <section
       className={[
-        "min-w-0 overflow-hidden rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)]",
+        "min-w-0 overflow-hidden rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)]",
         className,
       ].join(" ")}
     >
@@ -191,7 +191,7 @@ function Panel({
 
 function EmptyChart({ message }: { message: string }) {
   return (
-    <div className="grid h-full min-h-[220px] place-items-center rounded-2xl border border-dashed border-[#D8E6F3] bg-[#F0F8FF] p-6 text-center sm:min-h-[260px]">
+    <div className="grid h-full min-h-[220px] place-items-center rounded-2xl border border-dashed border-[#BFE9D0] bg-[#E7F8EF] p-6 text-center sm:min-h-[260px]">
       <div>
         <p className="text-sm font-semibold text-[#081B3A]">No real data yet</p>
         <p className="mt-2 max-w-sm text-sm leading-6 text-[#526173]">
@@ -214,10 +214,10 @@ export function DashboardOverview({
 
   return (
     <div className="space-y-5">
-      <section className="overflow-hidden rounded-[1.75rem] border border-[#D8E6F3] bg-[linear-gradient(135deg,#FFFFFF,#F0F8FF_62%,rgba(216,230,243,0.72))] p-6 shadow-[0_18px_48px_rgba(8,27,58,0.10)] sm:p-8">
+      <section className="overflow-hidden rounded-[1.75rem] border border-[#BFE9D0] bg-[linear-gradient(135deg,#FFFFFF,#E7F8EF_62%,rgba(191,233,208,0.78))] p-6 shadow-[0_18px_48px_rgba(8,27,58,0.10)] sm:p-8">
         <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-end">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#D8E6F3] bg-white px-3 py-1 text-xs font-semibold text-[#0052CC]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#BFE9D0] bg-white px-3 py-1 text-xs font-semibold text-[#128C7E]">
               <ShieldCheck className="h-3.5 w-3.5" />
               {userRole} workspace
             </div>
@@ -231,7 +231,7 @@ export function DashboardOverview({
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[#D8E6F3] bg-white p-4 shadow-[0_14px_34px_rgba(8,27,58,0.07)]">
+          <div className="rounded-2xl border border-[#BFE9D0] bg-white p-4 shadow-[0_14px_34px_rgba(8,27,58,0.07)]">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
                 <p className="text-xs text-[#526173]">Signed in as</p>
@@ -239,18 +239,18 @@ export function DashboardOverview({
                   {userName}
                 </p>
               </div>
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#F0F8FF] text-[#0052CC]">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#E7F8EF] text-[#128C7E]">
                 <MousePointer2 className="h-5 w-5" />
               </div>
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-[#D8E6F3] bg-[#F0F8FF] p-3">
+              <div className="rounded-2xl border border-[#BFE9D0] bg-[#E7F8EF] p-3">
                 <p className="text-[11px] text-[#526173]">Queued messages</p>
                 <p className="mt-1 text-lg font-bold text-[#081B3A]">
                   {data.summary.queuedMessages.toLocaleString("en-IN")}
                 </p>
               </div>
-              <div className="rounded-2xl border border-[#D8E6F3] bg-[#F0F8FF] p-3">
+              <div className="rounded-2xl border border-[#BFE9D0] bg-[#E7F8EF] p-3">
                 <p className="text-[11px] text-[#526173]">Unread inbound</p>
                 <p className="mt-1 text-lg font-bold text-[#081B3A]">
                   {data.summary.unreadInbound.toLocaleString("en-IN")}
@@ -268,7 +268,7 @@ export function DashboardOverview({
           return (
             <div
               key={stat.label}
-              className="group min-w-0 rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_14px_34px_rgba(8,27,58,0.07)] transition duration-300 hover:-translate-y-0.5 hover:border-[#0052CC]/30 hover:shadow-[0_18px_42px_rgba(8,27,58,0.11)]"
+              className="group min-w-0 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_14px_34px_rgba(8,27,58,0.07)] transition duration-300 hover:-translate-y-0.5 hover:border-[#128C7E]/30 hover:shadow-[0_18px_42px_rgba(8,27,58,0.11)]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div
@@ -279,7 +279,7 @@ export function DashboardOverview({
                 >
                   <Icon className="h-5 w-5" />
                 </div>
-                <div className="grid h-8 w-8 place-items-center rounded-full bg-[#F0F8FF] text-[#526173]">
+                <div className="grid h-8 w-8 place-items-center rounded-full bg-[#E7F8EF] text-[#526173]">
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </div>
               </div>
@@ -306,15 +306,15 @@ export function DashboardOverview({
             </div>
             <div className="hidden items-center gap-3 text-xs text-[#526173] sm:flex">
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[#0052CC]" />
+                <span className="h-2 w-2 rounded-full bg-[#128C7E]" />
                 Sent
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[#2070B0]" />
+                <span className="h-2 w-2 rounded-full bg-[#128C7E]" />
                 Delivered
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[#384080]" />
+                <span className="h-2 w-2 rounded-full bg-[#075E54]" />
                 Inbound
               </span>
             </div>
@@ -326,12 +326,12 @@ export function DashboardOverview({
                 <AreaChart data={data.messageVolume} margin={{ left: -18, right: 8 }}>
                   <defs>
                     <linearGradient id="sentGradient" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="5%" stopColor="#0052CC" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#0052CC" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#128C7E" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#128C7E" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="inboundGradient" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="5%" stopColor="#384080" stopOpacity={0.18} />
-                      <stop offset="95%" stopColor="#384080" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#075E54" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="#075E54" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis
@@ -350,7 +350,7 @@ export function DashboardOverview({
                     dataKey="sent"
                     fill="url(#sentGradient)"
                     name="Sent"
-                    stroke="#0052CC"
+                    stroke="#128C7E"
                     strokeWidth={3}
                     type="monotone"
                   />
@@ -358,7 +358,7 @@ export function DashboardOverview({
                     dataKey="delivered"
                     fill="transparent"
                     name="Delivered"
-                    stroke="#2070B0"
+                    stroke="#128C7E"
                     strokeWidth={3}
                     type="monotone"
                   />
@@ -366,7 +366,7 @@ export function DashboardOverview({
                     dataKey="inbound"
                     fill="url(#inboundGradient)"
                     name="Inbound"
-                    stroke="#384080"
+                    stroke="#075E54"
                     strokeWidth={3}
                     type="monotone"
                   />
@@ -412,7 +412,7 @@ export function DashboardOverview({
                 {data.channelMix.map((item) => (
                   <div
                     key={item.name}
-                    className="flex items-center justify-between rounded-2xl border border-[#D8E6F3] bg-[#F0F8FF] px-4 py-3"
+                    className="flex items-center justify-between rounded-2xl border border-[#BFE9D0] bg-[#E7F8EF] px-4 py-3"
                   >
                     <span className="flex items-center gap-2 text-sm text-[#526173]">
                       <span
@@ -465,13 +465,13 @@ export function DashboardOverview({
                   <Tooltip content={<ChartTooltip />} />
                   <Bar
                     dataKey="delivered"
-                    fill="#0052CC"
+                    fill="#128C7E"
                     name="Delivered %"
                     radius={[8, 8, 0, 0]}
                   />
                   <Bar
                     dataKey="read"
-                    fill="#2070B0"
+                    fill="#128C7E"
                     name="Read %"
                     radius={[8, 8, 0, 0]}
                   />
@@ -504,9 +504,9 @@ export function DashboardOverview({
                 return (
                   <div
                     key={`${item.title}-${item.time}-${index}`}
-                    className="group flex items-center gap-4 rounded-2xl border border-[#D8E6F3] bg-white p-4 transition duration-200 hover:border-[#0052CC]/25 hover:bg-[#F0F8FF]"
+                    className="group flex items-center gap-4 rounded-2xl border border-[#BFE9D0] bg-white p-4 transition duration-200 hover:border-[#128C7E]/25 hover:bg-[#E7F8EF]"
                   >
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#F0F8FF] text-[#0052CC] transition group-hover:bg-white">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#E7F8EF] text-[#128C7E] transition group-hover:bg-white">
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -536,13 +536,13 @@ export function DashboardOverview({
             <Link
               key={action.href}
               href={action.href}
-              className="group min-w-0 rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_14px_34px_rgba(8,27,58,0.07)] transition duration-300 hover:-translate-y-0.5 hover:border-[#0052CC]/30 hover:bg-[#F0F8FF]"
+              className="group min-w-0 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_14px_34px_rgba(8,27,58,0.07)] transition duration-300 hover:-translate-y-0.5 hover:border-[#128C7E]/30 hover:bg-[#E7F8EF]"
             >
               <div className="flex items-center justify-between">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#F0F8FF] text-[#0052CC]">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#E7F8EF] text-[#128C7E]">
                   <Icon className="h-5 w-5" />
                 </div>
-                <ArrowUpRight className="h-4 w-4 text-[#526173] transition group-hover:text-[#0052CC]" />
+                <ArrowUpRight className="h-4 w-4 text-[#526173] transition group-hover:text-[#128C7E]" />
               </div>
               <p className="mt-5 text-sm font-bold text-[#081B3A]">
                 {action.label}

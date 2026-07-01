@@ -19,7 +19,7 @@ export default function ProductionChecklistCard({
         : Clock3;
 
   return (
-    <article className="flex min-h-44 flex-col rounded-2xl border border-[#D8E6F3] bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.06)]">
+    <article className="flex min-h-44 flex-col rounded-2xl border border-[#BFE9D0] bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.06)]">
       <div className="flex items-start gap-3">
         <div
           className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ring-1 ${getChecklistStatusClasses(item.status)}`}
@@ -47,7 +47,7 @@ export default function ProductionChecklistCard({
         </span>
         <Link
           href={item.actionHref}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0052CC] transition hover:text-[#003F9E]"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#128C7E] transition hover:text-[#075E54]"
         >
           {item.actionLabel}
           <ArrowRight className="h-3.5 w-3.5" />

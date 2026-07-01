@@ -3576,22 +3576,22 @@ export default async function SystemHealthPage() {
           </div>
         </section>
 
-        <section className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-          <h2 className="text-lg font-semibold text-blue-900">
+        <section className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+          <h2 className="text-lg font-semibold text-emerald-900">
             Health Check Endpoints
           </h2>
 
-          <p className="mt-1 text-sm text-blue-800">
+          <p className="mt-1 text-sm text-emerald-800">
             Use the public endpoint for uptime monitoring and the
             token-protected deep endpoint for internal diagnostics.
           </p>
 
           <div className="mt-4 grid gap-3">
-            <code className="block rounded-lg bg-blue-950 px-4 py-3 text-sm text-white">
+            <code className="block rounded-lg bg-emerald-950 px-4 py-3 text-sm text-white">
               GET /api/health
             </code>
 
-            <code className="block rounded-lg bg-blue-950 px-4 py-3 text-sm text-white">
+            <code className="block rounded-lg bg-emerald-950 px-4 py-3 text-sm text-white">
               GET /api/health/deep with x-healthcheck-token
             </code>
           </div>
@@ -3842,28 +3842,28 @@ export default async function SystemHealthPage() {
           </div>
         </section>
 
-        <section className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-          <h2 className="text-lg font-semibold text-blue-900">
+        <section className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+          <h2 className="text-lg font-semibold text-emerald-900">
             Production Process Manager
           </h2>
 
-          <p className="mt-1 text-sm text-blue-800">
+          <p className="mt-1 text-sm text-emerald-800">
             Use PM2 or an equivalent process manager to keep the web server and
             workers running. Required workers that are not started will appear
             as stale or missing here.
           </p>
 
-          <code className="mt-4 block rounded-lg bg-blue-950 px-4 py-3 text-sm text-white">
+          <code className="mt-4 block rounded-lg bg-emerald-950 px-4 py-3 text-sm text-white">
             npm run pm2:start
           </code>
         </section>
 
-        <section className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-          <h2 className="text-lg font-semibold text-blue-900">
+        <section className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+          <h2 className="text-lg font-semibold text-emerald-900">
             Worker Heartbeats
           </h2>
 
-          <p className="mt-1 text-sm text-blue-800">
+          <p className="mt-1 text-sm text-emerald-800">
             A worker is considered stale if it has not sent a heartbeat for
             more than two minutes. Make sure production process managers run
             all required workers.

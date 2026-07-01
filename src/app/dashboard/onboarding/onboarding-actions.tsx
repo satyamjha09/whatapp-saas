@@ -123,7 +123,7 @@ export function OnboardingActions({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-      <section className="rounded-lg border border-[#D8E6F3] bg-white p-6 shadow-sm">
+      <section className="rounded-lg border border-[#BFE9D0] bg-white p-6 shadow-sm">
         <div>
           <p className="text-sm font-semibold uppercase tracking-normal text-[#526173]">
             First setup
@@ -146,7 +146,7 @@ export function OnboardingActions({
               value={name}
               onChange={(event) => setName(event.target.value)}
               disabled={!canManage}
-              className="mt-1 w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm outline-none transition focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 disabled:bg-gray-50"
+              className="mt-1 w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm outline-none transition focus:border-[#128C7E] focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50"
             />
           </label>
 
@@ -158,7 +158,7 @@ export function OnboardingActions({
               value={businessCategory}
               onChange={(event) => setBusinessCategory(event.target.value)}
               disabled={!canManage}
-              className="mt-1 w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm outline-none transition focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 disabled:bg-gray-50"
+              className="mt-1 w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm outline-none transition focus:border-[#128C7E] focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50"
             >
               <option value="">Select category</option>
               {businessCategories.map((category) => (
@@ -175,7 +175,7 @@ export function OnboardingActions({
               value={city}
               onChange={(event) => setCity(event.target.value)}
               disabled={!canManage}
-              className="mt-1 w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm outline-none transition focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 disabled:bg-gray-50"
+              className="mt-1 w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm outline-none transition focus:border-[#128C7E] focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50"
             />
           </label>
 
@@ -186,7 +186,7 @@ export function OnboardingActions({
               onChange={(event) => setPinCode(event.target.value)}
               disabled={!canManage}
               inputMode="numeric"
-              className="mt-1 w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm outline-none transition focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 disabled:bg-gray-50"
+              className="mt-1 w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm outline-none transition focus:border-[#128C7E] focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50"
             />
           </label>
 
@@ -198,7 +198,7 @@ export function OnboardingActions({
               value={employeeCode}
               onChange={(event) => setEmployeeCode(event.target.value)}
               disabled={!canManage}
-              className="mt-1 w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm outline-none transition focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 disabled:bg-gray-50"
+              className="mt-1 w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm outline-none transition focus:border-[#128C7E] focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50"
             />
           </label>
         </div>
@@ -219,7 +219,7 @@ export function OnboardingActions({
             type="button"
             onClick={saveProfile}
             disabled={!canSaveProfile || isSaving}
-            className="rounded-lg bg-[#0052CC] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#003F9E] disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#075E54] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSaving ? "Saving..." : "Save profile"}
           </button>
@@ -228,14 +228,14 @@ export function OnboardingActions({
             type="button"
             onClick={completeOnboarding}
             disabled={!canManage || !state.requiredStepsComplete || isCompleting}
-            className="rounded-lg border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-semibold text-[#102040] transition hover:border-[#0052CC]/40 hover:bg-[#F0F8FF] disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg border border-[#BFE9D0] bg-white px-4 py-2 text-sm font-semibold text-[#102040] transition hover:border-[#128C7E]/40 hover:bg-[#E7F8EF] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isCompleting ? "Activating..." : "Activate workspace"}
           </button>
         </div>
       </section>
 
-      <aside className="rounded-lg border border-[#D8E6F3] bg-white p-5 shadow-sm">
+      <aside className="rounded-lg border border-[#BFE9D0] bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold text-[#081B3A]">
           Setup checklist
         </h2>
@@ -243,7 +243,7 @@ export function OnboardingActions({
           {state.steps.map((step) => (
             <div
               key={step.key}
-              className="rounded-lg border border-[#D8E6F3] p-4"
+              className="rounded-lg border border-[#BFE9D0] p-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -274,7 +274,7 @@ export function OnboardingActions({
               {step.href !== "/dashboard/onboarding" ? (
                 <Link
                   href={step.href}
-                  className="mt-3 inline-flex text-xs font-semibold text-[#0052CC] hover:text-[#003F9E]"
+                  className="mt-3 inline-flex text-xs font-semibold text-[#128C7E] hover:text-[#075E54]"
                 >
                   Open setup
                 </Link>

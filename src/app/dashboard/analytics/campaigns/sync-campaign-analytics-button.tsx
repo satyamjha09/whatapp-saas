@@ -42,7 +42,7 @@ export default function SyncCampaignAnalyticsButton({
         type="button"
         onClick={sync}
         disabled={isSyncing}
-        className="inline-flex items-center rounded-lg border border-[#D8E6F3] px-3 py-1.5 text-xs font-semibold text-[#081B3A] transition hover:bg-[#F0F8FF] disabled:opacity-60"
+        className="inline-flex items-center rounded-lg border border-[#BFE9D0] px-3 py-1.5 text-xs font-semibold text-[#081B3A] transition hover:bg-[#E7F8EF] disabled:opacity-60"
       >
         <RefreshCw
           className={`mr-2 h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`}

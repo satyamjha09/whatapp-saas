@@ -17,7 +17,7 @@ export default async function NotificationBadge({
   return (
     <Link
       href="/dashboard/notifications"
-      className="relative grid h-10 w-10 place-items-center rounded-lg border border-[#D8E6F3] bg-white text-[#526173] transition hover:bg-[#F0F8FF] hover:text-[#0052CC]"
+      className="relative grid h-10 w-10 place-items-center rounded-lg border border-[#BFE9D0] bg-white text-[#526173] transition hover:bg-[#E7F8EF] hover:text-[#128C7E]"
       title="Notifications"
       aria-label={`${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`}
     >

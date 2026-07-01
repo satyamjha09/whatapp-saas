@@ -51,7 +51,7 @@
   width: 48px;
   height: 34px;
   place-items: center;
-  border: 3px solid #2070b0;
+  border: 3px solid #128c7e;
   border-radius: 50% 50% 46% 46%;
   background: #ffffff;
   box-shadow: inset 0 0 0 2px #f8c830;
@@ -65,13 +65,13 @@
   bottom: -8px;
   height: 8px;
   border-radius: 0 0 8px 8px;
-  background: #384080;
+  background: #075E54;
 }
 
 .brandMark span {
   position: absolute;
   inset: 8px 13px;
-  border: 2px solid #d8e6f3;
+  border: 2px solid #bfe9d0;
   border-radius: 3px;
   background: #ffffff;
 }
@@ -84,7 +84,7 @@
   left: 50%;
   top: 50%;
   border-radius: 999px;
-  background: #0052cc;
+  background: #128c7e;
   transform: translate(-50%, -50%);
 }
 
@@ -120,7 +120,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  background: #0052cc;
+  background: #128c7e;
   box-shadow: 0 10px 22px rgba(0, 82, 204, 0.28);
   color: #ffffff;
   font-size: 18px;
@@ -131,7 +131,7 @@
 }
 
 .navLoginButton:hover {
-  background: #003f9e;
+  background: #075e54;
 }
 
 .footerBrand {
@@ -147,7 +147,7 @@
   place-items: center;
   border: 0;
   border-radius: 10px;
-  background: #0052cc;
+  background: #128c7e;
   box-shadow: none;
   color: #ffffff;
   font-size: 11px;
@@ -177,24 +177,24 @@
 }
 
 .primaryButton {
-  border: 1px solid #0052cc;
-  background: #0052cc;
+  border: 1px solid #128c7e;
+  background: #128c7e;
   color: #ffffff;
 }
 
 .primaryButton:hover {
-  border-color: #003f9e;
-  background: #003f9e;
+  border-color: #075e54;
+  background: #075e54;
 }
 
 .secondaryButton {
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   background: #ffffff;
-  color: #0052cc;
+  color: #128c7e;
 }
 
 .secondaryButton:hover {
-  border-color: #0052cc;
+  border-color: #128c7e;
 }
 
 .hero {
@@ -204,7 +204,7 @@
     radial-gradient(circle at 8% 0%, rgba(0, 82, 204, 0.18) 0, transparent 34%),
     radial-gradient(circle at 86% 7%, rgba(56, 64, 128, 0.18) 0, transparent 34%),
     radial-gradient(circle at 78% 94%, rgba(34, 197, 94, 0.12) 0, transparent 28%),
-    linear-gradient(180deg, #f0f8ff 0%, #ffffff 100%);
+    linear-gradient(180deg, #e7f8ef 0%, #ffffff 100%);
 }
 
 .heroContainer {
@@ -263,21 +263,21 @@
 }
 
 .badge {
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   background: #ffffff;
-  color: #0052cc;
+  color: #128c7e;
   padding: 8px 12px;
   box-shadow: 0 10px 24px rgba(8, 27, 58, 0.08);
 }
 
 .badgeDark {
-  background: #2070b0;
+  background: #128c7e;
   color: #ffffff;
   padding: 8px 12px;
 }
 
 .kicker {
-  color: #0052cc;
+  color: #128c7e;
 }
 
 .hero h1,
@@ -301,7 +301,7 @@
 
 .hero h1 span,
 .sectionHeading h2 span {
-  color: #0052cc;
+  color: #128c7e;
 }
 
 .hero p,
@@ -354,7 +354,7 @@
   grid-template-columns: 150px 1fr;
   min-height: 456px;
   overflow: hidden;
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 28px 80px rgba(8, 27, 58, 0.16);
@@ -365,7 +365,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border-right: 1px solid #d8e6f3;
+  border-right: 1px solid #bfe9d0;
   padding: 22px;
   background: #ffffff;
 }
@@ -379,15 +379,15 @@
 }
 
 .sidebarLogo {
-  color: #0052cc;
+  color: #128c7e;
   font-size: 14px;
   font-weight: 800;
   margin-bottom: 8px;
 }
 
 .activeNavItem {
-  background: #f0f8ff;
-  color: #0052cc !important;
+  background: #e7f8ef;
+  color: #128c7e !important;
 }
 
 .dashboard {
@@ -419,7 +419,7 @@
 
 .dashboardHeader > span {
   height: 38px;
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   border-radius: 10px;
   color: #526173;
   font-size: 12px;
@@ -441,10 +441,10 @@
 .planCard,
 .chartCard,
 .campaignCard {
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 18px 46px #f0f8ff;
+  box-shadow: 0 18px 46px #e7f8ef;
 }
 
 .metricCard {
@@ -505,7 +505,7 @@
 .chartBars i {
   flex: 1;
   border-radius: 999px 999px 0 0;
-  background: #0052cc;
+  background: #128c7e;
 }
 
 .campaignCard p {
@@ -524,7 +524,7 @@
   background: #22c55e;
   color: #ffffff;
   font-weight: 800;
-  box-shadow: 0 18px 40px #d8e6f3;
+  box-shadow: 0 18px 40px #bfe9d0;
 }
 
 .whatsappBubble {
@@ -561,7 +561,7 @@
   display: grid;
   min-height: 66px;
   place-items: center;
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   border-radius: 14px;
   color: #102040;
   font-size: 13px;
@@ -618,8 +618,8 @@
   place-items: center;
   margin: 0 auto 18px;
   border-radius: 14px;
-  background: #f0f8ff;
-  color: #0052cc;
+  background: #e7f8ef;
+  color: #128c7e;
   font-weight: 800;
 }
 
@@ -641,7 +641,7 @@
 
 .integrationBand {
   padding-block: 76px;
-  background: linear-gradient(135deg, #003f9e 0%, #081b3a 100%);
+  background: linear-gradient(135deg, #075e54 0%, #081b3a 100%);
 }
 
 .integrationBandContainer {
@@ -669,18 +669,18 @@
   display: grid;
   min-height: 128px;
   place-items: center;
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   border-radius: 18px;
   background: #ffffff;
   color: #081b3a;
   font-size: 15px;
   font-weight: 800;
   text-align: center;
-  box-shadow: 0 20px 46px #003f9e;
+  box-shadow: 0 20px 46px #075e54;
 }
 
 .workflowSection {
-  background: #f0f8ff;
+  background: #e7f8ef;
 }
 
 .steps {
@@ -703,9 +703,9 @@
   height: 58px;
   place-items: center;
   margin: -58px auto 20px;
-  border: 10px solid #f0f8ff;
+  border: 10px solid #e7f8ef;
   border-radius: 999px;
-  background: #0052cc;
+  background: #128c7e;
   color: #ffffff;
   font-size: 18px;
   font-weight: 800;
@@ -741,15 +741,15 @@
 .inboxMockup {
   min-height: 372px;
   overflow: hidden;
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   border-radius: 20px;
   background: #ffffff;
-  box-shadow: 0 24px 70px #d8e6f3;
+  box-shadow: 0 24px 70px #bfe9d0;
 }
 
 .inboxList {
   width: 36%;
-  border-right: 1px solid #d8e6f3;
+  border-right: 1px solid #bfe9d0;
   padding: 20px;
 }
 
@@ -764,7 +764,7 @@
 }
 
 .selectedChat {
-  background: #f0f8ff;
+  background: #e7f8ef;
 }
 
 .chatPanel {
@@ -774,7 +774,7 @@
 
 .chatPanel p {
   max-width: 76%;
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   border-radius: 14px;
   color: #102040;
   font-size: 14px;
@@ -785,7 +785,7 @@
 .chatPanel .reply {
   margin-left: auto;
   border-color: #22c55e;
-  background: #f0f8ff;
+  background: #e7f8ef;
 }
 
 .testimonials {
@@ -829,7 +829,7 @@
 }
 
 .pricingSection {
-  background: #f0f8ff;
+  background: #e7f8ef;
 }
 
 .pricingGrid {
@@ -846,8 +846,8 @@
 }
 
 .popularPlan {
-  border-color: #0052cc;
-  box-shadow: 0 24px 70px #d8e6f3;
+  border-color: #128c7e;
+  box-shadow: 0 24px 70px #bfe9d0;
 }
 
 .popularBadge {
@@ -856,7 +856,7 @@
   left: 50%;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: #0052cc;
+  background: #128c7e;
   color: #ffffff;
   font-size: 12px;
   font-weight: 800;
@@ -866,7 +866,7 @@
 
 .planCard > strong {
   display: block;
-  color: #0052cc;
+  color: #128c7e;
   font-size: 34px;
   margin-top: 18px;
 }
@@ -886,7 +886,7 @@
   max-width: 1640px;
   margin: 0 auto;
   border-radius: 20px 20px 0 0;
-  background: linear-gradient(135deg, #0052cc 0%, #081b3a 100%);
+  background: linear-gradient(135deg, #128c7e 0%, #081b3a 100%);
 }
 
 .ctaSectionContainer {
@@ -924,7 +924,7 @@
 
 .footer p {
   max-width: 360px;
-  color: #d8e6f3;
+  color: #bfe9d0;
 }
 
 .footer strong {
@@ -934,7 +934,7 @@
 
 .footer a:not(.footerBrand) {
   display: block;
-  color: #d8e6f3;
+  color: #bfe9d0;
   font-size: 14px;
   font-weight: 600;
   margin-top: 10px;
@@ -1052,7 +1052,7 @@
     grid-template-columns: 124px 1fr;
     min-height: 320px;
     border-radius: 16px;
-    box-shadow: 0 18px 48px #d8e6f3;
+    box-shadow: 0 18px 48px #bfe9d0;
   }
 
   .sidebar {
@@ -1111,7 +1111,7 @@
   .chartCard,
   .campaignCard {
     border-radius: 14px;
-    box-shadow: 0 12px 32px #f0f8ff;
+    box-shadow: 0 12px 32px #e7f8ef;
   }
 
   .metricCard {
@@ -1258,7 +1258,7 @@
     min-height: 88px;
     border-radius: 14px;
     font-size: 12px;
-    box-shadow: 0 14px 34px #003f9e;
+    box-shadow: 0 14px 34px #075e54;
   }
 
   .steps {
@@ -1297,7 +1297,7 @@
   .inboxMockup {
     min-height: 278px;
     border-radius: 16px;
-    box-shadow: 0 18px 48px #d8e6f3;
+    box-shadow: 0 18px 48px #bfe9d0;
   }
 
   .inboxList {
@@ -1348,7 +1348,7 @@
   }
 
   .popularPlan {
-    box-shadow: 0 18px 48px #d8e6f3;
+    box-shadow: 0 18px 48px #bfe9d0;
   }
 
   .popularBadge {
@@ -1506,7 +1506,7 @@
   .inboxList {
     width: auto;
     border-right: 0;
-    border-bottom: 1px solid #d8e6f3;
+    border-bottom: 1px solid #bfe9d0;
   }
 
   .chatPanel p {
@@ -1528,7 +1528,7 @@
 }
 
 .showcaseSection {
-  background: #f0f8ff;
+  background: #e7f8ef;
 }
 
 .showcaseGrid {
@@ -1540,7 +1540,7 @@
 
 .showcaseCard {
   background: #ffffff;
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   border-radius: 16px;
   padding: 30px 24px;
   box-shadow: 0 10px 22px rgba(8, 27, 58, 0.04);
@@ -1569,8 +1569,8 @@
   display: inline-flex;
   padding: 12px;
   border-radius: 12px;
-  background: #f0f8ff;
-  color: #0052cc;
+  background: #e7f8ef;
+  color: #128c7e;
 }
 
 .comparisonSection {
@@ -1586,7 +1586,7 @@
 
 .comparisonCol {
   background: #ffffff;
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   border-radius: 20px;
   padding: 40px;
 }
@@ -1631,7 +1631,7 @@
 }
 
 .faqSection {
-  background: #f0f8ff;
+  background: #e7f8ef;
 }
 
 .faqGrid {
@@ -1643,7 +1643,7 @@
 
 .faqCard {
   background: #ffffff;
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   border-radius: 16px;
   padding: 28px;
   box-shadow: 0 10px 22px rgba(8, 27, 58, 0.03);
@@ -1674,9 +1674,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  border: 1px solid #d8e6f3;
+  border: 1px solid #bfe9d0;
   background: #ffffff;
-  color: #0052cc;
+  color: #128c7e;
   font-size: 16px;
   font-weight: 700;
   padding: 0 26px;
@@ -1685,5 +1685,5 @@
 }
 
 .navDashboardButton:hover {
-  border-color: #0052cc;
+  border-color: #128c7e;
 }

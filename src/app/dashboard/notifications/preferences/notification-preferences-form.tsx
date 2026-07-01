@@ -74,15 +74,15 @@ export default function NotificationPreferencesForm({
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[#D8E6F3] bg-white shadow-sm">
-      <div className="border-b border-[#D8E6F3] bg-[#F0F8FF] px-6 py-4">
+    <section className="overflow-hidden rounded-2xl border border-[#BFE9D0] bg-white shadow-sm">
+      <div className="border-b border-[#BFE9D0] bg-[#E7F8EF] px-6 py-4">
         <h2 className="text-lg font-semibold text-[#081B3A]">Alert Routing</h2>
         <p className="mt-1 text-sm text-[#526173]">
           Choose which company alerts should appear in your notification inbox.
         </p>
       </div>
 
-      <div className="divide-y divide-[#D8E6F3]">
+      <div className="divide-y divide-[#BFE9D0]">
         {NOTIFICATION_TYPE_OPTIONS.map((option) => {
           const preference = getPreference(option.type);
           const inAppEnabled = preference?.inAppEnabled ?? true;
@@ -117,7 +117,7 @@ export default function NotificationPreferencesForm({
                       emailMinimumSeverity,
                     })
                   }
-                  className="h-4 w-4 accent-[#0052CC]"
+                  className="h-4 w-4 accent-[#128C7E]"
                 />
                 In-app alerts
               </label>
@@ -134,7 +134,7 @@ export default function NotificationPreferencesForm({
                     emailMinimumSeverity,
                   })
                 }
-                className="rounded-lg border border-[#D8E6F3] bg-white px-3 py-2 text-sm text-[#102040] outline-none transition focus:border-[#0052CC]/50 focus:ring-4 focus:ring-[#0052CC]/10 disabled:bg-gray-50 disabled:opacity-60"
+                className="rounded-lg border border-[#BFE9D0] bg-white px-3 py-2 text-sm text-[#102040] outline-none transition focus:border-[#128C7E]/50 focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50 disabled:opacity-60"
               >
                 {NOTIFICATION_SEVERITY_OPTIONS.map((severity) => (
                   <option key={severity.severity} value={severity.severity}>
@@ -157,7 +157,7 @@ export default function NotificationPreferencesForm({
                       emailMinimumSeverity,
                     })
                   }
-                  className="h-4 w-4 accent-[#0052CC]"
+                  className="h-4 w-4 accent-[#128C7E]"
                 />
                 Email alerts
               </label>
@@ -174,7 +174,7 @@ export default function NotificationPreferencesForm({
                     emailMinimumSeverity: event.target.value,
                   })
                 }
-                className="rounded-lg border border-[#D8E6F3] bg-white px-3 py-2 text-sm text-[#102040] outline-none transition focus:border-[#0052CC]/50 focus:ring-4 focus:ring-[#0052CC]/10 disabled:bg-gray-50 disabled:opacity-60"
+                className="rounded-lg border border-[#BFE9D0] bg-white px-3 py-2 text-sm text-[#102040] outline-none transition focus:border-[#128C7E]/50 focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50 disabled:opacity-60"
               >
                 {NOTIFICATION_SEVERITY_OPTIONS.map((severity) => (
                   <option key={severity.severity} value={severity.severity}>

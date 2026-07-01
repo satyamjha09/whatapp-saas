@@ -89,7 +89,7 @@ export default async function PlatformCompaniesPage() {
                     <td className="px-5 py-4">
                       <Link
                         href={`/platform/companies/${company.id}`}
-                        className="font-semibold text-blue-700 underline"
+                        className="font-semibold text-emerald-700 underline"
                       >
                         {company.name}
                       </Link>

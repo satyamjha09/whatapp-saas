@@ -365,6 +365,7 @@ export async function sendBulkTemplateMessages(
             toPhoneNumber: `${recipient.countryCode}${recipient.phoneNumber}`,
             body: renderTemplateBody(template.body, recipientParameters),
             variables: recipientParameters,
+            scheduledAt: isScheduled ? scheduledAt : null,
             events: {
               create: {
                 companyId,
@@ -372,6 +373,7 @@ export async function sendBulkTemplateMessages(
                 raw: {
                   source: "bulk_message",
                   reason: "Bulk template message queued",
+                  scheduledAt: isScheduled ? scheduledAt?.toISOString() : null,
                 },
               },
             },

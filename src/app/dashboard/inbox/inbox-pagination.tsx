@@ -35,7 +35,7 @@ export default function InboxPagination({
   });
 
   return (
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#D8E6F3] pt-3">
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#BFE9D0] pt-3">
       <p className="text-xs text-[#526173]">
         Page {pagination.page} of {pagination.totalPages} -{" "}
         {pagination.total.toLocaleString("en-IN")} conversation(s)
@@ -50,8 +50,8 @@ export default function InboxPagination({
           aria-disabled={!pagination.hasPreviousPage}
           className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
             pagination.hasPreviousPage
-              ? "border-[#D8E6F3] bg-white text-[#526173] hover:bg-[#F0F8FF] hover:text-[#102040]"
-              : "pointer-events-none border-[#D8E6F3] text-[#526173]/60"
+              ? "border-[#BFE9D0] bg-white text-[#526173] hover:bg-[#E7F8EF] hover:text-[#102040]"
+              : "pointer-events-none border-[#BFE9D0] text-[#526173]/60"
           }`}
         >
           Previous
@@ -66,8 +66,8 @@ export default function InboxPagination({
             })}
             className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
               page === pagination.page
-                ? "border-[#0052CC] bg-[#0052CC] text-white"
-                : "border-[#D8E6F3] bg-white text-[#526173] hover:bg-[#F0F8FF] hover:text-[#102040]"
+                ? "border-[#128C7E] bg-[#128C7E] text-white"
+                : "border-[#BFE9D0] bg-white text-[#526173] hover:bg-[#E7F8EF] hover:text-[#102040]"
             }`}
           >
             {page}
@@ -82,8 +82,8 @@ export default function InboxPagination({
           aria-disabled={!pagination.hasNextPage}
           className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
             pagination.hasNextPage
-              ? "bg-[#0052CC] text-white hover:bg-[#003F9E]"
-              : "pointer-events-none bg-[#F0F8FF] text-[#526173]/60"
+              ? "bg-[#128C7E] text-white hover:bg-[#075E54]"
+              : "pointer-events-none bg-[#E7F8EF] text-[#526173]/60"
           }`}
         >
           Next

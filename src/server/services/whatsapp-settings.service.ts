@@ -33,6 +33,14 @@ export async function getWhatsAppSettingsByCompany(companyId: string) {
       displayPhoneNumber: "",
       verifiedName: "",
       qualityRating: "",
+      messagingLimitTier: "",
+      numberType: "",
+      codeVerificationStatus: "",
+      nameStatus: "",
+      platformType: "",
+      canSendMessage: "",
+      lastStatusCheckAt: null,
+      lastStatusError: "",
       phoneNumbers: [],
     };
   }
@@ -44,8 +52,14 @@ export async function getWhatsAppSettingsByCompany(companyId: string) {
     displayPhoneNumber: item.displayPhoneNumber ?? "",
     verifiedName: item.verifiedName ?? "",
     qualityRating: item.qualityRating ?? "",
-    messagingLimitTier: "",
-    numberType: "",
+    messagingLimitTier: item.messagingLimitTier ?? "",
+    numberType: item.numberType ?? item.platformType ?? "",
+    codeVerificationStatus: item.codeVerificationStatus ?? "",
+    nameStatus: item.nameStatus ?? "",
+    platformType: item.platformType ?? "",
+    canSendMessage: item.canSendMessage ?? "",
+    lastStatusCheckAt: item.lastStatusCheckAt,
+    lastStatusError: item.lastStatusError ?? "",
   }));
 
   return {
@@ -57,6 +71,14 @@ export async function getWhatsAppSettingsByCompany(companyId: string) {
     displayPhoneNumber: phoneNumber?.displayPhoneNumber ?? "",
     verifiedName: phoneNumber?.verifiedName ?? "",
     qualityRating: phoneNumber?.qualityRating ?? "",
+    messagingLimitTier: phoneNumber?.messagingLimitTier ?? "",
+    numberType: phoneNumber?.numberType ?? phoneNumber?.platformType ?? "",
+    codeVerificationStatus: phoneNumber?.codeVerificationStatus ?? "",
+    nameStatus: phoneNumber?.nameStatus ?? "",
+    platformType: phoneNumber?.platformType ?? "",
+    canSendMessage: phoneNumber?.canSendMessage ?? "",
+    lastStatusCheckAt: phoneNumber?.lastStatusCheckAt ?? null,
+    lastStatusError: phoneNumber?.lastStatusError ?? "",
     phoneNumbers,
   };
 }

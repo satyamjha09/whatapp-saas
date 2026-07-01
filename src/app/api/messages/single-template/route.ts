@@ -38,6 +38,7 @@ async function readSingleMessageRequest(
     countryCode: formData.get("countryCode")?.toString(),
     phoneNumber: formData.get("phoneNumber")?.toString(),
     name: formData.get("name")?.toString() || undefined,
+    scheduledAt: formData.get("scheduledAt")?.toString() || undefined,
     templateId: formData.get("templateId")?.toString() || undefined,
     bodyParameters: formData.getAll("bodyParameters").map((value) =>
       value.toString(),
@@ -106,15 +107,19 @@ export async function POST(request: Request) {
         templateId: result.template?.id ?? null,
         templateName: result.template?.name ?? null,
         messageType: validation.data.messageType,
+        scheduledAt: result.message.scheduledAt,
       },
     });
 
     return NextResponse.json(
       {
-        message: "Message queued successfully",
+        message: result.message.scheduledAt
+          ? "Message scheduled successfully"
+          : "Message queued successfully",
         result: {
           messageId: result.message.id,
           contactId: result.contact.id,
+          scheduledAt: result.message.scheduledAt,
         },
       },
       { status: 201 },
@@ -139,6 +144,7 @@ export async function POST(request: Request) {
       [
         "Approved template not found",
         "WhatsApp account is not connected",
+        "Schedule time must be in the future",
       ].includes(error.message)
     ) {
       return NextResponse.json({ message: error.message }, { status: 400 });

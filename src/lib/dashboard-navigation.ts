@@ -11,12 +11,22 @@ export type DashboardNavGroup = {
 
 export const dashboardNavigation: DashboardNavGroup[] = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Notifications", href: "/dashboard/notifications" },
   {
-    label: "Notification Preferences",
-    href: "/dashboard/notifications/preferences",
+    label: "Connected Accounts",
+    href: "/dashboard/whatsapp",
   },
-  { label: "Inbox", href: "/dashboard/inbox" },
+  { label: "Templates", href: "/dashboard/templates" },
+  {
+    label: "Contact",
+    items: [
+      { label: "Contacts List", href: "/dashboard/contacts" },
+      { label: "Import Contacts", href: "/dashboard/contacts/import" },
+      { label: "Contact Groups", href: "/dashboard/contacts/groups" },
+      { label: "Contact Settings", href: "/dashboard/contacts/settings" },
+      { label: "Blocked Contacts", href: "/dashboard/contacts/blocked" },
+      { label: "Contact Addresses", href: "/dashboard/contacts/addresses" },
+    ],
+  },
   {
     label: "Send Message",
     items: [
@@ -25,6 +35,18 @@ export const dashboardNavigation: DashboardNavGroup[] = [
       { label: "Canned Message", href: "/dashboard/inbox/quick-replies" },
     ],
   },
+  {
+    label: "Scheduled Items",
+    items: [
+      {
+        label: "Single Messages",
+        href: "/dashboard/scheduled/single-messages",
+      },
+      { label: "Campaigns", href: "/dashboard/scheduled/campaigns" },
+      { label: "Chatbots", href: "/dashboard/scheduled/chatbots" },
+    ],
+  },
+  { label: "Inbox", href: "/dashboard/inbox" },
   {
     label: "Reports",
     items: [
@@ -41,17 +63,6 @@ export const dashboardNavigation: DashboardNavGroup[] = [
         label: "Payment Transactions",
         href: "/dashboard/reports/payment-transactions",
       },
-    ],
-  },
-  {
-    label: "Scheduled Items",
-    items: [
-      {
-        label: "Single Messages",
-        href: "/dashboard/scheduled/single-messages",
-      },
-      { label: "Campaigns", href: "/dashboard/scheduled/campaigns" },
-      { label: "Chatbots", href: "/dashboard/scheduled/chatbots" },
     ],
   },
   { label: "Analytics", href: "/dashboard/reports" },
@@ -103,21 +114,8 @@ export const dashboardNavigation: DashboardNavGroup[] = [
     ],
   },
   {
-    label: "Contact",
-    items: [
-      { label: "Contacts List", href: "/dashboard/contacts" },
-      { label: "Import Contacts", href: "/dashboard/contacts/import" },
-      { label: "Contact Groups", href: "/dashboard/contacts/groups" },
-      { label: "Contact Settings", href: "/dashboard/contacts/settings" },
-      { label: "Blocked Contacts", href: "/dashboard/contacts/blocked" },
-      { label: "Contact Addresses", href: "/dashboard/contacts/addresses" },
-    ],
-  },
-  {
     label: "WhatsApp Items",
     items: [
-      { label: "Connect WhatsApp", href: "/dashboard/whatsapp/connect" },
-      { label: "Templates", href: "/dashboard/templates" },
       { label: "Catalogs", href: "/dashboard/catalogs" },
       { label: "Flows", href: "/dashboard/whatsapp/flows" },
       {
@@ -152,9 +150,15 @@ export const dashboardNavigation: DashboardNavGroup[] = [
       },
     ],
   },
+  { label: "Notifications", href: "/dashboard/notifications" },
+  {
+    label: "Notification Preferences",
+    href: "/dashboard/notifications/preferences",
+  },
   {
     label: "Workspace Settings",
     items: [
+      { label: "Profile", href: "/dashboard/settings/profile" },
       { label: "Onboarding", href: "/dashboard/onboarding" },
       { label: "Company", href: "/dashboard/settings/company" },
       { label: "Team", href: "/dashboard/settings/team" },
@@ -183,5 +187,4 @@ export const dashboardNavigation: DashboardNavGroup[] = [
     label: "Production Checklist",
     href: "/dashboard/production-checklist",
   },
-  { label: "WhatsApp Settings", href: "/dashboard/whatsapp" },
 ];

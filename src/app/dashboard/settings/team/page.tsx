@@ -95,7 +95,7 @@ export default async function TeamSettingsPage() {
                         {member.user.name ?? "Unnamed User"}
 
                         {isCurrentUser && (
-                          <span className="ml-2 rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                          <span className="ml-2 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
                             You
                           </span>
                         )}

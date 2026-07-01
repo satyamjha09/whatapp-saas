@@ -58,7 +58,7 @@ export default function SubscriptionCancelResumeButton({
         type="button"
         onClick={() => void runAction()}
         disabled={!canManage || isSaving}
-        className={`inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 ${cancelAtPeriodEnd ? "border-[#0052CC] bg-[#0052CC] text-white hover:bg-[#003F9E]" : "border-rose-200 bg-white text-rose-700 hover:bg-rose-50"}`}
+        className={`inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 ${cancelAtPeriodEnd ? "border-[#128C7E] bg-[#128C7E] text-white hover:bg-[#075E54]" : "border-rose-200 bg-white text-rose-700 hover:bg-rose-50"}`}
       >
         {isSaving ? (
           <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />

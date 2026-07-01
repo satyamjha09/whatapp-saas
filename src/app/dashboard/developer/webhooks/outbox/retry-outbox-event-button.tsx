@@ -44,7 +44,7 @@ export default function RetryOutboxEventButton({
         type="button"
         onClick={retry}
         disabled={disabled || isRetrying}
-        className="rounded-lg bg-[#0052CC] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-lg bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isRetrying ? "Retrying..." : "Retry Event"}
       </button>

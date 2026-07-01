@@ -80,9 +80,9 @@ export default function WhatsAppMessagePreview({
   return (
     <aside
       aria-label={`Message preview for ${recipientLabel}`}
-      className="overflow-hidden rounded-xl border border-[#D8E6F3] bg-white"
+      className="overflow-hidden rounded-xl border border-[#BFE9D0] bg-white"
     >
-      <div className="border-b border-[#D8E6F3] px-4 py-3">
+      <div className="border-b border-[#BFE9D0] px-4 py-3">
         <h3 className="text-sm font-bold text-[#081B3A]">Preview</h3>
       </div>
 
@@ -102,7 +102,7 @@ export default function WhatsAppMessagePreview({
                   className="max-h-36 w-full object-cover"
                 />
               ) : (
-                <div className="flex min-h-24 items-center justify-center bg-[#F0F8FF] px-3 text-center text-xs font-medium text-[#526173]">
+                <div className="flex min-h-24 items-center justify-center bg-[#E7F8EF] px-3 text-center text-xs font-medium text-[#526173]">
                   {media.type}: {media.name}
                 </div>
               )}

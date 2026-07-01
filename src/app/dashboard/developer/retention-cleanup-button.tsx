@@ -63,7 +63,7 @@ export default function RetentionCleanupButton() {
         type="button"
         onClick={runCleanup}
         disabled={isRunning}
-        className="rounded-lg border border-[#D8E6F3] px-4 py-2 text-sm font-semibold text-[#0052CC] disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-lg border border-[#BFE9D0] px-4 py-2 text-sm font-semibold text-[#128C7E] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isRunning ? "Cleaning..." : "Run Retention Cleanup"}
       </button>

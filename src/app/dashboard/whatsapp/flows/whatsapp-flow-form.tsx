@@ -77,7 +77,7 @@ export default function WhatsAppFlowForm() {
           value={name}
           onChange={(event) => setName(event.target.value)}
           required
-          className="w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm"
           placeholder="Lead Capture Form"
         />
       </div>
@@ -90,7 +90,7 @@ export default function WhatsAppFlowForm() {
           id="flowDescription"
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          className="min-h-24 w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm"
+          className="min-h-24 w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm"
           placeholder="Collect customer name, city, and requirement."
         />
       </div>
@@ -105,7 +105,7 @@ export default function WhatsAppFlowForm() {
             value={metaFlowId}
             onChange={(event) => setMetaFlowId(event.target.value)}
             required
-            className="w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm"
             placeholder="123456789012345"
           />
         </div>
@@ -118,7 +118,7 @@ export default function WhatsAppFlowForm() {
             id="useCase"
             value={useCase}
             onChange={(event) => setUseCase(event.target.value)}
-            className="w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm"
           >
             {USE_CASES.map((item) => (
               <option key={item} value={item}>
@@ -139,7 +139,7 @@ export default function WhatsAppFlowForm() {
             value={defaultCta}
             onChange={(event) => setDefaultCta(event.target.value)}
             required
-            className="w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm"
           />
         </div>
 
@@ -151,7 +151,7 @@ export default function WhatsAppFlowForm() {
             id="defaultScreen"
             value={defaultScreen}
             onChange={(event) => setDefaultScreen(event.target.value)}
-            className="w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm"
             placeholder="LEAD_FORM"
           />
         </div>
@@ -164,7 +164,7 @@ export default function WhatsAppFlowForm() {
             id="flowStatus"
             value={status}
             onChange={(event) => setStatus(event.target.value)}
-            className="w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm"
           >
             <option value="PUBLISHED">Published</option>
             <option value="DRAFT">Draft</option>
@@ -179,7 +179,7 @@ export default function WhatsAppFlowForm() {
       <button
         type="submit"
         disabled={isSaving}
-        className="rounded-lg bg-[#0052CC] px-4 py-2 text-sm font-semibold text-white disabled:bg-gray-300"
+        className="rounded-lg bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white disabled:bg-gray-300"
       >
         {isSaving ? "Saving..." : "Save Flow"}
       </button>

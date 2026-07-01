@@ -67,25 +67,25 @@ export default async function WhatsAppFlowDetailPage({
           </div>
 
           <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-[#D8E6F3] p-4">
+            <div className="rounded-xl border border-[#BFE9D0] p-4">
               <dt className="text-xs text-[#526173]">Meta Flow ID</dt>
               <dd className="mt-1 font-semibold text-[#081B3A]">
                 {flow.metaFlowId}
               </dd>
             </div>
-            <div className="rounded-xl border border-[#D8E6F3] p-4">
+            <div className="rounded-xl border border-[#BFE9D0] p-4">
               <dt className="text-xs text-[#526173]">Use case</dt>
               <dd className="mt-1 font-semibold text-[#081B3A]">
                 {flow.useCase.replaceAll("_", " ")}
               </dd>
             </div>
-            <div className="rounded-xl border border-[#D8E6F3] p-4">
+            <div className="rounded-xl border border-[#BFE9D0] p-4">
               <dt className="text-xs text-[#526173]">CTA</dt>
               <dd className="mt-1 font-semibold text-[#081B3A]">
                 {flow.defaultCta}
               </dd>
             </div>
-            <div className="rounded-xl border border-[#D8E6F3] p-4">
+            <div className="rounded-xl border border-[#BFE9D0] p-4">
               <dt className="text-xs text-[#526173]">Start screen</dt>
               <dd className="mt-1 font-semibold text-[#081B3A]">
                 {flow.defaultScreen ?? "Meta default"}
@@ -106,7 +106,7 @@ export default async function WhatsAppFlowDetailPage({
       </section>
 
       <Panel className="mt-5 overflow-hidden p-0 sm:p-0">
-        <div className="border-b border-[#D8E6F3] px-5 py-4">
+        <div className="border-b border-[#BFE9D0] px-5 py-4">
           <PanelTitle
             title="Responses"
             description="Submitted Flow payloads captured from WhatsApp webhooks."
@@ -118,7 +118,7 @@ export default async function WhatsAppFlowDetailPage({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
-              <thead className="bg-[#F0F8FF] text-xs uppercase text-[#526173]">
+              <thead className="bg-[#E7F8EF] text-xs uppercase text-[#526173]">
                 <tr>
                   <th className="px-5 py-3">Contact</th>
                   <th className="px-5 py-3">Flow token</th>
@@ -126,7 +126,7 @@ export default async function WhatsAppFlowDetailPage({
                   <th className="px-5 py-3">Payload</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#D8E6F3]">
+              <tbody className="divide-y divide-[#BFE9D0]">
                 {flow.responses.map((response) => (
                   <tr key={response.id}>
                     <td className="px-5 py-4">
@@ -141,7 +141,7 @@ export default async function WhatsAppFlowDetailPage({
                       {response.submittedAt.toLocaleString()}
                     </td>
                     <td className="max-w-md px-5 py-4">
-                      <pre className="max-h-36 overflow-auto rounded-lg bg-[#F0F8FF] p-3 text-xs text-[#081B3A]">
+                      <pre className="max-h-36 overflow-auto rounded-lg bg-[#E7F8EF] p-3 text-xs text-[#081B3A]">
                         {JSON.stringify(response.responsePayload, null, 2)}
                       </pre>
                     </td>

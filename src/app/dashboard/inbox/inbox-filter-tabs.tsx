@@ -48,8 +48,8 @@ export default function InboxFilterTabs({
             })}
             className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
               isActive
-                ? "border border-[#0052CC]/25 bg-[#F0F8FF] text-[#0052CC]"
-                : "border border-[#D8E6F3] bg-white text-[#526173] hover:border-[#0052CC]/30 hover:bg-[#F0F8FF] hover:text-[#102040]"
+                ? "border border-[#128C7E]/25 bg-[#E7F8EF] text-[#128C7E]"
+                : "border border-[#BFE9D0] bg-white text-[#526173] hover:border-[#128C7E]/30 hover:bg-[#E7F8EF] hover:text-[#102040]"
             }`}
           >
             {filter.label}

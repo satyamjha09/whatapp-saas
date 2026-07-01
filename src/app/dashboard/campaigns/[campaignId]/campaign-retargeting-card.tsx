@@ -178,7 +178,7 @@ export default function CampaignRetargetingCard({
           type="button"
           onClick={createSegment}
           disabled={!canManage || isCreating || isLoadingPreview}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:bg-gray-300"
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           {isCreating ? "Creating..." : "Create segment"}
         </button>
@@ -196,8 +196,8 @@ export default function CampaignRetargetingCard({
               onClick={() => setSelectedPreset(preset.value)}
               className={`rounded-xl border p-4 text-left transition ${
                 isSelected
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 bg-white hover:border-blue-200"
+                  ? "border-emerald-500 bg-emerald-50"
+                  : "border-gray-200 bg-white hover:border-emerald-200"
               }`}
             >
               <p className="text-sm font-semibold text-gray-900">

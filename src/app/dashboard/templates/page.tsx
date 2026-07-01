@@ -9,24 +9,41 @@ import SyncWhatsAppTemplatesButton from "./sync-whatsapp-templates-button";
 
 function templateSnippet(body: string) {
   if (!body) return "No preview available";
-  return body.length > 34 ? `${body.slice(0, 34)}...` : body;
+  return body.length > 42 ? `${body.slice(0, 42)}...` : body;
 }
 
 function formatTemplateDate(date: Date) {
   const pad = (value: number) => String(value).padStart(2, "0");
 
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function templateStatusClass(status: string) {
   if (status === "APPROVED") return "bg-[#F0FFE8] text-[#2BA500]";
-  if (status === "DRAFT") return "bg-[#EAF5FF] text-[#0B74DE] ring-1 ring-[#C9E2F8]";
+  if (status === "DRAFT") return "bg-[#EAF5FF] text-[#128C7E] ring-1 ring-[#C9E2F8]";
   if (["REJECTED", "DISABLED", "DELETED", "LIMIT_EXCEEDED"].includes(status)) {
     return "bg-rose-50 text-rose-600";
   }
 
   return "bg-[#FFF7DE] text-[#8A6500]";
 }
+
+function templateStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    APPROVED: "Approved",
+    DELETED: "Deleted",
+    DISABLED: "Disabled",
+    DRAFT: "Draft",
+    LIMIT_EXCEEDED: "Limited",
+    PENDING_APPROVAL: "Pending",
+    REJECTED: "Rejected",
+  };
+
+  return labels[status] ?? status.replaceAll("_", " ");
+}
+
+const templateTableColumns =
+  "grid-cols-[220px_108px_108px_minmax(260px,1fr)_146px_96px]";
 
 export default async function TemplatesPage() {
   const context = await getCurrentWorkspaceContext();
@@ -59,89 +76,108 @@ export default async function TemplatesPage() {
         </div>
       </div>
 
-      <details className="group mb-8 rounded-xl border border-[#D8E6F3] bg-white">
+      <details className="group mb-8 rounded-xl border border-[#BFE9D0] bg-white">
         <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 text-base text-[#081B3A]">
           <ChevronRight className="h-4 w-4 transition group-open:rotate-90" />
           What are WhatsApp Templates? How to use this page?
         </summary>
-        <div className="border-t border-[#D8E6F3] px-5 py-4 text-sm leading-6 text-[#526173]">
+        <div className="border-t border-[#BFE9D0] px-5 py-4 text-sm leading-6 text-[#526173]">
           Sync approved templates from Meta, review local drafts, and create new
           template drafts before submitting them for approval.
         </div>
       </details>
 
-      <section className="overflow-hidden rounded-md bg-white">
-        <div className="grid grid-cols-[20%_12%_10%_23%_18%_17%] border-b border-[#EDEDED] bg-white text-left text-sm font-semibold text-black">
-          {["Template Name", "Category", "Status", "Language", "Creation Time", "Actions"].map((heading) => (
+      <section className="overflow-hidden rounded-md bg-white shadow-[0_16px_40px_rgba(8,27,58,0.06)]">
+        <div>
+          <div>
             <div
-              key={heading}
-              className="flex items-center justify-between border-r border-[#F0F0F0] px-5 py-4 last:border-r-0"
+              className={[
+                "grid border-b border-[#EDEDED] bg-white text-left text-xs font-semibold text-black",
+                templateTableColumns,
+              ].join(" ")}
             >
-              <span>{heading}</span>
-              {heading !== "Actions" ? (
-                <Filter className="h-4 w-4 fill-[#B9B9B9] text-[#B9B9B9]" />
-              ) : null}
+              {["Template Name", "Category", "Status", "Language", "Creation Time", "Actions"].map((heading) => (
+                <div
+                  key={heading}
+                  className="flex min-w-0 items-center justify-between gap-2 border-r border-[#F0F0F0] px-3 py-2.5 last:border-r-0"
+                >
+                  <span className="truncate">{heading}</span>
+                  {heading !== "Actions" ? (
+                    <Filter className="h-3.5 w-3.5 shrink-0 fill-[#B9B9B9] text-[#B9B9B9]" />
+                  ) : null}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {templates.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm text-[#526173]">
-            No templates created yet.
-          </div>
-        ) : (
-          <div className="divide-y divide-[#EDEDED]">
-            {templates.map((template) => (
-              <div
-                key={template.id}
-                className="grid min-h-[96px] grid-cols-[20%_12%_10%_23%_18%_17%] items-center text-sm text-black"
-              >
-                <div className="truncate px-5 py-4 text-base">{template.name}</div>
-                <div className="px-5 py-4">{template.category}</div>
-                <div className="px-5 py-4">
-                  <span
+            {templates.length === 0 ? (
+              <div className="px-5 py-12 text-center text-sm text-[#526173]">
+                No templates created yet.
+              </div>
+            ) : (
+              <div className="divide-y divide-[#EDEDED]">
+                {templates.map((template) => (
+                  <div
+                    key={template.id}
                     className={[
-                      "inline-flex rounded-md px-2.5 py-1 text-xs font-medium",
-                      templateStatusClass(template.status),
+                      "grid min-h-[70px] items-center text-xs text-black",
+                      templateTableColumns,
                     ].join(" ")}
                   >
-                    {template.status}
-                  </span>
-                </div>
-                <div className="min-w-0 px-5 py-4">
-                  <p>{template.language}</p>
-                  <p className="mt-1 truncate text-sm text-[#8B8B96]">
-                    {templateSnippet(template.body)}
-                  </p>
-                </div>
-                <div className="whitespace-nowrap px-5 py-4">
-                  {formatTemplateDate(template.createdAt)}
-                </div>
-                <div className="flex flex-nowrap gap-2 px-5 py-4">
-                  <SubmitTemplateButton
-                    canManage={canManage}
-                    templateId={template.id}
-                    status={template.status}
-                  />
-                  <Link
-                    href={`/dashboard/templates/${template.id}`}
-                    className="inline-flex items-center rounded-md bg-[#E4F2FF] px-3 py-2 font-medium text-[#1677FF] hover:bg-[#D8ECFF]"
-                  >
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    Insights
-                  </Link>
-                  <button
-                    type="button"
-                    className="inline-flex items-center rounded-md bg-[#FFF1F0] px-3 py-2 font-medium text-[#FF3B3B] hover:bg-rose-100"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </button>
-                </div>
+                    <div className="min-w-0 px-3 py-2 text-sm">
+                      <p className="truncate">{template.name}</p>
+                    </div>
+                    <div className="min-w-0 px-3 py-2">
+                      <p className="truncate">{template.category}</p>
+                    </div>
+                    <div className="min-w-0 px-3 py-2">
+                      <span
+                        title={template.status}
+                        className={[
+                          "inline-flex max-w-full rounded-md px-2 py-1 text-center text-[11px] font-medium leading-3",
+                          templateStatusClass(template.status),
+                        ].join(" ")}
+                      >
+                        {templateStatusLabel(template.status)}
+                      </span>
+                    </div>
+                    <div className="min-w-0 px-3 py-2">
+                      <p className="truncate">{template.language}</p>
+                      <p className="mt-1 truncate text-sm text-[#8B8B96]">
+                        {templateSnippet(template.body)}
+                      </p>
+                    </div>
+                    <div className="whitespace-nowrap px-3 py-2">
+                      {formatTemplateDate(template.createdAt)}
+                    </div>
+                    <div className="flex min-w-0 flex-nowrap items-center justify-end gap-1 px-3 py-2">
+                      <SubmitTemplateButton
+                        canManage={canManage}
+                        templateId={template.id}
+                        status={template.status}
+                      />
+                      <Link
+                        href={`/dashboard/templates/${template.id}`}
+                        title="Insights"
+                        aria-label={`Open insights for ${template.name}`}
+                        className="inline-grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[#E7F8EF] text-[#128C7E] hover:bg-[#D7F2E1]"
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                      </Link>
+                      <button
+                        type="button"
+                        title="Delete"
+                        aria-label={`Delete ${template.name}`}
+                        className="inline-grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[#FFF1F0] text-[#FF3B3B] hover:bg-rose-100"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
+        </div>
       </section>
     </div>
   );

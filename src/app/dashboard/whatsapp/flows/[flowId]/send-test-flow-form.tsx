@@ -56,7 +56,7 @@ export default function SendTestFlowForm({ flowId }: { flowId: string }) {
             id="testCountryCode"
             value={countryCode}
             onChange={(event) => setCountryCode(event.target.value)}
-            className="w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -68,7 +68,7 @@ export default function SendTestFlowForm({ flowId }: { flowId: string }) {
             value={phoneNumber}
             onChange={(event) => setPhoneNumber(event.target.value)}
             required
-            className="w-full rounded-lg border border-[#D8E6F3] px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm"
           />
         </div>
       </div>
@@ -76,7 +76,7 @@ export default function SendTestFlowForm({ flowId }: { flowId: string }) {
       <button
         type="submit"
         disabled={isSending}
-        className="rounded-lg bg-[#0052CC] px-4 py-2 text-sm font-semibold text-white disabled:bg-gray-300"
+        className="rounded-lg bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white disabled:bg-gray-300"
       >
         {isSending ? "Queueing..." : "Send test Flow"}
       </button>

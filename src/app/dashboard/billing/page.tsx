@@ -166,10 +166,10 @@ export default async function BillingPage() {
       ) : null}
 
       <section className="mb-5 grid gap-3 lg:grid-cols-[1.4fr_1fr]">
-        <div className="rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
+        <div className="rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase text-[#2070B0]">
+              <p className="text-xs font-semibold uppercase text-[#128C7E]">
                 Current plan
               </p>
               <h2 className="mt-2 text-3xl font-bold text-[#081B3A]">
@@ -181,8 +181,8 @@ export default async function BillingPage() {
                 </StatusPill>
               </div>
             </div>
-            <div className="rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] p-4 text-right">
-              <CreditCard className="ml-auto h-5 w-5 text-[#0052CC]" />
+            <div className="rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] p-4 text-right">
+              <CreditCard className="ml-auto h-5 w-5 text-[#128C7E]" />
               <p className="mt-2 text-xs text-[#526173]">Wallet balance</p>
               <p className="mt-1 text-xl font-bold text-[#081B3A]">
                 {formatMoney(overview.wallet.balancePaise)}
@@ -190,9 +190,9 @@ export default async function BillingPage() {
             </div>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 border-t border-[#D8E6F3] pt-4 text-xs text-[#526173]">
+          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 border-t border-[#BFE9D0] pt-4 text-xs text-[#526173]">
             <span className="inline-flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-[#2070B0]" />
+              <CalendarDays className="h-4 w-4 text-[#128C7E]" />
               {formatDate(billing.currentPeriodStart)} -{" "}
               {formatDate(billing.currentPeriodEnd)}
             </span>
@@ -202,7 +202,7 @@ export default async function BillingPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
+        <div className="rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
           <p className="text-sm font-bold text-[#081B3A]">
             Monthly message usage
           </p>
@@ -212,9 +212,9 @@ export default async function BillingPage() {
               {" "}/ {billing.monthlyMessageLimit.toLocaleString("en-IN")}
             </span>
           </p>
-          <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#D8E6F3]/70">
+          <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#BFE9D0]/70">
             <div
-              className="h-full rounded-full bg-[#0052CC] transition-[width]"
+              className="h-full rounded-full bg-[#128C7E] transition-[width]"
               style={{ width: `${usagePercent}%` }}
             />
           </div>
@@ -247,7 +247,7 @@ export default async function BillingPage() {
           </p>
         )}
         {developerUsage ? (
-          <div className="mt-4 rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] p-3">
+          <div className="mt-4 rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] p-3">
             <p className="text-xs text-[#526173]">Developer API today</p>
             <p className="mt-1 text-xl font-bold text-[#081B3A]">
               {developerUsage.usedToday.toLocaleString("en-IN")} / {developerUsage.dailyLimit.toLocaleString("en-IN")}
@@ -274,7 +274,7 @@ export default async function BillingPage() {
               subscriptionStatus={subscription.company.subscriptionStatus}
               cancelAtPeriodEnd={subscription.company.cancelAtPeriodEnd}
             />
-            <p className="rounded-lg border border-[#D8E6F3] bg-white px-3 py-2 text-xs text-[#526173]">
+            <p className="rounded-lg border border-[#BFE9D0] bg-white px-3 py-2 text-xs text-[#526173]">
               {subscription.quota.usedMessages.toLocaleString("en-IN")} of {subscription.quota.monthlyMessageLimit.toLocaleString("en-IN")} messages used
             </p>
           </div>
@@ -301,9 +301,9 @@ export default async function BillingPage() {
           {planLimits.map(({ icon: Icon, label, value }) => (
             <div
               key={label}
-              className="rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] p-4"
+              className="rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] p-4"
             >
-              <Icon className="h-4 w-4 text-[#0052CC]" />
+              <Icon className="h-4 w-4 text-[#128C7E]" />
               <p className="mt-3 text-xs text-[#526173]">{label}</p>
               <p className="mt-1 text-sm font-bold text-[#081B3A]">{value}</p>
             </div>
@@ -333,7 +333,7 @@ export default async function BillingPage() {
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
-                <tr className="border-b border-[#D8E6F3] text-[#526173]">
+                <tr className="border-b border-[#BFE9D0] text-[#526173]">
                   <th className="py-3 pr-4 font-medium">Type</th>
                   <th className="py-3 pr-4 font-medium">Amount</th>
                   <th className="py-3 pr-4 font-medium">Status</th>
@@ -346,7 +346,7 @@ export default async function BillingPage() {
                 {overview.transactions.map((transaction) => (
                   <tr
                     key={transaction.id}
-                    className="border-b border-[#D8E6F3]/70 last:border-0"
+                    className="border-b border-[#BFE9D0]/70 last:border-0"
                   >
                     <td className="py-3 pr-4 font-medium text-[#102040]">
                       {transaction.type}
@@ -387,10 +387,10 @@ export default async function BillingPage() {
         ) : (
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-sm">
-              <thead><tr className="border-b border-[#D8E6F3] text-[#526173]"><th className="py-3 pr-4 font-medium">Created</th><th className="py-3 pr-4 font-medium">Plan</th><th className="py-3 pr-4 font-medium">Amount</th><th className="py-3 pr-4 font-medium">Status</th><th className="py-3 pr-4 font-medium">Order</th><th className="py-3 font-medium">Payment</th></tr></thead>
+              <thead><tr className="border-b border-[#BFE9D0] text-[#526173]"><th className="py-3 pr-4 font-medium">Created</th><th className="py-3 pr-4 font-medium">Plan</th><th className="py-3 pr-4 font-medium">Amount</th><th className="py-3 pr-4 font-medium">Status</th><th className="py-3 pr-4 font-medium">Order</th><th className="py-3 font-medium">Payment</th></tr></thead>
               <tbody>
                 {overview.subscriptionPayments.map((payment) => (
-                  <tr key={payment.id} className="border-b border-[#D8E6F3]/70 last:border-0">
+                  <tr key={payment.id} className="border-b border-[#BFE9D0]/70 last:border-0">
                     <td className="whitespace-nowrap py-3 pr-4 text-[#526173]">{payment.createdAt.toLocaleString("en-IN")}</td>
                     <td className="py-3 pr-4 font-semibold text-[#102040]">{payment.plan}</td>
                     <td className="py-3 pr-4 font-semibold text-[#081B3A]">{formatMoney(payment.amountPaise)}</td>
@@ -417,10 +417,10 @@ export default async function BillingPage() {
         ) : (
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
-              <thead><tr className="border-b border-[#D8E6F3] text-[#526173]"><th className="py-3 pr-4 font-medium">Started</th><th className="py-3 pr-4 font-medium">Job</th><th className="py-3 pr-4 font-medium">Status</th><th className="py-3 pr-4 font-medium">Checked</th><th className="py-3 pr-4 font-medium">Updated</th><th className="py-3 pr-4 font-medium">Completed</th><th className="py-3 font-medium">Error</th></tr></thead>
+              <thead><tr className="border-b border-[#BFE9D0] text-[#526173]"><th className="py-3 pr-4 font-medium">Started</th><th className="py-3 pr-4 font-medium">Job</th><th className="py-3 pr-4 font-medium">Status</th><th className="py-3 pr-4 font-medium">Checked</th><th className="py-3 pr-4 font-medium">Updated</th><th className="py-3 pr-4 font-medium">Completed</th><th className="py-3 font-medium">Error</th></tr></thead>
               <tbody>
                 {subscriptionMaintenanceRuns.map((run) => (
-                  <tr key={run.id} className="border-b border-[#D8E6F3]/70 last:border-0">
+                  <tr key={run.id} className="border-b border-[#BFE9D0]/70 last:border-0">
                     <td className="whitespace-nowrap py-3 pr-4 text-[#526173]">{run.startedAt.toLocaleString("en-IN")}</td>
                     <td className="py-3 pr-4 font-medium text-[#102040]">{
                       run.jobName === "subscription-cancellation-check"
@@ -459,7 +459,7 @@ export default async function BillingPage() {
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
-                <tr className="border-b border-[#D8E6F3] text-[#526173]">
+                <tr className="border-b border-[#BFE9D0] text-[#526173]">
                   <th className="py-3 pr-4 font-medium">Created</th>
                   <th className="py-3 pr-4 font-medium">Pack</th>
                   <th className="py-3 pr-4 font-medium">Credits</th>
@@ -472,7 +472,7 @@ export default async function BillingPage() {
                 {overview.creditPurchases.map((purchase) => (
                   <tr
                     key={purchase.id}
-                    className="border-b border-[#D8E6F3]/70 last:border-0"
+                    className="border-b border-[#BFE9D0]/70 last:border-0"
                   >
                     <td className="whitespace-nowrap py-3 pr-4 text-[#526173]">
                       {purchase.createdAt.toLocaleString("en-IN")}
@@ -523,7 +523,7 @@ export default async function BillingPage() {
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-sm">
               <thead>
-                <tr className="border-b border-[#D8E6F3] text-[#526173]">
+                <tr className="border-b border-[#BFE9D0] text-[#526173]">
                   <th className="py-3 pr-4 font-medium">Received</th>
                   <th className="py-3 pr-4 font-medium">Event</th>
                   <th className="py-3 pr-4 font-medium">Status</th>
@@ -535,7 +535,7 @@ export default async function BillingPage() {
                 {overview.cashfreeWebhookEvents.map((event) => (
                   <tr
                     key={event.id}
-                    className="border-b border-[#D8E6F3]/70 last:border-0"
+                    className="border-b border-[#BFE9D0]/70 last:border-0"
                   >
                     <td className="whitespace-nowrap py-3 pr-4 text-[#526173]">
                       {event.createdAt.toLocaleString("en-IN")}

@@ -2,10 +2,10 @@ import {
   CheckCircle2,
   HelpCircle,
   KeyRound,
-  Link2,
   LogIn,
   PhoneCall,
-  RefreshCw,
+  RotateCcw,
+  Search,
   ShieldCheck,
   Workflow,
 } from "lucide-react";
@@ -13,12 +13,21 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   actionButtonClass,
+  fieldClass,
+  labelClass,
   PageHeader,
 } from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getWhatsAppSettingsByCompany } from "@/server/services/whatsapp-settings.service";
+import WhatsAppPhoneNumberActions from "./whatsapp-phone-number-actions";
 import SubscribeWebhooksButton from "./subscribe-webhooks-button";
 import WhatsAppSettingsForm from "./whatsapp-settings-form";
+
+type WhatsAppSettingsPageProps = {
+  searchParams?: Promise<{
+    search?: string;
+  }>;
+};
 
 function statusClass(status: string) {
   if (status === "CONNECTED") {
@@ -32,7 +41,31 @@ function statusClass(status: string) {
   return "text-sm font-bold text-yellow-700";
 }
 
-export default async function WhatsAppSettingsPage() {
+function matchesAccountSearch(
+  search: string,
+  value: string | null | undefined,
+) {
+  return value?.toLowerCase().includes(search) ?? false;
+}
+
+function formatStatusCheckDate(date: Date | string | null | undefined) {
+  if (!date) return "Not checked";
+
+  return new Date(date).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default async function WhatsAppSettingsPage({
+  searchParams,
+}: WhatsAppSettingsPageProps) {
+  const params = await searchParams;
+  const search = params?.search?.trim() ?? "";
+  const normalizedSearch = search.toLowerCase();
   const context = await getCurrentWorkspaceContext();
 
   if (!context) {
@@ -49,13 +82,30 @@ export default async function WhatsAppSettingsPage() {
   const canManage =
     context.membership.role === "OWNER" ||
     context.membership.role === "ADMIN";
+  const visiblePhoneNumbers = normalizedSearch
+    ? settings.phoneNumbers.filter((phoneNumber) =>
+        [
+          phoneNumber.displayPhoneNumber,
+          phoneNumber.phoneNumberId,
+          phoneNumber.verifiedName,
+          phoneNumber.qualityRating,
+          phoneNumber.messagingLimitTier,
+          phoneNumber.canSendMessage,
+          phoneNumber.codeVerificationStatus,
+          phoneNumber.nameStatus,
+          settings.wabaId,
+          settings.status,
+        ].some((value) => matchesAccountSearch(normalizedSearch, value)),
+      )
+    : settings.phoneNumbers;
+  const filteredCount = visiblePhoneNumbers.length;
 
   return (
     <div>
       <PageHeader
         eyebrow={context.membership.company.name}
-        title="WhatsApp Settings"
-        description="Manage your Meta WhatsApp Cloud API connection without exposing stored access tokens."
+        title="Connected Accounts"
+        description="Review connected WhatsApp Business Accounts, phone numbers, WABA IDs, token status, and setup actions before sending messages."
         actions={
           <>
             <Link
@@ -77,7 +127,7 @@ export default async function WhatsAppSettingsPage() {
               className={actionButtonClass()}
             >
               <LogIn className="mr-2 h-4 w-4" />
-              Login with Facebook
+              Connect Account
             </Link>
             <Link
               href="/dashboard/production-checklist"
@@ -90,29 +140,63 @@ export default async function WhatsAppSettingsPage() {
         }
       />
 
+      <form
+        action="/dashboard/whatsapp"
+        className="mb-5 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_12px_30px_rgba(8,27,58,0.07)]"
+      >
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <label htmlFor="connected-account-search" className={labelClass}>
+              Search Connected Accounts
+            </label>
+            <input
+              id="connected-account-search"
+              name="search"
+              defaultValue={search}
+              placeholder="Search phone number, WABA ID, phone ID, name, or status"
+              className={fieldClass}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" className={actionButtonClass()}>
+              <Search className="mr-2 h-4 w-4" />
+              Search
+            </button>
+            <Link
+              href="/dashboard/whatsapp"
+              className={actionButtonClass("secondary")}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Reset
+            </Link>
+          </div>
+        </div>
+      </form>
+
       <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-[#D8E6F3] bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
-          <ShieldCheck className="h-5 w-5 text-[#0052CC]" />
+        <div className="rounded-2xl border border-[#BFE9D0] bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
+          <ShieldCheck className="h-5 w-5 text-[#128C7E]" />
           <p className="mt-3 text-xs text-[#526173]">Connection</p>
           <p className="mt-1 text-sm font-bold text-[#081B3A]">
             {settings.status}
           </p>
         </div>
-        <div className="rounded-2xl border border-[#D8E6F3] bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
-          <KeyRound className="h-5 w-5 text-[#384080]" />
+        <div className="rounded-2xl border border-[#BFE9D0] bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
+          <KeyRound className="h-5 w-5 text-[#075E54]" />
           <p className="mt-3 text-xs text-[#526173]">Access token</p>
           <p className="mt-1 text-sm font-bold text-[#081B3A]">
             {settings.hasAccessToken ? "Saved securely" : "Not configured"}
           </p>
         </div>
-        <div className="rounded-2xl border border-[#D8E6F3] bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
-          <PhoneCall className="h-5 w-5 text-[#2070B0]" />
+        <div className="rounded-2xl border border-[#BFE9D0] bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
+          <PhoneCall className="h-5 w-5 text-[#128C7E]" />
           <p className="mt-3 text-xs text-[#526173]">Display number</p>
           <p className="mt-1 truncate text-sm font-bold text-[#081B3A]">
             {settings.displayPhoneNumber || "Not configured"}
           </p>
         </div>
-        <div className="rounded-2xl border border-[#D8E6F3] bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
+        <div className="rounded-2xl border border-[#BFE9D0] bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
           <CheckCircle2 className="h-5 w-5 text-[#22C55E]" />
           <p className="mt-3 text-xs text-[#526173]">Verified name</p>
           <p className="mt-1 truncate text-sm font-bold text-[#081B3A]">
@@ -122,7 +206,7 @@ export default async function WhatsAppSettingsPage() {
       </section>
 
       {settings.phoneNumbers.length > 1 ? (
-        <section className="mb-5 rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
+        <section className="mb-5 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-[#081B3A]">
@@ -133,7 +217,7 @@ export default async function WhatsAppSettingsPage() {
               </p>
             </div>
 
-            <select className="h-12 min-w-72 rounded-xl border border-[#D8E6F3] bg-white px-4 text-sm font-semibold text-[#081B3A] outline-none">
+            <select className="h-12 min-w-72 rounded-xl border border-[#BFE9D0] bg-white px-4 text-sm font-semibold text-[#081B3A] outline-none">
               {settings.phoneNumbers.map((phoneNumber) => (
                 <option key={phoneNumber.id} value={phoneNumber.id}>
                   {phoneNumber.displayPhoneNumber
@@ -147,9 +231,60 @@ export default async function WhatsAppSettingsPage() {
         </section>
       ) : null}
 
+      {settings.phoneNumbers.length === 0 ? (
+        <section className="mb-5 rounded-2xl border border-dashed border-[#BFE9D0] bg-white p-6 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-[#081B3A]">
+                No connected WhatsApp account yet
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#526173]">
+                Connect a WhatsApp Business Account and phone number before
+                creating templates or sending messages.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/whatsapp/connect"
+              className={actionButtonClass()}
+            >
+              <LogIn className="mr-2 h-4 w-4" />
+              Connect Account
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
       {settings.phoneNumbers.length > 0 ? (
         <section className="mb-5 space-y-4">
-          {settings.phoneNumbers.map((phoneNumber) => {
+          <div className="rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-[#081B3A]">
+                  Connected phone numbers
+                </h2>
+                <p className="mt-1 text-sm text-[#526173]">
+                  Showing {filteredCount.toLocaleString("en-IN")} of{" "}
+                  {settings.phoneNumbers.length.toLocaleString("en-IN")} phone
+                  number{settings.phoneNumbers.length === 1 ? "" : "s"}.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/whatsapp/connect"
+                className={actionButtonClass("secondary")}
+              >
+                <LogIn className="mr-2 h-4 w-4" />
+                Add / Update Account
+              </Link>
+            </div>
+          </div>
+
+          {visiblePhoneNumbers.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#BFE9D0] bg-white p-6 text-sm text-[#526173]">
+              No connected phone numbers match this search.
+            </div>
+          ) : null}
+
+          {visiblePhoneNumbers.map((phoneNumber) => {
             const displayPhoneNumber =
               phoneNumber.displayPhoneNumber || settings.displayPhoneNumber;
             const phoneNumberId =
@@ -158,9 +293,9 @@ export default async function WhatsAppSettingsPage() {
             return (
               <article
                 key={phoneNumber.id}
-                className="rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_12px_30px_rgba(8,27,58,0.07)]"
+                className="rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_12px_30px_rgba(8,27,58,0.07)]"
               >
-                <div className="flex flex-wrap items-start justify-between gap-5 border-b border-[#D8E6F3] pb-5">
+                <div className="flex flex-wrap items-start justify-between gap-5 border-b border-[#BFE9D0] pb-5">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-xl font-bold text-[#081B3A]">
@@ -212,10 +347,10 @@ export default async function WhatsAppSettingsPage() {
                   </div>
                   <div>
                     <p className="text-sm font-bold uppercase text-[#526173]">
-                      Mode
+                      Can Send
                     </p>
                     <p className="mt-2 font-bold text-[#081B3A]">
-                      {settings.status === "CONNECTED" ? "LIVE" : "SETUP"}
+                      {phoneNumber.canSendMessage || "UNKNOWN"}
                     </p>
                   </div>
                   <div>
@@ -236,35 +371,54 @@ export default async function WhatsAppSettingsPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    className="inline-flex items-center rounded-xl border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] hover:bg-[#F0F8FF]"
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Check number status
-                  </button>
-                  <Link
-                    href="/dashboard/whatsapp/connect"
-                    className="rounded-xl border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] hover:bg-[#F0F8FF]"
-                  >
-                    Activation
-                  </Link>
-                  <button
-                    type="button"
-                    className="inline-flex items-center rounded-xl border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] hover:bg-[#F0F8FF]"
-                  >
-                    <Link2 className="mr-2 h-4 w-4" />
-                    Connect CRM
-                  </button>
+                <div className="mt-6 grid gap-5 border-t border-[#BFE9D0] pt-5 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <p className="text-sm font-bold uppercase text-[#526173]">
+                      Code Verification
+                    </p>
+                    <p className="mt-2 font-bold text-[#081B3A]">
+                      {phoneNumber.codeVerificationStatus || "UNKNOWN"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold uppercase text-[#526173]">
+                      Name Status
+                    </p>
+                    <p className="mt-2 font-bold text-[#081B3A]">
+                      {phoneNumber.nameStatus || "UNKNOWN"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold uppercase text-[#526173]">
+                      Last Status Check
+                    </p>
+                    <p className="mt-2 font-bold text-[#081B3A]">
+                      {formatStatusCheckDate(phoneNumber.lastStatusCheckAt)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold uppercase text-[#526173]">
+                      Last Error
+                    </p>
+                    <p className="mt-2 break-words font-bold text-[#081B3A]">
+                      {phoneNumber.lastStatusError || "None"}
+                    </p>
+                  </div>
                 </div>
+
+                <WhatsAppPhoneNumberActions
+                  canManage={canManage}
+                  displayPhoneNumber={displayPhoneNumber ?? ""}
+                  phoneNumberId={phoneNumberId ?? ""}
+                  wabaId={settings.wabaId}
+                />
               </article>
             );
           })}
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
+      <section className="rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
         <h2 className="text-lg font-bold text-[#081B3A]">
           Cloud API Credentials
         </h2>

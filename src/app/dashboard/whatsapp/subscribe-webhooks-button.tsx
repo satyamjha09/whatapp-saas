@@ -47,10 +47,10 @@ export default function SubscribeWebhooksButton({
   }
 
   return (
-    <section className="mt-5 rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
+    <section className="mt-5 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
       <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
         <div className="flex items-start gap-4">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#F0F8FF] text-[#0052CC]">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#E7F8EF] text-[#128C7E]">
             <Webhook className="h-5 w-5" />
           </div>
           <div>
@@ -84,7 +84,7 @@ export default function SubscribeWebhooksButton({
           Only owners and admins can subscribe WhatsApp webhooks.
         </p>
       ) : !isConnected ? (
-        <p className="mt-4 rounded-xl bg-[#F0F8FF] p-3 text-sm text-[#526173] ring-1 ring-[#D8E6F3]">
+        <p className="mt-4 rounded-xl bg-[#E7F8EF] p-3 text-sm text-[#526173] ring-1 ring-[#BFE9D0]">
           Connect a WABA and save its access token before subscribing webhooks.
         </p>
       ) : null}

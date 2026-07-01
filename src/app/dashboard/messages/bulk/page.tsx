@@ -1,4 +1,4 @@
-import { LayoutTemplate, Send } from "lucide-react";
+import { LayoutTemplate, Send, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -8,6 +8,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getBillingPlanConfig } from "@/server/config/billing-plans";
+import WhatsAppConnectionRequiredCard from "../whatsapp-connection-required-card";
 import BulkTemplateMessageForm from "./bulk-template-message-form";
 import { hasCompanyFeature } from "@/server/services/feature-gate.service";
 import PlanFeatureLockCard from "@/app/dashboard/_components/plan-feature-lock-card";
@@ -23,8 +24,9 @@ export default async function BulkMessagePage({
   if (!context) redirect("/sign-in");
   if (!context.membership) redirect("/onboarding");
 
+  const companyId = context.membership.companyId;
   const canUseBulkCampaigns = await hasCompanyFeature(
-    context.membership.companyId,
+    companyId,
     "BULK_CAMPAIGNS",
   );
   if (!canUseBulkCampaigns) {
@@ -37,10 +39,45 @@ export default async function BulkMessagePage({
     );
   }
 
+  const connectedWhatsAppAccount = await prisma.whatsAppAccount.findFirst({
+    where: {
+      companyId,
+      status: "CONNECTED",
+      accessToken: { not: null },
+      phoneNumbers: {
+        some: { phoneNumberId: { not: null } },
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!connectedWhatsAppAccount) {
+    return (
+      <div>
+        <PageHeader
+          eyebrow={context.membership.company.name}
+          title="Bulk Message"
+          description="Connect a WhatsApp Business Account before sending or scheduling bulk messages."
+          actions={
+            <Link
+              href="/dashboard/whatsapp/connect"
+              className={actionButtonClass()}
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Connect WhatsApp
+            </Link>
+          }
+        />
+
+        <WhatsAppConnectionRequiredCard />
+      </div>
+    );
+  }
+
   const [templates, groups, campaigns] = await Promise.all([
     prisma.template.findMany({
       where: {
-        companyId: context.membership.companyId,
+        companyId,
         status: "APPROVED",
       },
       orderBy: { createdAt: "desc" },
@@ -54,12 +91,12 @@ export default async function BulkMessagePage({
       },
     }),
     prisma.contactGroup.findMany({
-      where: { companyId: context.membership.companyId },
+      where: { companyId },
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { members: true } } },
     }),
     prisma.campaign.findMany({
-      where: { companyId: context.membership.companyId },
+      where: { companyId },
       orderBy: { createdAt: "desc" },
       take: 50,
       select: {

@@ -179,7 +179,7 @@ export default function GroupMembersImportCard({
         description="Upload CSV or paste contact rows with optional consent evidence."
       />
       <form onSubmit={importMembers} className="mt-5 space-y-4">
-        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#0052CC]/35 bg-[#F0F8FF] px-4 py-5 text-sm font-semibold text-[#0052CC]">
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#128C7E]/35 bg-[#E7F8EF] px-4 py-5 text-sm font-semibold text-[#128C7E]">
           <FileUp className="h-5 w-5" />
           Choose CSV file
           <input

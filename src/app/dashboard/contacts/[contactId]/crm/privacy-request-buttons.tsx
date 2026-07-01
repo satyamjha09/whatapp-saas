@@ -59,8 +59,8 @@ export function PrivacyRequestButtons({ contactId }: { contactId: string }) {
   }
 
   return (
-    <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
-      <p className="text-xs font-semibold uppercase text-blue-900">
+    <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+      <p className="text-xs font-semibold uppercase text-emerald-900">
         Privacy
       </p>
 
@@ -93,7 +93,7 @@ export function PrivacyRequestButtons({ contactId }: { contactId: string }) {
 
       <a
         href="/dashboard/system/privacy"
-        className="mt-3 inline-block text-xs font-medium text-blue-900 underline"
+        className="mt-3 inline-block text-xs font-medium text-emerald-900 underline"
       >
         Open Privacy Center
       </a>

@@ -153,8 +153,8 @@ export default function TemplateForm() {
   return (
     <form onSubmit={handleSubmit} className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_438px]">
       <div className="space-y-8">
-        <section className="overflow-hidden rounded-xl border border-[#D8E6F3] bg-white">
-          <h2 className="border-b border-[#D8E6F3] px-4 py-4 text-lg font-bold text-[#081B3A]">
+        <section className="overflow-hidden rounded-xl border border-[#BFE9D0] bg-white">
+          <h2 className="border-b border-[#BFE9D0] px-4 py-4 text-lg font-bold text-[#081B3A]">
             Template Configuration
           </h2>
           <div className="grid gap-5 p-4 md:grid-cols-2">
@@ -227,14 +227,14 @@ export default function TemplateForm() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-[#D8E6F3] bg-white">
-          <h2 className="border-b border-[#D8E6F3] px-4 py-4 text-lg font-bold text-[#081B3A]">
+        <section className="overflow-hidden rounded-xl border border-[#BFE9D0] bg-white">
+          <h2 className="border-b border-[#BFE9D0] px-4 py-4 text-lg font-bold text-[#081B3A]">
             Template Content
           </h2>
 
           <div className="space-y-5 p-4">
-            <div className="overflow-hidden rounded-xl border border-[#D8E6F3]">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D8E6F3] px-4 py-3">
+            <div className="overflow-hidden rounded-xl border border-[#BFE9D0]">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#BFE9D0] px-4 py-3">
                 <p className="font-bold text-[#081B3A]">
                   {selectedTypeLabel} Message <span className="text-rose-500">*</span>
                 </p>
@@ -255,25 +255,25 @@ export default function TemplateForm() {
                   <button
                     type="button"
                     onClick={addVariable}
-                    className="inline-flex items-center rounded-lg border border-[#D8E6F3] bg-white px-3 py-2 text-sm font-semibold text-[#081B3A] hover:bg-[#F0F8FF]"
+                    className="inline-flex items-center rounded-lg border border-[#BFE9D0] bg-white px-3 py-2 text-sm font-semibold text-[#081B3A] hover:bg-[#E7F8EF]"
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Variable
                   </button>
                   <div className="flex gap-2">
-                    <button type="button" className="rounded-md border border-[#D8E6F3] p-2 text-[#081B3A]">
+                    <button type="button" className="rounded-md border border-[#BFE9D0] p-2 text-[#081B3A]">
                       <Smile className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => wrapBody("*")} className="rounded-md border border-[#D8E6F3] p-2 text-[#081B3A]">
+                    <button type="button" onClick={() => wrapBody("*")} className="rounded-md border border-[#BFE9D0] p-2 text-[#081B3A]">
                       <Bold className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => wrapBody("_")} className="rounded-md border border-[#D8E6F3] p-2 text-[#081B3A]">
+                    <button type="button" onClick={() => wrapBody("_")} className="rounded-md border border-[#BFE9D0] p-2 text-[#081B3A]">
                       <Italic className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => wrapBody("~")} className="rounded-md border border-[#D8E6F3] p-2 text-[#081B3A]">
+                    <button type="button" onClick={() => wrapBody("~")} className="rounded-md border border-[#BFE9D0] p-2 text-[#081B3A]">
                       <Strikethrough className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => wrapBody("```")} className="rounded-md border border-[#D8E6F3] p-2 text-[#081B3A]">
+                    <button type="button" onClick={() => wrapBody("```")} className="rounded-md border border-[#BFE9D0] p-2 text-[#081B3A]">
                       <Code2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -294,8 +294,8 @@ export default function TemplateForm() {
             </div>
 
             {templateType === "CAROUSEL" ? (
-              <div className="overflow-hidden rounded-xl border border-[#D8E6F3]">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D8E6F3] px-4 py-3">
+              <div className="overflow-hidden rounded-xl border border-[#BFE9D0]">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#BFE9D0] px-4 py-3">
                   <p className="font-bold text-[#081B3A]">
                     Carousel Cards <span className="text-rose-500">*</span>
                   </p>
@@ -317,7 +317,7 @@ export default function TemplateForm() {
                       type="button"
                       onClick={addCard}
                       disabled={cards.length >= 10}
-                      className="inline-flex items-center rounded-lg border border-[#D8E6F3] bg-white px-4 py-2 font-semibold text-[#081B3A] hover:bg-[#F0F8FF] disabled:opacity-60"
+                      className="inline-flex items-center rounded-lg border border-[#BFE9D0] bg-white px-4 py-2 font-semibold text-[#081B3A] hover:bg-[#E7F8EF] disabled:opacity-60"
                     >
                       <Plus className="mr-2 h-4 w-4" />
                       Add card
@@ -325,13 +325,13 @@ export default function TemplateForm() {
                   </div>
 
                   {cards.length === 0 ? (
-                    <div className="mt-5 rounded-xl border border-dashed border-[#D8E6F3] bg-[#F0F8FF] p-6 text-sm text-[#526173]">
+                    <div className="mt-5 rounded-xl border border-dashed border-[#BFE9D0] bg-[#E7F8EF] p-6 text-sm text-[#526173]">
                       No cards created yet. Carousel templates need at least 2 cards. Click &quot;Add card&quot; to get started.
                     </div>
                   ) : (
                     <div className="mt-5 grid gap-4">
                       {cards.map((card, index) => (
-                        <div key={card.id} className="rounded-xl border border-[#D8E6F3] bg-white p-4">
+                        <div key={card.id} className="rounded-xl border border-[#BFE9D0] bg-white p-4">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <p className="font-bold text-[#081B3A]">Card {index + 1}</p>
                             <button
@@ -380,8 +380,8 @@ export default function TemplateForm() {
       </div>
 
       <aside className="xl:sticky xl:top-6 xl:self-start">
-        <section className="overflow-hidden rounded-xl border border-[#D8E6F3] bg-white">
-          <h2 className="border-b border-[#D8E6F3] px-8 py-7 text-xl font-bold text-[#081B3A]">
+        <section className="overflow-hidden rounded-xl border border-[#BFE9D0] bg-white">
+          <h2 className="border-b border-[#BFE9D0] px-8 py-7 text-xl font-bold text-[#081B3A]">
             Preview
           </h2>
           <div className="min-h-[440px] bg-[#eee7dd] bg-[radial-gradient(circle_at_12px_12px,rgba(120,110,100,0.13)_1px,transparent_1.5px),radial-gradient(circle_at_34px_28px,rgba(120,110,100,0.09)_1px,transparent_1.5px)] bg-[length:44px_44px] p-4">
@@ -395,7 +395,7 @@ export default function TemplateForm() {
               {previewCards.length ? (
                 <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
                   {previewCards.map((card, index) => (
-                    <div key={card.id} className="min-w-44 rounded-lg border border-[#D8E6F3] bg-[#F0F8FF] p-3">
+                    <div key={card.id} className="min-w-44 rounded-lg border border-[#BFE9D0] bg-[#E7F8EF] p-3">
                       <div className="grid h-20 place-items-center rounded-md bg-white text-xs font-semibold text-[#526173]">
                         {card.headerType}
                       </div>

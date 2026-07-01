@@ -33,7 +33,7 @@ export default async function TemplateDetailPage({
     <div>
       <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-[#081B3A]">Template Insights</h1>
-        <div className="rounded-xl border border-[#D8E6F3] bg-white px-4 py-3 text-sm text-[#081B3A]">
+        <div className="rounded-xl border border-[#BFE9D0] bg-white px-4 py-3 text-sm text-[#081B3A]">
           2026-05-27 22:13:44 <span className="mx-4 text-[#A4AFBC]">-</span>{" "}
           2026-06-27 22:13:44
         </div>

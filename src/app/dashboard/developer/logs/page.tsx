@@ -43,7 +43,7 @@ function formatDateTime(date: Date) {
 
 function getStatusBadgeClass(status: DeveloperApiRequestLogStatus) {
   if (status === "SUCCESS") return "bg-emerald-50 text-emerald-700";
-  if (status === "RATE_LIMITED") return "bg-blue-50 text-[#0052CC]";
+  if (status === "RATE_LIMITED") return "bg-emerald-50 text-[#128C7E]";
   if (status === "BLOCKED") return "bg-amber-50 text-amber-700";
   return "bg-red-50 text-red-700";
 }
@@ -78,7 +78,7 @@ export default async function DeveloperApiLogsPage({
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-[#0052CC]">
+            <p className="text-sm font-medium text-[#128C7E]">
               Developer Console
             </p>
             <h1 className="mt-2 text-3xl font-bold text-[#081B3A]">
@@ -91,31 +91,31 @@ export default async function DeveloperApiLogsPage({
 
           <Link
             href="/dashboard/developer"
-            className="rounded-xl border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-semibold text-[#0052CC] shadow-sm"
+            className="rounded-xl border border-[#BFE9D0] bg-white px-4 py-2 text-sm font-semibold text-[#128C7E] shadow-sm"
           >
             Back to analytics
           </Link>
         </div>
 
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
-          <h2 className="text-lg font-semibold text-blue-900">
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+          <h2 className="text-lg font-semibold text-emerald-900">
             Log Retention
           </h2>
-          <p className="mt-1 text-sm text-blue-800">
+          <p className="mt-1 text-sm text-emerald-800">
             API request logs are retained according to your current billing
             plan. Upgrade to Business for longer developer diagnostics
             retention.
           </p>
         </div>
 
-        <section className="rounded-2xl border border-[#D8E6F3] bg-white p-4 shadow-sm">
+        <section className="rounded-2xl border border-[#BFE9D0] bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href={buildLogsHref({ apiKeyId: params.apiKeyId })}
               className={`rounded-full px-3 py-1 text-xs font-semibold ${
                 !status
-                  ? "bg-[#0052CC] text-white"
-                  : "bg-[#F0F8FF] text-[#526173]"
+                  ? "bg-[#128C7E] text-white"
+                  : "bg-[#E7F8EF] text-[#526173]"
               }`}
             >
               All
@@ -130,8 +130,8 @@ export default async function DeveloperApiLogsPage({
                 })}
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
                   status === item
-                    ? "bg-[#0052CC] text-white"
-                    : "bg-[#F0F8FF] text-[#526173]"
+                    ? "bg-[#128C7E] text-white"
+                    : "bg-[#E7F8EF] text-[#526173]"
                 }`}
               >
                 {item.replace("_", " ")}
@@ -149,7 +149,7 @@ export default async function DeveloperApiLogsPage({
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-[#D8E6F3] bg-white shadow-sm">
+        <section className="overflow-hidden rounded-2xl border border-[#BFE9D0] bg-white shadow-sm">
           {logs.logs.length === 0 ? (
             <div className="p-6 text-sm text-[#526173]">
               No API request logs found.
@@ -157,7 +157,7 @@ export default async function DeveloperApiLogsPage({
           ) : (
             <div className="overflow-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-[#F8FBFF] text-xs uppercase text-[#526173]">
+                <thead className="bg-[#F4FCF7] text-xs uppercase text-[#526173]">
                   <tr>
                     <th className="px-6 py-3">Time</th>
                     <th className="px-6 py-3">Key</th>
@@ -168,7 +168,7 @@ export default async function DeveloperApiLogsPage({
                     <th className="px-6 py-3">Message</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#D8E6F3]">
+                <tbody className="divide-y divide-[#BFE9D0]">
                   {logs.logs.map((log) => (
                     <tr key={log.id}>
                       <td className="whitespace-nowrap px-6 py-4 text-[#526173]">
@@ -205,7 +205,7 @@ export default async function DeveloperApiLogsPage({
                       </td>
                       <td className="px-6 py-4 text-[#526173]">
                         {log.requiredScope ? (
-                          <span className="rounded-full bg-[#F0F8FF] px-2 py-1 text-xs font-semibold text-[#0052CC]">
+                          <span className="rounded-full bg-[#E7F8EF] px-2 py-1 text-xs font-semibold text-[#128C7E]">
                             {log.requiredScope.replace("_", " ")}
                           </span>
                         ) : (
@@ -238,10 +238,10 @@ export default async function DeveloperApiLogsPage({
                 apiKeyId: params.apiKeyId,
               })}
               aria-disabled={logs.page <= 1}
-              className={`rounded-xl border border-[#D8E6F3] px-4 py-2 text-sm font-semibold ${
+              className={`rounded-xl border border-[#BFE9D0] px-4 py-2 text-sm font-semibold ${
                 logs.page <= 1
                   ? "pointer-events-none bg-gray-50 text-gray-400"
-                  : "bg-white text-[#0052CC]"
+                  : "bg-white text-[#128C7E]"
               }`}
             >
               Previous
@@ -253,10 +253,10 @@ export default async function DeveloperApiLogsPage({
                 apiKeyId: params.apiKeyId,
               })}
               aria-disabled={logs.page >= logs.pageCount}
-              className={`rounded-xl border border-[#D8E6F3] px-4 py-2 text-sm font-semibold ${
+              className={`rounded-xl border border-[#BFE9D0] px-4 py-2 text-sm font-semibold ${
                 logs.page >= logs.pageCount
                   ? "pointer-events-none bg-gray-50 text-gray-400"
-                  : "bg-white text-[#0052CC]"
+                  : "bg-white text-[#128C7E]"
               }`}
             >
               Next

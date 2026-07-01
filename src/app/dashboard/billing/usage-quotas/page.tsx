@@ -52,7 +52,7 @@ export default async function UsageQuotasPage() {
                   ? "border-red-200 bg-red-50"
                   : alert.severity === "WARNING"
                     ? "border-yellow-200 bg-yellow-50"
-                    : "border-blue-200 bg-blue-50"
+                    : "border-emerald-200 bg-emerald-50"
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-4">

@@ -78,6 +78,19 @@ export async function sendSingleTemplateMessage(
 
   const phoneNumber = normalizePhoneNumber(input.phoneNumber);
   const countryCode = normalizePhoneNumber(input.countryCode);
+  const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : null;
+  const now = new Date();
+  const isScheduled = Boolean(
+    scheduledAt && scheduledAt.getTime() > now.getTime(),
+  );
+  const delay =
+    isScheduled && scheduledAt
+      ? Math.max(scheduledAt.getTime() - now.getTime(), 0)
+      : 0;
+
+  if (input.scheduledAt && !isScheduled) {
+    throw new Error("Schedule time must be in the future");
+  }
 
   const [template, whatsAppAccount] = await Promise.all([
     input.messageType === "Template"
@@ -220,14 +233,24 @@ export async function sendSingleTemplateMessage(
 
   const queuedReason =
     input.messageType === "Media"
-      ? "Single media message queued"
+      ? isScheduled
+        ? "Single media message scheduled"
+        : "Single media message queued"
       : input.messageType === "Text"
-        ? "Single text message queued"
+        ? isScheduled
+          ? "Single text message scheduled"
+          : "Single text message queued"
       : input.messageType === "Location"
-        ? "Single location message queued"
+        ? isScheduled
+          ? "Single location message scheduled"
+          : "Single location message queued"
       : input.messageType === "Interactive"
-        ? "Single interactive message queued"
-        : "Single template message queued";
+        ? isScheduled
+          ? "Single interactive message scheduled"
+          : "Single interactive message queued"
+        : isScheduled
+          ? "Single template message scheduled"
+          : "Single template message queued";
 
   const result = await prisma.$transaction(async (tx) => {
     const debitResult = await tx.wallet.updateMany({
@@ -256,6 +279,7 @@ export async function sendSingleTemplateMessage(
         variables:
           input.messageType === "Template" ? input.bodyParameters : [],
         metadata,
+        scheduledAt: isScheduled ? scheduledAt : null,
         events: {
           create: {
             companyId,
@@ -263,6 +287,7 @@ export async function sendSingleTemplateMessage(
             raw: {
               source: "single_message",
               reason: queuedReason,
+              scheduledAt: isScheduled ? scheduledAt?.toISOString() : null,
             },
           },
         },
@@ -277,14 +302,24 @@ export async function sendSingleTemplateMessage(
         amountPaise: MESSAGE_PRICE_PAISE,
         description:
           input.messageType === "Media"
-            ? "Single media message queued"
+            ? isScheduled
+              ? "Single media message scheduled"
+              : "Single media message queued"
             : input.messageType === "Text"
-              ? "Single text message queued"
+              ? isScheduled
+                ? "Single text message scheduled"
+                : "Single text message queued"
             : input.messageType === "Location"
-              ? "Single location message queued"
+              ? isScheduled
+                ? "Single location message scheduled"
+                : "Single location message queued"
               : input.messageType === "Interactive"
-                ? "Single interactive message queued"
-                : "Single template message queued",
+                ? isScheduled
+                  ? "Single interactive message scheduled"
+                  : "Single interactive message queued"
+                : isScheduled
+                  ? "Single template message scheduled"
+                  : "Single template message queued",
         referenceType: "MESSAGE_USAGE",
         referenceId: message.id,
       },
@@ -310,7 +345,10 @@ export async function sendSingleTemplateMessage(
         messageId: result.message.id,
         companyId,
       },
-      { jobId: result.message.id },
+      {
+        jobId: result.message.id,
+        ...(delay > 0 ? { delay } : {}),
+      },
     );
 
     await incrementUsageQuota({

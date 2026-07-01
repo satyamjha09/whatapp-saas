@@ -85,7 +85,7 @@ export default async function DeadLetterQueuePage({
         <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
           <Link
             href={`/dashboard/system/dead-letter-queue?status=${status}`}
-            className={`rounded-full px-3 py-1.5 text-xs ${!queueName ? "bg-blue-100 text-blue-800" : "bg-gray-100"}`}
+            className={`rounded-full px-3 py-1.5 text-xs ${!queueName ? "bg-emerald-100 text-emerald-800" : "bg-gray-100"}`}
           >
             All queues
           </Link>
@@ -94,7 +94,7 @@ export default async function DeadLetterQueuePage({
               key={queue.name}
               title={queue.description}
               href={`/dashboard/system/dead-letter-queue?status=${status}&queue=${encodeURIComponent(queue.name)}`}
-              className={`rounded-full px-3 py-1.5 text-xs ${queueName === queue.name ? "bg-blue-100 text-blue-800" : "bg-gray-100"}`}
+              className={`rounded-full px-3 py-1.5 text-xs ${queueName === queue.name ? "bg-emerald-100 text-emerald-800" : "bg-gray-100"}`}
             >
               {queue.label}
             </Link>

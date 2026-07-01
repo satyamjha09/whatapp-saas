@@ -10,6 +10,11 @@ type SyncUserInput = {
   mobile?: string | null;
 };
 
+type UpdateUserProfileInput = {
+  name: string;
+  mobile?: string | null;
+};
+
 const USER_CACHE_TTL_SECONDS = 60 * 5;
 
 type CachedUser = Omit<User, "createdAt" | "updatedAt"> & {
@@ -131,6 +136,23 @@ export async function syncUser(input: SyncUserInput) {
       name: input.name,
       imageUrl: input.imageUrl,
       mobile: input.mobile ?? undefined,
+    },
+  });
+
+  await setCachedUser(user);
+
+  return user;
+}
+
+export async function updateUserProfile(
+  userId: string,
+  input: UpdateUserProfileInput,
+) {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: input.name,
+      mobile: input.mobile,
     },
   });
 

@@ -98,7 +98,7 @@ export function VerifyEmailForm({ redirectUrl = "" }: { redirectUrl?: string }) 
         value={code}
         onChange={(event) => setCode(event.target.value)}
         placeholder="Verification code"
-        className="mt-6 h-14 w-full rounded-xl border border-slate-200 bg-slate-50 px-5 text-base outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+        className="mt-6 h-14 w-full rounded-xl border border-slate-200 bg-slate-50 px-5 text-base outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
       />
 
       {error && (
@@ -111,7 +111,7 @@ export function VerifyEmailForm({ redirectUrl = "" }: { redirectUrl?: string }) 
         type="button"
         onClick={verify}
         disabled={isVerifying || !code.trim()}
-        className="mt-6 h-14 w-full rounded-xl bg-blue-600 text-base font-bold text-white disabled:opacity-50"
+        className="mt-6 h-14 w-full rounded-xl bg-emerald-600 text-base font-bold text-white disabled:opacity-50"
       >
         {isVerifying ? "Verifying..." : "Verify Email"}
       </button>

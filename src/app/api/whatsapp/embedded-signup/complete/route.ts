@@ -9,7 +9,19 @@ const expectedErrors = new Set([
   "This WhatsApp Business Account is already connected",
   "This WhatsApp phone number is already connected",
   "Selected phone number does not belong to the selected WABA",
+  "Meta did not return the WABA and phone number details. Please try again.",
+  "Selected phone number was not found in Meta discovery",
+  "Selected WhatsApp Business Account was not found in Meta discovery",
+  "Selected WhatsApp Business Account has no discoverable phone number",
 ]);
+
+function isExpectedEmbeddedSignupError(error: Error) {
+  return (
+    expectedErrors.has(error.message) ||
+    error.message.startsWith("Error validating verification code") ||
+    error.message.startsWith("Meta returned authorization code")
+  );
+}
 
 export async function POST(request: Request) {
   try {
@@ -52,6 +64,7 @@ export async function POST(request: Request) {
     const connection = await completeWhatsAppEmbeddedSignup(
       context.membership.companyId,
       validation.data,
+      context.user.id,
     );
 
     await createAuditLog({
@@ -67,6 +80,8 @@ export async function POST(request: Request) {
         verifiedName: connection.verifiedName,
         qualityRating: connection.qualityRating,
         webhooksSubscribed: connection.webhooksSubscribed,
+        flowSessionId: validation.data.flowSessionId,
+        phoneResultCount: connection.phones.length,
       },
     });
 
@@ -77,7 +92,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("COMPLETE_WHATSAPP_EMBEDDED_SIGNUP_ERROR:", error);
 
-    if (error instanceof Error && expectedErrors.has(error.message)) {
+    if (error instanceof Error && isExpectedEmbeddedSignupError(error)) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
 

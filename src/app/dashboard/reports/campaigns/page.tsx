@@ -83,7 +83,7 @@ export default async function CampaignReportsPage() {
       </section>
 
       <Panel className="overflow-hidden p-0 sm:p-0">
-        <div className="border-b border-[#D8E6F3] px-5 py-4 sm:px-6">
+        <div className="border-b border-[#BFE9D0] px-5 py-4 sm:px-6">
           <PanelTitle
             title="Campaign delivery summary"
             description="Current message status and outcome rates for each tracked bulk batch."
@@ -97,7 +97,7 @@ export default async function CampaignReportsPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] text-left text-sm">
-              <thead className="bg-[#F0F8FF] text-xs uppercase text-[#526173]">
+              <thead className="bg-[#E7F8EF] text-xs uppercase text-[#526173]">
                 <tr>
                   <th className="px-5 py-3">Template</th>
                   <th className="px-5 py-3">Group</th>
@@ -115,7 +115,7 @@ export default async function CampaignReportsPage() {
                   <th className="px-5 py-3">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#D8E6F3]">
+              <tbody className="divide-y divide-[#BFE9D0]">
                 {reports.map((report) => (
                   <tr key={report.id}>
                     <td className="px-5 py-4 font-semibold text-[#081B3A]">
@@ -148,7 +148,7 @@ export default async function CampaignReportsPage() {
                     <td className="px-5 py-4">
                       <Link
                         href={`/dashboard/reports/campaigns/${report.id}`}
-                        className="font-semibold text-[#0052CC] hover:underline"
+                        className="font-semibold text-[#128C7E] hover:underline"
                       >
                         Report
                       </Link>

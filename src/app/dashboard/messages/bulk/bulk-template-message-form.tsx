@@ -579,11 +579,11 @@ export default function BulkTemplateMessageForm({
                 }}
                 className={`group flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-semibold transition ${
                   isActive
-                    ? "border-blue-600 text-blue-600"
+                    ? "border-emerald-600 text-emerald-600"
                     : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
                 }`}
               >
-                <TabIcon className={`h-4.5 w-4.5 ${isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-500"}`} />
+                <TabIcon className={`h-4.5 w-4.5 ${isActive ? "text-emerald-600" : "text-gray-400 group-hover:text-gray-500"}`} />
                 {tab.label}
               </button>
             );
@@ -595,7 +595,7 @@ export default function BulkTemplateMessageForm({
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-5">
             {/* Plan Usage Limit Badge */}
-            <div className={`rounded-xl border p-4 ${isPlanReady ? "border-[#D8E6F3] bg-[#F0F8FF]" : "border-rose-200 bg-rose-50"}`}>
+            <div className={`rounded-xl border p-4 ${isPlanReady ? "border-[#BFE9D0] bg-[#E7F8EF]" : "border-rose-200 bg-rose-50"}`}>
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium text-[#526173]">{plan.name} plan status</p>
@@ -661,7 +661,7 @@ export default function BulkTemplateMessageForm({
                   </label>
                   <label
                     htmlFor="csvUpload"
-                    className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#0052CC]/35 bg-[#F0F8FF] px-4 py-5 text-sm font-semibold text-[#0052CC] transition hover:border-[#0052CC]"
+                    className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#128C7E]/35 bg-[#E7F8EF] px-4 py-5 text-sm font-semibold text-[#128C7E] transition hover:border-[#128C7E]"
                   >
                     <FileUp className="h-5 w-5" />
                     Choose CSV file
@@ -742,13 +742,13 @@ export default function BulkTemplateMessageForm({
                   </select>
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-[#D8E6F3] bg-white">
-                  <div className="border-b border-[#D8E6F3] bg-[#F0F8FF] px-4 py-3 flex items-center justify-between">
+                <div className="overflow-hidden rounded-xl border border-[#BFE9D0] bg-white">
+                  <div className="border-b border-[#BFE9D0] bg-[#E7F8EF] px-4 py-3 flex items-center justify-between">
                     <p className="text-sm font-bold text-[#081B3A]">Manual Contact Grid</p>
                     <button
                       type="button"
                       onClick={addGridRow}
-                      className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition"
+                      className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Add Row
@@ -756,7 +756,7 @@ export default function BulkTemplateMessageForm({
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[700px] text-left text-sm">
-                      <thead className="bg-[#FAF9FB] text-xs font-semibold uppercase text-[#526173] border-b border-[#D8E6F3]">
+                      <thead className="bg-[#FAF9FB] text-xs font-semibold uppercase text-[#526173] border-b border-[#BFE9D0]">
                         <tr>
                           <th className="px-4 py-3 w-20">Code</th>
                           <th className="px-4 py-3 w-44">Phone Number</th>
@@ -767,7 +767,7 @@ export default function BulkTemplateMessageForm({
                           <th className="px-4 py-3 w-16 text-center">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#D8E6F3]">
+                      <tbody className="divide-y divide-[#BFE9D0]">
                         {gridContacts.map((contact, idx) => (
                           <tr key={idx}>
                             <td className="px-3 py-2">
@@ -893,10 +893,10 @@ export default function BulkTemplateMessageForm({
                     ))}
                   </select>
                   {selectedGroup ? (
-                    <div className="mt-3 flex items-start gap-3 rounded-xl border border-[#D8E6F3] bg-white p-4">
+                    <div className="mt-3 flex items-start gap-3 rounded-xl border border-[#BFE9D0] bg-white p-4">
                       <span
                         className="mt-1 h-4 w-4 shrink-0 rounded-full"
-                        style={{ backgroundColor: selectedGroup.color ?? "#0052CC" }}
+                        style={{ backgroundColor: selectedGroup.color ?? "#128C7E" }}
                       />
                       <div>
                         <p className="text-sm font-bold text-[#081B3A]">{selectedGroup.name}</p>
@@ -922,7 +922,7 @@ export default function BulkTemplateMessageForm({
                 {/* Wizard Stepper */}
                 <div className="flex items-center gap-6 py-2 border-b border-gray-100">
                   <div className="flex items-center gap-2.5">
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition ${retargetStep === 1 ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-500"}`}>1</span>
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition ${retargetStep === 1 ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-500"}`}>1</span>
                     <div>
                       <span className={`block text-xs font-semibold ${retargetStep === 1 ? "text-gray-900" : "text-gray-500"}`}>Filter Messages</span>
                       <span className="block text-[10px] text-gray-400">filter-step</span>
@@ -930,7 +930,7 @@ export default function BulkTemplateMessageForm({
                   </div>
                   <div className="h-px bg-gray-200 flex-1" />
                   <div className="flex items-center gap-2.5">
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition ${retargetStep === 2 ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-500"}`}>2</span>
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition ${retargetStep === 2 ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-500"}`}>2</span>
                     <div>
                       <span className={`block text-xs font-semibold ${retargetStep === 2 ? "text-gray-900" : "text-gray-500"}`}>Campaign Setup</span>
                       <span className="block text-[10px] text-gray-400">campaign-step</span>
@@ -954,7 +954,7 @@ export default function BulkTemplateMessageForm({
                           <button
                             type="button"
                             onClick={() => handleApplyFilters(1)}
-                            className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition"
+                            className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition"
                           >
                             Apply
                           </button>
@@ -1107,9 +1107,9 @@ export default function BulkTemplateMessageForm({
 
                     {/* Results Stepper Actions */}
                     <div className="flex items-center justify-between pt-2">
-                      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 w-40 text-left">
-                        <span className="block text-[10px] uppercase font-bold text-blue-700 tracking-wider">Total</span>
-                        <span className="block text-xl font-black text-blue-950 mt-1">{filteredTotal}</span>
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 w-40 text-left">
+                        <span className="block text-[10px] uppercase font-bold text-emerald-700 tracking-wider">Total</span>
+                        <span className="block text-xl font-black text-emerald-950 mt-1">{filteredTotal}</span>
                       </div>
                       <button
                         type="button"
@@ -1148,7 +1148,7 @@ export default function BulkTemplateMessageForm({
                       <div className="overflow-x-auto">
                         {isFiltering ? (
                           <div className="flex flex-col items-center justify-center py-10 gap-2">
-                            <LoaderCircle className="h-6 w-6 animate-spin text-blue-600" />
+                            <LoaderCircle className="h-6 w-6 animate-spin text-emerald-600" />
                             <span className="text-xs text-gray-500">Loading messages...</span>
                           </div>
                         ) : filteredMessages.length === 0 ? (
@@ -1177,7 +1177,7 @@ export default function BulkTemplateMessageForm({
                                     {new Date(m.createdAt).toLocaleString()}
                                   </td>
                                   <td className="px-4 py-3">
-                                    <span className={`inline-block rounded px-1.5 py-0.5 font-bold ${m.direction === "OUTBOUND" ? "bg-blue-50 text-blue-700" : "bg-teal-50 text-teal-700"}`}>
+                                    <span className={`inline-block rounded px-1.5 py-0.5 font-bold ${m.direction === "OUTBOUND" ? "bg-emerald-50 text-emerald-700" : "bg-teal-50 text-teal-700"}`}>
                                       {m.direction}
                                     </span>
                                   </td>
@@ -1272,8 +1272,8 @@ export default function BulkTemplateMessageForm({
 
             {/* Recipient preview for CSV mode */}
             {sendMode === "CSV" && csvRecipients.length > 0 ? (
-              <div className="overflow-hidden rounded-xl border border-[#D8E6F3]">
-                <div className="border-b border-[#D8E6F3] bg-[#F0F8FF] px-4 py-3">
+              <div className="overflow-hidden rounded-xl border border-[#BFE9D0]">
+                <div className="border-b border-[#BFE9D0] bg-[#E7F8EF] px-4 py-3">
                   <p className="text-sm font-bold text-[#081B3A]">
                     Recipient preview
                   </p>
@@ -1288,7 +1288,7 @@ export default function BulkTemplateMessageForm({
                         <th className="px-4 py-3">Parameters</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#D8E6F3]">
+                    <tbody className="divide-y divide-[#BFE9D0]">
                       {csvRecipients.slice(0, 20).map((recipient, index) => (
                         <tr
                           key={`${recipient.countryCode}-${recipient.phoneNumber}-${index}`}
@@ -1309,7 +1309,7 @@ export default function BulkTemplateMessageForm({
                   </table>
                 </div>
                 {csvRecipients.length > 20 ? (
-                  <p className="border-t border-[#D8E6F3] bg-[#F0F8FF] px-4 py-3 text-xs text-[#526173]">
+                  <p className="border-t border-[#BFE9D0] bg-[#E7F8EF] px-4 py-3 text-xs text-[#526173]">
                     Showing the first 20 recipients.
                   </p>
                 ) : null}

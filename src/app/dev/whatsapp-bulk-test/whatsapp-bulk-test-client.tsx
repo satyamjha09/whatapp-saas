@@ -56,13 +56,13 @@ export default function DevWhatsAppBulkTestClient() {
   }
 
   return (
-    <section className="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-[#D8E6F3]">
+    <section className="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-[#BFE9D0]">
       <div className="grid gap-4 text-sm text-[#526173] sm:grid-cols-2">
-        <div className="rounded-xl bg-[#F7FAFC] p-4 ring-1 ring-[#E5EEF8]">
+        <div className="rounded-xl bg-[#F7FAFC] p-4 ring-1 ring-[#D7F2E1]">
           <p className="font-bold text-[#081B3A]">Template</p>
           <p className="mt-1">hello_world / en_US</p>
         </div>
-        <div className="rounded-xl bg-[#F7FAFC] p-4 ring-1 ring-[#E5EEF8]">
+        <div className="rounded-xl bg-[#F7FAFC] p-4 ring-1 ring-[#D7F2E1]">
           <p className="font-bold text-[#081B3A]">Recipients</p>
           <p className="mt-1">4 test numbers</p>
         </div>
@@ -72,7 +72,7 @@ export default function DevWhatsAppBulkTestClient() {
         type="button"
         onClick={sendTest}
         disabled={isSending}
-        className="mt-6 inline-flex items-center rounded-xl bg-[#0052CC] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#003F9E] disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-6 inline-flex items-center rounded-xl bg-[#128C7E] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#075E54] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSending ? (
           <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />

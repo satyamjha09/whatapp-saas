@@ -82,7 +82,7 @@ export default function InboxChatComposer({
           <button
             type="button"
             disabled
-            className="grid h-11 w-11 place-items-center rounded-full bg-[#1677FF]/60 text-white"
+            className="grid h-11 w-11 place-items-center rounded-full bg-[#128C7E]/60 text-white"
             aria-label="Send"
           >
             <ArrowUp className="h-5 w-5" />
@@ -112,7 +112,7 @@ export default function InboxChatComposer({
         <button
           type="submit"
           disabled={isSending || body.trim().length === 0}
-          className="grid h-11 w-11 place-items-center rounded-full bg-[#1677FF] text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="grid h-11 w-11 place-items-center rounded-full bg-[#128C7E] text-white disabled:cursor-not-allowed disabled:opacity-60"
           aria-label="Send"
         >
           <ArrowUp className="h-5 w-5" />

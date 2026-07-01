@@ -99,9 +99,17 @@ function extractSignupEvent(eventData: unknown): EmbeddedSignupEvent | null {
   if (!eventData || typeof eventData !== "object") return null;
 
   const root = eventData as Record<string, unknown>;
-  const eventName = stringValue(root.event) ?? stringValue(root.type);
+  const eventType = stringValue(root.type);
+  const eventName = stringValue(root.event);
 
-  if (eventName !== "WA_EMBEDDED_SIGNUP") return null;
+  if (eventType !== "WA_EMBEDDED_SIGNUP" && eventName !== "WA_EMBEDDED_SIGNUP") {
+    return null;
+  }
+
+  const signupEventName =
+    eventType === "WA_EMBEDDED_SIGNUP"
+      ? eventName ?? "WA_EMBEDDED_SIGNUP"
+      : "WA_EMBEDDED_SIGNUP";
 
   const data = root.data;
   const currentStep =
@@ -122,7 +130,7 @@ function extractSignupEvent(eventData: unknown): EmbeddedSignupEvent | null {
 
   if (!data || typeof data !== "object") {
     return {
-      event: eventName,
+      event: signupEventName,
       session: null,
       currentStep,
       errorMessage,
@@ -136,7 +144,7 @@ function extractSignupEvent(eventData: unknown): EmbeddedSignupEvent | null {
     stringValue(signupData.phoneNumberId);
 
   return {
-    event: eventName,
+    event: signupEventName,
     session:
       wabaId || phoneNumberId
         ? {
@@ -197,12 +205,64 @@ function getSdkBlockedMessage() {
   return "Unable to load the Facebook SDK. Disable ad blockers or browser tracking protection for this site, then retry.";
 }
 
+function getOAuthRedirectUri({
+  appUrl,
+  configuredRedirectUri,
+}: {
+  appUrl: string | undefined;
+  configuredRedirectUri: string | undefined;
+}) {
+  try {
+    if (configuredRedirectUri?.startsWith("https://")) {
+      return configuredRedirectUri;
+    }
+
+    if (appUrl?.startsWith("https://")) {
+      return `${new URL(appUrl).origin}/dashboard/whatsapp/connect`;
+    }
+
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}/dashboard/whatsapp/connect`;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
 function createFlowSessionId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
   }
 
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getDialogOAuthDebugPayload(url: string | URL | undefined) {
+  if (!url) return null;
+
+  try {
+    const rawUrl = url.toString();
+
+    if (!rawUrl.includes("facebook.com") || !rawUrl.includes("dialog/oauth")) {
+      return null;
+    }
+
+    const parsedUrl = new URL(rawUrl);
+
+    return {
+      href: rawUrl,
+      redirectUri: parsedUrl.searchParams.get("redirect_uri"),
+      fallbackRedirectUri: parsedUrl.searchParams.get("fallback_redirect_uri"),
+      responseType: parsedUrl.searchParams.get("response_type"),
+      overrideDefaultResponseType: parsedUrl.searchParams.get(
+        "override_default_response_type",
+      ),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function getPhoneError(phone: SignupPhoneResult) {
@@ -265,7 +325,7 @@ function SignupResultModal({
     <div className="fixed inset-0 z-50 grid place-items-center bg-[#081B3A]/45 p-4">
       <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-[0_24px_80px_rgba(8,27,58,0.28)]">
         <div className="flex items-start gap-4">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#F0F8FF]">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#E7F8EF]">
             <Icon className={`h-6 w-6 ${iconClass}`} />
           </div>
           <div>
@@ -283,7 +343,7 @@ function SignupResultModal({
 
         <div className="mt-6 max-h-80 space-y-3 overflow-auto pr-1">
           {result.phones.length === 0 ? (
-            <div className="rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] p-4 text-sm text-[#526173]">
+            <div className="rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] p-4 text-sm text-[#526173]">
               No phone result rows were returned.
             </div>
           ) : (
@@ -302,7 +362,7 @@ function SignupResultModal({
               return (
                 <div
                   key={phone.phoneNumberId}
-                  className="rounded-xl border border-[#D8E6F3] p-4"
+                  className="rounded-xl border border-[#BFE9D0] p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -369,10 +429,12 @@ export default function MetaEmbeddedSignupButton({
   const [signupResult, setSignupResult] = useState<SignupResult | null>(null);
   const signupSessionRef = useRef<SignupSession | null>(null);
   const flowSessionIdRef = useRef<string | null>(null);
+  const oauthDialogRedirectUriRef = useRef<string | null>(null);
 
   const appId = process.env.NEXT_PUBLIC_META_APP_ID;
   const configId = process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const configuredRedirectUri = process.env.NEXT_PUBLIC_META_REDIRECT_URI;
   const hasAppId = isConfigured(appId, "your_meta_app_id");
   const hasConfigId = isConfigured(
     configId,
@@ -384,6 +446,10 @@ export default function MetaEmbeddedSignupButton({
     : !hasConfigId
       ? "Meta Embedded Signup Configuration ID is not configured."
       : "";
+  const oauthRedirectUri = getOAuthRedirectUri({
+    appUrl,
+    configuredRedirectUri,
+  });
   const visibleError = error || configurationError || runtimeOriginError;
   const canRetrySdkLoad = error === getSdkBlockedMessage();
 
@@ -536,6 +602,7 @@ export default function MetaEmbeddedSignupButton({
         body: JSON.stringify({
           code,
           flowSessionId: flowSessionIdRef.current,
+          redirectUri: oauthDialogRedirectUriRef.current ?? oauthRedirectUri,
           wabaId: session.wabaId,
           phoneNumberId: session.phoneNumberId,
         }),
@@ -581,18 +648,31 @@ export default function MetaEmbeddedSignupButton({
     setError("");
     setSignupResult(null);
     signupSessionRef.current = null;
+    oauthDialogRedirectUriRef.current = null;
     flowSessionIdRef.current = createFlowSessionId();
+    const originalWindowOpen = window.open.bind(window);
+    let windowOpenRestored = false;
+
+    function restoreWindowOpen() {
+      if (windowOpenRestored) return;
+
+      window.open = originalWindowOpen;
+      windowOpenRestored = true;
+    }
 
     void saveSignupEvent({
       eventType: "CLIENT_FLOW_STARTED",
       payload: {
         graphVersion,
         hasConfigId,
+        redirectUri: oauthRedirectUri,
+        fallbackRedirectUri: oauthRedirectUri,
       },
     });
 
     if (!window.FB || !isSdkReady) {
       setError("Facebook SDK is not ready yet.");
+      restoreWindowOpen();
       return;
     }
 
@@ -602,16 +682,36 @@ export default function MetaEmbeddedSignupButton({
           ? `Facebook Login requires HTTPS. Open this page from ${appUrl}/dashboard/whatsapp/connect.`
           : "Facebook Login requires HTTPS. Open this page from your ngrok HTTPS URL.",
       );
+      restoreWindowOpen();
       return;
     }
 
     if (!hasConfigId || !configId) {
       setError("Meta Embedded Signup Configuration ID is not configured.");
+      restoreWindowOpen();
       return;
     }
 
+    window.open = ((url?: string | URL, target?: string, features?: string) => {
+      const debugPayload = getDialogOAuthDebugPayload(url);
+
+      if (debugPayload) {
+        oauthDialogRedirectUriRef.current = debugPayload.redirectUri;
+
+        void saveSignupEvent({
+          eventType: "CLIENT_OAUTH_DIALOG_OPENED",
+          payload: debugPayload,
+        });
+      }
+
+      return originalWindowOpen(url, target, features);
+    }) as typeof window.open;
+
+    window.setTimeout(restoreWindowOpen, 3000);
+
     window.FB.login(
       (response) => {
+        restoreWindowOpen();
         const code = response.authResponse?.code;
 
         void saveSignupEvent({
@@ -635,9 +735,9 @@ export default function MetaEmbeddedSignupButton({
               eventType: "CLIENT_SESSION_MISSING",
               wabaId: session?.wabaId,
               phoneNumberId: session?.phoneNumberId,
-              payload: { message },
+              payload: { message, fallback: "server_discovery" },
             });
-            setError(message);
+            void completeConnection(code, session ?? {});
             return;
           }
 
@@ -647,6 +747,10 @@ export default function MetaEmbeddedSignupButton({
       {
         config_id: configId,
         auth_type: "rerequest",
+        redirect_uri: oauthRedirectUri,
+        fallback_redirect_uri: oauthRedirectUri,
+        scope:
+          "business_management,whatsapp_business_management,whatsapp_business_messaging",
         response_type: "code",
         override_default_response_type: true,
         extras: {

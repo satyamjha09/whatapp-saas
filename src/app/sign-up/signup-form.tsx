@@ -40,12 +40,12 @@ import {
 } from "@/lib/signup-draft";
 
 const brand = {
-  blue: "#0052CC",
-  blueHover: "#003F9E",
-  border: "#D8E6F3",
+  blue: "#128C7E",
+  blueHover: "#075E54",
+  border: "#BFE9D0",
   deepNavy: "#081B3A",
-  lightBlue: "#F0F8FF",
-  logoBlue: "#2070B0",
+  lightBlue: "#E7F8EF",
+  logoBlue: "#128C7E",
   muted: "#526173",
   text: "#102040",
   yellow: "#F8C830",
@@ -112,12 +112,12 @@ function OnboardingLayout({ children }: { children: ReactNode }) {
       className="relative min-h-screen overflow-hidden px-4 py-8 text-[#102040] sm:px-6 lg:px-8"
       style={{ backgroundColor: brand.lightBlue }}
     >
-      <div className="pointer-events-none absolute -left-24 top-8 h-72 w-72 rounded-full bg-[#2070B0]/10 blur-3xl" />
-      <div className="pointer-events-none absolute -right-20 bottom-8 h-80 w-80 rounded-full bg-[#384080]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -left-24 top-8 h-72 w-72 rounded-full bg-[#128C7E]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-20 bottom-8 h-80 w-80 rounded-full bg-[#075E54]/10 blur-3xl" />
 
       <div className="relative mx-auto max-w-[1180px]">
         <div className="mb-7 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#2070B0] shadow-[0_12px_30px_rgba(8,27,58,0.08)] ring-1 ring-[#D8E6F3]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#128C7E] shadow-[0_12px_30px_rgba(8,27,58,0.08)] ring-1 ring-[#BFE9D0]">
             <Building2 className="h-7 w-7" aria-hidden="true" />
           </div>
           <h1 className="mt-4 text-2xl font-extrabold tracking-normal text-[#081B3A]">
@@ -128,7 +128,7 @@ function OnboardingLayout({ children }: { children: ReactNode }) {
           </p>
         </div>
 
-        <div className="overflow-hidden rounded-[20px] border border-[#D8E6F3] bg-white shadow-[0_18px_50px_rgba(8,27,58,0.08)]">
+        <div className="overflow-hidden rounded-[20px] border border-[#BFE9D0] bg-white shadow-[0_18px_50px_rgba(8,27,58,0.08)]">
           {children}
         </div>
       </div>
@@ -153,10 +153,10 @@ function BrandInformationPanel() {
   ];
 
   return (
-    <aside className="relative overflow-hidden bg-gradient-to-br from-[#F0F8FF] via-white to-[#F0F8FF] p-6 sm:p-8 lg:w-[34%] lg:p-10">
-      <div className="absolute right-6 top-8 h-32 w-32 rounded-full bg-[#2070B0]/10 blur-2xl" />
+    <aside className="relative overflow-hidden bg-gradient-to-br from-[#E7F8EF] via-white to-[#E7F8EF] p-6 sm:p-8 lg:w-[34%] lg:p-10">
+      <div className="absolute right-6 top-8 h-32 w-32 rounded-full bg-[#128C7E]/10 blur-2xl" />
       <div className="relative">
-        <span className="inline-flex rounded-full border border-[#D8E6F3] bg-white px-3 py-1 text-xs font-bold tracking-wide text-[#0052CC]">
+        <span className="inline-flex rounded-full border border-[#BFE9D0] bg-white px-3 py-1 text-xs font-bold tracking-wide text-[#128C7E]">
           SUPER ADMIN SETUP
         </span>
 
@@ -176,7 +176,7 @@ function BrandInformationPanel() {
 
             return (
               <div key={benefit.title} className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#D8E6F3] bg-white text-[#2070B0]">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#BFE9D0] bg-white text-[#128C7E]">
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <p className="text-sm font-semibold text-[#102040]">
@@ -187,28 +187,28 @@ function BrandInformationPanel() {
           })}
         </div>
 
-        <div className="mt-10 hidden rounded-2xl border border-[#D8E6F3] bg-white/75 p-5 lg:block">
+        <div className="mt-10 hidden rounded-2xl border border-[#BFE9D0] bg-white/75 p-5 lg:block">
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl bg-[#F0F8FF] p-3">
-              <div className="h-2 w-14 rounded-full bg-[#0052CC]" />
+            <div className="rounded-xl bg-[#E7F8EF] p-3">
+              <div className="h-2 w-14 rounded-full bg-[#128C7E]" />
               <div className="mt-3 h-10 rounded-lg bg-white" />
             </div>
-            <div className="rounded-xl bg-[#F0F8FF] p-3">
-              <div className="h-2 w-10 rounded-full bg-[#384080]" />
+            <div className="rounded-xl bg-[#E7F8EF] p-3">
+              <div className="h-2 w-10 rounded-full bg-[#075E54]" />
               <div className="mt-3 h-10 rounded-lg bg-white" />
             </div>
-            <div className="rounded-xl bg-[#F0F8FF] p-3">
-              <div className="h-2 w-12 rounded-full bg-[#2070B0]" />
+            <div className="rounded-xl bg-[#E7F8EF] p-3">
+              <div className="h-2 w-12 rounded-full bg-[#128C7E]" />
               <div className="mt-3 h-10 rounded-lg bg-white" />
             </div>
           </div>
-          <div className="mt-4 h-2 w-3/4 rounded-full bg-[#D8E6F3]" />
-          <div className="mt-3 h-2 w-1/2 rounded-full bg-[#D8E6F3]" />
+          <div className="mt-4 h-2 w-3/4 rounded-full bg-[#BFE9D0]" />
+          <div className="mt-3 h-2 w-1/2 rounded-full bg-[#BFE9D0]" />
         </div>
 
-        <div className="mt-8 flex items-start gap-3 rounded-2xl border border-[#D8E6F3] bg-white p-4">
+        <div className="mt-8 flex items-start gap-3 rounded-2xl border border-[#BFE9D0] bg-white p-4">
           <ShieldCheck
-            className="mt-0.5 h-5 w-5 shrink-0 text-[#0052CC]"
+            className="mt-0.5 h-5 w-5 shrink-0 text-[#128C7E]"
             aria-hidden="true"
           />
           <p className="text-sm font-medium leading-6 text-[#526173]">
@@ -247,9 +247,9 @@ function OnboardingStepper({ step }: { step: 1 | 2 }) {
               className={index === 0 ? "contents" : "contents"}
             >
               {index === 1 ? (
-                <div className="mt-5 h-px bg-[#D8E6F3]">
+                <div className="mt-5 h-px bg-[#BFE9D0]">
                   <div
-                    className="h-px bg-[#0052CC] transition-all duration-200"
+                    className="h-px bg-[#128C7E] transition-all duration-200"
                     style={{ width: step === 2 ? "100%" : "45%" }}
                   />
                 </div>
@@ -262,8 +262,8 @@ function OnboardingStepper({ step }: { step: 1 | 2 }) {
                 <div
                   className={`mx-auto flex h-11 w-11 items-center justify-center rounded-xl border text-sm font-bold transition ${
                     isActive || isComplete
-                      ? "border-[#0052CC] bg-[#0052CC] text-white"
-                      : "border-[#D8E6F3] bg-white text-[#526173]"
+                      ? "border-[#128C7E] bg-[#128C7E] text-white"
+                      : "border-[#BFE9D0] bg-white text-[#526173]"
                   }`}
                 >
                   {isComplete ? (
@@ -274,7 +274,7 @@ function OnboardingStepper({ step }: { step: 1 | 2 }) {
                 </div>
                 <p
                   className={`mt-2 truncate text-sm font-bold ${
-                    isActive ? "text-[#0052CC]" : "text-[#526173]"
+                    isActive ? "text-[#128C7E]" : "text-[#526173]"
                   }`}
                 >
                   {item.label}
@@ -301,7 +301,7 @@ function FormSection({
   children: ReactNode;
 }) {
   return (
-    <section className="border-t border-[#E7EFF7] pt-6 first:border-t-0 first:pt-0">
+    <section className="border-t border-[#D7F2E1] pt-6 first:border-t-0 first:pt-0">
       <div className="mb-4">
         <h3 className="text-[17px] font-bold text-[#081B3A]">{title}</h3>
         {description ? (
@@ -359,7 +359,7 @@ function FormField({
         className={`flex h-14 items-center rounded-xl border bg-white px-4 transition duration-200 focus-within:ring-4 ${
           hasError
             ? "border-red-300 focus-within:border-red-400 focus-within:ring-red-100"
-            : "border-[#D8E6F3] hover:border-[#AFC8E0] focus-within:border-[#0052CC] focus-within:ring-[rgba(0,82,204,0.12)]"
+            : "border-[#BFE9D0] hover:border-[#8FD9AA] focus-within:border-[#128C7E] focus-within:ring-[rgba(18,140,126,0.14)]"
         }`}
       >
         {Icon ? (
@@ -494,7 +494,7 @@ function SelectField({
         className={`flex h-14 w-full items-center rounded-xl border bg-white px-4 text-left transition duration-200 focus:outline-none focus:ring-4 ${
           hasError
             ? "border-red-300 focus:border-red-400 focus:ring-red-100"
-            : "border-[#D8E6F3] hover:border-[#AFC8E0] focus:border-[#0052CC] focus:ring-[rgba(0,82,204,0.12)]"
+            : "border-[#BFE9D0] hover:border-[#8FD9AA] focus:border-[#128C7E] focus:ring-[rgba(18,140,126,0.14)]"
         }`}
       >
         <Grid3X3 className="mr-3 h-5 w-5 shrink-0 text-[#526173]" aria-hidden="true" />
@@ -515,8 +515,8 @@ function SelectField({
       ) : null}
 
       {open ? (
-        <div className="absolute z-20 mt-2 w-full rounded-xl border border-[#D8E6F3] bg-white p-2 shadow-[0_18px_40px_rgba(8,27,58,0.12)] motion-safe:animate-[dropdownIn_160ms_ease-out]">
-          <div className="flex h-11 items-center rounded-lg border border-[#D8E6F3] px-3">
+        <div className="absolute z-20 mt-2 w-full rounded-xl border border-[#BFE9D0] bg-white p-2 shadow-[0_18px_40px_rgba(8,27,58,0.12)] motion-safe:animate-[dropdownIn_160ms_ease-out]">
+          <div className="flex h-11 items-center rounded-lg border border-[#BFE9D0] px-3">
             <Search className="mr-2 h-4 w-4 text-[#526173]" aria-hidden="true" />
             <input
               id={searchId}
@@ -547,13 +547,13 @@ function SelectField({
                   onClick={() => selectOption(option)}
                   className={`flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition ${
                     index === activeIndex
-                      ? "bg-[#F0F8FF] text-[#0052CC]"
-                      : "text-[#102040] hover:bg-[#F0F8FF]"
+                      ? "bg-[#E7F8EF] text-[#128C7E]"
+                      : "text-[#102040] hover:bg-[#E7F8EF]"
                   }`}
                 >
                   <span className="flex-1">{option}</span>
                   {value === option ? (
-                    <Check className="h-4 w-4 text-[#0052CC]" aria-hidden="true" />
+                    <Check className="h-4 w-4 text-[#128C7E]" aria-hidden="true" />
                   ) : null}
                 </button>
               ))
@@ -573,14 +573,14 @@ function ConsentCard({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] p-4 transition hover:border-[#AFC8E0]">
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] p-4 transition hover:border-[#8FD9AA]">
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
         className="peer sr-only"
       />
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[#D8E6F3] bg-white text-white transition peer-checked:border-[#0052CC] peer-checked:bg-[#0052CC]">
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[#BFE9D0] bg-white text-white transition peer-checked:border-[#128C7E] peer-checked:bg-[#128C7E]">
         <Check className="h-3.5 w-3.5" aria-hidden="true" />
       </span>
       <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#526173]" aria-hidden="true" />
@@ -608,7 +608,7 @@ function PrimaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled || loading}
-      className="inline-flex h-[54px] w-full items-center justify-center gap-2 rounded-xl bg-[#0052CC] px-6 text-base font-semibold text-white shadow-[0_10px_22px_rgba(0,82,204,0.22)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#003F9E] focus:outline-none focus:ring-4 focus:ring-[rgba(0,82,204,0.16)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 sm:w-auto sm:min-w-64 motion-reduce:hover:translate-y-0"
+      className="inline-flex h-[54px] w-full items-center justify-center gap-2 rounded-xl bg-[#128C7E] px-6 text-base font-semibold text-white shadow-[0_10px_22px_rgba(18,140,126,0.22)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#075E54] focus:outline-none focus:ring-4 focus:ring-[rgba(18,140,126,0.16)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 sm:w-auto sm:min-w-64 motion-reduce:hover:translate-y-0"
     >
       {loading ? (
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white motion-reduce:animate-none" />
@@ -842,7 +842,7 @@ export function SignupForm({
         <section className="p-6 sm:p-8 lg:w-[66%] lg:p-10">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs font-bold tracking-wide text-[#0052CC]">
+              <p className="text-xs font-bold tracking-wide text-[#128C7E]">
                 GETTING STARTED
               </p>
               <h2 className="mt-2 text-2xl font-extrabold text-[#081B3A] sm:text-3xl">
@@ -853,7 +853,7 @@ export function SignupForm({
               </p>
             </div>
 
-            <span className="inline-flex w-fit rounded-full border border-[#D8E6F3] bg-[#F0F8FF] px-3 py-1 text-sm font-semibold text-[#526173]">
+            <span className="inline-flex w-fit rounded-full border border-[#BFE9D0] bg-[#E7F8EF] px-3 py-1 text-sm font-semibold text-[#526173]">
               Step {step} of 2
             </span>
           </div>
@@ -950,7 +950,7 @@ export function SignupForm({
                         maxLength={10}
                         autoComplete="tel-national"
                         prefix={
-                          <span className="mr-3 rounded-lg border border-[#D8E6F3] bg-[#F0F8FF] px-2 py-1 text-sm font-semibold text-[#526173]">
+                          <span className="mr-3 rounded-lg border border-[#BFE9D0] bg-[#E7F8EF] px-2 py-1 text-sm font-semibold text-[#526173]">
                             +91
                           </span>
                         }
@@ -1070,13 +1070,13 @@ export function SignupForm({
             )}
           </div>
 
-          <div className="mt-8 flex flex-col-reverse gap-4 border-t border-[#E7EFF7] pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-8 flex flex-col-reverse gap-4 border-t border-[#D7F2E1] pt-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               {step === 2 ? (
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#526173] transition hover:text-[#0052CC] focus:outline-none focus:ring-4 focus:ring-[rgba(0,82,204,0.12)]"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#526173] transition hover:text-[#128C7E] focus:outline-none focus:ring-4 focus:ring-[rgba(18,140,126,0.14)]"
                 >
                   <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                   Back to account details
@@ -1113,7 +1113,7 @@ export function SignupForm({
             Already have an account?{" "}
             <Link
               href="/sign-in"
-              className="font-semibold text-[#0052CC] hover:text-[#003F9E]"
+              className="font-semibold text-[#128C7E] hover:text-[#075E54]"
             >
               Sign in
             </Link>

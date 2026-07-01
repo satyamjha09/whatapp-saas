@@ -158,15 +158,15 @@ export function ContactImportForm() {
           </div>
         </div>
 
-        <div className="mt-5 rounded-xl bg-blue-50 p-4">
-          <p className="text-sm font-semibold text-blue-900">
+        <div className="mt-5 rounded-xl bg-emerald-50 p-4">
+          <p className="text-sm font-semibold text-emerald-900">
             Consent mapping
           </p>
 
           <div className="mt-3 grid gap-3">
             {Object.keys(consentMapping).map((key) => (
               <label key={key} className="block">
-                <span className="text-xs font-semibold text-blue-800">{key}</span>
+                <span className="text-xs font-semibold text-emerald-800">{key}</span>
                 <input
                   value={consentMapping[key as keyof typeof consentMapping]}
                   onChange={(event) =>
@@ -203,7 +203,7 @@ export function ContactImportForm() {
               type="button"
               onClick={runImport}
               disabled={isWorking || job.readyRows === 0}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60 hover:bg-blue-700 transition-colors"
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60 hover:bg-emerald-700 transition-colors"
             >
               Run Import
             </button>

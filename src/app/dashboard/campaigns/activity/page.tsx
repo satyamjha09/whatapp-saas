@@ -17,7 +17,7 @@ function severityClass(severity: string) {
 function kindClass(kind: string) {
   if (kind === "FAILURE") return "bg-red-50 text-red-700";
   if (kind === "REPORT" || kind === "CONVERSION") return "bg-green-50 text-green-700";
-  if (kind === "CONTROL" || kind === "REPLY") return "bg-blue-50 text-blue-700";
+  if (kind === "CONTROL" || kind === "REPLY") return "bg-emerald-50 text-emerald-700";
   return "bg-gray-100 text-gray-700";
 }
 

@@ -24,7 +24,7 @@ export default async function WhatsAppConnectPage() {
     <div>
       <PageHeader
         eyebrow={context.membership.company.name}
-        title="Connect WhatsApp"
+        title="Connect WhatsApp Account"
         description="Use Meta Embedded Signup to select a Business Portfolio, WhatsApp Business Account, and phone number."
         actions={
           <Link
@@ -32,7 +32,7 @@ export default async function WhatsAppConnectPage() {
             className={actionButtonClass("secondary")}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to settings
+            Back to connected accounts
           </Link>
         }
       />
@@ -40,7 +40,7 @@ export default async function WhatsAppConnectPage() {
       <Panel>
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
-            <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#F0F8FF] text-[#0052CC]">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#E7F8EF] text-[#128C7E]">
               <LockKeyhole className="h-6 w-6" />
             </div>
             <h2 className="mt-4 text-lg font-bold text-[#081B3A]">
@@ -56,7 +56,7 @@ export default async function WhatsAppConnectPage() {
           {canManage ? (
             <MetaEmbeddedSignupButton graphVersion={graphVersion} />
           ) : (
-            <div className="max-w-sm rounded-xl bg-[#F0F8FF] p-4 text-sm text-[#526173] ring-1 ring-[#D8E6F3]">
+            <div className="max-w-sm rounded-xl bg-[#E7F8EF] p-4 text-sm text-[#526173] ring-1 ring-[#BFE9D0]">
               Only workspace owners and admins can connect WhatsApp accounts.
             </div>
           )}

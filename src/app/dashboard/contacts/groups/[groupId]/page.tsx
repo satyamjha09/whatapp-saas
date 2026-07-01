@@ -80,7 +80,7 @@ export default async function ContactGroupDetailPage({
       <div className="mb-5 flex items-center gap-2 text-sm text-[#526173]">
         <span
           className="h-4 w-4 rounded-full"
-          style={{ backgroundColor: group.color ?? "#0052CC" }}
+          style={{ backgroundColor: group.color ?? "#128C7E" }}
         />
         Group color
       </div>
@@ -108,7 +108,7 @@ export default async function ContactGroupDetailPage({
       {canManage ? <GroupMembersImportCard groupId={group.id} /> : null}
 
       <Panel className="overflow-hidden p-0 sm:p-0">
-        <div className="border-b border-[#D8E6F3] px-5 py-4 sm:px-6">
+        <div className="border-b border-[#BFE9D0] px-5 py-4 sm:px-6">
           <PanelTitle
             title="Group members"
             description="Contacts in this reusable audience list."
@@ -121,7 +121,7 @@ export default async function ContactGroupDetailPage({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
-              <thead className="bg-[#F0F8FF] text-xs uppercase text-[#526173]">
+              <thead className="bg-[#E7F8EF] text-xs uppercase text-[#526173]">
                 <tr>
                   <th className="px-5 py-3">Name</th>
                   <th className="px-5 py-3">Phone</th>
@@ -131,7 +131,7 @@ export default async function ContactGroupDetailPage({
                   {canManage ? <th className="px-5 py-3">Action</th> : null}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#D8E6F3]">
+              <tbody className="divide-y divide-[#BFE9D0]">
                 {group.members.map((member) => (
                   <tr key={member.id}>
                     <td className="px-5 py-4 font-semibold text-[#081B3A]">

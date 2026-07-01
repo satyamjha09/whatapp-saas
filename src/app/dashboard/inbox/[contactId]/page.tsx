@@ -587,7 +587,7 @@ export default async function InboxConversationPage({
                             {contact.inboxPriority}
                           </span>
 
-                          <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+                          <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
                             Score {contact.leadScore ?? 0}
                           </span>
 
@@ -679,7 +679,7 @@ export default async function InboxConversationPage({
                     inboxSlaBreachedAt={conversation.inboxSlaBreachedAt}
                   />
 
-                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
                     Score: {conversation.leadScore ?? 0} ({getLeadScoreLabel(conversation.leadScore ?? 0)})
                   </span>
 

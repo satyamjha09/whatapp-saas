@@ -112,7 +112,7 @@ export default function InviteMemberForm({
             Your plan has reached its team member limit. Upgrade to add more people.
           </p>
         ) : (
-          <p className="rounded-lg border border-[#D8E6F3] bg-[#F0F8FF] p-3 text-sm text-[#526173]">
+          <p className="rounded-lg border border-[#BFE9D0] bg-[#E7F8EF] p-3 text-sm text-[#526173]">
             Remaining seats: {remainingSeats}
           </p>
         )}
@@ -183,7 +183,7 @@ export default function InviteMemberForm({
         )}
 
         {emailStatus && (
-          <p className="rounded-lg bg-blue-50 p-3 text-sm font-medium text-blue-700">
+          <p className="rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
             {emailStatus}
           </p>
         )}

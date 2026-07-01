@@ -79,8 +79,8 @@ export default function InboxStatsCards({
           key={card.label}
           className={
             variant === "light"
-              ? "rounded-2xl border border-[#D8E6F3] bg-white p-3 shadow-[0_10px_26px_rgba(8,27,58,0.07)]"
-              : "rounded-2xl border border-[#D8E6F3] bg-white p-3 shadow-[0_10px_26px_rgba(8,27,58,0.07)]"
+              ? "rounded-2xl border border-[#BFE9D0] bg-white p-3 shadow-[0_10px_26px_rgba(8,27,58,0.07)]"
+              : "rounded-2xl border border-[#BFE9D0] bg-white p-3 shadow-[0_10px_26px_rgba(8,27,58,0.07)]"
           }
         >
           <p

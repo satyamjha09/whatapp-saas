@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f0f8ff;
+  --background: #e7f8ef;
   --foreground: #102040;
-  --brand-primary: #0052cc;
-  --brand-primary-hover: #003f9e;
+  --brand-primary: #128c7e;
+  --brand-primary-hover: #075e54;
   --brand-navy: #081b3a;
-  --brand-logo-blue: #2070b0;
-  --brand-indigo: #384080;
-  --brand-bg: #f0f8ff;
+  --brand-logo-blue: #128c7e;
+  --brand-indigo: #075E54;
+  --brand-bg: #e7f8ef;
   --brand-white: #ffffff;
-  --brand-border: #d8e6f3;
+  --brand-border: #bfe9d0;
   --brand-text: #102040;
   --brand-muted: #526173;
   --brand-yellow: #f8c830;
@@ -54,7 +54,7 @@ body {
 }
 
 * {
-  scrollbar-color: rgba(0, 82, 204, 0.45) rgba(216, 230, 243, 0.75);
+  scrollbar-color: rgba(18, 140, 126, 0.48) rgba(191, 233, 208, 0.85);
 }
 
 ::selection {

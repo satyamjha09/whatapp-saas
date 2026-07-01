@@ -7,7 +7,7 @@ import { ContactImportForm } from "./contact-import-form";
 function statusClass(status: string) {
   if (status === "COMPLETED") return "bg-green-50 text-green-700";
   if (status === "FAILED") return "bg-red-50 text-red-700";
-  if (status === "IMPORTING") return "bg-blue-50 text-blue-700";
+  if (status === "IMPORTING") return "bg-emerald-50 text-emerald-700";
 
   return "bg-gray-100 text-gray-700";
 }

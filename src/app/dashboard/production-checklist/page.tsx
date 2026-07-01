@@ -57,10 +57,10 @@ export default async function ProductionChecklistPage() {
         }
       />
 
-      <section className="mb-5 overflow-hidden rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
+      <section className="mb-5 overflow-hidden rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-5">
           <div className="flex items-center gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#F0F8FF] text-[#0052CC]">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#E7F8EF] text-[#128C7E]">
               <CheckCircle2 className="h-6 w-6" />
             </div>
             <div>
@@ -84,9 +84,9 @@ export default async function ProductionChecklistPage() {
           </div>
         </div>
 
-        <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#D8E6F3]/65">
+        <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#BFE9D0]/65">
           <div
-            className="h-full rounded-full bg-[#0052CC] transition-[width] duration-500"
+            className="h-full rounded-full bg-[#128C7E] transition-[width] duration-500"
             style={{ width: `${requiredPercent}%` }}
           />
         </div>
@@ -106,7 +106,7 @@ export default async function ProductionChecklistPage() {
 
       <section
         id="manual-confirmations"
-        className="mb-5 scroll-mt-24 rounded-2xl border border-[#D8E6F3] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6"
+        className="mb-5 scroll-mt-24 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6"
       >
         <h2 className="text-lg font-bold text-[#081B3A]">
           Manual Production Confirmations

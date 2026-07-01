@@ -149,7 +149,7 @@ export default function SubscriptionPlanCard({
   }
 
   return (
-    <article className={`flex h-full flex-col rounded-2xl border bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.06)] ${isCurrent ? "border-[#0052CC] ring-2 ring-[#0052CC]/10" : "border-[#D8E6F3]"}`}>
+    <article className={`flex h-full flex-col rounded-2xl border bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.06)] ${isCurrent ? "border-[#128C7E] ring-2 ring-[#128C7E]/10" : "border-[#BFE9D0]"}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-bold text-[#081B3A]">{plan.name}</h3>
@@ -157,7 +157,7 @@ export default function SubscriptionPlanCard({
         </div>
         <div className="flex flex-wrap justify-end gap-1.5">
           {isCurrent ? (
-            <span className="shrink-0 rounded-full bg-[#0052CC]/10 px-2.5 py-1 text-[11px] font-semibold text-[#0052CC]">Current</span>
+            <span className="shrink-0 rounded-full bg-[#128C7E]/10 px-2.5 py-1 text-[11px] font-semibold text-[#128C7E]">Current</span>
           ) : null}
           {canRenewCurrentPlan ? (
             <span className="shrink-0 rounded-full bg-[#F8C830]/20 px-2.5 py-1 text-[11px] font-semibold text-[#7A5A00]">
@@ -168,7 +168,7 @@ export default function SubscriptionPlanCard({
       </div>
 
       <p className="mt-4 text-2xl font-extrabold text-[#081B3A]">{formatPlanPrice(plan.monthlyPricePaise)}</p>
-      <div className="mt-4 grid grid-cols-3 gap-2 border-y border-[#D8E6F3] py-3 text-center">
+      <div className="mt-4 grid grid-cols-3 gap-2 border-y border-[#BFE9D0] py-3 text-center">
         <div><strong className="block text-sm text-[#102040]">{plan.monthlyMessageLimit.toLocaleString("en-IN")}</strong><span className="text-[10px] text-[#526173]">messages</span></div>
         <div><strong className="block text-sm text-[#102040]">{plan.maxBulkRecipients.toLocaleString("en-IN")}</strong><span className="text-[10px] text-[#526173]">bulk max</span></div>
         <div><strong className="block text-sm text-[#102040]">{plan.maxTeamMembers}</strong><span className="text-[10px] text-[#526173]">members</span></div>
@@ -178,18 +178,18 @@ export default function SubscriptionPlanCard({
           <li key={feature} className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-[#22C55E]" />{feature}</li>
         ))}
       </ul>
-      <div className="mt-3 rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] p-3">
-        <p className="text-[10px] font-semibold uppercase text-[#2070B0]">
+      <div className="mt-3 rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] p-3">
+        <p className="text-[10px] font-semibold uppercase text-[#128C7E]">
           Enabled product areas
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {plan.enabledFeatures.map((feature) => (
-            <span key={feature} className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#526173] ring-1 ring-[#D8E6F3]">
+            <span key={feature} className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-[#526173] ring-1 ring-[#BFE9D0]">
               {feature.replaceAll("_", " ")}
             </span>
           ))}
         </div>
-        <p className="mt-2 border-t border-[#D8E6F3] pt-2 text-[11px] text-[#526173]">
+        <p className="mt-2 border-t border-[#BFE9D0] pt-2 text-[11px] text-[#526173]">
           <strong className="text-[#102040]">
             {plan.developerApiDailyLimit > 0
               ? plan.developerApiDailyLimit.toLocaleString("en-IN")
@@ -203,7 +203,7 @@ export default function SubscriptionPlanCard({
         type="button"
         disabled={shouldDisableButton}
         onClick={() => void (plan.id === "FREE" ? chooseFreePlan() : payForPlan())}
-        className={`mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 ${isCurrent && !canRenewCurrentPlan ? "bg-[#F0F8FF] text-[#0052CC]" : "bg-[#0052CC] text-white hover:bg-[#003F9E]"}`}
+        className={`mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 ${isCurrent && !canRenewCurrentPlan ? "bg-[#E7F8EF] text-[#128C7E]" : "bg-[#128C7E] text-white hover:bg-[#075E54]"}`}
       >
         {isChanging ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : null}
         {isChanging

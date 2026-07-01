@@ -77,11 +77,11 @@ export default async function DeveloperWebhookOutboxPage() {
           </Link>
         </div>
 
-        <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-          <h2 className="text-lg font-semibold text-blue-900">
+        <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+          <h2 className="text-lg font-semibold text-emerald-900">
             Outbox Retention
           </h2>
-          <p className="mt-1 text-sm text-blue-800">
+          <p className="mt-1 text-sm text-emerald-800">
             Delivered and failed events are retained according to your plan.
             Pending and processing events are never removed by retention
             cleanup.
@@ -128,7 +128,7 @@ export default async function DeveloperWebhookOutboxPage() {
                       <td className="px-6 py-4 font-medium text-gray-900">
                         <Link
                           href={`/dashboard/developer/webhooks/outbox/${event.id}`}
-                          className="hover:text-[#0052CC] hover:underline"
+                          className="hover:text-[#128C7E] hover:underline"
                         >
                           {event.eventType}
                         </Link>

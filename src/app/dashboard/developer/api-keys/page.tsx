@@ -118,7 +118,7 @@ export default async function ApiKeysPage() {
                           <td className="py-3 pr-4 font-medium text-gray-900">
                             <Link
                               href={`/dashboard/developer/logs?apiKeyId=${apiKey.id}`}
-                              className="hover:text-[#0052CC] hover:underline"
+                              className="hover:text-[#128C7E] hover:underline"
                             >
                               {apiKey.name}
                             </Link>

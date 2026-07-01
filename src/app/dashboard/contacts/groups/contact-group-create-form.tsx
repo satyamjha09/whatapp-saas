@@ -24,7 +24,7 @@ export default function ContactGroupCreateForm({
   const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [color, setColor] = useState("#0052CC");
+  const [color, setColor] = useState("#128C7E");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -96,7 +96,7 @@ export default function ContactGroupCreateForm({
               type="color"
               value={color}
               onChange={(event) => setColor(event.target.value)}
-              className="h-[46px] w-full rounded-xl border border-[#D8E6F3] bg-white p-1.5"
+              className="h-[46px] w-full rounded-xl border border-[#BFE9D0] bg-white p-1.5"
             />
           </div>
         </div>

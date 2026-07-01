@@ -1073,6 +1073,7 @@ model User {
   platformCompanyNotes                PlatformCompanyNote[]
   assignedCompanyPlans                CompanyPlanAssignment[]            @relation("AssignedCompanyPlans")
   companyPlanAssignmentEvents         CompanyPlanAssignmentEvent[]       @relation("CompanyPlanAssignmentEventActor")
+  whatsAppEmbeddedSignupEvents        WhatsAppEmbeddedSignupEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1131,6 +1132,7 @@ model Company {
   users                             CompanyUser[]
   whatsAppAccounts                  WhatsAppAccount[]
   whatsAppPhoneNumbers              WhatsAppPhoneNumber[]
+  whatsAppEmbeddedSignupEvents      WhatsAppEmbeddedSignupEvent[]
   whatsAppFlows                     WhatsAppFlow[]
   whatsAppFlowResponses             WhatsAppFlowResponse[]
   contactImportJobs                 ContactImportJob[]
@@ -1361,8 +1363,9 @@ model WhatsAppAccount {
   accessTokenEncryptedAt DateTime?
   status                 WhatsAppAccountStatus @default(PENDING)
 
-  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  phoneNumbers WhatsAppPhoneNumber[]
+  company              Company                       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  phoneNumbers         WhatsAppPhoneNumber[]
+  embeddedSignupEvents WhatsAppEmbeddedSignupEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1376,10 +1379,20 @@ model WhatsAppPhoneNumber {
   companyId         String
   whatsAppAccountId String
 
-  phoneNumberId      String? @unique
-  displayPhoneNumber String?
-  verifiedName       String?
-  qualityRating      String?
+  phoneNumberId          String?   @unique
+  displayPhoneNumber     String?
+  verifiedName           String?
+  qualityRating          String?
+  messagingLimitTier     String?
+  numberType             String?
+  codeVerificationStatus String?
+  nameStatus             String?
+  platformType           String?
+  throughput             Json?
+  healthStatus           Json?
+  canSendMessage         String?
+  lastStatusCheckAt      DateTime?
+  lastStatusError        String?
 
   company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   whatsAppAccount WhatsAppAccount @relation(fields: [whatsAppAccountId], references: [id], onDelete: Cascade)
@@ -1389,6 +1402,38 @@ model WhatsAppPhoneNumber {
 
   @@index([companyId])
   @@index([whatsAppAccountId])
+  @@index([canSendMessage])
+  @@index([lastStatusCheckAt])
+}
+
+model WhatsAppEmbeddedSignupEvent {
+  id String @id @default(cuid())
+
+  companyId         String
+  userId            String?
+  whatsAppAccountId String?
+
+  flowSessionId String?
+  eventType     String
+  currentStep   String?
+  wabaId        String?
+  phoneNumberId String?
+  payload       Json?
+
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user            User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  whatsAppAccount WhatsAppAccount? @relation(fields: [whatsAppAccountId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([whatsAppAccountId])
+  @@index([flowSessionId])
+  @@index([eventType])
+  @@index([wabaId])
+  @@index([phoneNumberId])
+  @@index([createdAt])
 }
 
 model WhatsAppFlow {
@@ -1402,7 +1447,7 @@ model WhatsAppFlow {
   metaFlowId String
   status     WhatsAppFlowStatus @default(DRAFT)
 
-  defaultCta      String @default("Open form")
+  defaultCta      String  @default("Open form")
   defaultScreen   String?
   dataApiEndpoint String?
 
@@ -1465,10 +1510,10 @@ model Template {
 
   metaTemplateId String?
 
-  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  messages           Message[]
-  campaigns          Campaign[]
-  bulkMessageBatches BulkMessageBatch[]
+  company               Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages              Message[]
+  campaigns             Campaign[]
+  bulkMessageBatches    BulkMessageBatch[]
   campaignSequenceSteps CampaignSequenceStep[]
 
   createdAt DateTime @default(now())
@@ -1520,23 +1565,23 @@ model Contact {
   leadScoreBreakdown Json?
   leadScorePriority  InboxPriority?
 
-  company                   Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  assignedTo                User?                      @relation("ContactAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
-  messages                  Message[]
-  inboxNotes                InboxNote[]
-  inboxTags                 ContactInboxTag[]
-  activities                ContactActivity[]
-  campaignContacts          CampaignContact[]
-  campaignReplyAttributions CampaignReplyAttribution[]
-  campaignConversionEvents  CampaignConversionEvent[]
-  campaignFollowUpTasks     CampaignFollowUpTask[]
+  company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedTo                 User?                       @relation("ContactAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  messages                   Message[]
+  inboxNotes                 InboxNote[]
+  inboxTags                  ContactInboxTag[]
+  activities                 ContactActivity[]
+  campaignContacts           CampaignContact[]
+  campaignReplyAttributions  CampaignReplyAttribution[]
+  campaignConversionEvents   CampaignConversionEvent[]
+  campaignFollowUpTasks      CampaignFollowUpTask[]
   campaignSequenceExecutions CampaignSequenceExecution[]
-  whatsAppFlowResponses     WhatsAppFlowResponse[]
-  contactGroupMembers       ContactGroupMember[]
-  privacyRequests           PrivacyRequest[]
-  consentEvents             ContactConsentEvent[]
-  contactImportRows         ContactImportRow[]
-  complianceEvidenceExports ComplianceEvidenceExport[]
+  whatsAppFlowResponses      WhatsAppFlowResponse[]
+  contactGroupMembers        ContactGroupMember[]
+  privacyRequests            PrivacyRequest[]
+  consentEvents              ContactConsentEvent[]
+  contactImportRows          ContactImportRow[]
+  complianceEvidenceExports  ComplianceEvidenceExport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1559,7 +1604,6 @@ model Contact {
   @@index([marketingConsentAt])
   @@index([lastSeenAt])
   @@index([lastRepliedAt])
-
   @@index([companyId, leadScore])
   @@index([companyId, leadScoreUpdatedAt])
   @@index([companyId, leadScorePriority])
@@ -2714,6 +2758,7 @@ model Message {
 
   inboxReadAt DateTime?
   queuedAt    DateTime?
+  scheduledAt DateTime?
 
   company                   Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contact                   Contact                    @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -2724,8 +2769,8 @@ model Message {
 
   events                            MessageEvent[]
   usageLedgers                      MessageUsageLedger[]
-  campaignReplyAttributions         CampaignReplyAttribution[] @relation("CampaignReplyInboundMessage")
-  outboundCampaignReplyAttributions CampaignReplyAttribution[] @relation("CampaignReplyOutboundMessage")
+  campaignReplyAttributions         CampaignReplyAttribution[]  @relation("CampaignReplyInboundMessage")
+  outboundCampaignReplyAttributions CampaignReplyAttribution[]  @relation("CampaignReplyOutboundMessage")
   campaignConversionEvents          CampaignConversionEvent[]
   campaignSequenceExecutions        CampaignSequenceExecution[] @relation("CampaignSequenceMessage")
   nextCampaignSequenceExecutions    CampaignSequenceExecution[] @relation("CampaignSequencePreviousMessage")
@@ -2742,6 +2787,7 @@ model Message {
   @@index([campaignId])
   @@index([campaignContactId])
   @@index([companyId, direction, inboxReadAt])
+  @@index([companyId, scheduledAt])
 }
 
 model MessageEvent {
@@ -2775,7 +2821,7 @@ model WebhookEvent {
 
   dedupeKey String? @unique
 
-  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  company                       Company?               @relation(fields: [companyId], references: [id], onDelete: SetNull)
   resolvedUnmappedWebhookEvents UnmappedWebhookEvent[]
 
   createdAt DateTime @default(now())
@@ -2789,22 +2835,22 @@ model WebhookEvent {
 model UnmappedWebhookEvent {
   id String @id @default(cuid())
 
-  provider      String @default("META")
+  provider      String                     @default("META")
   phoneNumberId String?
   eventType     String?
   payload       Json
   reason        String
   status        UnmappedWebhookEventStatus @default(UNRESOLVED)
 
-  dedupeKey          String? @unique
-  resolvedCompanyId String?
+  dedupeKey              String?   @unique
+  resolvedCompanyId      String?
   resolvedWebhookEventId String?
-  resolvedAt        DateTime?
+  resolvedAt             DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  resolvedCompany Company? @relation(fields: [resolvedCompanyId], references: [id], onDelete: SetNull)
+  resolvedCompany      Company?      @relation(fields: [resolvedCompanyId], references: [id], onDelete: SetNull)
   resolvedWebhookEvent WebhookEvent? @relation(fields: [resolvedWebhookEventId], references: [id], onDelete: SetNull)
 
   @@index([phoneNumberId])
@@ -2835,16 +2881,16 @@ model Campaign {
   company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
-  contacts          CampaignContact[]
-  messages          Message[]
-  analyticsSnapshot CampaignAnalyticsSnapshot?
-  replyAttributions CampaignReplyAttribution[]
-  conversionEvents  CampaignConversionEvent[]
-  followUpTasks     CampaignFollowUpTask[]
-  completionReports CampaignCompletionReport[]
-  reportExports     CampaignReportExport[]
-  sequenceSteps     CampaignSequenceStep[]
-  sequenceExecutions CampaignSequenceExecution[]
+  contacts              CampaignContact[]
+  messages              Message[]
+  analyticsSnapshot     CampaignAnalyticsSnapshot?
+  replyAttributions     CampaignReplyAttribution[]
+  conversionEvents      CampaignConversionEvent[]
+  followUpTasks         CampaignFollowUpTask[]
+  completionReports     CampaignCompletionReport[]
+  reportExports         CampaignReportExport[]
+  sequenceSteps         CampaignSequenceStep[]
+  sequenceExecutions    CampaignSequenceExecution[]
   whatsAppFlowResponses WhatsAppFlowResponse[]
 
   createdAt DateTime @default(now())
@@ -3509,16 +3555,16 @@ model CampaignSequenceStep {
 
   order Int
 
-  delayMinutes Int @default(0)
+  delayMinutes Int                       @default(0)
   condition    CampaignSequenceCondition @default(NO_REPLY)
-  isActive     Boolean @default(true)
+  isActive     Boolean                   @default(true)
 
   variables String[]
   metadata  Json?
 
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  campaign  Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  template  Template @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  company    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign   Campaign                    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  template   Template                    @relation(fields: [templateId], references: [id], onDelete: Restrict)
   executions CampaignSequenceExecution[]
 
   createdAt DateTime @default(now())
@@ -5296,30 +5342,30 @@ enum ContactImportDuplicateStrategy {
 model ContactImportJob {
   id String @id @default(cuid())
 
-  companyId String
+  companyId   String
   actorUserId String?
 
-  status ContactImportJobStatus @default(DRAFT)
+  status            ContactImportJobStatus         @default(DRAFT)
   duplicateStrategy ContactImportDuplicateStrategy @default(UPDATE_EXISTING)
 
-  fileName String?
-  totalRows Int @default(0)
-  readyRows Int @default(0)
-  skippedRows Int @default(0)
-  importedRows Int @default(0)
-  failedRows Int @default(0)
+  fileName     String?
+  totalRows    Int     @default(0)
+  readyRows    Int     @default(0)
+  skippedRows  Int     @default(0)
+  importedRows Int     @default(0)
+  failedRows   Int     @default(0)
 
-  fieldMapping Json?
+  fieldMapping   Json?
   consentMapping Json?
   previewSummary Json?
-  errorMessage String?
+  errorMessage   String?
 
-  startedAt DateTime?
+  startedAt   DateTime?
   completedAt DateTime?
-  failedAt DateTime?
+  failedAt    DateTime?
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  actorUser User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actorUser User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   rows ContactImportRow[]
 
@@ -5336,27 +5382,27 @@ model ContactImportRow {
   id String @id @default(cuid())
 
   companyId String
-  jobId String
+  jobId     String
 
   rowNumber Int
-  status ContactImportRowStatus @default(READY)
+  status    ContactImportRowStatus @default(READY)
 
-  raw Json?
+  raw        Json?
   normalized Json?
 
   phone String?
   email String?
-  name String?
+  name  String?
 
   contactId String?
 
-  errorMessage String?
+  errorMessage  String?
   consentStatus String?
-  consentProof String?
+  consentProof  String?
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  job ContactImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  job     ContactImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contact Contact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5375,28 +5421,28 @@ model LeadScoringConfig {
   companyId String  @unique
   isEnabled Boolean @default(true)
 
-  pointsInboundMessage  Int @default(5)
-  pointsCampaignRead    Int @default(3)
-  pointsPositiveReply   Int @default(15)
-  pointsNegativeReply   Int @default(-10)
-  pointsQuestionReply   Int @default(8)
-  pointsOptOut          Int @default(-50)
+  pointsInboundMessage Int @default(5)
+  pointsCampaignRead   Int @default(3)
+  pointsPositiveReply  Int @default(15)
+  pointsNegativeReply  Int @default(-10)
+  pointsQuestionReply  Int @default(8)
+  pointsOptOut         Int @default(-50)
 
   pointsDemoBooked      Int @default(25)
   pointsPaymentReceived Int @default(50)
   pointsLeadWon         Int @default(100)
   pointsLeadLost        Int @default(-20)
 
-  pointsHighPriority    Int @default(10)
-  pointsUrgentPriority  Int @default(20)
+  pointsHighPriority   Int @default(10)
+  pointsUrgentPriority Int @default(20)
 
-  pointsDecayPerDay     Int @default(-2)
-  decayStartAfterDays   Int @default(7)
+  pointsDecayPerDay   Int @default(-2)
+  decayStartAfterDays Int @default(7)
 
-  thresholdLow          Int @default(25)
-  thresholdNormal       Int @default(50)
-  thresholdHigh         Int @default(75)
-  thresholdUrgent       Int @default(100)
+  thresholdLow    Int @default(25)
+  thresholdNormal Int @default(50)
+  thresholdHigh   Int @default(75)
+  thresholdUrgent Int @default(100)
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 

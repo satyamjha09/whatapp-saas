@@ -48,16 +48,16 @@ export default function InboxPriorityFilter({
               })}
               className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                 isActive
-                  ? "border-[#0052CC]/25 bg-[#F0F8FF] text-[#0052CC]"
+                  ? "border-[#128C7E]/25 bg-[#E7F8EF] text-[#128C7E]"
                   : priority === "URGENT"
                     ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
                     : priority === "HIGH"
-                      ? "border-[#384080]/20 bg-[#384080]/10 text-[#384080] hover:bg-[#384080]/15"
+                      ? "border-[#075E54]/20 bg-[#075E54]/10 text-[#075E54] hover:bg-[#075E54]/15"
                       : priority === "NORMAL"
                         ? "border-[#22C55E]/25 bg-[#22C55E]/10 text-[#15803d] hover:bg-[#22C55E]/15"
                         : priority === "LOW"
-                          ? "border-[#D8E6F3] bg-[#F0F8FF] text-[#0052CC] hover:bg-[#D8E6F3]/35"
-                          : "border-[#D8E6F3] bg-white text-[#526173] hover:border-[#0052CC]/30 hover:bg-[#F0F8FF] hover:text-[#102040]"
+                          ? "border-[#BFE9D0] bg-[#E7F8EF] text-[#128C7E] hover:bg-[#BFE9D0]/35"
+                          : "border-[#BFE9D0] bg-white text-[#526173] hover:border-[#128C7E]/30 hover:bg-[#E7F8EF] hover:text-[#102040]"
               }`}
             >
               {priority === "all" ? "All priorities" : priority}

@@ -55,7 +55,7 @@ type WhatsAppFlow = {
 
 type SendResponse = {
   message?: string;
-  result?: { messageId: string; contactId: string };
+  result?: { messageId: string; contactId: string; scheduledAt?: string | null };
   errors?: Partial<
     Record<
       | "phoneNumber"
@@ -66,7 +66,8 @@ type SendResponse = {
       | "messageType"
       | "media"
       | "location"
-      | "interactive",
+      | "interactive"
+      | "scheduledAt",
       string[]
     >
   >;
@@ -457,14 +458,6 @@ export default function SingleTemplateMessageForm({
         setError("Schedule time must be in the future.");
         return;
       }
-
-      setSuccess(
-        `Schedule form is ready for ${scheduledDate.toLocaleString("en-IN", {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })}. Backend scheduler storage/worker is the next step.`,
-      );
-      return;
     }
 
     if (["Payment", "Catalog"].includes(messageType)) {
@@ -481,6 +474,10 @@ export default function SingleTemplateMessageForm({
       }
     }
 
+    const scheduledAtIso = isScheduled
+      ? new Date(scheduledAt).toISOString()
+      : null;
+
     setIsSending(true);
 
     try {
@@ -494,6 +491,7 @@ export default function SingleTemplateMessageForm({
                 formData.append("countryCode", countryCode);
                 formData.append("phoneNumber", phoneNumber);
                 if (name.trim()) formData.append("name", name.trim());
+                if (scheduledAtIso) formData.append("scheduledAt", scheduledAtIso);
                 formData.append("mediaType", mediaType.toUpperCase());
                 formData.append("mediaName", selectedMedia.name);
                 if (mediaCaption.trim()) {
@@ -513,6 +511,7 @@ export default function SingleTemplateMessageForm({
                       countryCode,
                       phoneNumber,
                       name: name.trim() || undefined,
+                      scheduledAt: scheduledAtIso,
                       media: {
                         type: mediaType.toUpperCase(),
                         url: selectedMedia!.url,
@@ -526,6 +525,7 @@ export default function SingleTemplateMessageForm({
                         countryCode,
                         phoneNumber,
                         name: name.trim() || undefined,
+                        scheduledAt: scheduledAtIso,
                         location: {
                           name: locationName.trim(),
                           address: locationAddress.trim(),
@@ -539,6 +539,7 @@ export default function SingleTemplateMessageForm({
                           countryCode,
                           phoneNumber,
                           name: name.trim() || undefined,
+                          scheduledAt: scheduledAtIso,
                           interactive: {
                             type: interactionType,
                             header: interactiveHeader.trim() || undefined,
@@ -596,6 +597,7 @@ export default function SingleTemplateMessageForm({
                             countryCode,
                             phoneNumber,
                             name: name.trim() || undefined,
+                            scheduledAt: scheduledAtIso,
                             text: {
                               body: textBody.trim(),
                             },
@@ -605,6 +607,7 @@ export default function SingleTemplateMessageForm({
                       countryCode,
                       phoneNumber,
                       name: name.trim() || undefined,
+                      scheduledAt: scheduledAtIso,
                       templateId,
                       bodyParameters,
                     },
@@ -622,6 +625,7 @@ export default function SingleTemplateMessageForm({
           data.errors?.media?.[0] ??
           data.errors?.location?.[0] ??
           data.errors?.interactive?.[0] ??
+          data.errors?.scheduledAt?.[0] ??
           data.errors?.messageType?.[0] ??
           data.message ??
           "Unable to queue message.";
@@ -853,7 +857,7 @@ export default function SingleTemplateMessageForm({
               </p>
 
               {selectedMedia ? (
-                <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#D8E6F3] bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#BFE9D0] bg-white p-4">
                   <div className="flex min-w-0 items-center gap-4">
                     {mediaType === "Image" && selectedMedia.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -863,7 +867,7 @@ export default function SingleTemplateMessageForm({
                         className="h-14 w-20 rounded-lg object-cover"
                       />
                     ) : (
-                      <div className="grid h-14 w-20 place-items-center rounded-lg bg-[#F0F8FF] text-[#0052CC]">
+                      <div className="grid h-14 w-20 place-items-center rounded-lg bg-[#E7F8EF] text-[#128C7E]">
                         <FileUp className="h-6 w-6" />
                       </div>
                     )}
@@ -881,7 +885,7 @@ export default function SingleTemplateMessageForm({
                     <button
                       type="button"
                       onClick={() => setIsUploadOpen(true)}
-                      className="rounded-xl border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] transition hover:bg-[#F0F8FF]"
+                      className="rounded-xl border border-[#BFE9D0] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] transition hover:bg-[#E7F8EF]"
                     >
                       Change
                     </button>
@@ -899,7 +903,7 @@ export default function SingleTemplateMessageForm({
                 <button
                   type="button"
                   onClick={() => setIsUploadOpen(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#0052CC]/35 bg-[#F0F8FF] px-4 py-5 text-sm font-semibold text-[#0052CC] transition hover:border-[#0052CC]"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#128C7E]/35 bg-[#E7F8EF] px-4 py-5 text-sm font-semibold text-[#128C7E] transition hover:border-[#128C7E]"
                 >
                   <FileUp className="h-5 w-5" />
                   Upload or select file
@@ -1033,9 +1037,9 @@ export default function SingleTemplateMessageForm({
                 {interactiveSections.map((section, sectionIndex) => (
                   <div
                     key={section.id}
-                    className="overflow-hidden rounded-xl border border-[#D8E6F3] bg-white"
+                    className="overflow-hidden rounded-xl border border-[#BFE9D0] bg-white"
                   >
-                    <div className="flex items-center gap-3 border-b border-[#D8E6F3] px-4 py-3">
+                    <div className="flex items-center gap-3 border-b border-[#BFE9D0] px-4 py-3">
                       <ChevronDown className="h-4 w-4 text-[#526173]" />
                       <p className="font-semibold text-[#081B3A]">
                         Section {sectionIndex + 1}
@@ -1106,7 +1110,7 @@ export default function SingleTemplateMessageForm({
                       <button
                         type="button"
                         onClick={() => addInteractiveRow(section.id)}
-                        className="inline-flex items-center rounded-xl border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] transition hover:bg-[#F0F8FF]"
+                        className="inline-flex items-center rounded-xl border border-[#BFE9D0] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] transition hover:bg-[#E7F8EF]"
                       >
                         <Plus className="mr-2 h-4 w-4" />
                         Add Row
@@ -1118,7 +1122,7 @@ export default function SingleTemplateMessageForm({
                 <button
                   type="button"
                   onClick={addInteractiveSection}
-                  className="inline-flex items-center rounded-xl border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] transition hover:bg-[#F0F8FF]"
+                  className="inline-flex items-center rounded-xl border border-[#BFE9D0] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] transition hover:bg-[#E7F8EF]"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Section
@@ -1198,7 +1202,7 @@ export default function SingleTemplateMessageForm({
                     onClick={() =>
                       setInteractiveButtons((current) => [...current, ""])
                     }
-                    className="inline-flex items-center rounded-xl border border-dashed border-[#D8E6F3] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] transition hover:bg-[#F0F8FF]"
+                    className="inline-flex items-center rounded-xl border border-dashed border-[#BFE9D0] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] transition hover:bg-[#E7F8EF]"
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Button
@@ -1232,7 +1236,7 @@ export default function SingleTemplateMessageForm({
                         No published flows yet.{" "}
                         <Link
                           href="/dashboard/whatsapp/flows/new"
-                          className="font-semibold text-[#1677FF] hover:underline"
+                          className="font-semibold text-[#128C7E] hover:underline"
                         >
                           Add a Flow
                         </Link>{" "}
@@ -1466,10 +1470,10 @@ export default function SingleTemplateMessageForm({
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-[#D8E6F3] bg-white">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D8E6F3] px-4 py-3">
+            <div className="overflow-hidden rounded-2xl border border-[#BFE9D0] bg-white">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#BFE9D0] px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-bold text-[#081B3A]">
-                  <MapPin className="h-4 w-4 text-[#0052CC]" />
+                  <MapPin className="h-4 w-4 text-[#128C7E]" />
                   Google Maps location
                 </div>
                 {googleMapsUrl ? (
@@ -1477,7 +1481,7 @@ export default function SingleTemplateMessageForm({
                     href={googleMapsUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#0052CC] hover:underline"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#128C7E] hover:underline"
                   >
                     Open map
                     <ExternalLink className="h-4 w-4" />
@@ -1494,7 +1498,7 @@ export default function SingleTemplateMessageForm({
                   className="h-64 w-full border-0"
                 />
               ) : (
-                <div className="flex h-64 items-center justify-center bg-[#F0F8FF] px-6 text-center text-sm leading-6 text-[#526173]">
+                <div className="flex h-64 items-center justify-center bg-[#E7F8EF] px-6 text-center text-sm leading-6 text-[#526173]">
                   Enter latitude and longitude to preview this place on Google
                   Maps.
                 </div>
@@ -1504,16 +1508,16 @@ export default function SingleTemplateMessageForm({
         ) : null}
 
         {!["Template", "Media", "Location"].includes(messageType) ? (
-          <div className="rounded-xl border border-[#D8E6F3] bg-[#F0F8FF] p-4 text-sm leading-6 text-[#526173]">
+          <div className="rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] p-4 text-sm leading-6 text-[#526173]">
             {messageType} message draft uses this layout. Backend sending is
             currently connected for template and media messages.
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-[#D8E6F3] bg-white p-4">
+        <div className="rounded-2xl border border-[#BFE9D0] bg-white p-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#F0F8FF] text-[#0052CC]">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#E7F8EF] text-[#128C7E]">
                 <CalendarClock className="h-5 w-5" />
               </div>
               <div>
@@ -1537,7 +1541,7 @@ export default function SingleTemplateMessageForm({
               }}
               className={[
                 "relative h-8 w-16 rounded-full p-1 transition",
-                isScheduled ? "bg-[#0052CC]" : "bg-gray-300",
+                isScheduled ? "bg-[#128C7E]" : "bg-gray-300",
               ].join(" ")}
               aria-pressed={isScheduled}
             >
@@ -1565,8 +1569,8 @@ export default function SingleTemplateMessageForm({
                 className={fieldClass}
               />
               <p className={helperTextClass}>
-                Scheduled single-message backend storage and worker will be
-                connected in the next step.
+                The message will stay queued until this date and time, then the
+                message worker will send it.
               </p>
             </div>
           ) : null}
@@ -1717,7 +1721,7 @@ export default function SingleTemplateMessageForm({
             <button
               type="button"
               onClick={() => setIsUploadOpen(false)}
-              className="rounded-full p-2 text-[#526173] transition hover:bg-[#F0F8FF] hover:text-[#081B3A]"
+              className="rounded-full p-2 text-[#526173] transition hover:bg-[#E7F8EF] hover:text-[#081B3A]"
               aria-label="Close upload dialog"
             >
               <X className="h-5 w-5" />
@@ -1746,12 +1750,12 @@ export default function SingleTemplateMessageForm({
               </button>
 
               <div className="my-10 flex items-center gap-5">
-                <span className="h-px flex-1 bg-[#D8E6F3]" />
+                <span className="h-px flex-1 bg-[#BFE9D0]" />
                 <span className="text-lg font-bold text-[#081B3A]">OR</span>
-                <span className="h-px flex-1 bg-[#D8E6F3]" />
+                <span className="h-px flex-1 bg-[#BFE9D0]" />
               </div>
 
-              <label className="flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#0052CC]/45 bg-white px-6 text-center transition hover:bg-[#F0F8FF]">
+              <label className="flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#128C7E]/45 bg-white px-6 text-center transition hover:bg-[#E7F8EF]">
                 <input
                   type="file"
                   className="sr-only"
@@ -1766,7 +1770,7 @@ export default function SingleTemplateMessageForm({
                   }
                   onChange={chooseMediaFile}
                 />
-                <FileUp className="h-12 w-12 text-[#0052CC]" />
+                <FileUp className="h-12 w-12 text-[#128C7E]" />
                 <span className="mt-7 text-lg font-medium text-[#081B3A]">
                   Click or drag files here to upload
                 </span>
@@ -1783,11 +1787,11 @@ export default function SingleTemplateMessageForm({
               <div className="flex gap-2">
                 <input
                   placeholder="Search by name"
-                  className="min-w-0 flex-1 rounded-xl border border-[#D8E6F3] bg-white px-4 py-3 text-sm text-[#102040] outline-none transition placeholder:text-[#526173]/60 focus:border-[#0052CC]/40 focus:ring-4 focus:ring-[#0052CC]/10"
+                  className="min-w-0 flex-1 rounded-xl border border-[#BFE9D0] bg-white px-4 py-3 text-sm text-[#102040] outline-none transition placeholder:text-[#526173]/60 focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10"
                 />
                 <button
                   type="button"
-                  className="grid h-12 w-14 place-items-center rounded-xl bg-[#0052CC] text-white"
+                  className="grid h-12 w-14 place-items-center rounded-xl bg-[#128C7E] text-white"
                   aria-label="Search uploaded files"
                 >
                   <Search className="h-5 w-5" />
@@ -1795,7 +1799,7 @@ export default function SingleTemplateMessageForm({
                 <select
                   value={mediaType}
                   onChange={(event) => setMediaType(event.target.value as MediaType)}
-                  className="rounded-xl border border-[#D8E6F3] bg-white px-3 py-3 text-sm text-[#526173] outline-none"
+                  className="rounded-xl border border-[#BFE9D0] bg-white px-3 py-3 text-sm text-[#526173] outline-none"
                 >
                   {MEDIA_TYPES.map((type) => (
                     <option key={type} value={type}>
@@ -1805,14 +1809,14 @@ export default function SingleTemplateMessageForm({
                 </select>
               </div>
 
-              <div className="mt-4 flex h-12 items-center gap-3 rounded-xl border border-[#D8E6F3] bg-white px-4 text-sm text-[#526173]">
+              <div className="mt-4 flex h-12 items-center gap-3 rounded-xl border border-[#BFE9D0] bg-white px-4 text-sm text-[#526173]">
                 <span className="flex-1">Start date</span>
                 <span>-</span>
                 <span className="flex-1">End date</span>
               </div>
 
               {selectedMedia ? (
-                <div className="mt-5 border-y border-[#D8E6F3] py-3">
+                <div className="mt-5 border-y border-[#BFE9D0] py-3">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-4">
                       {mediaType === "Image" && selectedMedia.url ? (
@@ -1823,7 +1827,7 @@ export default function SingleTemplateMessageForm({
                           className="h-14 w-20 rounded-lg object-cover"
                         />
                       ) : (
-                        <div className="grid h-14 w-20 place-items-center rounded-lg bg-[#F0F8FF] text-[#0052CC]">
+                        <div className="grid h-14 w-20 place-items-center rounded-lg bg-[#E7F8EF] text-[#128C7E]">
                           <FileUp className="h-6 w-6" />
                         </div>
                       )}
@@ -1839,14 +1843,14 @@ export default function SingleTemplateMessageForm({
                     <button
                       type="button"
                       onClick={() => setIsUploadOpen(false)}
-                      className="rounded-xl border border-[#D8E6F3] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] transition hover:bg-[#F0F8FF]"
+                      className="rounded-xl border border-[#BFE9D0] bg-white px-4 py-2 text-sm font-semibold text-[#081B3A] transition hover:bg-[#E7F8EF]"
                     >
                       Select
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="mt-5 flex min-h-64 items-center justify-center rounded-xl border border-dashed border-[#D8E6F3] bg-[#F0F8FF] p-6 text-center text-sm text-[#526173]">
+                <div className="mt-5 flex min-h-64 items-center justify-center rounded-xl border border-dashed border-[#BFE9D0] bg-[#E7F8EF] p-6 text-center text-sm text-[#526173]">
                   No uploaded files yet. Upload a file or paste an external URL
                   to preview it.
                 </div>

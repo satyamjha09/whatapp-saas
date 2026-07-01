@@ -70,7 +70,7 @@ export default async function MessageDetailPage({
             </span>
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl border p-4">
               <p className="text-sm text-gray-500">Template</p>
               <p className="mt-1 font-semibold text-gray-900">
@@ -82,6 +82,15 @@ export default async function MessageDetailPage({
               <p className="text-sm text-gray-500">Meta Message ID</p>
               <p className="mt-1 break-all font-semibold text-gray-900">
                 {message.metaMessageId ?? "Not available yet"}
+              </p>
+            </div>
+
+            <div className="rounded-xl border p-4">
+              <p className="text-sm text-gray-500">Scheduled Send</p>
+              <p className="mt-1 font-semibold text-gray-900">
+                {message.scheduledAt
+                  ? message.scheduledAt.toLocaleString()
+                  : "Not scheduled"}
               </p>
             </div>
           </div>
@@ -104,7 +113,7 @@ export default async function MessageDetailPage({
                 {message.variables.map((variable, index) => (
                   <span
                     key={`${variable}-${index}`}
-                    className="rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
+                    className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
                   >
                     {variable}
                   </span>

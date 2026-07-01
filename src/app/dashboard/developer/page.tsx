@@ -301,7 +301,7 @@ function methodClass(method: Endpoint["method"]) {
   if (method === "POST") return "bg-green-50 text-green-700";
   if (method === "PATCH") return "bg-amber-50 text-amber-700";
   if (method === "DELETE") return "bg-red-50 text-red-700";
-  return "bg-blue-50 text-blue-700";
+  return "bg-emerald-50 text-emerald-700";
 }
 
 function statusPill(status?: "Live" | "Roadmap") {
@@ -337,7 +337,7 @@ export default async function DeveloperPage() {
         <section className="overflow-hidden rounded-[28px] border border-[#E2E8F0] bg-gradient-to-br from-[#EFF6FF] via-white to-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
           <div className="grid gap-8 p-6 lg:grid-cols-[1.05fr_0.95fr] lg:p-10">
             <div className="flex flex-col justify-center">
-              <span className="inline-flex w-fit items-center rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-medium text-[#2563EB] shadow-sm">
+              <span className="inline-flex w-fit items-center rounded-full border border-emerald-100 bg-white px-3 py-1 text-xs font-medium text-[#2563EB] shadow-sm">
                 Developer API
               </span>
               <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-tight text-[#0F172A] md:text-5xl">
@@ -429,7 +429,7 @@ export default async function DeveloperPage() {
           })}
         </section>
 
-        <section className="rounded-3xl border border-[#E2E8F0] bg-[#F8FBFF] p-6">
+        <section className="rounded-3xl border border-[#E2E8F0] bg-[#F4FCF7] p-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-[#2563EB]">How it works</p>
@@ -552,7 +552,7 @@ export default async function DeveloperPage() {
                 return (
                   <div
                     key={card.title}
-                    className="flex items-center gap-3 rounded-2xl border border-[#E2E8F0] bg-[#F8FBFF] p-4"
+                    className="flex items-center gap-3 rounded-2xl border border-[#E2E8F0] bg-[#F4FCF7] p-4"
                   >
                     <Icon className="h-5 w-5 text-[#2563EB]" />
                     <span className="text-sm font-semibold text-[#0F172A]">
@@ -600,7 +600,7 @@ export default async function DeveloperPage() {
             {developerExperience.map((item) => (
               <div
                 key={item}
-                className="flex items-center gap-2 rounded-2xl border border-[#E2E8F0] bg-[#F8FBFF] p-4 text-sm font-semibold text-[#0F172A]"
+                className="flex items-center gap-2 rounded-2xl border border-[#E2E8F0] bg-[#F4FCF7] p-4 text-sm font-semibold text-[#0F172A]"
               >
                 <CheckCircle2 className="h-4 w-4 text-[#16A34A]" />
                 {item}
@@ -615,7 +615,7 @@ export default async function DeveloperPage() {
               <h2 className="text-3xl font-bold">
                 Start building with TallyKonnect API
               </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-100">
                 Automate your Tally and WhatsApp workflows with secure APIs
                 built for modern businesses.
               </p>
@@ -637,7 +637,7 @@ export default async function DeveloperPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[#D8E6F3] bg-white p-6 shadow-sm">
+        <section className="rounded-2xl border border-[#BFE9D0] bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 className="text-xl font-semibold text-[#081B3A]">
@@ -650,7 +650,7 @@ export default async function DeveloperPage() {
             </div>
             {canManageApiKeys && <RetentionCleanupButton />}
           </div>
-          <div className="mt-5 rounded-xl bg-[#F0F8FF] p-4">
+          <div className="mt-5 rounded-xl bg-[#E7F8EF] p-4">
             <p className="text-sm text-[#526173]">Retention Period</p>
             <p className="mt-1 text-2xl font-bold text-[#081B3A]">
               {featureAccess.plan.developerLogRetentionDays} days
@@ -658,8 +658,8 @@ export default async function DeveloperPage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-[#D8E6F3] bg-white shadow-sm">
-          <div className="border-b border-[#D8E6F3] bg-[#F0F8FF] px-6 py-4">
+        <section className="overflow-hidden rounded-2xl border border-[#BFE9D0] bg-white shadow-sm">
+          <div className="border-b border-[#BFE9D0] bg-[#E7F8EF] px-6 py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-[#081B3A]">
@@ -682,7 +682,7 @@ export default async function DeveloperPage() {
           ) : (
             <div className="overflow-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-[#F8FBFF] text-xs uppercase text-[#526173]">
+                <thead className="bg-[#F4FCF7] text-xs uppercase text-[#526173]">
                   <tr>
                     <th className="px-6 py-3">Key</th>
                     <th className="px-6 py-3">Status</th>
@@ -699,13 +699,13 @@ export default async function DeveloperPage() {
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-[#D8E6F3]">
+                <tbody className="divide-y divide-[#BFE9D0]">
                   {apiKeyAnalytics.map((item) => (
                     <tr key={item.apiKey.id}>
                       <td className="px-6 py-4">
                         <Link
                           href={`/dashboard/developer/logs?apiKeyId=${item.apiKey.id}`}
-                          className="font-semibold text-[#081B3A] hover:text-[#0052CC] hover:underline"
+                          className="font-semibold text-[#081B3A] hover:text-[#128C7E] hover:underline"
                         >
                           {item.apiKey.name}
                         </Link>
@@ -784,7 +784,7 @@ export default async function DeveloperPage() {
                       <td className="px-6 py-4 text-amber-700">
                         {item.blocked24h.toLocaleString("en-IN")}
                       </td>
-                      <td className="px-6 py-4 text-[#0052CC]">
+                      <td className="px-6 py-4 text-[#128C7E]">
                         {item.rateLimited24h.toLocaleString("en-IN")}
                       </td>
 

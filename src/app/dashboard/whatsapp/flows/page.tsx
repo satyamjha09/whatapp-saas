@@ -50,7 +50,7 @@ export default async function WhatsAppFlowsPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
-              <thead className="bg-[#F0F8FF] text-xs uppercase text-[#526173]">
+              <thead className="bg-[#E7F8EF] text-xs uppercase text-[#526173]">
                 <tr>
                   <th className="px-5 py-3">Flow</th>
                   <th className="px-5 py-3">Meta Flow ID</th>
@@ -61,12 +61,12 @@ export default async function WhatsAppFlowsPage() {
                   <th className="px-5 py-3">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#D8E6F3]">
+              <tbody className="divide-y divide-[#BFE9D0]">
                 {flows.map((flow) => (
                   <tr key={flow.id}>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#F0F8FF] text-[#0052CC]">
+                        <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#E7F8EF] text-[#128C7E]">
                           <Workflow className="h-4 w-4" />
                         </span>
                         <div>
@@ -99,7 +99,7 @@ export default async function WhatsAppFlowsPage() {
                     <td className="px-5 py-4">
                       <Link
                         href={`/dashboard/whatsapp/flows/${flow.id}`}
-                        className="font-semibold text-[#0052CC] hover:underline"
+                        className="font-semibold text-[#128C7E] hover:underline"
                       >
                         Open
                       </Link>

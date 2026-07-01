@@ -49,7 +49,7 @@ export default async function DeveloperDocsPage() {
             You can create API keys from{" "}
             <Link
               href="/dashboard/developer/api-keys"
-              className="font-medium text-blue-600 hover:text-blue-800"
+              className="font-medium text-emerald-600 hover:text-emerald-800"
             >
               Developer API Keys
             </Link>
