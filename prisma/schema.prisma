@@ -1880,6 +1880,8 @@ model AutomationFlow {
   createdByUserId String?
   updatedByUserId String?
 
+  metadata Json?
+
   versions   AutomationFlowVersion[]
   sessions   AutomationSession[]
   executions AutomationExecution[]

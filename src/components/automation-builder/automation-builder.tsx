@@ -62,6 +62,19 @@ import type { AutomationGraphValidationIssue } from "@/lib/automation-builder/ty
 
 type AutomationBuilderFlowStatus = "DRAFT" | "PUBLISHED" | "PAUSED" | "ARCHIVED";
 
+interface ChecklistMetadata {
+  sourceTemplateSlug?: string;
+  sourceTemplateName?: string;
+  setupChecklist?: Array<{
+    key: string;
+    title: string;
+    description: string;
+    required: boolean;
+    completedBy: string;
+    completed: boolean;
+  }>;
+}
+
 export type AutomationBuilderInitialFlow = {
   currentVersionNumber: number | null;
   description: string | null;
@@ -74,6 +87,7 @@ export type AutomationBuilderInitialFlow = {
   publishedVersionId: string | null;
   status: AutomationBuilderFlowStatus;
   updatedAt: string;
+  metadata?: unknown;
 };
 
 type AutomationBuilderProps = {
@@ -217,6 +231,69 @@ export default function AutomationBuilder({
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [isChecklistCollapsed, setIsChecklistCollapsed] = useState(false);
+
+  const checklist = useMemo(() => {
+    const meta = flowState.metadata as ChecklistMetadata | null | undefined;
+    if (!meta || !meta.setupChecklist) return [];
+
+    const list = meta.setupChecklist as Array<{
+      key: string;
+      title: string;
+      description: string;
+      required: boolean;
+      completedBy: string;
+      completed: boolean;
+    }>;
+
+    return list.map((item) => {
+      let completed = false;
+
+      if (item.completedBy === "TEMPLATE_MAPPING") {
+        const hasTemplateMapped = nodes.some(
+          (n) =>
+            n.data?.nodeType === "SEND_TEMPLATE" &&
+            n.data?.templateId &&
+            !n.data.templateId.startsWith("{{")
+        );
+        if (hasTemplateMapped) {
+          completed = true;
+        }
+      } else if (item.completedBy === "INTEGRATION_MAPPING") {
+        const keySuffix = item.key.replace("CONNECT_", "");
+        if (keySuffix === "CASHFREE") {
+          const hasCashfree = nodes.some(
+            (n) =>
+              n.data?.nodeType === "PAYMENT_LINK" &&
+              n.data?.amountSource
+          );
+          if (hasCashfree) completed = true;
+        } else if (keySuffix === "GOOGLE") {
+          const hasGoogle = nodes.some(
+            (n) =>
+              n.data?.nodeType === "GOOGLE_SHEET_APPEND_ROW" &&
+              n.data?.connectedGoogleAccountId &&
+              !n.data.connectedGoogleAccountId.startsWith("{{")
+          );
+          if (hasGoogle) completed = true;
+        } else if (keySuffix === "TALLY") {
+          const hasTally = nodes.some(
+            (n) =>
+              n.data?.nodeType === "TALLY_LOOKUP" &&
+              n.data?.customerIdentifierSource
+          );
+          if (hasTally) completed = true;
+        }
+      } else if (item.completedBy === "TEST_RUN") {
+        if (testRun) completed = true;
+      }
+
+      return {
+        ...item,
+        completed,
+      };
+    });
+  }, [flowState.metadata, nodes, testRun]);
   const [status, setStatus] = useState("Graph ready");
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<AutomationFlowNode, Edge> | null>(null);
@@ -867,6 +944,57 @@ export default function AutomationBuilder({
               </button>
             </div>
           </div>
+
+          {checklist.length > 0 ? (
+            <div className="bg-white border-b border-[#BFE9D0] p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-[#081B3A]">
+                    Template Setup Checklist ({checklist.filter(c => c.completed).length}/{checklist.length})
+                  </span>
+                  <span className="text-[10px] text-[#526173]">
+                    Created from {(flowState.metadata as ChecklistMetadata)?.sourceTemplateName}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsChecklistCollapsed(!isChecklistCollapsed)}
+                  className="text-xs font-semibold text-[#0052CC] hover:underline"
+                >
+                  {isChecklistCollapsed ? "Show Checklist" : "Hide Checklist"}
+                </button>
+              </div>
+
+              {!isChecklistCollapsed && (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                  {checklist.map((item) => (
+                    <div
+                      key={item.key}
+                      className={[
+                        "p-3 rounded-lg border flex items-start gap-2.5",
+                        item.completed
+                          ? "bg-emerald-50/50 border-emerald-100 text-emerald-800"
+                          : "bg-slate-50 border-slate-200 text-slate-700",
+                      ].join(" ")}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={item.completed}
+                        readOnly
+                        className="mt-0.5 pointer-events-none rounded border-slate-300 text-[#128C7E] focus:ring-[#128C7E]"
+                      />
+                      <div>
+                        <p className="text-xs font-bold leading-none">{item.title}</p>
+                        <p className="text-[10px] text-[#526173] mt-1 leading-normal">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
 
           <div className="h-[720px]">
             <ReactFlow

@@ -62,6 +62,7 @@ export default async function AutomationFlowBuilderPage({
           publishedVersionId: draft.flow.publishedVersionId,
           status: draft.flow.status,
           updatedAt: draft.flow.updatedAt.toISOString(),
+          metadata: draft.flow.metadata,
         }}
         initialGraph={draft.draftGraph}
       />
