@@ -324,6 +324,22 @@ export const automationNodeSchema = z
     }
   });
 
+export const automationGraphShapeSchema = z.object({
+  edges: z.array(automationEdgeSchema),
+  nodes: z.array(
+    z.object({
+      data: z.unknown().default({}),
+      id: z.string().trim().min(1).max(160),
+      position: z.object({
+        x: z.number().finite(),
+        y: z.number().finite(),
+      }),
+      type: automationNodeTypeSchema,
+    }),
+  ),
+  version: z.literal(1).default(1),
+});
+
 export const automationGraphSchema = z.object({
   edges: z.array(automationEdgeSchema),
   nodes: z.array(automationNodeSchema),
@@ -353,6 +369,7 @@ export const updateAutomationFlowSchema = z
   });
 
 export type AutomationGraphInput = z.infer<typeof automationGraphSchema>;
+export type AutomationGraphShapeInput = z.infer<typeof automationGraphShapeSchema>;
 export type AutomationNodeInput = z.infer<typeof automationNodeSchema>;
 export type AutomationEdgeInput = z.infer<typeof automationEdgeSchema>;
 export type UpdateAutomationFlowInput = z.infer<

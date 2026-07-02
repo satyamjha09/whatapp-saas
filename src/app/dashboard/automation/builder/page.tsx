@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/app/dashboard/dashboard-ui";
-import AutomationBuilder from "@/components/automation-builder/automation-builder";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { ensureAutomationFlowDraft } from "@/server/services/automation-versioning.service";
 
 export default async function AutomationBuilderPage() {
   const context = await getCurrentWorkspaceContext();
@@ -9,15 +8,10 @@ export default async function AutomationBuilderPage() {
   if (!context) redirect("/sign-in");
   if (!context.membership) redirect("/onboarding");
 
-  return (
-    <div>
-      <PageHeader
-        description="Design WhatsApp automation flows with editable nodes, quick replies, conditions, templates, APIs, and human handoff."
-        eyebrow={context.membership.company.name}
-        title="Automation Builder"
-      />
+  const flow = await ensureAutomationFlowDraft({
+    actorUserId: context.user.id,
+    companyId: context.membership.companyId,
+  });
 
-      <AutomationBuilder flowId="draft-whatsapp-flow" />
-    </div>
-  );
+  redirect(`/dashboard/automation/builder/${flow.id}`);
 }

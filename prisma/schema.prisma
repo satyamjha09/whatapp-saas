@@ -1870,6 +1870,8 @@ model AutomationFlow {
 
   draftGraph         Json
   publishedVersionId String?
+  publishedAt        DateTime?
+  lastPublishedByUserId String?
 
   triggerType AutomationTriggerType?
   keywords    String[]               @default([])
@@ -1900,6 +1902,8 @@ model AutomationFlowVersion {
   graph              Json
   validationSnapshot Json?
   publishNotes       String?
+  isRollback         Boolean @default(false)
+  rollbackFromVersionId String?
 
   publishedByUserId String?
   publishedAt       DateTime @default(now())
@@ -1911,6 +1915,8 @@ model AutomationFlowVersion {
 
   @@unique([flowId, versionNumber])
   @@index([companyId])
+  @@index([companyId, flowId])
+  @@index([companyId, publishedAt])
   @@index([flowId])
 }
 
@@ -1946,6 +1952,7 @@ model AutomationSession {
 
   @@index([companyId])
   @@index([companyId, contactId])
+  @@index([companyId, flowVersionId])
   @@index([companyId, status])
   @@index([companyId, flowId, contactId])
   @@index([lastInboundMessageId])
@@ -1979,6 +1986,7 @@ model AutomationExecution {
   @@unique([companyId, triggerMessageId, flowId])
   @@index([companyId])
   @@index([companyId, flowId])
+  @@index([companyId, flowVersionId])
   @@index([companyId, sessionId])
   @@index([triggerMessageId])
 }

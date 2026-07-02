@@ -235,7 +235,7 @@ export default function AutomationTestPanel({
           <div>
             <p className="text-sm font-bold text-[#081B3A]">Live Test Mode</p>
             <p className="mt-1 text-xs text-[#526173]">
-              Dry run - no WhatsApp send - no wallet debit
+              Testing draft. Published automation is unchanged.
             </p>
             <div className="mt-3">
               <AutomationTestNodeHighlight />

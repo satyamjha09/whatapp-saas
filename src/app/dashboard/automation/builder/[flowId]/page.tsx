@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/app/dashboard/dashboard-ui";
 import AutomationBuilder from "@/components/automation-builder/automation-builder";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { getAutomationFlowDraft } from "@/server/services/automation-versioning.service";
 
 type AutomationFlowBuilderPageProps = {
   params: Promise<{
@@ -18,16 +19,35 @@ export default async function AutomationFlowBuilderPage({
   if (!context.membership) redirect("/onboarding");
 
   const { flowId } = await params;
+  const draft = await getAutomationFlowDraft(context.membership.companyId, flowId);
+
+  if (!draft) redirect("/dashboard/automation/builder");
 
   return (
     <div>
       <PageHeader
-        description="Edit the visual WhatsApp automation graph. Runtime execution is intentionally outside this phase."
+        description="Edit the draft graph safely. Runtime uses only the latest published immutable version."
         eyebrow={context.membership.company.name}
-        title="Automation Builder"
+        title={draft.flow.name}
       />
 
-      <AutomationBuilder flowId={flowId} />
+      <AutomationBuilder
+        flowId={flowId}
+        initialFlow={{
+          currentVersionNumber: draft.publishedVersion?.versionNumber ?? null,
+          description: draft.flow.description,
+          hasUnpublishedChanges: draft.hasUnpublishedChanges,
+          id: draft.flow.id,
+          lastPublishedByUserId: draft.flow.lastPublishedByUserId,
+          name: draft.flow.name,
+          publishedAt: draft.flow.publishedAt?.toISOString() ?? null,
+          publishedGraph: draft.publishedGraph,
+          publishedVersionId: draft.flow.publishedVersionId,
+          status: draft.flow.status,
+          updatedAt: draft.flow.updatedAt.toISOString(),
+        }}
+        initialGraph={draft.draftGraph}
+      />
     </div>
   );
 }

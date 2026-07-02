@@ -624,8 +624,6 @@ export async function continueAutomationSession({
   inboundMessage: AutomationRuntimeMessage;
   session: NonNullable<RuntimeSession>;
 }) {
-  if (session.flow.status !== "PUBLISHED") return;
-
   const graph = graphFromJson(session.flowVersion.graph);
   if (!graph) {
     throw new Error("Automation published graph is missing");

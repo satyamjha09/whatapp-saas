@@ -21,6 +21,9 @@ import {
 import {
   AlertTriangle,
   CheckCircle2,
+  History,
+  PauseCircle,
+  PlayCircle,
   Rocket,
   Save,
   TestTube2,
@@ -28,6 +31,9 @@ import {
 } from "lucide-react";
 import AutomationTestPanel from "@/components/automation-builder/automation-test-panel";
 import type { AutomationTestRun } from "@/components/automation-builder/automation-test-types";
+import AutomationVersionHistoryPanel, {
+  type AutomationRollbackResult,
+} from "@/components/automation-builder/automation-version-history-panel";
 import NodeEditingDrawer from "@/components/automation-builder/node-editing-drawer";
 import NodePalette from "@/components/automation-builder/node-palette";
 import NodeRenderer, {
@@ -50,11 +56,29 @@ import {
   getNodeOutputHandles,
   resolveSourceHandleId,
 } from "@/lib/automation-builder/connection-handles";
+import { hasUnpublishedChanges as detectUnpublishedChanges } from "@/lib/automation-builder/graph-diff";
 import { validateAutomationGraph } from "@/lib/automation-builder/graph-validation";
 import type { AutomationGraphValidationIssue } from "@/lib/automation-builder/types";
 
+type AutomationBuilderFlowStatus = "DRAFT" | "PUBLISHED" | "PAUSED" | "ARCHIVED";
+
+export type AutomationBuilderInitialFlow = {
+  currentVersionNumber: number | null;
+  description: string | null;
+  hasUnpublishedChanges: boolean;
+  id: string;
+  lastPublishedByUserId: string | null;
+  name: string;
+  publishedAt: string | null;
+  publishedGraph: AutomationGraph | null;
+  publishedVersionId: string | null;
+  status: AutomationBuilderFlowStatus;
+  updatedAt: string;
+};
+
 type AutomationBuilderProps = {
   flowId: string;
+  initialFlow?: AutomationBuilderInitialFlow;
   initialGraph?: AutomationGraph;
 };
 
@@ -111,6 +135,18 @@ function calculateNewPosition(count: number) {
   };
 }
 
+async function readAutomationJson<T>(response: Response) {
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      typeof data.message === "string" ? data.message : "Automation request failed",
+    );
+  }
+
+  return data as T;
+}
+
 function toGraphNode(node: AutomationFlowNode): AutomationNode {
   const nodeType = node.data.nodeType;
   const data: Record<string, unknown> = { ...node.data };
@@ -133,6 +169,7 @@ function toGraphNode(node: AutomationFlowNode): AutomationNode {
 
 export default function AutomationBuilder({
   flowId,
+  initialFlow,
   initialGraph,
 }: AutomationBuilderProps) {
   const graph = useMemo(
@@ -153,7 +190,33 @@ export default function AutomationBuilder({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isTestPanelOpen, setIsTestPanelOpen] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [testRun, setTestRun] = useState<AutomationTestRun | null>(null);
+  const [flowState, setFlowState] = useState<AutomationBuilderInitialFlow>(
+    initialFlow ?? {
+      currentVersionNumber: null,
+      description: null,
+      hasUnpublishedChanges: true,
+      id: flowId,
+      lastPublishedByUserId: null,
+      name: "WhatsApp Automation Flow",
+      publishedAt: null,
+      publishedGraph: null,
+      publishedVersionId: null,
+      status: "DRAFT",
+      updatedAt: "",
+    },
+  );
+  const [publishedGraph, setPublishedGraph] = useState<AutomationGraph | null>(
+    initialFlow?.publishedGraph ?? null,
+  );
+  const [publishNotes, setPublishNotes] = useState("");
+  const [publishWarningsAccepted, setPublishWarningsAccepted] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
   const [status, setStatus] = useState("Graph ready");
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<AutomationFlowNode, Edge> | null>(null);
@@ -187,6 +250,18 @@ export default function AutomationBuilder({
     () => JSON.stringify(graphSnapshot),
     [graphSnapshot],
   );
+  const hasUnpublishedChanges = useMemo(
+    () => detectUnpublishedChanges(graphSnapshot, publishedGraph),
+    [graphSnapshot, publishedGraph],
+  );
+  const statusBadgeLabel =
+    flowState.status === "DRAFT" && !flowState.publishedVersionId
+      ? "Draft only"
+      : flowState.status === "PUBLISHED"
+        ? "Published"
+        : flowState.status === "PAUSED"
+          ? "Paused"
+          : "Archived";
 
   const testNodeStatusMap = useMemo(() => {
     const map = new Map<
@@ -348,21 +423,180 @@ export default function AutomationBuilder({
     }
   }
 
-  function saveDraft() {
-    setStatus(
-      validation.errors.length > 0
-        ? "Draft saved locally with validation errors"
-        : "Draft saved locally",
-    );
+  function applyGraphToCanvas(nextGraph: AutomationGraph) {
+    const normalizedGraph = normalizeAutomationGraph(nextGraph);
+
+    setNodes(normalizedGraph.nodes.map(toFlowNode));
+    setEdges(normalizedGraph.edges.map(toFlowEdge));
+    setSelectedNodeId(null);
+    setIsDrawerOpen(false);
   }
 
-  function publishFlow() {
+  async function saveDraftToServer(showStatus = true) {
+    setIsSavingDraft(true);
+
+    try {
+      const data = await readAutomationJson<{
+        flow: {
+          publishedVersionId: string | null;
+          status: AutomationBuilderFlowStatus;
+          updatedAt: string;
+        };
+        hasUnpublishedChanges: boolean;
+        validation: {
+          errors: unknown[];
+          warnings: unknown[];
+        };
+      }>(
+        await fetch(`/api/automation/flows/${encodeURIComponent(flowId)}/draft`, {
+          body: JSON.stringify({
+            graph: graphSnapshot,
+          }),
+          headers: {
+            "content-type": "application/json",
+          },
+          method: "PATCH",
+        }),
+      );
+
+      setFlowState((current) => ({
+        ...current,
+        hasUnpublishedChanges: data.hasUnpublishedChanges,
+        publishedVersionId: data.flow.publishedVersionId,
+        status: data.flow.status,
+        updatedAt: data.flow.updatedAt,
+      }));
+
+      if (showStatus) {
+        setStatus(
+          data.validation.errors.length > 0
+            ? "Draft saved with validation errors"
+            : "Draft saved",
+        );
+      }
+
+      return data;
+    } catch (caught) {
+      const message =
+        caught instanceof Error ? caught.message : "Unable to save draft";
+      setStatus(message);
+      throw caught;
+    } finally {
+      setIsSavingDraft(false);
+    }
+  }
+
+  function saveDraft() {
+    void saveDraftToServer();
+  }
+
+  function openPublishModal() {
+    setPublishError(null);
+    setPublishWarningsAccepted(false);
+    setIsPublishModalOpen(true);
+  }
+
+  async function publishFlow() {
     if (validation.errors.length > 0) {
-      setStatus("Fix validation errors before publishing");
+      setPublishError("Fix validation errors before publishing");
       return;
     }
 
-    setStatus("Flow is ready for publish API integration");
+    setIsPublishing(true);
+    setPublishError(null);
+
+    try {
+      await saveDraftToServer(false);
+
+      const data = await readAutomationJson<{
+        flow: {
+          publishedAt: string | null;
+          publishedVersionId: string | null;
+          status: AutomationBuilderFlowStatus;
+        };
+        version: {
+          id: string;
+          publishedAt: string;
+          versionNumber: number;
+        };
+      }>(
+        await fetch(`/api/automation/flows/${encodeURIComponent(flowId)}/publish`, {
+          body: JSON.stringify({
+            allowWarnings: publishWarningsAccepted,
+            publishNotes,
+          }),
+          headers: {
+            "content-type": "application/json",
+          },
+          method: "POST",
+        }),
+      );
+
+      setPublishedGraph(graphSnapshot);
+      setFlowState((current) => ({
+        ...current,
+        currentVersionNumber: data.version.versionNumber,
+        hasUnpublishedChanges: false,
+        publishedAt: data.flow.publishedAt,
+        publishedGraph: graphSnapshot,
+        publishedVersionId: data.flow.publishedVersionId,
+        status: data.flow.status,
+      }));
+      setIsPublishModalOpen(false);
+      setPublishNotes("");
+      setStatus(`Published Version ${data.version.versionNumber}`);
+    } catch (caught) {
+      setPublishError(
+        caught instanceof Error ? caught.message : "Unable to publish flow",
+      );
+    } finally {
+      setIsPublishing(false);
+    }
+  }
+
+  async function changeFlowStatus(action: "pause" | "resume") {
+    setIsChangingStatus(true);
+
+    try {
+      const data = await readAutomationJson<{
+        flow: {
+          status: AutomationBuilderFlowStatus;
+        };
+      }>(
+        await fetch(`/api/automation/flows/${encodeURIComponent(flowId)}/${action}`, {
+          method: "POST",
+        }),
+      );
+
+      setFlowState((current) => ({
+        ...current,
+        status: data.flow.status,
+      }));
+      setStatus(action === "pause" ? "Flow paused" : "Flow resumed");
+    } catch (caught) {
+      setStatus(
+        caught instanceof Error ? caught.message : `Unable to ${action} flow`,
+      );
+    } finally {
+      setIsChangingStatus(false);
+    }
+  }
+
+  function handleRollback(result: AutomationRollbackResult) {
+    const normalizedGraph = normalizeAutomationGraph(result.graph);
+
+    applyGraphToCanvas(normalizedGraph);
+    setPublishedGraph(normalizedGraph);
+    setFlowState((current) => ({
+      ...current,
+      currentVersionNumber: result.version.versionNumber,
+      hasUnpublishedChanges: false,
+      publishedAt: result.flow.publishedAt,
+      publishedGraph: normalizedGraph,
+      publishedVersionId: result.flow.publishedVersionId,
+      status: result.flow.status,
+    }));
+    setStatus(`Rolled back into Version ${result.version.versionNumber}`);
   }
 
   function addNode(type: AutomationNodeType) {
@@ -524,11 +758,40 @@ export default function AutomationBuilder({
                 </p>
                 <p className="mt-1 text-xs text-[#526173]">
                   {nodes.length.toLocaleString("en-IN")} nodes,{" "}
-                  {edges.length.toLocaleString("en-IN")} connections - {flowId}
+                  {edges.length.toLocaleString("en-IN")} connections -{" "}
+                  Version {flowState.currentVersionNumber ?? "draft"}
                 </p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={[
+                  "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                  flowState.status === "PAUSED"
+                    ? "bg-amber-100 text-amber-700"
+                    : flowState.status === "ARCHIVED"
+                      ? "bg-slate-100 text-slate-600"
+                      : flowState.status === "PUBLISHED"
+                        ? "bg-[#E7F8EF] text-[#128C7E]"
+                        : "bg-blue-50 text-blue-700",
+                ].join(" ")}
+              >
+                {statusBadgeLabel}
+              </span>
+              <span
+                className={[
+                  "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                  flowState.publishedVersionId && !hasUnpublishedChanges
+                    ? "bg-[#E7F8EF] text-[#128C7E]"
+                    : "bg-amber-100 text-amber-700",
+                ].join(" ")}
+              >
+                {flowState.publishedVersionId
+                  ? hasUnpublishedChanges
+                    ? "Unpublished changes"
+                    : "Published version is up to date"
+                  : "Draft only"}
+              </span>
               <span
                 className={[
                   "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
@@ -550,12 +813,13 @@ export default function AutomationBuilder({
                   : `${validation.errors.length} errors, ${validation.warnings.length} warnings`}
               </span>
               <button
-                className="inline-flex items-center rounded-xl border border-[#BFE9D0] bg-white px-3 py-2 text-xs font-semibold text-[#128C7E] transition hover:bg-[#E7F8EF]"
+                className="inline-flex items-center rounded-xl border border-[#BFE9D0] bg-white px-3 py-2 text-xs font-semibold text-[#128C7E] transition hover:bg-[#E7F8EF] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isSavingDraft}
                 onClick={saveDraft}
                 type="button"
               >
                 <Save className="mr-1.5 h-3.5 w-3.5" />
-                Save Draft
+                {isSavingDraft ? "Saving" : "Save Draft"}
               </button>
               <button
                 className="inline-flex items-center rounded-xl border border-[#BFE9D0] bg-white px-3 py-2 text-xs font-semibold text-[#128C7E] transition hover:bg-[#E7F8EF]"
@@ -566,13 +830,40 @@ export default function AutomationBuilder({
                 Test Flow
               </button>
               <button
+                className="inline-flex items-center rounded-xl border border-[#BFE9D0] bg-white px-3 py-2 text-xs font-semibold text-[#128C7E] transition hover:bg-[#E7F8EF]"
+                onClick={() => setIsVersionHistoryOpen(true)}
+                type="button"
+              >
+                <History className="mr-1.5 h-3.5 w-3.5" />
+                Version History
+              </button>
+              {flowState.publishedVersionId ? (
+                <button
+                  className="inline-flex items-center rounded-xl border border-[#BFE9D0] bg-white px-3 py-2 text-xs font-semibold text-[#128C7E] transition hover:bg-[#E7F8EF] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isChangingStatus}
+                  onClick={() =>
+                    changeFlowStatus(
+                      flowState.status === "PAUSED" ? "resume" : "pause",
+                    )
+                  }
+                  type="button"
+                >
+                  {flowState.status === "PAUSED" ? (
+                    <PlayCircle className="mr-1.5 h-3.5 w-3.5" />
+                  ) : (
+                    <PauseCircle className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {flowState.status === "PAUSED" ? "Resume" : "Pause"}
+                </button>
+              ) : null}
+              <button
                 className="inline-flex items-center rounded-xl bg-[#128C7E] px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(18,140,126,0.18)] transition hover:bg-[#075E54] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={validation.errors.length > 0}
-                onClick={publishFlow}
+                disabled={isPublishing}
+                onClick={openPublishModal}
                 type="button"
               >
                 <Rocket className="mr-1.5 h-3.5 w-3.5" />
-                Publish
+                {isPublishing ? "Publishing" : "Publish"}
               </button>
             </div>
           </div>
@@ -658,6 +949,132 @@ export default function AutomationBuilder({
         onTestRunChange={setTestRun}
         testRun={testRun}
       />
+
+      <AutomationVersionHistoryPanel
+        flowId={flowId}
+        isOpen={isVersionHistoryOpen}
+        onClose={() => setIsVersionHistoryOpen(false)}
+        onRollback={handleRollback}
+      />
+
+      {isPublishModalOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[#081B3A]/45 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-[0_22px_70px_rgba(8,27,58,0.28)]">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-lg font-bold text-[#081B3A]">
+                  Publish {flowState.name}
+                </p>
+                <p className="mt-1 text-sm text-[#526173]">
+                  New version:{" "}
+                  {(flowState.currentVersionNumber ?? 0) + 1}. Existing sessions
+                  stay on their current version.
+                </p>
+              </div>
+              <button
+                className="rounded-xl border border-[#BFE9D0] bg-white px-3 py-2 text-xs font-semibold text-[#128C7E]"
+                onClick={() => setIsPublishModalOpen(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              <div className="rounded-xl border border-[#D6EADF] bg-[#F7FBFF] p-4">
+                <p className="text-sm font-bold text-[#081B3A]">
+                  Validation summary
+                </p>
+                <p className="mt-1 text-sm text-[#526173]">
+                  {validation.errors.length} errors, {validation.warnings.length}{" "}
+                  warnings
+                </p>
+              </div>
+
+              {validation.errors.length > 0 ? (
+                <div className="grid gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4">
+                  <p className="text-sm font-bold text-rose-700">
+                    Publish blocked
+                  </p>
+                  {validation.errors.map((issue) => (
+                    <p
+                      className="text-sm leading-5 text-rose-700"
+                      key={`publish-error-${issue.code}-${issue.nodeId ?? issue.edgeId ?? "graph"}`}
+                    >
+                      {issue.message}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+
+              {validation.warnings.length > 0 ? (
+                <div className="grid gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-bold text-amber-800">
+                    Warnings need confirmation
+                  </p>
+                  {validation.warnings.map((issue) => (
+                    <p
+                      className="text-sm leading-5 text-amber-800"
+                      key={`publish-warning-${issue.code}-${issue.nodeId ?? issue.edgeId ?? "graph"}`}
+                    >
+                      {issue.message}
+                    </p>
+                  ))}
+                  <label className="mt-2 flex items-start gap-2 text-sm font-semibold text-amber-800">
+                    <input
+                      checked={publishWarningsAccepted}
+                      className="mt-1"
+                      onChange={(event) =>
+                        setPublishWarningsAccepted(event.target.checked)
+                      }
+                      type="checkbox"
+                    />
+                    Publish with warnings
+                  </label>
+                </div>
+              ) : null}
+
+              <label className="grid gap-1.5 text-xs font-semibold text-[#526173]">
+                Publish notes
+                <textarea
+                  className="min-h-24 rounded-xl border border-[#BFE9D0] px-3 py-2 text-sm text-[#081B3A] outline-none focus:border-[#128C7E]"
+                  onChange={(event) => setPublishNotes(event.target.value)}
+                  placeholder="What changed in this version?"
+                  value={publishNotes}
+                />
+              </label>
+
+              {publishError ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">
+                  {publishError}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                className="rounded-xl border border-[#BFE9D0] bg-white px-4 py-2 text-sm font-semibold text-[#128C7E]"
+                onClick={() => setIsPublishModalOpen(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-xl bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={
+                  isPublishing ||
+                  validation.errors.length > 0 ||
+                  (validation.warnings.length > 0 && !publishWarningsAccepted)
+                }
+                onClick={publishFlow}
+                type="button"
+              >
+                Publish version {(flowState.currentVersionNumber ?? 0) + 1}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-5 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_14px_34px_rgba(8,27,58,0.07)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
