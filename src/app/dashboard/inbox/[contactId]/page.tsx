@@ -33,6 +33,7 @@ import InboxReplyForm from "./inbox-reply-form";
 import MarkConversationRead from "./mark-conversation-read";
 import NoteCard from "./note-card";
 import NoteForm from "./note-form";
+import CompactCustomerJourneyPanel from "@/components/customer-journey/compact-customer-journey-panel";
 
 const BREAKDOWN_LABELS: Record<string, string> = {
   inbound_messages: "Inbound messages",
@@ -760,6 +761,8 @@ export default async function InboxConversationPage({
                   snoozedUntil={conversation.snoozedUntil}
                 />
               </div>
+
+              <CompactCustomerJourneyPanel contactId={conversation.id} />
 
               {conversation.leadScoreBreakdown && typeof conversation.leadScoreBreakdown === "object" && (
                 <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">

@@ -2,12 +2,12 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { assertTenantEntityAccess } from "@/server/auth/tenant-guard";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
-import { getContactTimeline } from "@/server/services/contact-activity.service";
 import { getContactConsentTimeline } from "@/server/services/contact-consent.service";
 import { getContactCrmProfile } from "@/server/services/contact-crm.service";
 import ContactConsentPanel from "./contact-consent-panel";
 import ContactCrmProfileForm from "./contact-crm-profile-form";
 import { PrivacyRequestButtons } from "./privacy-request-buttons";
+import CustomerJourneyTimeline from "@/components/customer-journey/customer-journey-timeline";
 
 type PageProps = {
   params: Promise<{
@@ -34,15 +34,10 @@ export default async function ContactCrmPage({ params }: PageProps) {
     entityId: contactId,
   });
 
-  const [contact, timeline, consentEvents] = await Promise.all([
+  const [contact, consentEvents] = await Promise.all([
     getContactCrmProfile({
       companyId: context.membership.companyId,
       contactId,
-    }),
-    getContactTimeline({
-      companyId: context.membership.companyId,
-      contactId,
-      take: 100,
     }),
     getContactConsentTimeline({
       companyId: context.membership.companyId,
@@ -151,59 +146,31 @@ export default async function ContactCrmPage({ params }: PageProps) {
           </section>
         </div>
 
-        <section className="rounded-2xl border bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">CRM Timeline</p>
-              <h2 className="mt-1 text-2xl font-bold text-gray-900">
-                Customer Activity
-              </h2>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {contact.inboxTags.map((item) => (
-                <span
-                  key={item.id}
-                  className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700"
-                >
-                  {item.tag.name}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-6 space-y-3">
-            {timeline.map((item) => (
-              <div key={item.id} className="rounded-lg border p-4">
-                <div className="flex flex-wrap justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-gray-900">{item.title}</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {item.type}
-                      {item.actorName ? ` - ${item.actorName}` : ""}
-                    </p>
-                  </div>
-
-                  <p className="text-xs text-gray-500">
-                    {item.createdAt.toLocaleString()}
-                  </p>
-                </div>
-
-                {item.description ? (
-                  <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700">
-                    {item.description}
-                  </p>
-                ) : null}
+        <div className="space-y-6">
+          <section className="rounded-2xl border bg-white p-6 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Customer Journey</p>
+                <h2 className="mt-1 text-2xl font-bold text-gray-900">
+                  Interaction & Event History
+                </h2>
               </div>
-            ))}
 
-            {timeline.length === 0 ? (
-              <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
-                No activity yet.
-              </p>
-            ) : null}
-          </div>
-        </section>
+              <div className="flex flex-wrap gap-2">
+                {contact.inboxTags.map((item) => (
+                  <span
+                    key={item.id}
+                    className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700"
+                  >
+                    {item.tag.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <CustomerJourneyTimeline contactId={contact.id} />
+          </section>
+        </div>
       </div>
     </main>
   );
