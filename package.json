@@ -16,6 +16,7 @@
     "worker:maintenance": "tsx src/workers/maintenance.worker.ts",
     "worker:notification-email": "tsx src/workers/notification-email.worker.ts",
     "worker:lead-score": "tsx src/workers/lead-score.worker.ts",
+    "worker:automation-runtime": "tsx src/workers/automation-runtime.worker.ts",
     "typecheck": "tsc --noEmit",
     "prisma:check": "prisma validate",
     "check": "prisma validate && tsc --noEmit && npm run lint",

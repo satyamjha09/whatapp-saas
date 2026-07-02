@@ -8,6 +8,7 @@ let webhookQueue: Queue | undefined;
 let developerWebhookQueue: Queue | undefined;
 let maintenanceQueue: Queue | undefined;
 let leadScoreQueue: Queue | undefined;
+let automationRuntimeQueue: Queue | undefined;
 
 export function getMessageQueue() {
   messageQueue ??= new Queue("message-queue", {
@@ -73,6 +74,29 @@ export function getLeadScoreQueue() {
   return leadScoreQueue;
 }
 
+export function getAutomationRuntimeQueue() {
+  automationRuntimeQueue ??= new Queue("automation-runtime-queue", {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: 5,
+      backoff: {
+        type: "exponential",
+        delay: 30_000,
+      },
+      removeOnComplete: {
+        age: 24 * 60 * 60,
+        count: 1000,
+      },
+      removeOnFail: {
+        age: 7 * 24 * 60 * 60,
+        count: 5000,
+      },
+    },
+  });
+
+  return automationRuntimeQueue;
+}
+
 export type SendMessageJobData = {
   messageId: string;
   companyId: string;
@@ -91,3 +115,8 @@ export type LeadScoreJobData = {
   contactId: string;
 };
 
+export type AutomationRuntimeJobData = {
+  companyId: string;
+  contactId: string;
+  inboundMessageId: string;
+};

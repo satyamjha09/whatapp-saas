@@ -7,7 +7,7 @@ import {
   labelClass,
 } from "@/app/dashboard/dashboard-ui";
 import type {
-  AutomationButton,
+  QuickReplyButton,
   NodeFormProps,
 } from "@/components/automation-builder/types";
 
@@ -17,11 +17,11 @@ function FieldError({ message }: { message?: string }) {
   ) : null;
 }
 
-function getButtons(value: unknown): AutomationButton[] {
+function getButtons(value: unknown): QuickReplyButton[] {
   return Array.isArray(value)
     ? value
         .filter(
-          (button): button is AutomationButton =>
+          (button): button is QuickReplyButton =>
             Boolean(button) &&
             typeof button === "object" &&
             "id" in button &&
@@ -34,6 +34,21 @@ function getButtons(value: unknown): AutomationButton[] {
     : [];
 }
 
+function createButtonId(label = "button") {
+  const slug =
+    label
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "button";
+  const suffix =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+
+  return `${slug}_${suffix}`;
+}
+
 export default function QuickReplyNodeForm({
   draft,
   errors,
@@ -41,7 +56,7 @@ export default function QuickReplyNodeForm({
 }: NodeFormProps) {
   const buttons = getButtons(draft.buttons);
 
-  function updateButton(index: number, field: keyof AutomationButton, value: string) {
+  function updateButton(index: number, field: keyof QuickReplyButton, value: string) {
     setDraft((current) => {
       const nextButtons = getButtons(current.buttons);
       nextButtons[index] = {
@@ -85,7 +100,7 @@ export default function QuickReplyNodeForm({
                 buttons: [
                   ...getButtons(current.buttons),
                   {
-                    id: `button_${getButtons(current.buttons).length + 1}`,
+                    id: createButtonId("New button"),
                     label: "New button",
                   },
                 ],
@@ -149,7 +164,7 @@ export default function QuickReplyNodeForm({
             onClick={() =>
               setDraft((current) => ({
                 ...current,
-                buttons: [{ id: "sales", label: "Sales" }],
+                buttons: [{ id: createButtonId("Sales"), label: "Sales" }],
               }))
             }
             type="button"

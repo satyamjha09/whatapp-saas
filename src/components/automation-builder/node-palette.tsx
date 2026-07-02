@@ -2,18 +2,25 @@
 
 import {
   CircleDot,
+  Clock3,
+  Contact,
   FileText,
   GitBranch,
   Handshake,
+  Hourglass,
+  List,
   MessageSquareText,
   MousePointerClick,
   Play,
   Plus,
   RadioTower,
+  Tags,
 } from "lucide-react";
 import {
   automationNodeTypes,
-  formatNodeType,
+  getAutomationNodeDescription,
+  getAutomationNodeIcon,
+  getAutomationNodeLabel,
   type AutomationNodeType,
 } from "@/components/automation-builder/types";
 
@@ -24,43 +31,64 @@ type NodePaletteProps = {
 const nodeMeta: Record<
   AutomationNodeType,
   {
-    description: string;
     icon: typeof Play;
   }
 > = {
+  ADD_TAG: {
+    icon: Tags,
+  },
   API_CALL: {
-    description: "Call an external endpoint",
     icon: RadioTower,
   },
-  CONDITION: {
-    description: "Route by variable value",
+  BUTTON_REPLY_ROUTER: {
     icon: GitBranch,
   },
+  CONDITION: {
+    icon: GitBranch,
+  },
+  DELAY: {
+    icon: Clock3,
+  },
   END: {
-    description: "Finish the journey",
     icon: CircleDot,
   },
   HUMAN_HANDOFF: {
-    description: "Move chat to team inbox",
     icon: Handshake,
   },
+  LIST_MESSAGE: {
+    icon: List,
+  },
   QUICK_REPLY: {
-    description: "Send reply buttons",
     icon: MousePointerClick,
   },
+  REMOVE_TAG: {
+    icon: Tags,
+  },
   SEND_MESSAGE: {
-    description: "Send text or media",
     icon: MessageSquareText,
   },
   SEND_TEMPLATE: {
-    description: "Send approved template",
     icon: FileText,
   },
   START: {
-    description: "Choose trigger",
     icon: Play,
   },
+  TEMPLATE_TRIGGER: {
+    icon: RadioTower,
+  },
+  UPDATE_CONTACT_FIELD: {
+    icon: Contact,
+  },
+  WAIT_FOR_REPLY: {
+    icon: Hourglass,
+  },
 };
+
+function getIconForType(type: AutomationNodeType) {
+  const iconName = getAutomationNodeIcon(type);
+  if (iconName === "delay") return Clock3;
+  return nodeMeta[type].icon;
+}
 
 export default function NodePalette({ onAddNode }: NodePaletteProps) {
   return (
@@ -74,7 +102,7 @@ export default function NodePalette({ onAddNode }: NodePaletteProps) {
 
       <div className="grid gap-2">
         {automationNodeTypes.map((type) => {
-          const Icon = nodeMeta[type].icon;
+          const Icon = getIconForType(type);
 
           return (
             <button
@@ -88,10 +116,10 @@ export default function NodePalette({ onAddNode }: NodePaletteProps) {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-[#081B3A]">
-                  {formatNodeType(type)}
+                  {getAutomationNodeLabel(type)}
                 </span>
                 <span className="mt-1 block text-xs text-[#526173]">
-                  {nodeMeta[type].description}
+                  {getAutomationNodeDescription(type)}
                 </span>
               </span>
               <Plus className="h-4 w-4 text-[#128C7E] opacity-70 transition group-hover:opacity-100" />

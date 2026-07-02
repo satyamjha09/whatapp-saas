@@ -111,5 +111,10 @@ module.exports = {
       name: "tallykonnect-lead-score-worker",
       script: "src/workers/lead-score.worker.ts",
     }),
+
+    tsxWorker({
+      name: "tallykonnect-automation-runtime-worker",
+      script: "src/workers/automation-runtime.worker.ts",
+    }),
   ],
 };

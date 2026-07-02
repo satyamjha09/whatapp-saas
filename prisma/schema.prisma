@@ -226,6 +226,64 @@ enum ChatbotSessionEventType {
   SESSION_FAILED
 }
 
+enum AutomationFlowStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  ARCHIVED
+}
+
+enum AutomationSessionStatus {
+  ACTIVE
+  WAITING
+  COMPLETED
+  FAILED
+  PAUSED
+  EXPIRED
+}
+
+enum AutomationExecutionStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  WAITING
+  SKIPPED
+}
+
+enum AutomationExecutionStepStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  WAITING
+  SKIPPED
+}
+
+enum AutomationTestRunStatus {
+  RUNNING
+  WAITING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum AutomationTestStepStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  WAITING
+  SKIPPED
+}
+
+enum AutomationTriggerType {
+  KEYWORD
+  DEFAULT
+  TEMPLATE_REPLY
+  BUTTON_REPLY
+  LIST_REPLY
+  CAMPAIGN_REPLY
+  MANUAL
+}
+
 enum TemplateCategory {
   MARKETING
   UTILITY
@@ -1800,6 +1858,207 @@ model ChatbotSessionEvent {
   @@index([messageId])
   @@index([eventType])
   @@index([createdAt])
+}
+
+model AutomationFlow {
+  id        String @id @default(cuid())
+  companyId String
+
+  name        String
+  description String?
+  status      AutomationFlowStatus @default(DRAFT)
+
+  draftGraph         Json
+  publishedVersionId String?
+
+  triggerType AutomationTriggerType?
+  keywords    String[]               @default([])
+  isDefault   Boolean                @default(false)
+
+  createdByUserId String?
+  updatedByUserId String?
+
+  versions   AutomationFlowVersion[]
+  sessions   AutomationSession[]
+  executions AutomationExecution[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, isDefault])
+  @@index([publishedVersionId])
+}
+
+model AutomationFlowVersion {
+  id        String @id @default(cuid())
+  companyId String
+  flowId    String
+
+  versionNumber      Int
+  graph              Json
+  validationSnapshot Json?
+  publishNotes       String?
+
+  publishedByUserId String?
+  publishedAt       DateTime @default(now())
+
+  flow AutomationFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  sessions   AutomationSession[]
+  executions AutomationExecution[]
+
+  @@unique([flowId, versionNumber])
+  @@index([companyId])
+  @@index([flowId])
+}
+
+model AutomationSession {
+  id String @id @default(cuid())
+
+  companyId     String
+  flowId        String
+  flowVersionId String
+  contactId     String
+
+  status AutomationSessionStatus @default(ACTIVE)
+
+  currentNodeId String?
+  context       Json?
+
+  waitingForReply Boolean   @default(false)
+  waitingNodeId   String?
+  replyTimeoutAt  DateTime?
+
+  lastInboundMessageId  String?
+  lastOutboundMessageId String?
+
+  startedAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  endedAt   DateTime?
+  pausedAt  DateTime?
+
+  flow        AutomationFlow        @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  flowVersion AutomationFlowVersion @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
+
+  executions AutomationExecution[]
+
+  @@index([companyId])
+  @@index([companyId, contactId])
+  @@index([companyId, status])
+  @@index([companyId, flowId, contactId])
+  @@index([lastInboundMessageId])
+  @@index([replyTimeoutAt])
+}
+
+model AutomationExecution {
+  id String @id @default(cuid())
+
+  companyId     String
+  flowId        String
+  flowVersionId String
+  sessionId     String?
+
+  status AutomationExecutionStatus @default(RUNNING)
+
+  triggerType      AutomationTriggerType?
+  triggerMessageId String?
+  triggerPayload   Json?
+
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  errorMessage String?
+
+  flow        AutomationFlow         @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  flowVersion AutomationFlowVersion  @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
+  session     AutomationSession?     @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  steps AutomationExecutionStep[]
+
+  @@unique([companyId, triggerMessageId, flowId])
+  @@index([companyId])
+  @@index([companyId, flowId])
+  @@index([companyId, sessionId])
+  @@index([triggerMessageId])
+}
+
+model AutomationExecutionStep {
+  id String @id @default(cuid())
+
+  companyId   String
+  executionId String
+
+  nodeId   String
+  nodeType String
+  status   AutomationExecutionStepStatus @default(RUNNING)
+
+  input        Json?
+  output       Json?
+  errorMessage String?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  execution AutomationExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([executionId])
+  @@index([nodeId])
+}
+
+model AutomationTestRun {
+  id String @id @default(cuid())
+
+  companyId String
+  flowId    String
+
+  status AutomationTestRunStatus @default(RUNNING)
+
+  graph            Json
+  simulatedContact Json
+  context          Json?
+
+  currentNodeId   String?
+  waitingForReply Boolean @default(false)
+  waitingNodeId   String?
+
+  createdByUserId String?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  steps AutomationTestStep[]
+
+  @@index([companyId])
+  @@index([companyId, flowId])
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+model AutomationTestStep {
+  id String @id @default(cuid())
+
+  companyId String
+  testRunId String
+
+  nodeId   String
+  nodeType String
+  status   AutomationTestStepStatus @default(RUNNING)
+
+  input        Json?
+  output       Json?
+  errorMessage String?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  testRun AutomationTestRun @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([testRunId])
+  @@index([nodeId])
 }
 
 model Template {

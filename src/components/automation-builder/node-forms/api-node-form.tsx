@@ -11,6 +11,10 @@ function FieldError({ message }: { message?: string }) {
   ) : null;
 }
 
+function textValue(value: unknown, fallback: unknown[] = []) {
+  return typeof value === "string" ? value : JSON.stringify(value ?? fallback, null, 2);
+}
+
 export default function ApiNodeForm({
   draft,
   errors,
@@ -66,7 +70,7 @@ export default function ApiNodeForm({
             }))
           }
           placeholder='{"Authorization":"Bearer {{token}}"}'
-          value={draft.headers ?? ""}
+          value={textValue(draft.headers)}
         />
       </label>
 
@@ -96,7 +100,7 @@ export default function ApiNodeForm({
             }))
           }
           placeholder='{"leadId":"$.id"}'
-          value={draft.responseMapping ?? ""}
+          value={textValue(draft.responseMapping)}
         />
       </label>
     </div>

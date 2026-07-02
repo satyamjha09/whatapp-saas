@@ -4,15 +4,14 @@ import { fieldClass, labelClass } from "@/app/dashboard/dashboard-ui";
 import type { NodeFormProps } from "@/components/automation-builder/types";
 
 const operators = [
-  "equals",
-  "not_equals",
-  "contains",
-  "not_contains",
-  "starts_with",
-  "ends_with",
-  "exists",
-  "greater_than",
-  "less_than",
+  "EQUALS",
+  "NOT_EQUALS",
+  "CONTAINS",
+  "NOT_CONTAINS",
+  "GREATER_THAN",
+  "LESS_THAN",
+  "IS_EMPTY",
+  "IS_NOT_EMPTY",
 ];
 
 function FieldError({ message }: { message?: string }) {
@@ -54,7 +53,7 @@ export default function ConditionNodeForm({
               operator: event.target.value,
             }))
           }
-          value={draft.operator ?? "equals"}
+          value={draft.operator ?? "EQUALS"}
         >
           {operators.map((operator) => (
             <option key={operator} value={operator}>
@@ -76,7 +75,7 @@ export default function ConditionNodeForm({
             }))
           }
           placeholder="sales"
-          value={draft.value ?? ""}
+          value={draft.value === undefined ? "" : String(draft.value)}
         />
         <FieldError message={errors.value} />
       </label>

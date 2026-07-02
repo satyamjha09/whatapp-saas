@@ -19,6 +19,7 @@ import { publishInboxRealtimeEvent } from "@/server/realtime/inbox-events";
 import { createUnmappedWebhookEvent } from "@/server/services/webhook.service";
 import { recordWhatsAppFlowResponse } from "@/server/services/whatsapp-flow.service";
 import { processChatbotInboundMessage } from "@/server/services/chatbot-runtime.service";
+import { queueAutomationRuntimeJob } from "@/server/services/automation-runtime.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
 import type { ProcessWebhookJobData } from "@/lib/queue";
@@ -629,6 +630,19 @@ const worker = new Worker<ProcessWebhookJobData>(
         inboundMessageId: message.id,
       }).catch((error) => {
         console.error("CHATBOT_RUNTIME_PROCESSING_ERROR:", {
+          companyId,
+          contactId: contact.id,
+          error: error instanceof Error ? error.message : error,
+          messageId: message.id,
+        });
+      });
+
+      await queueAutomationRuntimeJob({
+        companyId,
+        contactId: contact.id,
+        inboundMessageId: message.id,
+      }).catch((error) => {
+        console.error("AUTOMATION_RUNTIME_QUEUE_ERROR:", {
           companyId,
           contactId: contact.id,
           error: error instanceof Error ? error.message : error,

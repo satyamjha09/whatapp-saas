@@ -3,8 +3,8 @@
 import { fieldClass, labelClass } from "@/app/dashboard/dashboard-ui";
 import type { NodeFormProps } from "@/components/automation-builder/types";
 
-const priorities = ["LOW", "NORMAL", "HIGH", "URGENT"];
-const assignmentModes = ["ROUND_ROBIN", "TEAM_QUEUE", "OWNER_ONLY", "MANUAL"];
+const priorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+const assignmentModes = ["UNASSIGNED", "ROUND_ROBIN", "SPECIFIC_USER"];
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -29,7 +29,7 @@ export default function HandoffNodeForm({
               inboxPriority: event.target.value,
             }))
           }
-          value={draft.inboxPriority ?? "NORMAL"}
+          value={draft.inboxPriority ?? "MEDIUM"}
         >
           {priorities.map((priority) => (
             <option key={priority} value={priority}>
@@ -74,6 +74,24 @@ export default function HandoffNodeForm({
         />
         <FieldError message={errors.messageToCustomer} />
       </label>
+
+      {draft.assignmentMode === "SPECIFIC_USER" ? (
+        <label className="block">
+          <span className={labelClass}>Assigned user ID</span>
+          <input
+            className={fieldClass}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...current,
+                assignedUserId: event.target.value,
+              }))
+            }
+            placeholder="user_123"
+            value={draft.assignedUserId ?? ""}
+          />
+          <FieldError message={errors.assignedUserId} />
+        </label>
+      ) : null}
     </div>
   );
 }
