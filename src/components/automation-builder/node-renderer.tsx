@@ -11,16 +11,23 @@ import {
   CircleDot,
   Clock3,
   Contact,
+  CreditCard,
+  Database,
   FileText,
   GitBranch,
   Handshake,
   Hourglass,
+  RotateCcw,
+  ShieldAlert,
+  Sparkles,
   List,
   MessageSquareText,
   MousePointerClick,
   Play,
+  ReceiptText,
   RadioTower,
   Tags,
+  Table2,
 } from "lucide-react";
 import {
   getNodeInputHandles,
@@ -40,21 +47,31 @@ export type AutomationFlowNode = Node<AutomationFlowNodeData, "automationNode">;
 
 const nodeTone: Record<AutomationNodeType, string> = {
   ADD_TAG: "border-lime-200 bg-lime-50 text-lime-700",
+  AI_REPLY: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700",
   API_CALL: "border-blue-200 bg-blue-50 text-blue-700",
   BUTTON_REPLY_ROUTER: "border-violet-200 bg-violet-50 text-violet-700",
+  CATALOG_SEND: "border-teal-200 bg-teal-50 text-teal-700",
   CONDITION: "border-purple-200 bg-purple-50 text-purple-700",
   DELAY: "border-slate-200 bg-slate-50 text-slate-700",
   END: "border-rose-200 bg-rose-50 text-rose-700",
+  ERROR_HANDLER: "border-red-200 bg-red-50 text-red-700",
+  FALLBACK: "border-amber-200 bg-amber-50 text-amber-700",
+  GOOGLE_SHEET_APPEND_ROW: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  GOOGLE_SHEET_UPDATE_ROW: "border-emerald-200 bg-emerald-50 text-emerald-700",
   HUMAN_HANDOFF: "border-amber-200 bg-amber-50 text-amber-700",
   LIST_MESSAGE: "border-cyan-200 bg-cyan-50 text-cyan-700",
+  PAYMENT_LINK: "border-green-200 bg-green-50 text-green-700",
   QUICK_REPLY: "border-emerald-200 bg-emerald-50 text-emerald-700",
   REMOVE_TAG: "border-lime-200 bg-lime-50 text-lime-700",
+  RETRY: "border-orange-200 bg-orange-50 text-orange-700",
   SEND_MESSAGE: "border-[#BFE9D0] bg-[#E7F8EF] text-[#128C7E]",
   SEND_TEMPLATE: "border-cyan-200 bg-cyan-50 text-cyan-700",
   START: "border-[#BFE9D0] bg-[#E7F8EF] text-[#128C7E]",
+  TALLY_LOOKUP: "border-sky-200 bg-sky-50 text-sky-700",
   TEMPLATE_TRIGGER: "border-[#BFE9D0] bg-[#E7F8EF] text-[#128C7E]",
   UPDATE_CONTACT_FIELD: "border-orange-200 bg-orange-50 text-orange-700",
   WAIT_FOR_REPLY: "border-indigo-200 bg-indigo-50 text-indigo-700",
+  WEBHOOK: "border-blue-200 bg-blue-50 text-blue-700",
 };
 
 function NodeIcon({ type }: { type: AutomationNodeType }) {
@@ -69,11 +86,20 @@ function NodeIcon({ type }: { type: AutomationNodeType }) {
   if (icon === "template") return <FileText className="h-4 w-4" />;
   if (icon === "wait") return <Hourglass className="h-4 w-4" />;
   if (icon === "api") return <RadioTower className="h-4 w-4" />;
+  if (icon === "webhook") return <RadioTower className="h-4 w-4" />;
   if (icon === "handoff") return <Handshake className="h-4 w-4" />;
   if (icon === "tag") return <Tags className="h-4 w-4" />;
   if (icon === "contact") return <Contact className="h-4 w-4" />;
   if (icon === "delay") return <Clock3 className="h-4 w-4" />;
   if (icon === "message") return <MessageSquareText className="h-4 w-4" />;
+  if (icon === "sheet") return <Table2 className="h-4 w-4" />;
+  if (icon === "tally") return <Database className="h-4 w-4" />;
+  if (icon === "payment") return <CreditCard className="h-4 w-4" />;
+  if (icon === "catalog") return <ReceiptText className="h-4 w-4" />;
+  if (icon === "ai") return <Sparkles className="h-4 w-4" />;
+  if (icon === "fallback") return <ShieldAlert className="h-4 w-4" />;
+  if (icon === "retry") return <RotateCcw className="h-4 w-4" />;
+  if (icon === "error") return <ShieldAlert className="h-4 w-4" />;
 
   return <Bot className="h-4 w-4" />;
 }
@@ -131,6 +157,50 @@ function nodeSummary(data: AutomationFlowNodeData): string {
 
   if (data.nodeType === "API_CALL") {
     return `${data.method ?? "POST"} ${data.url ?? "No URL"}`;
+  }
+
+  if (data.nodeType === "WEBHOOK") {
+    return `${data.method ?? "POST"} ${data.url ?? "No URL"} - ${data.retryCount ?? 0} retries`;
+  }
+
+  if (data.nodeType === "GOOGLE_SHEET_APPEND_ROW") {
+    const count = Array.isArray(data.columnMappings)
+      ? data.columnMappings.length
+      : 0;
+    return `${data.sheetName ?? "Sheet1"} - append ${count} column(s)`;
+  }
+
+  if (data.nodeType === "GOOGLE_SHEET_UPDATE_ROW") {
+    return `${data.sheetName ?? "Sheet1"} - lookup ${data.lookupColumn ?? "column"}`;
+  }
+
+  if (data.nodeType === "TALLY_LOOKUP") {
+    return `${data.lookupType ?? "LEDGER_BALANCE"} -> ${data.saveResultAs ?? "tallyResult"}`;
+  }
+
+  if (data.nodeType === "PAYMENT_LINK") {
+    return `${data.provider ?? "CASHFREE"} ${data.currency ?? "INR"} - ${data.purpose ?? "Payment"}`;
+  }
+
+  if (data.nodeType === "CATALOG_SEND") {
+    const products = Array.isArray(data.productIds) ? data.productIds.length : 0;
+    return `${data.catalogSource ?? "MANUAL_PRODUCTS"} - ${products} product(s)`;
+  }
+
+  if (data.nodeType === "AI_REPLY") {
+    return `Save reply as ${data.saveReplyAs ?? "aiReply"} - threshold ${data.confidenceThreshold ?? 0.7}`;
+  }
+
+  if (data.nodeType === "FALLBACK") {
+    return `${data.nextAction ?? "SEND_MESSAGE"} - ${data.fallbackMessage ?? "No message"}`;
+  }
+
+  if (data.nodeType === "RETRY") {
+    return `${data.maxRetries ?? 3} retries, ${data.retryDelaySeconds ?? 5}s delay`;
+  }
+
+  if (data.nodeType === "ERROR_HANDLER") {
+    return `Open inbox: ${data.openInbox ? "yes" : "no"}, end: ${data.endSession ? "yes" : "no"}`;
   }
 
   if (data.nodeType === "HUMAN_HANDOFF") {

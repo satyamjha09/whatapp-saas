@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import type {
+  AutomationColumnMapping,
   AutomationNode,
+  AutomationValueSource,
   TemplateVariableMapping,
 } from "@/lib/automation-builder/types";
 import {
@@ -138,6 +140,71 @@ function applyResponseMappings({
   });
 
   return nextContext;
+}
+
+function resolveValueSource(
+  source: AutomationValueSource,
+  context: AutomationTestContext,
+) {
+  let value: unknown;
+
+  if (source.sourceType === "STATIC") {
+    value = source.sourceValue;
+  }
+
+  if (source.sourceType === "CONTACT_FIELD") {
+    value = getTestContextValue(context, `contact.${source.sourceValue}`);
+  }
+
+  if (source.sourceType === "SESSION_CONTEXT") {
+    value = getTestContextValue(context, source.sourceValue);
+  }
+
+  if (source.sourceType === "PREVIOUS_NODE_OUTPUT") {
+    value = getTestContextValue(context, `nodes.${source.sourceValue}`);
+  }
+
+  if (source.sourceType === "CUSTOM_ATTRIBUTE") {
+    value = getTestContextValue(
+      context,
+      `contact.customAttributes.${source.sourceValue}`,
+    );
+  }
+
+  if (value === undefined || value === null || value === "") {
+    value = source.fallbackValue ?? "";
+  }
+
+  return value;
+}
+
+function buildMappedRow({
+  context,
+  mappings,
+}: {
+  context: AutomationTestContext;
+  mappings: AutomationColumnMapping[];
+}) {
+  return Object.fromEntries(
+    mappings.map((mapping) => [
+      mapping.columnName,
+      resolveValueSource(mapping, context),
+    ]),
+  );
+}
+
+function resolveAiUserMessage(
+  data: Record<string, unknown>,
+  context: AutomationTestContext,
+) {
+  const source = asRecord(data.userMessageSource);
+  const sourceType = stringValue(source.sourceType, "TRIGGER_MESSAGE");
+  const sourceValue = stringValue(source.sourceValue, "trigger.text");
+
+  if (sourceType === "STATIC") return sourceValue;
+  if (sourceType === "TRIGGER_MESSAGE") return context.trigger.text ?? "";
+
+  return getTestContextValue(context, sourceValue);
 }
 
 function renderPreview(templateBody: string, resolvedVariables: Record<string, string>) {
@@ -403,6 +470,240 @@ export async function executeAutomationTestNode({
         skippedExternalCall: true,
       },
       status: "SKIPPED",
+    };
+  }
+
+  if (node.type === "WEBHOOK") {
+    const mockResponse =
+      data.mockResponse !== undefined
+        ? data.mockResponse
+        : {
+            ok: true,
+            simulated: true,
+          };
+    const nextContext = applyResponseMappings({
+      context,
+      mappings: data.responseMapping,
+      response: mockResponse,
+    });
+
+    return {
+      context: nextContext,
+      nextHandle: "success",
+      output: {
+        method: stringValue(data.method, "POST"),
+        mockResponse,
+        simulated: true,
+        skippedExternalCall: true,
+        url: stringValue(data.url),
+      },
+      status: "SUCCESS",
+    };
+  }
+
+  if (node.type === "GOOGLE_SHEET_APPEND_ROW") {
+    const row = buildMappedRow({
+      context,
+      mappings: Array.isArray(data.columnMappings)
+        ? (data.columnMappings as AutomationColumnMapping[])
+        : [],
+    });
+
+    return {
+      context,
+      nextHandle: "success",
+      output: {
+        row,
+        sheetName: stringValue(data.sheetName),
+        simulated: true,
+        skippedExternalCall: true,
+        spreadsheetId: stringValue(data.spreadsheetId),
+      },
+      status: "SUCCESS",
+    };
+  }
+
+  if (node.type === "GOOGLE_SHEET_UPDATE_ROW") {
+    const row = buildMappedRow({
+      context,
+      mappings: Array.isArray(data.updateMappings)
+        ? (data.updateMappings as AutomationColumnMapping[])
+        : [],
+    });
+    const lookupValue = resolveValueSource(
+      asRecord(data.lookupValueSource) as AutomationValueSource,
+      context,
+    );
+
+    return {
+      context,
+      nextHandle: "success",
+      output: {
+        lookupColumn: stringValue(data.lookupColumn),
+        lookupValue,
+        row,
+        sheetName: stringValue(data.sheetName),
+        simulated: true,
+        skippedExternalCall: true,
+        spreadsheetId: stringValue(data.spreadsheetId),
+      },
+      status: "SUCCESS",
+    };
+  }
+
+  if (node.type === "TALLY_LOOKUP") {
+    const mockResult =
+      data.mockResult !== undefined
+        ? data.mockResult
+        : {
+            balance: "12500.00",
+            currency: "INR",
+            found: true,
+          };
+    const resultRecord = asRecord(mockResult);
+    const nextContext = setTestContextValue(
+      context,
+      `variables.${stringValue(data.saveResultAs, "tallyResult")}`,
+      mockResult,
+    );
+
+    return {
+      context: nextContext,
+      nextHandle: resultRecord.found === false ? "not_found" : "found",
+      output: {
+        lookupType: stringValue(data.lookupType),
+        result: mockResult,
+        simulated: true,
+        skippedExternalCall: true,
+      },
+      status: "SUCCESS",
+    };
+  }
+
+  if (node.type === "PAYMENT_LINK") {
+    const amount = resolveValueSource(
+      asRecord(data.amountSource) as AutomationValueSource,
+      context,
+    );
+    const paymentLink =
+      stringValue(data.mockPaymentLink) ||
+      `https://payments.test/tallykonnect/${node.id}`;
+    const nextContext = setTestContextValue(
+      context,
+      `variables.${stringValue(data.savePaymentLinkAs, "paymentLink")}`,
+      paymentLink,
+    );
+
+    return {
+      context: nextContext,
+      nextHandle: "created",
+      output: {
+        amount,
+        paymentLink,
+        provider: stringValue(data.provider, "CASHFREE"),
+        simulated: true,
+        skippedExternalCall: true,
+      },
+      status: "SUCCESS",
+    };
+  }
+
+  if (node.type === "CATALOG_SEND") {
+    const productIds = Array.isArray(data.productIds)
+      ? data.productIds.filter((productId): productId is string => typeof productId === "string")
+      : [];
+
+    return {
+      context,
+      nextHandle: "sent",
+      output: {
+        catalogSource: stringValue(data.catalogSource),
+        maxProducts: Number(data.maxProducts ?? 5),
+        productIds: productIds.slice(0, Number(data.maxProducts ?? 5)),
+        simulated: true,
+      },
+      status: "SUCCESS",
+    };
+  }
+
+  if (node.type === "AI_REPLY") {
+    const mockResponse = asRecord(data.mockResponse);
+    const confidence = Number(mockResponse.confidence ?? 0.85);
+    const reply =
+      stringValue(mockResponse.text) ||
+      "Thanks for your message. Our team can help you with this.";
+    const saveAs = stringValue(data.saveReplyAs, "aiReply");
+    const nextContext = setTestContextValue(context, `variables.${saveAs}`, reply);
+    const threshold = Number(data.confidenceThreshold ?? 0.7);
+
+    return {
+      context: nextContext,
+      nextHandle: confidence >= threshold ? "answered" : "low_confidence",
+      output: {
+        confidence,
+        reply,
+        simulated: true,
+        skippedExternalCall: true,
+        userMessage: resolveAiUserMessage(data, context),
+      },
+      status: "SUCCESS",
+    };
+  }
+
+  if (node.type === "FALLBACK") {
+    const nextAction = stringValue(data.nextAction, "SEND_MESSAGE");
+
+    return {
+      context,
+      nextHandle:
+        nextAction === "HUMAN_HANDOFF"
+          ? "handoff"
+          : nextAction === "END"
+            ? "end"
+            : "next",
+      output: {
+        fallbackMessage: stringValue(data.fallbackMessage),
+        nextAction,
+        simulated: true,
+      },
+      status: "SUCCESS",
+    };
+  }
+
+  if (node.type === "RETRY") {
+    const path = `variables.retryCounts.${node.id}`;
+    const previousCount = Number(getTestContextValue(context, path) ?? 0);
+    const retryCount = previousCount + 1;
+    const maxRetries = Number(data.maxRetries ?? 3);
+
+    return {
+      context: setTestContextValue(context, path, retryCount),
+      nextHandle: retryCount <= maxRetries ? "retry" : "max_retries_reached",
+      output: {
+        maxRetries,
+        retryCount,
+        retryDelaySeconds: Number(data.retryDelaySeconds ?? 0),
+        retryTargetNodeId: stringValue(data.retryTargetNodeId),
+        simulated: true,
+        skippedDelay: true,
+      },
+      status: "SUCCESS",
+    };
+  }
+
+  if (node.type === "ERROR_HANDLER") {
+    return {
+      context,
+      nextHandle: data.endSession === true ? null : "handled",
+      output: {
+        endSession: data.endSession === true,
+        errorMessageToCustomer: stringValue(data.errorMessageToCustomer),
+        notifyTeam: data.notifyTeam === true,
+        openInbox: data.openInbox === true,
+        simulated: true,
+      },
+      status: "SUCCESS",
+      stop: data.endSession === true,
     };
   }
 

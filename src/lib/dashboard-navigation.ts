@@ -39,6 +39,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
     label: "Automation",
     items: [
       { label: "Builder", href: "/dashboard/automation/builder" },
+      { label: "Execution Logs", href: "/dashboard/automation/executions" },
       { label: "Chatbots", href: "/dashboard/automation/chatbots" },
     ],
   },

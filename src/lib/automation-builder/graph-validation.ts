@@ -14,6 +14,11 @@ import {
   type AutomationGraphValidationResult,
   type AutomationNode,
 } from "@/lib/automation-builder/types";
+import {
+  getAutomationNodeFeatureFlag,
+  isAdvancedAutomationNode,
+  isAutomationNodeTypeEnabled,
+} from "@/lib/automation-builder/feature-flags";
 
 export { normalizeAutomationGraph };
 
@@ -41,6 +46,245 @@ function isHttpUrl(value: unknown) {
     return parsed.protocol === "http:" || parsed.protocol === "https:";
   } catch {
     return false;
+  }
+}
+
+function isPrivateOrLocalUrl(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return false;
+
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    const parts = hostname.split(".").map((part) => Number(part));
+
+    if (
+      hostname === "localhost" ||
+      hostname === "::1" ||
+      hostname.endsWith(".local") ||
+      hostname.endsWith(".localhost")
+    ) {
+      return true;
+    }
+
+    if (parts.length === 4 && parts.every((part) => Number.isInteger(part))) {
+      const [first, second] = parts;
+      return (
+        first === 10 ||
+        first === 127 ||
+        first === 0 ||
+        (first === 169 && second === 254) ||
+        (first === 172 && second >= 16 && second <= 31) ||
+        (first === 192 && second === 168)
+      );
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
+function isAllowedValueSourceType(value: unknown) {
+  return [
+    "CONTACT_FIELD",
+    "STATIC",
+    "SESSION_CONTEXT",
+    "PREVIOUS_NODE_OUTPUT",
+    "CUSTOM_ATTRIBUTE",
+  ].includes(stringValue(value));
+}
+
+function isAllowedAiMessageSourceType(value: unknown) {
+  return [
+    "TRIGGER_MESSAGE",
+    "SESSION_CONTEXT",
+    "PREVIOUS_NODE_OUTPUT",
+    "STATIC",
+  ].includes(stringValue(value));
+}
+
+function validateValueSource({
+  errors,
+  fieldLabel,
+  nodeId,
+  required = true,
+  value,
+}: {
+  errors: AutomationGraphValidationIssue[];
+  fieldLabel: string;
+  nodeId: string;
+  required?: boolean;
+  value: unknown;
+}) {
+  if (!isRecord(value)) {
+    if (required) {
+      errors.push(
+        issue(
+          "ERROR",
+          "VALUE_SOURCE_REQUIRED",
+          `${fieldLabel} requires a value source.`,
+          { nodeId },
+        ),
+      );
+    }
+    return;
+  }
+
+  if (!isAllowedValueSourceType(value.sourceType)) {
+    errors.push(
+      issue(
+        "ERROR",
+        "VALUE_SOURCE_TYPE_INVALID",
+        `${fieldLabel} has an invalid source type.`,
+        { nodeId },
+      ),
+    );
+  }
+
+  if (isBlank(value.sourceValue)) {
+    errors.push(
+      issue(
+        "ERROR",
+        "VALUE_SOURCE_VALUE_REQUIRED",
+        `${fieldLabel} requires a source value.`,
+        { nodeId },
+      ),
+    );
+  }
+}
+
+function validateColumnMappings({
+  errors,
+  fieldLabel,
+  nodeId,
+  value,
+}: {
+  errors: AutomationGraphValidationIssue[];
+  fieldLabel: string;
+  nodeId: string;
+  value: unknown;
+}) {
+  const mappings = Array.isArray(value) ? value : [];
+
+  if (mappings.length === 0) {
+    errors.push(
+      issue(
+        "ERROR",
+        "COLUMN_MAPPING_REQUIRED",
+        `${fieldLabel} requires at least one column mapping.`,
+        { nodeId },
+      ),
+    );
+    return;
+  }
+
+  const columnNames: string[] = [];
+
+  mappings.forEach((mapping, index) => {
+    const record = isRecord(mapping) ? mapping : {};
+    const columnName = stringValue(record.columnName);
+    columnNames.push(columnName);
+
+    if (!columnName.trim()) {
+      errors.push(
+        issue(
+          "ERROR",
+          "COLUMN_MAPPING_NAME_REQUIRED",
+          `${fieldLabel} mapping ${index + 1} requires a column name.`,
+          { nodeId },
+        ),
+      );
+    }
+
+    validateValueSource({
+      errors,
+      fieldLabel: `${fieldLabel} mapping ${index + 1}`,
+      nodeId,
+      value: record,
+    });
+  });
+
+  if (collectDuplicateValues(columnNames).size > 0) {
+    errors.push(
+      issue(
+        "ERROR",
+        "COLUMN_MAPPING_DUPLICATE",
+        `${fieldLabel} column names must be unique.`,
+        { nodeId },
+      ),
+    );
+  }
+}
+
+function validateResponseMappings(
+  mappings: unknown,
+  nodeId: string,
+  errors: AutomationGraphValidationIssue[],
+) {
+  if (!Array.isArray(mappings)) {
+    errors.push(
+      issue(
+        "ERROR",
+        "RESPONSE_MAPPINGS_INVALID",
+        "Response mappings must be an array.",
+        { nodeId },
+      ),
+    );
+    return;
+  }
+
+  mappings.forEach((mapping, index) => {
+    const record = isRecord(mapping) ? mapping : {};
+
+    if (isBlank(record.responsePath)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "RESPONSE_MAPPING_PATH_REQUIRED",
+          `Response mapping ${index + 1} requires a response path.`,
+          { nodeId },
+        ),
+      );
+    }
+
+    if (isBlank(record.saveAs)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "RESPONSE_MAPPING_SAVE_AS_REQUIRED",
+          `Response mapping ${index + 1} requires a save variable.`,
+          { nodeId },
+        ),
+      );
+    }
+  });
+}
+
+function validateNumberRange({
+  errors,
+  label,
+  max,
+  min,
+  nodeId,
+  value,
+}: {
+  errors: AutomationGraphValidationIssue[];
+  label: string;
+  max: number;
+  min: number;
+  nodeId: string;
+  value: unknown;
+}) {
+  const number = numberValue(value);
+
+  if (number === null || number < min || number > max) {
+    errors.push(
+      issue(
+        "ERROR",
+        "NUMBER_RANGE_INVALID",
+        `${label} must be between ${min} and ${max}.`,
+        { nodeId },
+      ),
+    );
   }
 }
 
@@ -171,6 +415,23 @@ function validateNodeFields(
       ),
     );
     return;
+  }
+
+  if (
+    isAdvancedAutomationNode(node.type) &&
+    !isAutomationNodeTypeEnabled(node.type)
+  ) {
+    const flag = getAutomationNodeFeatureFlag(node.type);
+    errors.push(
+      issue(
+        "ERROR",
+        "AUTOMATION_NODE_FEATURE_DISABLED",
+        flag
+          ? `${node.type} is disabled. Enable ${flag} before publishing this node.`
+          : `${node.type} is disabled and cannot be published.`,
+        { nodeId: node.id },
+      ),
+    );
   }
 
   if (!isRecord(node.position)) {
@@ -838,9 +1099,408 @@ function validateNodeFields(
           { nodeId: node.id },
         ),
       );
+    } else if (isPrivateOrLocalUrl(data.url)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "API_CALL_URL_PRIVATE",
+          "API Call URL cannot target localhost or private network addresses.",
+          { nodeId: node.id },
+        ),
+      );
     }
 
-    // TODO: Block localhost and private IP targets before runtime execution.
+    validateResponseMappings(data.responseMapping, node.id, errors);
+  }
+
+  if (node.type === "WEBHOOK") {
+    if (isBlank(data.method)) {
+      errors.push(
+        issue("ERROR", "WEBHOOK_METHOD_REQUIRED", "Webhook method is required.", {
+          nodeId: node.id,
+        }),
+      );
+    }
+
+    if (isBlank(data.url)) {
+      errors.push(
+        issue("ERROR", "WEBHOOK_URL_REQUIRED", "Webhook URL is required.", {
+          nodeId: node.id,
+        }),
+      );
+    } else if (!isHttpUrl(data.url)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "WEBHOOK_URL_INVALID",
+          "Webhook URL must be a valid http or https URL.",
+          { nodeId: node.id },
+        ),
+      );
+    } else if (isPrivateOrLocalUrl(data.url)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "WEBHOOK_URL_PRIVATE",
+          "Webhook URL cannot target localhost or private network addresses.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+
+    validateNumberRange({
+      errors,
+      label: "Webhook timeout",
+      max: 30000,
+      min: 1000,
+      nodeId: node.id,
+      value: data.timeoutMs,
+    });
+    validateNumberRange({
+      errors,
+      label: "Webhook retry count",
+      max: 3,
+      min: 0,
+      nodeId: node.id,
+      value: data.retryCount,
+    });
+    validateResponseMappings(data.responseMapping, node.id, errors);
+  }
+
+  if (node.type === "GOOGLE_SHEET_APPEND_ROW") {
+    if (isBlank(data.connectedGoogleAccountId)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "GOOGLE_SHEET_ACCOUNT_REQUIRED",
+          "Google Sheet node requires a connected Google account.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+    if (isBlank(data.spreadsheetId)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "GOOGLE_SHEET_SPREADSHEET_REQUIRED",
+          "Google Sheet node requires a spreadsheet ID.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+    if (isBlank(data.sheetName)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "GOOGLE_SHEET_NAME_REQUIRED",
+          "Google Sheet node requires a sheet name.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+    validateColumnMappings({
+      errors,
+      fieldLabel: "Google Sheet append",
+      nodeId: node.id,
+      value: data.columnMappings,
+    });
+  }
+
+  if (node.type === "GOOGLE_SHEET_UPDATE_ROW") {
+    if (isBlank(data.connectedGoogleAccountId)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "GOOGLE_SHEET_ACCOUNT_REQUIRED",
+          "Google Sheet node requires a connected Google account.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+    if (isBlank(data.spreadsheetId)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "GOOGLE_SHEET_SPREADSHEET_REQUIRED",
+          "Google Sheet node requires a spreadsheet ID.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+    if (isBlank(data.sheetName)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "GOOGLE_SHEET_NAME_REQUIRED",
+          "Google Sheet node requires a sheet name.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+    if (isBlank(data.lookupColumn)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "GOOGLE_SHEET_LOOKUP_COLUMN_REQUIRED",
+          "Google Sheet update requires a lookup column.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+    validateValueSource({
+      errors,
+      fieldLabel: "Google Sheet lookup value",
+      nodeId: node.id,
+      value: data.lookupValueSource,
+    });
+    validateColumnMappings({
+      errors,
+      fieldLabel: "Google Sheet update",
+      nodeId: node.id,
+      value: data.updateMappings,
+    });
+  }
+
+  if (node.type === "TALLY_LOOKUP") {
+    if (isBlank(data.lookupType)) {
+      errors.push(
+        issue("ERROR", "TALLY_LOOKUP_TYPE_REQUIRED", "Tally lookup type is required.", {
+          nodeId: node.id,
+        }),
+      );
+    }
+    validateValueSource({
+      errors,
+      fieldLabel: "Tally customer identifier",
+      nodeId: node.id,
+      value: data.customerIdentifierSource,
+    });
+    if (isBlank(data.saveResultAs)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "TALLY_SAVE_RESULT_REQUIRED",
+          "Tally lookup requires a result variable.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+  }
+
+  if (node.type === "PAYMENT_LINK") {
+    validateValueSource({
+      errors,
+      fieldLabel: "Payment amount",
+      nodeId: node.id,
+      value: data.amountSource,
+    });
+    validateValueSource({
+      errors,
+      fieldLabel: "Payment customer name",
+      nodeId: node.id,
+      value: data.customerNameSource,
+    });
+    validateValueSource({
+      errors,
+      fieldLabel: "Payment customer phone",
+      nodeId: node.id,
+      value: data.customerPhoneSource,
+    });
+    if (isBlank(data.purpose)) {
+      errors.push(
+        issue("ERROR", "PAYMENT_PURPOSE_REQUIRED", "Payment purpose is required.", {
+          nodeId: node.id,
+        }),
+      );
+    }
+    if (isBlank(data.savePaymentLinkAs)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "PAYMENT_SAVE_AS_REQUIRED",
+          "Payment Link node requires a save variable.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+    validateNumberRange({
+      errors,
+      label: "Payment link expiry",
+      max: 43200,
+      min: 5,
+      nodeId: node.id,
+      value: data.expiryMinutes,
+    });
+  }
+
+  if (node.type === "CATALOG_SEND") {
+    validateNumberRange({
+      errors,
+      label: "Catalog max products",
+      max: 30,
+      min: 1,
+      nodeId: node.id,
+      value: data.maxProducts,
+    });
+
+    if (
+      data.catalogSource === "MANUAL_PRODUCTS" &&
+      (!Array.isArray(data.productIds) ||
+        !data.productIds.some((productId) => stringValue(productId).trim()))
+    ) {
+      errors.push(
+        issue(
+          "ERROR",
+          "CATALOG_PRODUCTS_REQUIRED",
+          "Manual catalog send requires at least one product ID.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+  }
+
+  if (node.type === "AI_REPLY") {
+    if (isBlank(data.systemInstruction)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "AI_SYSTEM_INSTRUCTION_REQUIRED",
+          "AI Reply requires a system instruction.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+    if (isBlank(data.saveReplyAs)) {
+      errors.push(
+        issue("ERROR", "AI_SAVE_REPLY_REQUIRED", "AI Reply requires a save variable.", {
+          nodeId: node.id,
+        }),
+      );
+    }
+    if (isBlank(data.fallbackMessage)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "AI_FALLBACK_REQUIRED",
+          "AI Reply requires a fallback message.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+    if (!isRecord(data.userMessageSource)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "AI_MESSAGE_SOURCE_REQUIRED",
+          "AI Reply requires a user message source.",
+          { nodeId: node.id },
+        ),
+      );
+    } else {
+      if (!isAllowedAiMessageSourceType(data.userMessageSource.sourceType)) {
+        errors.push(
+          issue(
+            "ERROR",
+            "AI_MESSAGE_SOURCE_TYPE_INVALID",
+            "AI Reply message source type is invalid.",
+            { nodeId: node.id },
+          ),
+        );
+      }
+      if (isBlank(data.userMessageSource.sourceValue)) {
+        errors.push(
+          issue(
+            "ERROR",
+            "AI_MESSAGE_SOURCE_VALUE_REQUIRED",
+            "AI Reply message source requires a value.",
+            { nodeId: node.id },
+          ),
+        );
+      }
+    }
+    validateNumberRange({
+      errors,
+      label: "AI confidence threshold",
+      max: 1,
+      min: 0,
+      nodeId: node.id,
+      value: data.confidenceThreshold,
+    });
+    validateNumberRange({
+      errors,
+      label: "AI max tokens",
+      max: 2000,
+      min: 32,
+      nodeId: node.id,
+      value: data.maxTokens,
+    });
+  }
+
+  if (node.type === "FALLBACK") {
+    if (isBlank(data.fallbackMessage)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "FALLBACK_MESSAGE_REQUIRED",
+          "Fallback node requires a customer message.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+    if (!["SEND_MESSAGE", "HUMAN_HANDOFF", "END"].includes(stringValue(data.nextAction))) {
+      errors.push(
+        issue(
+          "ERROR",
+          "FALLBACK_ACTION_INVALID",
+          "Fallback next action is invalid.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+  }
+
+  if (node.type === "RETRY") {
+    if (isBlank(data.retryTargetNodeId)) {
+      errors.push(
+        issue("ERROR", "RETRY_TARGET_REQUIRED", "Retry target node is required.", {
+          nodeId: node.id,
+        }),
+      );
+    }
+    validateNumberRange({
+      errors,
+      label: "Retry max attempts",
+      max: 5,
+      min: 1,
+      nodeId: node.id,
+      value: data.maxRetries,
+    });
+    validateNumberRange({
+      errors,
+      label: "Retry delay",
+      max: 3600,
+      min: 0,
+      nodeId: node.id,
+      value: data.retryDelaySeconds,
+    });
+  }
+
+  if (node.type === "ERROR_HANDLER") {
+    if (
+      data.openInbox !== true &&
+      data.notifyTeam !== true &&
+      data.endSession !== true &&
+      isBlank(data.errorMessageToCustomer)
+    ) {
+      errors.push(
+        issue(
+          "ERROR",
+          "ERROR_HANDLER_ACTION_REQUIRED",
+          "Error Handler must message the customer, notify/open inbox, or end the session.",
+          { nodeId: node.id },
+        ),
+      );
+    }
   }
 
   if (node.type === "HUMAN_HANDOFF") {
@@ -970,6 +1630,11 @@ function validateBranchWarnings(
       .map((edge) => resolveSourceHandleId(node, edge.sourceHandle))
       .filter((handle): handle is string => Boolean(handle)),
   );
+  const warnMissingHandle = (handle: string, code: string, message: string) => {
+    if (!connectedHandles.has(handle)) {
+      warnings.push(issue("WARNING", code, message, { nodeId: node.id }));
+    }
+  };
 
   if (node.type === "CONDITION") {
     if (!connectedHandles.has("true")) {
@@ -996,27 +1661,166 @@ function validateBranchWarnings(
   }
 
   if (node.type === "API_CALL") {
-    if (!connectedHandles.has("success")) {
-      warnings.push(
-        issue(
-          "WARNING",
-          "API_CALL_MISSING_SUCCESS_PATH",
-          "API Call node should have a success path.",
-          { nodeId: node.id },
-        ),
-      );
-    }
+    warnMissingHandle(
+      "success",
+      "API_CALL_MISSING_SUCCESS_PATH",
+      "API Call node should have a success path.",
+    );
+    warnMissingHandle(
+      "error",
+      "API_CALL_MISSING_ERROR_PATH",
+      "API Call node should have an error path.",
+    );
+  }
 
-    if (!connectedHandles.has("error")) {
+  if (node.type === "WEBHOOK") {
+    warnMissingHandle(
+      "success",
+      "WEBHOOK_MISSING_SUCCESS_PATH",
+      "Webhook node should have a success path.",
+    );
+    warnMissingHandle(
+      "error",
+      "WEBHOOK_MISSING_ERROR_PATH",
+      "Webhook node should have an error path.",
+    );
+
+    if (data.mockResponse === undefined) {
       warnings.push(
         issue(
           "WARNING",
-          "API_CALL_MISSING_ERROR_PATH",
-          "API Call node should have an error path.",
+          "WEBHOOK_MOCK_RESPONSE_MISSING",
+          "Add a mock response so dry-run can test webhook mappings without external calls.",
           { nodeId: node.id },
         ),
       );
     }
+  }
+
+  if (node.type === "GOOGLE_SHEET_APPEND_ROW") {
+    warnMissingHandle(
+      "success",
+      "GOOGLE_SHEET_APPEND_MISSING_SUCCESS_PATH",
+      "Google Sheet Append Row should have a success path.",
+    );
+    warnMissingHandle(
+      "error",
+      "GOOGLE_SHEET_APPEND_MISSING_ERROR_PATH",
+      "Google Sheet Append Row should have an error path.",
+    );
+  }
+
+  if (node.type === "GOOGLE_SHEET_UPDATE_ROW") {
+    warnMissingHandle(
+      "success",
+      "GOOGLE_SHEET_UPDATE_MISSING_SUCCESS_PATH",
+      "Google Sheet Update Row should have a success path.",
+    );
+    warnMissingHandle(
+      "not_found",
+      "GOOGLE_SHEET_UPDATE_MISSING_NOT_FOUND_PATH",
+      "Google Sheet Update Row should have a not-found path.",
+    );
+    warnMissingHandle(
+      "error",
+      "GOOGLE_SHEET_UPDATE_MISSING_ERROR_PATH",
+      "Google Sheet Update Row should have an error path.",
+    );
+  }
+
+  if (node.type === "TALLY_LOOKUP") {
+    warnMissingHandle(
+      "found",
+      "TALLY_LOOKUP_MISSING_FOUND_PATH",
+      "Tally Lookup should have a found path.",
+    );
+    warnMissingHandle(
+      "not_found",
+      "TALLY_LOOKUP_MISSING_NOT_FOUND_PATH",
+      "Tally Lookup should have a not-found path.",
+    );
+    warnMissingHandle(
+      "error",
+      "TALLY_LOOKUP_MISSING_ERROR_PATH",
+      "Tally Lookup should have an error path.",
+    );
+  }
+
+  if (node.type === "PAYMENT_LINK") {
+    warnMissingHandle(
+      "created",
+      "PAYMENT_LINK_MISSING_CREATED_PATH",
+      "Payment Link should have a created path.",
+    );
+    warnMissingHandle(
+      "error",
+      "PAYMENT_LINK_MISSING_ERROR_PATH",
+      "Payment Link should have an error path.",
+    );
+  }
+
+  if (node.type === "CATALOG_SEND") {
+    warnMissingHandle(
+      "sent",
+      "CATALOG_SEND_MISSING_SENT_PATH",
+      "Catalog Send should have a sent path.",
+    );
+    warnMissingHandle(
+      "failed",
+      "CATALOG_SEND_MISSING_FAILED_PATH",
+      "Catalog Send should have a failed path.",
+    );
+  }
+
+  if (node.type === "AI_REPLY") {
+    warnMissingHandle(
+      "answered",
+      "AI_REPLY_MISSING_ANSWERED_PATH",
+      "AI Reply should have an answered path.",
+    );
+    warnMissingHandle(
+      "low_confidence",
+      "AI_REPLY_MISSING_LOW_CONFIDENCE_PATH",
+      "AI Reply should have a low-confidence path.",
+    );
+    warnMissingHandle(
+      "error",
+      "AI_REPLY_MISSING_ERROR_PATH",
+      "AI Reply should have an error path.",
+    );
+  }
+
+  if (node.type === "FALLBACK") {
+    warnMissingHandle(
+      stringValue(data.nextAction) === "HUMAN_HANDOFF"
+        ? "handoff"
+        : stringValue(data.nextAction) === "END"
+          ? "end"
+          : "next",
+      "FALLBACK_MISSING_ACTION_PATH",
+      "Fallback node should connect its selected action path.",
+    );
+  }
+
+  if (node.type === "RETRY") {
+    warnMissingHandle(
+      "retry",
+      "RETRY_MISSING_RETRY_PATH",
+      "Retry node should have a retry path.",
+    );
+    warnMissingHandle(
+      "max_retries_reached",
+      "RETRY_MISSING_MAX_RETRIES_PATH",
+      "Retry node should have a max-retries path.",
+    );
+  }
+
+  if (node.type === "ERROR_HANDLER" && data.endSession !== true) {
+    warnMissingHandle(
+      "handled",
+      "ERROR_HANDLER_MISSING_HANDLED_PATH",
+      "Error Handler should have a handled path unless it ends the session.",
+    );
   }
 
   if (node.type === "SEND_TEMPLATE" && !connectedHandles.has("failed")) {

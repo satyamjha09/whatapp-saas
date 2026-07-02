@@ -153,12 +153,15 @@ export async function setAutomationSessionLastOutboundMessage({
 }
 
 export async function completeAutomationSession(sessionId: string) {
+  const completedAt = new Date();
+
   return prisma.automationSession.update({
     where: {
       id: sessionId,
     },
     data: {
-      endedAt: new Date(),
+      completedAt,
+      endedAt: completedAt,
       status: "COMPLETED",
       waitingForReply: false,
       waitingNodeId: null,
@@ -167,12 +170,15 @@ export async function completeAutomationSession(sessionId: string) {
 }
 
 export async function pauseAutomationSessionForHandoff(sessionId: string) {
+  const handoffAt = new Date();
+
   return prisma.automationSession.update({
     where: {
       id: sessionId,
     },
     data: {
-      pausedAt: new Date(),
+      handoffAt,
+      pausedAt: handoffAt,
       status: "PAUSED",
       waitingForReply: false,
       waitingNodeId: null,
@@ -187,6 +193,8 @@ export async function failAutomationSession({
   error?: unknown;
   sessionId: string;
 }) {
+  const failedAt = new Date();
+
   return prisma.automationSession.update({
     where: {
       id: sessionId,
@@ -198,7 +206,8 @@ export async function failAutomationSession({
               error instanceof Error ? error.message : "Unknown automation error",
           } as Prisma.InputJsonValue)
         : undefined,
-      endedAt: new Date(),
+      endedAt: failedAt,
+      failedAt,
       status: "FAILED",
       waitingForReply: false,
       waitingNodeId: null,
@@ -207,12 +216,14 @@ export async function failAutomationSession({
 }
 
 export async function expireAutomationSession(sessionId: string) {
+  const endedAt = new Date();
+
   return prisma.automationSession.update({
     where: {
       id: sessionId,
     },
     data: {
-      endedAt: new Date(),
+      endedAt,
       status: "EXPIRED",
       waitingForReply: false,
       waitingNodeId: null,

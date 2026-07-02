@@ -84,6 +84,80 @@ export function getNodeOutputHandles(
     ];
   }
 
+  if (node.type === "WEBHOOK" || node.type === "GOOGLE_SHEET_APPEND_ROW") {
+    return [
+      { id: "success", label: "Success", required: true, type: "success" },
+      { id: "error", label: "Error", required: false, type: "error" },
+    ];
+  }
+
+  if (node.type === "GOOGLE_SHEET_UPDATE_ROW") {
+    return [
+      { id: "success", label: "Success", required: true, type: "success" },
+      { id: "not_found", label: "Not found", required: false, type: "branch" },
+      { id: "error", label: "Error", required: false, type: "error" },
+    ];
+  }
+
+  if (node.type === "TALLY_LOOKUP") {
+    return [
+      { id: "found", label: "Found", required: true, type: "success" },
+      { id: "not_found", label: "Not found", required: false, type: "branch" },
+      { id: "error", label: "Error", required: false, type: "error" },
+    ];
+  }
+
+  if (node.type === "PAYMENT_LINK") {
+    return [
+      { id: "created", label: "Created", required: true, type: "success" },
+      { id: "error", label: "Error", required: false, type: "error" },
+    ];
+  }
+
+  if (node.type === "CATALOG_SEND") {
+    return [
+      { id: "sent", label: "Sent", required: true, type: "success" },
+      { id: "failed", label: "Failed", required: false, type: "error" },
+    ];
+  }
+
+  if (node.type === "AI_REPLY") {
+    return [
+      { id: "answered", label: "Answered", required: true, type: "success" },
+      {
+        id: "low_confidence",
+        label: "Low confidence",
+        required: false,
+        type: "branch",
+      },
+      { id: "error", label: "Error", required: false, type: "error" },
+    ];
+  }
+
+  if (node.type === "FALLBACK") {
+    return [
+      { id: "next", label: "Next", required: false, type: "default" },
+      { id: "handoff", label: "Handoff", required: false, type: "branch" },
+      { id: "end", label: "End", required: false, type: "branch" },
+    ];
+  }
+
+  if (node.type === "RETRY") {
+    return [
+      { id: "retry", label: "Retry", required: true, type: "default" },
+      {
+        id: "max_retries_reached",
+        label: "Max retries",
+        required: false,
+        type: "error",
+      },
+    ];
+  }
+
+  if (node.type === "ERROR_HANDLER") {
+    return [{ id: "handled", label: "Handled", required: false, type: "success" }];
+  }
+
   if (node.type === "WAIT_FOR_REPLY") {
     return [
       {

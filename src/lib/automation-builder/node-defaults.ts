@@ -2,11 +2,13 @@ import {
   isAutomationNodeType,
   type ApiHeader,
   type ApiResponseMapping,
+  type AutomationColumnMapping,
   type AutomationEdge,
   type AutomationGraph,
   type AutomationNode,
   type AutomationNodeData,
   type AutomationNodeType,
+  type AutomationValueSource,
   type ButtonReplyRoute,
   type ListMessageSection,
   type QuickReplyButton,
@@ -45,6 +47,21 @@ function readStringArray(value: unknown, fallback: string[]) {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : fallback;
+}
+
+function readBoolean(value: unknown, fallback = false) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function parseJsonValue(value: unknown) {
+  if (typeof value !== "string") return value;
+  if (!value.trim()) return undefined;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
 }
 
 function parseArray<T>(
@@ -113,6 +130,65 @@ function normalizeTemplateSourceType(value: unknown) {
   ].includes(sourceType)
     ? (sourceType as TemplateVariableMapping["sourceType"])
     : "STATIC";
+}
+
+function normalizeValueSource(
+  value: unknown,
+  fallback: AutomationValueSource = {
+    sourceType: "STATIC",
+    sourceValue: "",
+  },
+): AutomationValueSource {
+  let source = value;
+
+  if (typeof value === "string" && value.trim()) {
+    try {
+      source = JSON.parse(value);
+    } catch {
+      return {
+        ...fallback,
+        sourceValue: value,
+      };
+    }
+  }
+
+  const record = isRecord(source) ? source : {};
+
+  return {
+    fallbackValue: readString(record.fallbackValue, fallback.fallbackValue).trim() || undefined,
+    sourceType: normalizeTemplateSourceType(record.sourceType ?? fallback.sourceType),
+    sourceValue: readString(record.sourceValue, fallback.sourceValue).trim(),
+  };
+}
+
+function normalizeAiMessageSource(value: unknown) {
+  let source = value;
+
+  if (typeof value === "string" && value.trim()) {
+    try {
+      source = JSON.parse(value);
+    } catch {
+      return {
+        sourceType: "STATIC" as const,
+        sourceValue: value,
+      };
+    }
+  }
+
+  const record = isRecord(source) ? source : {};
+  const sourceType = readString(record.sourceType, "TRIGGER_MESSAGE").toUpperCase();
+
+  return {
+    sourceType: [
+      "TRIGGER_MESSAGE",
+      "SESSION_CONTEXT",
+      "PREVIOUS_NODE_OUTPUT",
+      "STATIC",
+    ].includes(sourceType)
+      ? (sourceType as "TRIGGER_MESSAGE" | "SESSION_CONTEXT" | "PREVIOUS_NODE_OUTPUT" | "STATIC")
+      : "TRIGGER_MESSAGE",
+    sourceValue: readString(record.sourceValue, "trigger.text").trim(),
+  };
 }
 
 function normalizeHeaderType(value: unknown) {
@@ -186,7 +262,30 @@ function normalizeHeaders(value: unknown): ApiHeader[] {
 
       return {
         key,
+        secret: readBoolean(item.secret, false),
         value: mappedValue,
+      };
+    },
+    [],
+  );
+}
+
+function normalizeColumnMappings(value: unknown): AutomationColumnMapping[] {
+  return parseArray<AutomationColumnMapping>(
+    value,
+    (item) => {
+      if (!isRecord(item)) return null;
+
+      const columnName = readString(item.columnName).trim();
+      const sourceValue = readString(item.sourceValue).trim();
+
+      if (!columnName || !sourceValue) return null;
+
+      return {
+        columnName,
+        fallbackValue: readString(item.fallbackValue).trim() || undefined,
+        sourceType: normalizeTemplateSourceType(item.sourceType),
+        sourceValue,
       };
     },
     [],
@@ -450,6 +549,155 @@ export function createDefaultNodeData(
     };
   }
 
+  if (type === "WEBHOOK") {
+    return {
+      authMode: "NONE",
+      body: "{}",
+      headers: [],
+      label: "Webhook",
+      method: "POST",
+      mockResponse: {
+        ok: true,
+      },
+      responseMapping: [],
+      retryCount: 0,
+      timeoutMs: 10000,
+      url: "https://example.com/webhook",
+    };
+  }
+
+  if (type === "GOOGLE_SHEET_APPEND_ROW") {
+    return {
+      columnMappings: [
+        {
+          columnName: "Phone",
+          sourceType: "CONTACT_FIELD",
+          sourceValue: "phoneNumber",
+        },
+      ],
+      connectedGoogleAccountId: "",
+      label: "Google Sheet Append Row",
+      sheetName: "Sheet1",
+      spreadsheetId: "",
+    };
+  }
+
+  if (type === "GOOGLE_SHEET_UPDATE_ROW") {
+    return {
+      connectedGoogleAccountId: "",
+      label: "Google Sheet Update Row",
+      lookupColumn: "Phone",
+      lookupValueSource: {
+        sourceType: "CONTACT_FIELD",
+        sourceValue: "phoneNumber",
+      },
+      sheetName: "Sheet1",
+      spreadsheetId: "",
+      updateMappings: [
+        {
+          columnName: "Status",
+          sourceType: "STATIC",
+          sourceValue: "Updated",
+        },
+      ],
+    };
+  }
+
+  if (type === "TALLY_LOOKUP") {
+    return {
+      customerIdentifierSource: {
+        sourceType: "CONTACT_FIELD",
+        sourceValue: "phoneNumber",
+      },
+      label: "Tally Lookup",
+      lookupType: "LEDGER_BALANCE",
+      mockResult: {
+        balance: "12500.00",
+        currency: "INR",
+        found: true,
+      },
+      saveResultAs: "tallyResult",
+    };
+  }
+
+  if (type === "PAYMENT_LINK") {
+    return {
+      amountSource: {
+        sourceType: "STATIC",
+        sourceValue: "1000",
+      },
+      currency: "INR",
+      customerNameSource: {
+        sourceType: "CONTACT_FIELD",
+        sourceValue: "name",
+      },
+      customerPhoneSource: {
+        sourceType: "CONTACT_FIELD",
+        sourceValue: "phoneNumber",
+      },
+      expiryMinutes: 1440,
+      label: "Payment Link",
+      mockPaymentLink: "https://payments.test/tallykonnect/mock-payment-link",
+      provider: "CASHFREE",
+      purpose: "Payment request",
+      savePaymentLinkAs: "paymentLink",
+    };
+  }
+
+  if (type === "CATALOG_SEND") {
+    return {
+      catalogSource: "MANUAL_PRODUCTS",
+      fallbackText: "Here are the products we discussed.",
+      label: "Catalog Send",
+      maxProducts: 5,
+      productIds: ["product_1"],
+    };
+  }
+
+  if (type === "AI_REPLY") {
+    return {
+      confidenceThreshold: 0.7,
+      fallbackMessage: "I am not fully sure. Our team will help you shortly.",
+      knowledgeBaseIds: [],
+      label: "AI Reply",
+      maxTokens: 300,
+      saveReplyAs: "aiReply",
+      systemInstruction: "Answer briefly and avoid unsupported claims.",
+      userMessageSource: {
+        sourceType: "TRIGGER_MESSAGE",
+        sourceValue: "trigger.text",
+      },
+    };
+  }
+
+  if (type === "FALLBACK") {
+    return {
+      fallbackMessage: "Sorry, I could not process that. Let me route you safely.",
+      label: "Fallback",
+      nextAction: "SEND_MESSAGE",
+    };
+  }
+
+  if (type === "RETRY") {
+    return {
+      label: "Retry",
+      maxRetries: 3,
+      onMaxRetriesAction: "ERROR_PATH",
+      retryDelaySeconds: 5,
+      retryTargetNodeId: "",
+    };
+  }
+
+  if (type === "ERROR_HANDLER") {
+    return {
+      endSession: false,
+      errorMessageToCustomer: "Something went wrong. Our team will check this.",
+      label: "Error Handler",
+      notifyTeam: true,
+      openInbox: true,
+    };
+  }
+
   return {
     endReason: "Completed",
     label: "End",
@@ -683,6 +931,215 @@ export function normalizeAutomationNodeData(
       )
         ? (data.unit as Extract<AutomationNodeData, { unit: unknown }>["unit"])
         : "MINUTES",
+    };
+  }
+
+  if (type === "WEBHOOK") {
+    const authMode = readString(data.authMode, "NONE").toUpperCase();
+    const authConfig = isRecord(data.authConfig) ? data.authConfig : {};
+
+    return {
+      authConfig: {
+        headerName: readString(authConfig.headerName) || undefined,
+        passwordSecretId: readString(authConfig.passwordSecretId) || undefined,
+        tokenSecretId: readString(authConfig.tokenSecretId) || undefined,
+        usernameSecretId: readString(authConfig.usernameSecretId) || undefined,
+      },
+      authMode: ["NONE", "API_KEY", "BEARER_TOKEN", "BASIC"].includes(authMode)
+        ? (authMode as "NONE" | "API_KEY" | "BEARER_TOKEN" | "BASIC")
+        : "NONE",
+      body: readString(data.body) || undefined,
+      headers: normalizeHeaders(data.headers),
+      label,
+      method: ["GET", "POST", "PUT", "PATCH", "DELETE"].includes(
+        readString(data.method),
+      )
+        ? (data.method as "GET" | "POST" | "PUT" | "PATCH" | "DELETE")
+        : "POST",
+      mockResponse: parseJsonValue(data.mockResponse),
+      responseMapping: normalizeResponseMappings(data.responseMapping),
+      retryCount: Math.max(0, Math.min(3, readNumber(data.retryCount, 0))),
+      timeoutMs: Math.max(1000, Math.min(30000, readNumber(data.timeoutMs, 10000))),
+      url: readString(data.url),
+    };
+  }
+
+  if (type === "GOOGLE_SHEET_APPEND_ROW") {
+    return {
+      columnMappings: normalizeColumnMappings(data.columnMappings),
+      connectedGoogleAccountId: readString(data.connectedGoogleAccountId),
+      label,
+      sheetName: readString(data.sheetName, "Sheet1"),
+      spreadsheetId: readString(data.spreadsheetId),
+    };
+  }
+
+  if (type === "GOOGLE_SHEET_UPDATE_ROW") {
+    return {
+      connectedGoogleAccountId: readString(data.connectedGoogleAccountId),
+      label,
+      lookupColumn: readString(data.lookupColumn),
+      lookupValueSource: normalizeValueSource(data.lookupValueSource, {
+        sourceType: "CONTACT_FIELD",
+        sourceValue: "phoneNumber",
+      }),
+      sheetName: readString(data.sheetName, "Sheet1"),
+      spreadsheetId: readString(data.spreadsheetId),
+      updateMappings: normalizeColumnMappings(data.updateMappings),
+    };
+  }
+
+  if (type === "TALLY_LOOKUP") {
+    const lookupType = readString(data.lookupType, "LEDGER_BALANCE").toUpperCase();
+
+    return {
+      customerIdentifierSource: normalizeValueSource(
+        data.customerIdentifierSource,
+        {
+          sourceType: "CONTACT_FIELD",
+          sourceValue: "phoneNumber",
+        },
+      ),
+      invoiceNumberSource: data.invoiceNumberSource
+        ? normalizeValueSource(data.invoiceNumberSource)
+        : undefined,
+      label,
+      lookupType: [
+        "LEDGER_BALANCE",
+        "INVOICE_STATUS",
+        "STOCK_ITEM",
+        "CUSTOMER_DUES",
+        "CUSTOMER_LEDGER",
+        "SALES_ORDER_STATUS",
+      ].includes(lookupType)
+        ? (lookupType as Extract<
+            AutomationNodeData,
+            { lookupType: unknown }
+          >["lookupType"])
+        : "LEDGER_BALANCE",
+      mockResult: parseJsonValue(data.mockResult),
+      saveResultAs: readString(data.saveResultAs, "tallyResult"),
+      stockItemSource: data.stockItemSource
+        ? normalizeValueSource(data.stockItemSource)
+        : undefined,
+    };
+  }
+
+  if (type === "PAYMENT_LINK") {
+    return {
+      amountSource: normalizeValueSource(data.amountSource, {
+        sourceType: "STATIC",
+        sourceValue: "1000",
+      }),
+      currency: "INR",
+      customerEmailSource: data.customerEmailSource
+        ? normalizeValueSource(data.customerEmailSource)
+        : undefined,
+      customerNameSource: normalizeValueSource(data.customerNameSource, {
+        sourceType: "CONTACT_FIELD",
+        sourceValue: "name",
+      }),
+      customerPhoneSource: normalizeValueSource(data.customerPhoneSource, {
+        sourceType: "CONTACT_FIELD",
+        sourceValue: "phoneNumber",
+      }),
+      expiryMinutes: Math.max(
+        10,
+        Math.min(10080, readNumber(data.expiryMinutes, 1440)),
+      ),
+      label,
+      mockPaymentLink: readString(data.mockPaymentLink) || undefined,
+      provider: "CASHFREE",
+      purpose: readString(data.purpose, "Payment request"),
+      savePaymentLinkAs: readString(data.savePaymentLinkAs, "paymentLink"),
+    };
+  }
+
+  if (type === "CATALOG_SEND") {
+    const catalogSource = readString(data.catalogSource, "MANUAL_PRODUCTS").toUpperCase();
+
+    return {
+      catalogId: readString(data.catalogId) || undefined,
+      catalogSource: [
+        "WHATSAPP_CATALOG",
+        "TALLY_STOCK",
+        "MANUAL_PRODUCTS",
+      ].includes(catalogSource)
+        ? (catalogSource as "WHATSAPP_CATALOG" | "TALLY_STOCK" | "MANUAL_PRODUCTS")
+        : "MANUAL_PRODUCTS",
+      categoryFilter: readString(data.categoryFilter) || undefined,
+      fallbackText: readString(data.fallbackText) || undefined,
+      label,
+      maxProducts: Math.max(1, Math.min(30, readNumber(data.maxProducts, 5))),
+      productIds: readStringArray(data.productIds, []),
+    };
+  }
+
+  if (type === "AI_REPLY") {
+    const mockResponse = parseJsonValue(data.mockResponse);
+
+    return {
+      agentId: readString(data.agentId) || undefined,
+      confidenceThreshold: Math.max(
+        0,
+        Math.min(1, readNumber(data.confidenceThreshold, 0.7)),
+      ),
+      fallbackMessage: readString(data.fallbackMessage),
+      knowledgeBaseIds: readStringArray(data.knowledgeBaseIds, []),
+      label,
+      maxTokens: Math.max(50, Math.min(1000, readNumber(data.maxTokens, 300))),
+      mockResponse: isRecord(mockResponse)
+        ? {
+            confidence: readNumber(mockResponse.confidence, 0.8),
+            text: readString(mockResponse.text),
+          }
+        : undefined,
+      saveReplyAs: readString(data.saveReplyAs, "aiReply"),
+      systemInstruction: readString(data.systemInstruction),
+      userMessageSource: normalizeAiMessageSource(data.userMessageSource),
+    };
+  }
+
+  if (type === "FALLBACK") {
+    const nextAction = readString(data.nextAction, "SEND_MESSAGE").toUpperCase();
+
+    return {
+      fallbackMessage: readString(data.fallbackMessage),
+      label,
+      nextAction: ["SEND_MESSAGE", "HUMAN_HANDOFF", "END"].includes(nextAction)
+        ? (nextAction as "SEND_MESSAGE" | "HUMAN_HANDOFF" | "END")
+        : "SEND_MESSAGE",
+    };
+  }
+
+  if (type === "RETRY") {
+    const action = readString(data.onMaxRetriesAction, "ERROR_PATH").toUpperCase();
+
+    return {
+      label,
+      maxRetries: Math.max(1, Math.min(5, readNumber(data.maxRetries, 3))),
+      onMaxRetriesAction: [
+        "ERROR_PATH",
+        "HUMAN_HANDOFF",
+        "END",
+      ].includes(action)
+        ? (action as "ERROR_PATH" | "HUMAN_HANDOFF" | "END")
+        : "ERROR_PATH",
+      retryDelaySeconds: Math.max(
+        1,
+        Math.min(3600, readNumber(data.retryDelaySeconds, 5)),
+      ),
+      retryTargetNodeId: readString(data.retryTargetNodeId),
+    };
+  }
+
+  if (type === "ERROR_HANDLER") {
+    return {
+      endSession: readBoolean(data.endSession, false),
+      errorMessageToCustomer: readString(data.errorMessageToCustomer) || undefined,
+      label,
+      notifyTeam: readBoolean(data.notifyTeam, true),
+      openInbox: readBoolean(data.openInbox, true),
     };
   }
 

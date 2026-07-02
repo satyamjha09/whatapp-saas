@@ -9,14 +9,24 @@ import {
 } from "@/app/dashboard/dashboard-ui";
 import type { AutomationFlowNode } from "@/components/automation-builder/node-renderer";
 import ApiNodeForm from "@/components/automation-builder/node-forms/api-node-form";
+import AiReplyNodeForm from "@/components/automation-builder/node-forms/ai-reply-node-form";
 import ButtonReplyRouterNodeForm from "@/components/automation-builder/node-forms/button-reply-router-node-form";
+import CatalogSendNodeForm from "@/components/automation-builder/node-forms/catalog-send-node-form";
 import ConditionNodeForm from "@/components/automation-builder/node-forms/condition-node-form";
+import ErrorHandlerNodeForm from "@/components/automation-builder/node-forms/error-handler-node-form";
+import FallbackNodeForm from "@/components/automation-builder/node-forms/fallback-node-form";
+import GoogleSheetAppendRowNodeForm from "@/components/automation-builder/node-forms/google-sheet-append-row-node-form";
+import GoogleSheetUpdateRowNodeForm from "@/components/automation-builder/node-forms/google-sheet-update-row-node-form";
 import HandoffNodeForm from "@/components/automation-builder/node-forms/handoff-node-form";
 import MessageNodeForm from "@/components/automation-builder/node-forms/message-node-form";
+import PaymentLinkNodeForm from "@/components/automation-builder/node-forms/payment-link-node-form";
 import QuickReplyNodeForm from "@/components/automation-builder/node-forms/quick-reply-node-form";
+import RetryNodeForm from "@/components/automation-builder/node-forms/retry-node-form";
+import TallyLookupNodeForm from "@/components/automation-builder/node-forms/tally-lookup-node-form";
 import TemplateNodeForm from "@/components/automation-builder/node-forms/template-node-form";
 import TemplateTriggerNodeForm from "@/components/automation-builder/node-forms/template-trigger-node-form";
 import WaitForReplyNodeForm from "@/components/automation-builder/node-forms/wait-for-reply-node-form";
+import WebhookNodeForm from "@/components/automation-builder/node-forms/webhook-node-form";
 import {
   createDefaultNodeData,
   getAutomationNodeLabel,
@@ -238,6 +248,90 @@ function validateNode(
     }
   }
 
+  if (type === "WEBHOOK") {
+    if (isBlank(draft.url)) {
+      errors.url = "Webhook URL is required.";
+    } else if (!isValidHttpUrl(String(draft.url))) {
+      errors.url = "Enter a valid http or https URL.";
+    }
+
+    const timeoutMs = Number(draft.timeoutMs);
+    if (!Number.isFinite(timeoutMs) || timeoutMs < 1000 || timeoutMs > 30000) {
+      errors.timeoutMs = "Timeout must be between 1000 and 30000 ms.";
+    }
+
+    const retryCount = Number(draft.retryCount);
+    if (!Number.isFinite(retryCount) || retryCount < 0 || retryCount > 3) {
+      errors.retryCount = "Retry count must be between 0 and 3.";
+    }
+  }
+
+  if (
+    type === "GOOGLE_SHEET_APPEND_ROW" ||
+    type === "GOOGLE_SHEET_UPDATE_ROW"
+  ) {
+    if (isBlank(draft.connectedGoogleAccountId)) {
+      errors.connectedGoogleAccountId = "Google account is required.";
+    }
+    if (isBlank(draft.spreadsheetId)) {
+      errors.spreadsheetId = "Spreadsheet ID is required.";
+    }
+    if (isBlank(draft.sheetName)) {
+      errors.sheetName = "Sheet name is required.";
+    }
+    if (type === "GOOGLE_SHEET_UPDATE_ROW" && isBlank(draft.lookupColumn)) {
+      errors.lookupColumn = "Lookup column is required.";
+    }
+  }
+
+  if (type === "TALLY_LOOKUP" && isBlank(draft.saveResultAs)) {
+    errors.saveResultAs = "Save result variable is required.";
+  }
+
+  if (type === "PAYMENT_LINK") {
+    if (isBlank(draft.purpose)) errors.purpose = "Purpose is required.";
+    if (isBlank(draft.savePaymentLinkAs)) {
+      errors.savePaymentLinkAs = "Save link variable is required.";
+    }
+    const expiryMinutes = Number(draft.expiryMinutes);
+    if (
+      !Number.isFinite(expiryMinutes) ||
+      expiryMinutes < 10 ||
+      expiryMinutes > 10080
+    ) {
+      errors.expiryMinutes = "Expiry must be between 10 and 10080 minutes.";
+    }
+  }
+
+  if (type === "CATALOG_SEND") {
+    const maxProducts = Number(draft.maxProducts);
+    if (!Number.isFinite(maxProducts) || maxProducts < 1 || maxProducts > 30) {
+      errors.maxProducts = "Max products must be between 1 and 30.";
+    }
+  }
+
+  if (type === "AI_REPLY") {
+    if (isBlank(draft.systemInstruction)) {
+      errors.systemInstruction = "System instruction is required.";
+    }
+    if (isBlank(draft.saveReplyAs)) {
+      errors.saveReplyAs = "Save reply variable is required.";
+    }
+    if (isBlank(draft.fallbackMessage)) {
+      errors.fallbackMessage = "Fallback message is required.";
+    }
+  }
+
+  if (type === "FALLBACK" && isBlank(draft.fallbackMessage)) {
+    errors.fallbackMessage = "Fallback message is required.";
+  }
+
+  if (type === "RETRY") {
+    if (isBlank(draft.retryTargetNodeId)) {
+      errors.retryTargetNodeId = "Retry target node ID is required.";
+    }
+  }
+
   if (type === "HUMAN_HANDOFF" && isBlank(draft.messageToCustomer)) {
     errors.messageToCustomer = "Handoff message is required.";
   }
@@ -270,6 +364,8 @@ function createDraft(node: AutomationFlowNode | null): AutomationEditableNodeDat
 
   const data: Record<string, unknown> = { ...node.data };
   delete data.nodeType;
+  delete data.testIsCurrent;
+  delete data.testStatus;
   delete data.validationIssueCount;
   delete data.validationSeverity;
 
@@ -547,6 +643,70 @@ function NodeEditingDrawerContent({
 
         {node.data.nodeType === "API_CALL" ? (
           <ApiNodeForm draft={draft} errors={errors} setDraft={setDraft} />
+        ) : null}
+
+        {node.data.nodeType === "WEBHOOK" ? (
+          <WebhookNodeForm draft={draft} errors={errors} setDraft={setDraft} />
+        ) : null}
+
+        {node.data.nodeType === "GOOGLE_SHEET_APPEND_ROW" ? (
+          <GoogleSheetAppendRowNodeForm
+            draft={draft}
+            errors={errors}
+            setDraft={setDraft}
+          />
+        ) : null}
+
+        {node.data.nodeType === "GOOGLE_SHEET_UPDATE_ROW" ? (
+          <GoogleSheetUpdateRowNodeForm
+            draft={draft}
+            errors={errors}
+            setDraft={setDraft}
+          />
+        ) : null}
+
+        {node.data.nodeType === "TALLY_LOOKUP" ? (
+          <TallyLookupNodeForm
+            draft={draft}
+            errors={errors}
+            setDraft={setDraft}
+          />
+        ) : null}
+
+        {node.data.nodeType === "PAYMENT_LINK" ? (
+          <PaymentLinkNodeForm
+            draft={draft}
+            errors={errors}
+            setDraft={setDraft}
+          />
+        ) : null}
+
+        {node.data.nodeType === "CATALOG_SEND" ? (
+          <CatalogSendNodeForm
+            draft={draft}
+            errors={errors}
+            setDraft={setDraft}
+          />
+        ) : null}
+
+        {node.data.nodeType === "AI_REPLY" ? (
+          <AiReplyNodeForm draft={draft} errors={errors} setDraft={setDraft} />
+        ) : null}
+
+        {node.data.nodeType === "FALLBACK" ? (
+          <FallbackNodeForm draft={draft} errors={errors} setDraft={setDraft} />
+        ) : null}
+
+        {node.data.nodeType === "RETRY" ? (
+          <RetryNodeForm draft={draft} errors={errors} setDraft={setDraft} />
+        ) : null}
+
+        {node.data.nodeType === "ERROR_HANDLER" ? (
+          <ErrorHandlerNodeForm
+            draft={draft}
+            errors={errors}
+            setDraft={setDraft}
+          />
         ) : null}
 
         {node.data.nodeType === "HUMAN_HANDOFF" ? (

@@ -57,6 +57,7 @@ const navigationIcons: Record<
   Reports: Gauge,
   "Scheduled Items": CalendarClock,
   Analytics: Gauge,
+  Automation: Sparkles,
   Money: Wallet,
   Contact: ContactRound,
   "WhatsApp Items": MessageCircle,

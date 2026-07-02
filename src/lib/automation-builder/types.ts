@@ -14,6 +14,16 @@ export const automationNodeTypes = [
   "REMOVE_TAG",
   "UPDATE_CONTACT_FIELD",
   "DELAY",
+  "WEBHOOK",
+  "GOOGLE_SHEET_APPEND_ROW",
+  "GOOGLE_SHEET_UPDATE_ROW",
+  "TALLY_LOOKUP",
+  "PAYMENT_LINK",
+  "CATALOG_SEND",
+  "AI_REPLY",
+  "FALLBACK",
+  "RETRY",
+  "ERROR_HANDLER",
   "END",
 ] as const;
 
@@ -174,11 +184,48 @@ export type ButtonReplyRouterNodeData = {
 export type ApiHeader = {
   key: string;
   value: string;
+  secret?: boolean;
 };
 
 export type ApiResponseMapping = {
   responsePath: string;
   saveAs: string;
+};
+
+export type AutomationValueSourceType =
+  | "CONTACT_FIELD"
+  | "STATIC"
+  | "SESSION_CONTEXT"
+  | "PREVIOUS_NODE_OUTPUT"
+  | "CUSTOM_ATTRIBUTE";
+
+export type AutomationValueSource = {
+  sourceType: AutomationValueSourceType;
+  sourceValue: string;
+  fallbackValue?: string;
+};
+
+export type AutomationColumnMapping = AutomationValueSource & {
+  columnName: string;
+};
+
+export type WebhookNodeData = {
+  label: string;
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  url: string;
+  headers: ApiHeader[];
+  body?: string;
+  timeoutMs: number;
+  retryCount: number;
+  authMode: "NONE" | "API_KEY" | "BEARER_TOKEN" | "BASIC";
+  authConfig?: {
+    headerName?: string;
+    tokenSecretId?: string;
+    usernameSecretId?: string;
+    passwordSecretId?: string;
+  };
+  responseMapping: ApiResponseMapping[];
+  mockResponse?: unknown;
 };
 
 export type ApiCallNodeData = {
@@ -188,6 +235,109 @@ export type ApiCallNodeData = {
   headers: ApiHeader[];
   body?: string;
   responseMapping: ApiResponseMapping[];
+};
+
+export type GoogleSheetAppendRowNodeData = {
+  label: string;
+  connectedGoogleAccountId: string;
+  spreadsheetId: string;
+  sheetName: string;
+  columnMappings: AutomationColumnMapping[];
+};
+
+export type GoogleSheetUpdateRowNodeData = {
+  label: string;
+  connectedGoogleAccountId: string;
+  spreadsheetId: string;
+  sheetName: string;
+  lookupColumn: string;
+  lookupValueSource: AutomationValueSource;
+  updateMappings: AutomationColumnMapping[];
+};
+
+export type TallyLookupNodeData = {
+  label: string;
+  lookupType:
+    | "LEDGER_BALANCE"
+    | "INVOICE_STATUS"
+    | "STOCK_ITEM"
+    | "CUSTOMER_DUES"
+    | "CUSTOMER_LEDGER"
+    | "SALES_ORDER_STATUS";
+  customerIdentifierSource: AutomationValueSource;
+  invoiceNumberSource?: AutomationValueSource;
+  stockItemSource?: AutomationValueSource;
+  saveResultAs: string;
+  mockResult?: unknown;
+};
+
+export type PaymentLinkNodeData = {
+  label: string;
+  provider: "CASHFREE";
+  amountSource: AutomationValueSource;
+  currency: "INR";
+  customerNameSource: AutomationValueSource;
+  customerPhoneSource: AutomationValueSource;
+  customerEmailSource?: AutomationValueSource;
+  purpose: string;
+  savePaymentLinkAs: string;
+  expiryMinutes: number;
+  mockPaymentLink?: string;
+};
+
+export type CatalogSendNodeData = {
+  label: string;
+  catalogSource: "WHATSAPP_CATALOG" | "TALLY_STOCK" | "MANUAL_PRODUCTS";
+  catalogId?: string;
+  productIds: string[];
+  categoryFilter?: string;
+  maxProducts: number;
+  fallbackText?: string;
+};
+
+export type AiReplyNodeData = {
+  label: string;
+  agentId?: string;
+  systemInstruction: string;
+  knowledgeBaseIds: string[];
+  userMessageSource: {
+    sourceType:
+      | "TRIGGER_MESSAGE"
+      | "SESSION_CONTEXT"
+      | "PREVIOUS_NODE_OUTPUT"
+      | "STATIC";
+    sourceValue: string;
+  };
+  saveReplyAs: string;
+  confidenceThreshold: number;
+  fallbackMessage: string;
+  maxTokens: number;
+  mockResponse?: {
+    confidence?: number;
+    text?: string;
+  };
+};
+
+export type FallbackNodeData = {
+  label: string;
+  fallbackMessage: string;
+  nextAction: "SEND_MESSAGE" | "HUMAN_HANDOFF" | "END";
+};
+
+export type RetryNodeData = {
+  label: string;
+  maxRetries: number;
+  retryDelaySeconds: number;
+  retryTargetNodeId: string;
+  onMaxRetriesAction: "ERROR_PATH" | "HUMAN_HANDOFF" | "END";
+};
+
+export type ErrorHandlerNodeData = {
+  label: string;
+  errorMessageToCustomer?: string;
+  notifyTeam: boolean;
+  openInbox: boolean;
+  endSession: boolean;
 };
 
 export type HumanHandoffNodeData = {
@@ -241,6 +391,16 @@ export type AutomationNodeData =
   | RemoveTagNodeData
   | UpdateContactFieldNodeData
   | DelayNodeData
+  | WebhookNodeData
+  | GoogleSheetAppendRowNodeData
+  | GoogleSheetUpdateRowNodeData
+  | TallyLookupNodeData
+  | PaymentLinkNodeData
+  | CatalogSendNodeData
+  | AiReplyNodeData
+  | FallbackNodeData
+  | RetryNodeData
+  | ErrorHandlerNodeData
   | EndNodeData;
 
 export type AutomationGraphValidationSeverity = "ERROR" | "WARNING";
@@ -274,6 +434,15 @@ export type AutomationNodeIconName =
   | "tag"
   | "contact"
   | "delay"
+  | "sheet"
+  | "tally"
+  | "payment"
+  | "catalog"
+  | "ai"
+  | "fallback"
+  | "retry"
+  | "error"
+  | "webhook"
   | "end";
 
 export function isAutomationNodeType(

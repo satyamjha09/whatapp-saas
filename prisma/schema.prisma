@@ -1868,9 +1868,9 @@ model AutomationFlow {
   description String?
   status      AutomationFlowStatus @default(DRAFT)
 
-  draftGraph         Json
-  publishedVersionId String?
-  publishedAt        DateTime?
+  draftGraph            Json
+  publishedVersionId    String?
+  publishedAt           DateTime?
   lastPublishedByUserId String?
 
   triggerType AutomationTriggerType?
@@ -1898,11 +1898,11 @@ model AutomationFlowVersion {
   companyId String
   flowId    String
 
-  versionNumber      Int
-  graph              Json
-  validationSnapshot Json?
-  publishNotes       String?
-  isRollback         Boolean @default(false)
+  versionNumber         Int
+  graph                 Json
+  validationSnapshot    Json?
+  publishNotes          String?
+  isRollback            Boolean @default(false)
   rollbackFromVersionId String?
 
   publishedByUserId String?
@@ -1940,10 +1940,16 @@ model AutomationSession {
   lastInboundMessageId  String?
   lastOutboundMessageId String?
 
-  startedAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  endedAt   DateTime?
-  pausedAt  DateTime?
+  startedAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  endedAt     DateTime?
+  pausedAt    DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  handoffAt   DateTime?
+
+  lastExecutionId String?
+  metadata        Json?
 
   flow        AutomationFlow        @relation(fields: [flowId], references: [id], onDelete: Cascade)
   flowVersion AutomationFlowVersion @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
@@ -1955,8 +1961,14 @@ model AutomationSession {
   @@index([companyId, flowVersionId])
   @@index([companyId, status])
   @@index([companyId, flowId, contactId])
+  @@index([companyId, flowId, status])
+  @@index([companyId, flowVersionId, status])
+  @@index([companyId, currentNodeId])
+  @@index([companyId, waitingForReply])
   @@index([lastInboundMessageId])
+  @@index([lastExecutionId])
   @@index([replyTimeoutAt])
+  @@index([startedAt])
 }
 
 model AutomationExecution {
@@ -1973,22 +1985,33 @@ model AutomationExecution {
   triggerMessageId String?
   triggerPayload   Json?
 
-  startedAt    DateTime  @default(now())
-  completedAt  DateTime?
-  errorMessage String?
+  startedAt            DateTime  @default(now())
+  completedAt          DateTime?
+  durationMs           Int?
+  failedNodeId         String?
+  failedNodeType       String?
+  conversionType       String?
+  conversionValuePaise Int?
+  metadata             Json?
+  errorMessage         String?
 
-  flow        AutomationFlow         @relation(fields: [flowId], references: [id], onDelete: Cascade)
-  flowVersion AutomationFlowVersion  @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
-  session     AutomationSession?     @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  flow        AutomationFlow        @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  flowVersion AutomationFlowVersion @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
+  session     AutomationSession?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   steps AutomationExecutionStep[]
 
   @@unique([companyId, triggerMessageId, flowId])
   @@index([companyId])
   @@index([companyId, flowId])
+  @@index([companyId, flowId, startedAt])
+  @@index([companyId, flowId, status])
   @@index([companyId, flowVersionId])
   @@index([companyId, sessionId])
+  @@index([companyId, triggerType])
+  @@index([companyId, failedNodeId])
   @@index([triggerMessageId])
+  @@index([startedAt])
 }
 
 model AutomationExecutionStep {
@@ -2004,6 +2027,11 @@ model AutomationExecutionStep {
   input        Json?
   output       Json?
   errorMessage String?
+  durationMs   Int?
+  sourceHandle String?
+  targetNodeId String?
+  retryCount   Int     @default(0)
+  metadata     Json?
 
   startedAt   DateTime  @default(now())
   completedAt DateTime?
@@ -2011,8 +2039,13 @@ model AutomationExecutionStep {
   execution AutomationExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+  @@index([companyId, executionId])
+  @@index([companyId, nodeId])
+  @@index([companyId, nodeType])
+  @@index([companyId, status])
   @@index([executionId])
   @@index([nodeId])
+  @@index([startedAt])
 }
 
 model AutomationTestRun {

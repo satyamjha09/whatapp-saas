@@ -48,6 +48,10 @@ function asErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unknown automation error";
 }
 
+function durationMs(startedAt: Date, completedAt: Date) {
+  return Math.max(0, completedAt.getTime() - startedAt.getTime());
+}
+
 function isUniqueConstraintError(error: unknown) {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
@@ -194,7 +198,7 @@ async function createAutomationExecution({
   if (existing) return existing;
 
   try {
-    return await prisma.automationExecution.create({
+    const execution = await prisma.automationExecution.create({
       data: {
         companyId,
         flowId,
@@ -206,6 +210,20 @@ async function createAutomationExecution({
         triggerType: triggerType ?? null,
       },
     });
+
+    if (sessionId) {
+      await prisma.automationSession.updateMany({
+        where: {
+          companyId,
+          id: sessionId,
+        },
+        data: {
+          lastExecutionId: execution.id,
+        },
+      });
+    }
+
+    return execution;
   } catch (error) {
     if (!isUniqueConstraintError(error)) throw error;
 
@@ -220,14 +238,28 @@ async function createAutomationExecution({
 export async function failAutomationExecution(
   executionId: string,
   error: unknown,
+  failedNode?: Pick<AutomationNode, "id" | "type"> | null,
 ) {
+  const completedAt = new Date();
+  const execution = await prisma.automationExecution.findUnique({
+    where: {
+      id: executionId,
+    },
+    select: {
+      startedAt: true,
+    },
+  });
+
   return prisma.automationExecution.update({
     where: {
       id: executionId,
     },
     data: {
-      completedAt: new Date(),
+      completedAt,
+      durationMs: execution ? durationMs(execution.startedAt, completedAt) : undefined,
       errorMessage: asErrorMessage(error),
+      failedNodeId: failedNode?.id ?? undefined,
+      failedNodeType: failedNode?.type ?? undefined,
       status: "FAILED",
     },
   });
@@ -240,12 +272,28 @@ async function markAutomationExecutionStatus({
   executionId: string;
   status: "SUCCESS" | "WAITING" | "SKIPPED";
 }) {
+  const completedAt = status === "WAITING" ? null : new Date();
+  const execution = completedAt
+    ? await prisma.automationExecution.findUnique({
+        where: {
+          id: executionId,
+        },
+        select: {
+          startedAt: true,
+        },
+      })
+    : null;
+
   return prisma.automationExecution.update({
     where: {
       id: executionId,
     },
     data: {
-      completedAt: status === "WAITING" ? null : new Date(),
+      completedAt,
+      durationMs:
+        completedAt && execution
+          ? durationMs(execution.startedAt, completedAt)
+          : undefined,
       status,
     },
   });
@@ -276,21 +324,38 @@ async function createRunningStep({
 
 async function completeStep({
   output,
+  sourceHandle,
   status,
   stepId,
+  targetNodeId,
 }: {
   output?: unknown;
+  sourceHandle?: string | null;
   status: "SUCCESS" | "FAILED" | "WAITING" | "SKIPPED";
   stepId: string;
+  targetNodeId?: string | null;
 }) {
+  const completedAt = new Date();
+  const step = await prisma.automationExecutionStep.findUnique({
+    where: {
+      id: stepId,
+    },
+    select: {
+      startedAt: true,
+    },
+  });
+
   return prisma.automationExecutionStep.update({
     where: {
       id: stepId,
     },
     data: {
-      completedAt: new Date(),
+      completedAt,
+      durationMs: step ? durationMs(step.startedAt, completedAt) : undefined,
       output: safeJson(output),
+      sourceHandle: sourceHandle ?? undefined,
       status,
+      targetNodeId: targetNodeId ?? undefined,
     },
   });
 }
@@ -298,21 +363,38 @@ async function completeStep({
 async function failStep({
   error,
   output,
+  sourceHandle,
   stepId,
+  targetNodeId,
 }: {
   error: unknown;
   output?: unknown;
+  sourceHandle?: string | null;
   stepId: string;
+  targetNodeId?: string | null;
 }) {
+  const completedAt = new Date();
+  const step = await prisma.automationExecutionStep.findUnique({
+    where: {
+      id: stepId,
+    },
+    select: {
+      startedAt: true,
+    },
+  });
+
   return prisma.automationExecutionStep.update({
     where: {
       id: stepId,
     },
     data: {
-      completedAt: new Date(),
+      completedAt,
+      durationMs: step ? durationMs(step.startedAt, completedAt) : undefined,
       errorMessage: asErrorMessage(error),
       output: output === undefined ? undefined : safeJson(output),
+      sourceHandle: sourceHandle ?? undefined,
       status: "FAILED",
+      targetNodeId: targetNodeId ?? undefined,
     },
   });
 }
@@ -356,6 +438,19 @@ async function executeAutomationGraphSafely(
 function getErrorHandleForNode(node: AutomationNode) {
   if (node.type === "SEND_TEMPLATE") return "failed";
   if (node.type === "API_CALL") return "error";
+  if (node.type === "CATALOG_SEND") return "failed";
+  if (
+    [
+      "AI_REPLY",
+      "GOOGLE_SHEET_APPEND_ROW",
+      "GOOGLE_SHEET_UPDATE_ROW",
+      "PAYMENT_LINK",
+      "TALLY_LOOKUP",
+      "WEBHOOK",
+    ].includes(node.type)
+  ) {
+    return "error";
+  }
 
   return "error";
 }
@@ -476,13 +571,19 @@ export async function executeAutomationGraph({
         nextHandle: result.nextHandle ?? null,
         stop: Boolean(result.stop),
       };
+      const targetNodeId =
+        result.status === "WAITING" || result.stop
+          ? null
+          : resolveNextNodeId(graph, node.id, result.nextHandle ?? "next");
 
       currentContext = setNodeOutput(result.context, node.id, result.output ?? {});
 
       await completeStep({
         output,
+        sourceHandle: result.nextHandle ?? null,
         status: result.status,
         stepId: step.id,
+        targetNodeId,
       });
 
       await updateAutomationSessionContext({
@@ -507,7 +608,7 @@ export async function executeAutomationGraph({
         return;
       }
 
-      currentNodeId = resolveNextNodeId(graph, node.id, result.nextHandle ?? "next");
+      currentNodeId = targetNodeId;
     } catch (error) {
       const errorHandle = getErrorHandleForNode(node);
       const errorNodeId = resolveNextNodeId(graph, node.id, errorHandle);
@@ -518,7 +619,9 @@ export async function executeAutomationGraph({
           errorHandle,
           routedTo: errorNodeId,
         },
+        sourceHandle: errorHandle,
         stepId: step.id,
+        targetNodeId: errorNodeId,
       });
 
       if (errorNodeId) {
@@ -529,7 +632,7 @@ export async function executeAutomationGraph({
         continue;
       }
 
-      await failAutomationExecution(executionId, error);
+      await failAutomationExecution(executionId, error, node);
       await failAutomationSession({
         error,
         sessionId,

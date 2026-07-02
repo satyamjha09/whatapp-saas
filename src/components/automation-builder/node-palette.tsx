@@ -4,25 +4,37 @@ import {
   CircleDot,
   Clock3,
   Contact,
+  CreditCard,
+  Database,
   FileText,
   GitBranch,
   Handshake,
   Hourglass,
   List,
+  Lock,
   MessageSquareText,
   MousePointerClick,
   Play,
   Plus,
   RadioTower,
+  ReceiptText,
+  RotateCcw,
+  ShieldAlert,
+  Sparkles,
   Tags,
+  Table2,
 } from "lucide-react";
 import {
   automationNodeTypes,
   getAutomationNodeDescription,
-  getAutomationNodeIcon,
   getAutomationNodeLabel,
   type AutomationNodeType,
 } from "@/components/automation-builder/types";
+import {
+  advancedAutomationNodeTypes,
+  getAutomationNodeFeatureFlag,
+  isAutomationNodeTypeEnabled,
+} from "@/lib/automation-builder/feature-flags";
 
 type NodePaletteProps = {
   onAddNode: (type: AutomationNodeType) => void;
@@ -37,11 +49,17 @@ const nodeMeta: Record<
   ADD_TAG: {
     icon: Tags,
   },
+  AI_REPLY: {
+    icon: Sparkles,
+  },
   API_CALL: {
     icon: RadioTower,
   },
   BUTTON_REPLY_ROUTER: {
     icon: GitBranch,
+  },
+  CATALOG_SEND: {
+    icon: ReceiptText,
   },
   CONDITION: {
     icon: GitBranch,
@@ -52,17 +70,35 @@ const nodeMeta: Record<
   END: {
     icon: CircleDot,
   },
+  ERROR_HANDLER: {
+    icon: ShieldAlert,
+  },
+  FALLBACK: {
+    icon: ShieldAlert,
+  },
+  GOOGLE_SHEET_APPEND_ROW: {
+    icon: Table2,
+  },
+  GOOGLE_SHEET_UPDATE_ROW: {
+    icon: Table2,
+  },
   HUMAN_HANDOFF: {
     icon: Handshake,
   },
   LIST_MESSAGE: {
     icon: List,
   },
+  PAYMENT_LINK: {
+    icon: CreditCard,
+  },
   QUICK_REPLY: {
     icon: MousePointerClick,
   },
   REMOVE_TAG: {
     icon: Tags,
+  },
+  RETRY: {
+    icon: RotateCcw,
   },
   SEND_MESSAGE: {
     icon: MessageSquareText,
@@ -73,6 +109,9 @@ const nodeMeta: Record<
   START: {
     icon: Play,
   },
+  TALLY_LOOKUP: {
+    icon: Database,
+  },
   TEMPLATE_TRIGGER: {
     icon: RadioTower,
   },
@@ -82,12 +121,66 @@ const nodeMeta: Record<
   WAIT_FOR_REPLY: {
     icon: Hourglass,
   },
+  WEBHOOK: {
+    icon: RadioTower,
+  },
 };
 
-function getIconForType(type: AutomationNodeType) {
-  const iconName = getAutomationNodeIcon(type);
-  if (iconName === "delay") return Clock3;
-  return nodeMeta[type].icon;
+const advancedTypes = new Set<AutomationNodeType>(advancedAutomationNodeTypes);
+const coreNodeTypes = automationNodeTypes.filter((type) => !advancedTypes.has(type));
+
+function NodeButton({
+  onAddNode,
+  type,
+}: {
+  onAddNode: (type: AutomationNodeType) => void;
+  type: AutomationNodeType;
+}) {
+  const Icon = nodeMeta[type].icon;
+  const enabled = isAutomationNodeTypeEnabled(type);
+  const flag = getAutomationNodeFeatureFlag(type);
+
+  return (
+    <button
+      className={[
+        "group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition",
+        enabled
+          ? "border-[#BFE9D0] bg-white hover:border-[#128C7E]/40 hover:bg-[#E7F8EF]"
+          : "cursor-not-allowed border-slate-200 bg-slate-50 opacity-75",
+      ].join(" ")}
+      disabled={!enabled}
+      key={type}
+      onClick={() => onAddNode(type)}
+      type="button"
+      title={!enabled && flag ? `Enable ${flag} to use this node` : undefined}
+    >
+      <span
+        className={[
+          "grid h-9 w-9 shrink-0 place-items-center rounded-lg",
+          enabled ? "bg-[#E7F8EF] text-[#128C7E]" : "bg-white text-slate-400",
+        ].join(" ")}
+      >
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-[#081B3A]">
+          {getAutomationNodeLabel(type)}
+        </span>
+        <span className="mt-1 block text-xs text-[#526173]">
+          {enabled
+            ? getAutomationNodeDescription(type)
+            : flag
+              ? `Locked by ${flag}`
+              : "Locked"}
+        </span>
+      </span>
+      {enabled ? (
+        <Plus className="h-4 w-4 text-[#128C7E] opacity-70 transition group-hover:opacity-100" />
+      ) : (
+        <Lock className="h-4 w-4 text-slate-400" />
+      )}
+    </button>
+  );
 }
 
 export default function NodePalette({ onAddNode }: NodePaletteProps) {
@@ -101,31 +194,20 @@ export default function NodePalette({ onAddNode }: NodePaletteProps) {
       </div>
 
       <div className="grid gap-2">
-        {automationNodeTypes.map((type) => {
-          const Icon = getIconForType(type);
+        {coreNodeTypes.map((type) => (
+          <NodeButton key={type} onAddNode={onAddNode} type={type} />
+        ))}
+      </div>
 
-          return (
-            <button
-              className="group flex w-full items-center gap-3 rounded-xl border border-[#BFE9D0] bg-white p-3 text-left transition hover:border-[#128C7E]/40 hover:bg-[#E7F8EF]"
-              key={type}
-              onClick={() => onAddNode(type)}
-              type="button"
-            >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#E7F8EF] text-[#128C7E]">
-                <Icon className="h-4 w-4" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-[#081B3A]">
-                  {getAutomationNodeLabel(type)}
-                </span>
-                <span className="mt-1 block text-xs text-[#526173]">
-                  {getAutomationNodeDescription(type)}
-                </span>
-              </span>
-              <Plus className="h-4 w-4 text-[#128C7E] opacity-70 transition group-hover:opacity-100" />
-            </button>
-          );
-        })}
+      <div className="mt-5 border-t border-[#E7F8EF] pt-4">
+        <p className="px-1 text-xs font-bold uppercase tracking-normal text-[#128C7E]">
+          Advanced
+        </p>
+        <div className="mt-3 grid gap-2">
+          {advancedAutomationNodeTypes.map((type) => (
+            <NodeButton key={type} onAddNode={onAddNode} type={type} />
+          ))}
+        </div>
       </div>
     </div>
   );

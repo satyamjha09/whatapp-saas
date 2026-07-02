@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/app/dashboard/dashboard-ui";
+import Link from "next/link";
+import { PageHeader, actionButtonClass } from "@/app/dashboard/dashboard-ui";
 import AutomationBuilder from "@/components/automation-builder/automation-builder";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getAutomationFlowDraft } from "@/server/services/automation-versioning.service";
@@ -29,6 +30,22 @@ export default async function AutomationFlowBuilderPage({
         description="Edit the draft graph safely. Runtime uses only the latest published immutable version."
         eyebrow={context.membership.company.name}
         title={draft.flow.name}
+        actions={
+          <>
+            <Link
+              href={`/dashboard/automation/flows/${flowId}/analytics`}
+              className={actionButtonClass("secondary")}
+            >
+              Analytics
+            </Link>
+            <Link
+              href={`/dashboard/automation/executions?flowId=${flowId}`}
+              className={actionButtonClass("secondary")}
+            >
+              Execution Logs
+            </Link>
+          </>
+        }
       />
 
       <AutomationBuilder

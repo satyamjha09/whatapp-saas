@@ -212,6 +212,7 @@ const apiCallNodeDataSchema = z.object({
   headers: z.array(
     z.object({
       key: z.string().trim().min(1).max(120),
+      secret: z.boolean().optional(),
       value: z.string().trim().min(1).max(1000),
     }),
   ),
@@ -224,6 +225,144 @@ const apiCallNodeDataSchema = z.object({
     }),
   ),
   url: z.string().trim().url(),
+});
+
+const automationValueSourceSchema = z.object({
+  fallbackValue: z.string().trim().max(1000).optional(),
+  sourceType: z.enum([
+    "CONTACT_FIELD",
+    "STATIC",
+    "SESSION_CONTEXT",
+    "PREVIOUS_NODE_OUTPUT",
+    "CUSTOM_ATTRIBUTE",
+  ]),
+  sourceValue: z.string().trim().min(1).max(500),
+});
+
+const automationColumnMappingSchema = automationValueSourceSchema.extend({
+  columnName: z.string().trim().min(1).max(120),
+});
+
+const webhookNodeDataSchema = apiCallNodeDataSchema.extend({
+  authConfig: z
+    .object({
+      headerName: z.string().trim().max(120).optional(),
+      passwordSecretId: z.string().trim().max(160).optional(),
+      tokenSecretId: z.string().trim().max(160).optional(),
+      usernameSecretId: z.string().trim().max(160).optional(),
+    })
+    .optional(),
+  authMode: z.enum(["NONE", "API_KEY", "BEARER_TOKEN", "BASIC"]),
+  mockResponse: z.unknown().optional(),
+  retryCount: z.number().int().min(0).max(3),
+  timeoutMs: z.number().int().min(1000).max(30000),
+});
+
+const googleSheetAppendRowNodeDataSchema = z.object({
+  columnMappings: z.array(automationColumnMappingSchema).min(1).max(100),
+  connectedGoogleAccountId: z.string().trim().min(1).max(160),
+  label: z.string().trim().min(1).max(120),
+  sheetName: z.string().trim().min(1).max(120),
+  spreadsheetId: z.string().trim().min(1).max(200),
+});
+
+const googleSheetUpdateRowNodeDataSchema = z.object({
+  connectedGoogleAccountId: z.string().trim().min(1).max(160),
+  label: z.string().trim().min(1).max(120),
+  lookupColumn: z.string().trim().min(1).max(120),
+  lookupValueSource: automationValueSourceSchema,
+  sheetName: z.string().trim().min(1).max(120),
+  spreadsheetId: z.string().trim().min(1).max(200),
+  updateMappings: z.array(automationColumnMappingSchema).min(1).max(100),
+});
+
+const tallyLookupNodeDataSchema = z.object({
+  customerIdentifierSource: automationValueSourceSchema,
+  invoiceNumberSource: automationValueSourceSchema.optional(),
+  label: z.string().trim().min(1).max(120),
+  lookupType: z.enum([
+    "LEDGER_BALANCE",
+    "INVOICE_STATUS",
+    "STOCK_ITEM",
+    "CUSTOMER_DUES",
+    "CUSTOMER_LEDGER",
+    "SALES_ORDER_STATUS",
+  ]),
+  mockResult: z.unknown().optional(),
+  saveResultAs: z.string().trim().min(1).max(120),
+  stockItemSource: automationValueSourceSchema.optional(),
+});
+
+const paymentLinkNodeDataSchema = z.object({
+  amountSource: automationValueSourceSchema,
+  currency: z.literal("INR"),
+  customerEmailSource: automationValueSourceSchema.optional(),
+  customerNameSource: automationValueSourceSchema,
+  customerPhoneSource: automationValueSourceSchema,
+  expiryMinutes: z.number().int().min(5).max(43200),
+  label: z.string().trim().min(1).max(120),
+  mockPaymentLink: z.string().trim().url().optional(),
+  provider: z.literal("CASHFREE"),
+  purpose: z.string().trim().min(1).max(240),
+  savePaymentLinkAs: z.string().trim().min(1).max(120),
+});
+
+const catalogSendNodeDataSchema = z.object({
+  catalogId: z.string().trim().max(160).optional(),
+  catalogSource: z.enum(["WHATSAPP_CATALOG", "TALLY_STOCK", "MANUAL_PRODUCTS"]),
+  categoryFilter: z.string().trim().max(120).optional(),
+  fallbackText: z.string().trim().max(1024).optional(),
+  label: z.string().trim().min(1).max(120),
+  maxProducts: z.number().int().min(1).max(30),
+  productIds: z.array(z.string().trim().min(1).max(160)).default([]),
+});
+
+const aiReplyNodeDataSchema = z.object({
+  agentId: z.string().trim().max(160).optional(),
+  confidenceThreshold: z.number().min(0).max(1),
+  fallbackMessage: z.string().trim().min(1).max(1024),
+  knowledgeBaseIds: z.array(z.string().trim().min(1).max(160)).default([]),
+  label: z.string().trim().min(1).max(120),
+  maxTokens: z.number().int().min(32).max(2000),
+  mockResponse: z
+    .object({
+      confidence: z.number().min(0).max(1).optional(),
+      text: z.string().trim().max(4096).optional(),
+    })
+    .optional(),
+  saveReplyAs: z.string().trim().min(1).max(120),
+  systemInstruction: z.string().trim().min(1).max(4000),
+  userMessageSource: z.object({
+    sourceType: z.enum([
+      "TRIGGER_MESSAGE",
+      "SESSION_CONTEXT",
+      "PREVIOUS_NODE_OUTPUT",
+      "STATIC",
+    ]),
+    sourceValue: z.string().trim().min(1).max(500),
+  }),
+});
+
+const fallbackNodeDataSchema = z.object({
+  fallbackMessage: z.string().trim().min(1).max(1024),
+  label: z.string().trim().min(1).max(120),
+  nextAction: z.enum(["SEND_MESSAGE", "HUMAN_HANDOFF", "END"]),
+});
+
+const retryNodeDataSchema = z.object({
+  label: z.string().trim().min(1).max(120),
+  maxRetries: z.number().int().min(1).max(5),
+  onMaxRetriesAction: z.enum(["ERROR_PATH", "HUMAN_HANDOFF", "END"]),
+  retryDelaySeconds: z.number().int().min(0).max(3600),
+  retryTargetNodeId: z.string().trim().min(1).max(160),
+});
+
+const errorHandlerNodeDataSchema = z.object({
+  endSession: z.boolean(),
+  errorMessageToCustomer: z.string().trim().max(1024).optional(),
+  label: z.string().trim().min(1).max(120),
+  notifyTeam: z.boolean(),
+  openInbox: z.boolean(),
 });
 
 const humanHandoffNodeDataSchema = z
@@ -273,21 +412,31 @@ const endNodeDataSchema = z.object({
 
 const automationNodeDataSchemas = {
   ADD_TAG: addTagNodeDataSchema,
+  AI_REPLY: aiReplyNodeDataSchema,
   API_CALL: apiCallNodeDataSchema,
   BUTTON_REPLY_ROUTER: buttonReplyRouterNodeDataSchema,
+  CATALOG_SEND: catalogSendNodeDataSchema,
   CONDITION: conditionNodeDataSchema,
   DELAY: delayNodeDataSchema,
   END: endNodeDataSchema,
+  ERROR_HANDLER: errorHandlerNodeDataSchema,
+  FALLBACK: fallbackNodeDataSchema,
+  GOOGLE_SHEET_APPEND_ROW: googleSheetAppendRowNodeDataSchema,
+  GOOGLE_SHEET_UPDATE_ROW: googleSheetUpdateRowNodeDataSchema,
   HUMAN_HANDOFF: humanHandoffNodeDataSchema,
   LIST_MESSAGE: listMessageNodeDataSchema,
+  PAYMENT_LINK: paymentLinkNodeDataSchema,
   QUICK_REPLY: quickReplyNodeDataSchema,
   REMOVE_TAG: removeTagNodeDataSchema,
+  RETRY: retryNodeDataSchema,
   SEND_MESSAGE: sendMessageNodeDataSchema,
   SEND_TEMPLATE: sendTemplateNodeDataSchema,
   START: startNodeDataSchema,
+  TALLY_LOOKUP: tallyLookupNodeDataSchema,
   TEMPLATE_TRIGGER: templateTriggerNodeDataSchema,
   UPDATE_CONTACT_FIELD: updateContactFieldNodeDataSchema,
   WAIT_FOR_REPLY: waitForReplyNodeDataSchema,
+  WEBHOOK: webhookNodeDataSchema,
 } satisfies Record<AutomationNodeType, z.ZodType>;
 
 export const automationEdgeSchema = z.object({
