@@ -62,6 +62,10 @@ type OutboundInteractiveMetadata = {
     | "Address Request"
     | "Flow";
   header?: string | null;
+  headerMediaId?: string | null;
+  headerMediaName?: string | null;
+  headerMediaType?: "IMAGE" | "DOCUMENT" | "VIDEO" | null;
+  headerMediaUrl?: string | null;
   body?: string | null;
   footer?: string | null;
   primaryButton?: string | null;
@@ -264,6 +268,20 @@ function getOutboundInteractiveMetadata(
     messageType: "INTERACTIVE",
     type: type as OutboundInteractiveMetadata["type"],
     header: typeof record.header === "string" ? record.header : null,
+    headerMediaId:
+      typeof record.headerMediaId === "string" ? record.headerMediaId : null,
+    headerMediaName:
+      typeof record.headerMediaName === "string"
+        ? record.headerMediaName
+        : null,
+    headerMediaType:
+      record.headerMediaType === "IMAGE" ||
+      record.headerMediaType === "DOCUMENT" ||
+      record.headerMediaType === "VIDEO"
+        ? record.headerMediaType
+        : null,
+    headerMediaUrl:
+      typeof record.headerMediaUrl === "string" ? record.headerMediaUrl : null,
     body: typeof record.body === "string" ? record.body : null,
     footer: typeof record.footer === "string" ? record.footer : null,
     primaryButton:
@@ -323,15 +341,43 @@ function textComponent(text?: string | null) {
   return text?.trim() ? { text: text.trim() } : undefined;
 }
 
+function buildInteractiveHeader(metadata: OutboundInteractiveMetadata) {
+  if (
+    metadata.headerMediaType &&
+    (metadata.headerMediaId || metadata.headerMediaUrl)
+  ) {
+    const mediaKind = metadata.headerMediaType.toLowerCase() as
+      | "document"
+      | "image"
+      | "video";
+    const mediaPayload: Record<string, string> = metadata.headerMediaId
+      ? { id: metadata.headerMediaId }
+      : { link: metadata.headerMediaUrl ?? "" };
+
+    if (mediaKind === "document" && metadata.headerMediaName) {
+      mediaPayload.filename = metadata.headerMediaName;
+    }
+
+    return {
+      type: mediaKind,
+      [mediaKind]: mediaPayload,
+    };
+  }
+
+  const header = textComponent(metadata.header);
+
+  return header ? { type: "text", text: header.text } : undefined;
+}
+
 function buildInteractivePayload(metadata: OutboundInteractiveMetadata) {
   const body = textComponent(metadata.body) ?? { text: " " };
-  const header = textComponent(metadata.header);
+  const header = buildInteractiveHeader(metadata);
   const footer = textComponent(metadata.footer);
 
   if (metadata.type === "List Button") {
     return {
       type: "list",
-      ...(header ? { header: { type: "text", text: header.text } } : {}),
+      ...(header ? { header } : {}),
       body,
       ...(footer ? { footer } : {}),
       action: {
@@ -352,7 +398,7 @@ function buildInteractivePayload(metadata: OutboundInteractiveMetadata) {
   if (metadata.type === "Reply Button") {
     return {
       type: "button",
-      ...(header ? { header: { type: "text", text: header.text } } : {}),
+      ...(header ? { header } : {}),
       body,
       ...(footer ? { footer } : {}),
       action: {
@@ -372,7 +418,7 @@ function buildInteractivePayload(metadata: OutboundInteractiveMetadata) {
   if (metadata.type === "CTA Button") {
     return {
       type: "cta_url",
-      ...(header ? { header: { type: "text", text: header.text } } : {}),
+      ...(header ? { header } : {}),
       body,
       ...(footer ? { footer } : {}),
       action: {
@@ -419,7 +465,7 @@ function buildInteractivePayload(metadata: OutboundInteractiveMetadata) {
 
     return {
       type: "flow",
-      ...(header ? { header: { type: "text", text: header.text } } : {}),
+      ...(header ? { header } : {}),
       body,
       ...(footer ? { footer } : {}),
       action: {

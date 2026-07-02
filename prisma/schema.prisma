@@ -159,6 +159,73 @@ enum WhatsAppFlowUseCase {
   CUSTOM
 }
 
+enum ChatbotStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  ARCHIVED
+}
+
+enum ChatbotVersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ChatbotNodeType {
+  START
+  MESSAGE
+  QUICK_REPLY
+  LIST_MENU
+  MEDIA_BUTTONS
+  QUESTION
+  CONDITION
+  API_CALL
+  ASSIGN_AGENT
+  END
+  CATALOG_PRODUCT_CARD
+  PAYMENT_LINK
+  TALLY_INVOICE_LOOKUP
+  TALLY_LEDGER_BALANCE
+  GOOGLE_SHEET_SAVE
+  WEBHOOK
+  AI_REPLY
+  WHATSAPP_NATIVE_FLOW
+}
+
+enum ChatbotTriggerType {
+  KEYWORD
+  REGEX
+  TEMPLATE_MESSAGE
+  CLICK_TO_WHATSAPP_AD
+  DEFAULT_WELCOME
+  MANUAL
+}
+
+enum ChatbotSessionStatus {
+  ACTIVE
+  WAITING_FOR_REPLY
+  COMPLETED
+  ABANDONED
+  HANDED_OFF
+  FAILED
+}
+
+enum ChatbotSessionEventType {
+  SESSION_STARTED
+  TRIGGER_MATCHED
+  NODE_ENTERED
+  NODE_COMPLETED
+  MESSAGE_SENT
+  MESSAGE_RECEIVED
+  CONDITION_EVALUATED
+  API_CALL_STARTED
+  API_CALL_COMPLETED
+  ASSIGNED_AGENT
+  SESSION_COMPLETED
+  SESSION_FAILED
+}
+
 enum TemplateCategory {
   MARKETING
   UTILITY
@@ -1074,6 +1141,9 @@ model User {
   assignedCompanyPlans                CompanyPlanAssignment[]            @relation("AssignedCompanyPlans")
   companyPlanAssignmentEvents         CompanyPlanAssignmentEvent[]       @relation("CompanyPlanAssignmentEventActor")
   whatsAppEmbeddedSignupEvents        WhatsAppEmbeddedSignupEvent[]
+  createdChatbots                     Chatbot[]                          @relation("ChatbotCreator")
+  updatedChatbots                     Chatbot[]                          @relation("ChatbotUpdater")
+  createdChatbotVersions              ChatbotVersion[]                   @relation("ChatbotVersionCreator")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1135,6 +1205,13 @@ model Company {
   whatsAppEmbeddedSignupEvents      WhatsAppEmbeddedSignupEvent[]
   whatsAppFlows                     WhatsAppFlow[]
   whatsAppFlowResponses             WhatsAppFlowResponse[]
+  chatbots                          Chatbot[]
+  chatbotVersions                   ChatbotVersion[]
+  chatbotNodes                      ChatbotNode[]
+  chatbotEdges                      ChatbotEdge[]
+  chatbotTriggers                   ChatbotTrigger[]
+  chatbotSessions                   ChatbotSession[]
+  chatbotSessionEvents              ChatbotSessionEvent[]
   contactImportJobs                 ContactImportJob[]
   contactImportRows                 ContactImportRow[]
   templates                         Template[]
@@ -1495,6 +1572,236 @@ model WhatsAppFlowResponse {
   @@index([submittedAt])
 }
 
+model Chatbot {
+  id        String @id @default(cuid())
+  companyId String
+
+  name        String
+  description String?
+  status      ChatbotStatus @default(DRAFT)
+
+  activeVersionId String? @unique
+  createdByUserId String?
+  updatedByUserId String?
+
+  metadata Json?
+
+  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  activeVersion ChatbotVersion? @relation("ActiveChatbotVersion", fields: [activeVersionId], references: [id], onDelete: SetNull)
+  createdBy     User?           @relation("ChatbotCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy     User?           @relation("ChatbotUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  versions      ChatbotVersion[]      @relation("ChatbotVersions")
+  nodes         ChatbotNode[]
+  edges         ChatbotEdge[]
+  triggers      ChatbotTrigger[]
+  sessions      ChatbotSession[]
+  sessionEvents ChatbotSessionEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([createdByUserId])
+  @@index([updatedByUserId])
+  @@index([createdAt])
+}
+
+model ChatbotVersion {
+  id        String @id @default(cuid())
+  companyId String
+  chatbotId String
+
+  versionNumber Int
+  status        ChatbotVersionStatus @default(DRAFT)
+  label         String?
+  canvas        Json?
+  publishedAt   DateTime?
+
+  createdByUserId String?
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  chatbot   Chatbot @relation("ChatbotVersions", fields: [chatbotId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("ChatbotVersionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  activeForChatbot Chatbot?              @relation("ActiveChatbotVersion")
+  nodes            ChatbotNode[]
+  edges            ChatbotEdge[]
+  sessions         ChatbotSession[]
+  sessionEvents    ChatbotSessionEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([chatbotId, versionNumber])
+  @@index([companyId])
+  @@index([chatbotId])
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+model ChatbotNode {
+  id        String @id @default(cuid())
+  companyId String
+  chatbotId String
+  versionId String
+
+  nodeKey   String
+  type      ChatbotNodeType
+  name      String
+  config    Json?
+  positionX Float           @default(0)
+  positionY Float           @default(0)
+  sortOrder Int             @default(0)
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  chatbot Chatbot        @relation(fields: [chatbotId], references: [id], onDelete: Cascade)
+  version ChatbotVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  outgoingEdges ChatbotEdge[]         @relation("ChatbotEdgeSource")
+  incomingEdges ChatbotEdge[]         @relation("ChatbotEdgeTarget")
+  sessions      ChatbotSession[]      @relation("ChatbotCurrentNode")
+  sessionEvents ChatbotSessionEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([versionId, nodeKey])
+  @@index([companyId])
+  @@index([chatbotId])
+  @@index([versionId])
+  @@index([type])
+}
+
+model ChatbotEdge {
+  id        String @id @default(cuid())
+  companyId String
+  chatbotId String
+  versionId String
+
+  sourceNodeId String
+  targetNodeId String
+
+  label     String?
+  condition Json?
+  sortOrder Int     @default(0)
+
+  company    Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  chatbot    Chatbot        @relation(fields: [chatbotId], references: [id], onDelete: Cascade)
+  version    ChatbotVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  sourceNode ChatbotNode    @relation("ChatbotEdgeSource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode ChatbotNode    @relation("ChatbotEdgeTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([chatbotId])
+  @@index([versionId])
+  @@index([sourceNodeId])
+  @@index([targetNodeId])
+}
+
+model ChatbotTrigger {
+  id        String @id @default(cuid())
+  companyId String
+  chatbotId String
+
+  type      ChatbotTriggerType
+  value     String?
+  isEnabled Boolean            @default(true)
+  priority  Int                @default(100)
+  metadata  Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  chatbot Chatbot @relation(fields: [chatbotId], references: [id], onDelete: Cascade)
+
+  sessions ChatbotSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([chatbotId])
+  @@index([companyId, type, isEnabled])
+  @@index([chatbotId, isEnabled])
+  @@index([priority])
+}
+
+model ChatbotSession {
+  id        String @id @default(cuid())
+  companyId String
+  chatbotId String
+
+  versionId     String?
+  contactId     String?
+  currentNodeId String?
+  triggerId     String?
+
+  status            ChatbotSessionStatus @default(ACTIVE)
+  channel           String               @default("WHATSAPP")
+  startedAt         DateTime             @default(now())
+  lastInteractionAt DateTime             @default(now())
+  completedAt       DateTime?
+  handoffAt         DateTime?
+  context           Json?
+  metadata          Json?
+
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  chatbot     Chatbot         @relation(fields: [chatbotId], references: [id], onDelete: Cascade)
+  version     ChatbotVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  contact     Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  currentNode ChatbotNode?    @relation("ChatbotCurrentNode", fields: [currentNodeId], references: [id], onDelete: SetNull)
+  trigger     ChatbotTrigger? @relation(fields: [triggerId], references: [id], onDelete: SetNull)
+
+  events ChatbotSessionEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([chatbotId])
+  @@index([versionId])
+  @@index([contactId])
+  @@index([currentNodeId])
+  @@index([triggerId])
+  @@index([status])
+  @@index([lastInteractionAt])
+}
+
+model ChatbotSessionEvent {
+  id        String @id @default(cuid())
+  companyId String
+  sessionId String
+  chatbotId String
+
+  versionId String?
+  nodeId    String?
+  messageId String?
+
+  eventType ChatbotSessionEventType
+  payload   Json?
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  session ChatbotSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  chatbot Chatbot         @relation(fields: [chatbotId], references: [id], onDelete: Cascade)
+  version ChatbotVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  node    ChatbotNode?    @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+  message Message?        @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([sessionId])
+  @@index([chatbotId])
+  @@index([versionId])
+  @@index([nodeId])
+  @@index([messageId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
 model Template {
   id        String @id @default(cuid())
   companyId String
@@ -1577,6 +1884,7 @@ model Contact {
   campaignFollowUpTasks      CampaignFollowUpTask[]
   campaignSequenceExecutions CampaignSequenceExecution[]
   whatsAppFlowResponses      WhatsAppFlowResponse[]
+  chatbotSessions            ChatbotSession[]
   contactGroupMembers        ContactGroupMember[]
   privacyRequests            PrivacyRequest[]
   consentEvents              ContactConsentEvent[]
@@ -2775,6 +3083,7 @@ model Message {
   campaignSequenceExecutions        CampaignSequenceExecution[] @relation("CampaignSequenceMessage")
   nextCampaignSequenceExecutions    CampaignSequenceExecution[] @relation("CampaignSequencePreviousMessage")
   whatsAppFlowResponses             WhatsAppFlowResponse[]
+  chatbotSessionEvents              ChatbotSessionEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

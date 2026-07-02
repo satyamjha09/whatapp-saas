@@ -18,6 +18,7 @@ import { queueLeadScoreRecalculation } from "@/server/services/lead-scoring.serv
 import { publishInboxRealtimeEvent } from "@/server/realtime/inbox-events";
 import { createUnmappedWebhookEvent } from "@/server/services/webhook.service";
 import { recordWhatsAppFlowResponse } from "@/server/services/whatsapp-flow.service";
+import { processChatbotInboundMessage } from "@/server/services/chatbot-runtime.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
 import type { ProcessWebhookJobData } from "@/lib/queue";
@@ -197,6 +198,36 @@ function getInboundMediaType(type: unknown) {
   }
 }
 
+function getInboundContextMetadata(message: JsonRecord): Prisma.InputJsonObject {
+  const context = asRecord(message.context);
+  const referral = asRecord(message.referral);
+  const metadata: Record<string, Prisma.InputJsonValue> = {};
+
+  if (context) {
+    const contextId = getStringValue(context, "id");
+    const contextFrom = getStringValue(context, "from");
+
+    if (contextId) metadata.contextMetaMessageId = contextId;
+    if (contextFrom) metadata.contextFrom = contextFrom;
+  }
+
+  if (referral) {
+    metadata.referral = referral as Prisma.InputJsonValue;
+  }
+
+  return metadata as Prisma.InputJsonObject;
+}
+
+function attachInboundContext(
+  message: JsonRecord,
+  metadata: Prisma.InputJsonObject,
+) {
+  return {
+    ...metadata,
+    ...getInboundContextMetadata(message),
+  };
+}
+
 function getInboundMessageMetadata(
   message: JsonRecord,
 ): Prisma.InputJsonObject | undefined {
@@ -208,7 +239,7 @@ function getInboundMessageMetadata(
     const filename = getStringValue(mediaPayload, "filename");
     const mimeType = getStringValue(mediaPayload, "mime_type");
 
-    return {
+    return attachInboundContext(message, {
       messageType: "MEDIA",
       direction: "INBOUND",
       mediaType,
@@ -221,7 +252,7 @@ function getInboundMessageMetadata(
         typeof mediaPayload?.animated === "boolean"
           ? mediaPayload.animated
           : null,
-    };
+    });
   }
 
   if (message.type === "location") {
@@ -229,47 +260,54 @@ function getInboundMessageMetadata(
     const latitude = getNumberValue(location, "latitude");
     const longitude = getNumberValue(location, "longitude");
 
-    return {
+    return attachInboundContext(message, {
       messageType: "LOCATION",
       direction: "INBOUND",
       latitude,
       longitude,
       name: getStringValue(location, "name"),
       address: getStringValue(location, "address"),
-    };
+    });
   }
 
   if (message.type === "reaction") {
     const reaction = asRecord(message.reaction);
 
-    return {
+    return attachInboundContext(message, {
       messageType: "REACTION",
       direction: "INBOUND",
       emoji: getStringValue(reaction, "emoji"),
       reactedToMetaMessageId: getStringValue(reaction, "message_id"),
-    };
+    });
   }
 
   if (message.type === "interactive") {
-    return {
+    return attachInboundContext(message, {
       messageType: "INTERACTIVE",
       direction: "INBOUND",
       interactive: message.interactive as Prisma.InputJsonValue,
-    };
+    });
   }
 
   if (message.type === "button") {
     const button = asRecord(message.button);
 
-    return {
+    return attachInboundContext(message, {
       messageType: "BUTTON",
       direction: "INBOUND",
       payload: getStringValue(button, "payload"),
       text: getStringValue(button, "text"),
-    };
+    });
   }
 
-  return undefined;
+  const contextMetadata = getInboundContextMetadata(message);
+
+  return Object.keys(contextMetadata).length > 0
+    ? {
+        direction: "INBOUND",
+        ...contextMetadata,
+      }
+    : undefined;
 }
 
 function getInboundMessageBody(message: JsonRecord) {
@@ -584,6 +622,19 @@ const worker = new Worker<ProcessWebhookJobData>(
           },
         });
       }
+
+      await processChatbotInboundMessage({
+        companyId,
+        contactId: contact.id,
+        inboundMessageId: message.id,
+      }).catch((error) => {
+        console.error("CHATBOT_RUNTIME_PROCESSING_ERROR:", {
+          companyId,
+          contactId: contact.id,
+          error: error instanceof Error ? error.message : error,
+          messageId: message.id,
+        });
+      });
 
       await recordContactActivity({
         companyId,

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import styles from './page.module.css'
-import { FileText, Clock, CheckCircle2, XCircle, Shield, Zap } from 'lucide-react'
+import { FileText, Clock, CheckCircle2, XCircle, Shield, Zap, RefreshCw, Quote, ArrowRight, Send } from 'lucide-react'
 import { Reveal, RevealGroup, RevealItem } from './Reveal'
 
 const particles = [
@@ -27,10 +27,367 @@ const features = [
 
 const integrations = ['Tally Prime', 'Google Sheets', 'Zapier', 'API Access', 'Webhooks']
 
+const deepFeatures: {
+  kicker: string
+  title: string
+  description: string
+  visual: 'forms' | 'payments' | 'liveChat' | 'analytics' | 'chatbot' | 'broadcast'
+}[] = [
+  {
+    kicker: 'Lead capture',
+    title: 'Build WhatsApp Forms',
+    description:
+      'Capture leads and collect useful information directly inside WhatsApp chats with WhatsApp Forms. From feedback to customer insights, collect it all without leaving WhatsApp.',
+    visual: 'forms',
+  },
+  {
+    kicker: 'Payments',
+    title: 'Collect Payments on WhatsApp',
+    description:
+      'Collect payments right inside WhatsApp with WhatsApp Pay and other modes like UPI, Razorpay and PayU, and grow your revenue without extra steps.',
+    visual: 'payments',
+  },
+  {
+    kicker: 'Team inbox',
+    title: 'Multiple Human Live Chat',
+    description:
+      'Let multiple team members run live chat support from the same WhatsApp Business number. Filter chats by tags, campaigns and attributes for smart agent routing.',
+    visual: 'liveChat',
+  },
+  {
+    kicker: 'Analytics',
+    title: 'Real-Time Analytics',
+    description:
+      'Track every campaign as it happens. Monitor delivered, read, replied and clicked rates in real time and retarget smartly for higher conversions.',
+    visual: 'analytics',
+  },
+  {
+    kicker: 'Chatbot',
+    title: 'Build a No-Code Chatbot in Minutes',
+    description:
+      'Design your own chatbot flows, your way. An easy drag-and-drop chatbot and catalog flow builder for building complete conversational journeys.',
+    visual: 'chatbot',
+  },
+  {
+    kicker: 'Broadcast',
+    title: 'Import & Broadcast Instantly',
+    description:
+      'Import your contacts and broadcast approved messages instantly. See real-time delivery and read rates right inside your TallyKonnect dashboard.',
+    visual: 'broadcast',
+  },
+]
+
+function FeatureVisual({ type }: { type: (typeof deepFeatures)[number]['visual'] }) {
+  if (type === 'forms') {
+    return (
+      <div className={styles.formsMock}>
+        <div className={styles.formsMockHeader}>
+          <span className={styles.formsMockAvatar}>TK</span>
+          <div>
+            <strong>TallyKonnect</strong>
+            <small>online</small>
+          </div>
+        </div>
+        <div className={styles.formsMockBody}>
+          <div className={`${styles.formsBubble} ${styles.formsBubbleBot} ${styles.formQ1}`}>
+            Hi! Let&apos;s get you started. What&apos;s your business name?
+          </div>
+          <div className={`${styles.formsBubble} ${styles.formsBubbleUser} ${styles.formA1}`}>
+            Sharma Traders
+            <span className={styles.msgMeta}>
+              10:02 <span className={styles.msgTicks}>&#10003;&#10003;</span>
+            </span>
+          </div>
+          <div className={`${styles.formsBubble} ${styles.formsBubbleBot} ${styles.formQ2}`}>
+            Great! And your work email?
+          </div>
+          <div className={`${styles.formsBubble} ${styles.formsBubbleUser} ${styles.formA2}`}>
+            hello@sharmatraders.in
+            <span className={styles.msgMeta}>
+              10:03 <span className={styles.msgTicks}>&#10003;&#10003;</span>
+            </span>
+          </div>
+          <div className={`${styles.formsSubmitted} ${styles.formSubmit}`}>
+            <CheckCircle2 className="h-3.5 w-3.5" /> Form submitted &middot; Lead captured
+          </div>
+          <div className={styles.formsTyping} aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
+        <div className={styles.formsInputBar} aria-hidden="true">
+          <span>Type a message</span>
+          <span className={styles.formsSendBtn}>
+            <Send className="h-3.5 w-3.5" />
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  if (type === 'payments') {
+    return (
+      <div className={styles.paymentsMock}>
+        <div className={styles.paymentsCard}>
+          <span className={styles.paymentsLabel}>Invoice #1042</span>
+          <strong className={styles.paymentsAmount}>Rs. 18,500</strong>
+          <div className={styles.paymentsButtonWrap}>
+            <span className={styles.paymentsButton}>Pay Now</span>
+            <span className={styles.paymentsSuccess}>
+              <CheckCircle2 className="h-4 w-4" /> Payment received
+            </span>
+          </div>
+        </div>
+        <div className={styles.paymentsMethods}>
+          <span>UPI</span>
+          <span>Razorpay</span>
+          <span>PayU</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (type === 'liveChat') {
+    return (
+      <div className={styles.liveChatMock}>
+        <div className={styles.liveChatAgents}>
+          <span className={`${styles.liveChatAvatar} ${styles.agentA}`}>R</span>
+          <span className={`${styles.liveChatAvatar} ${styles.agentB}`}>P</span>
+          <span className={`${styles.liveChatAvatar} ${styles.agentC}`}>N</span>
+        </div>
+        <div className={styles.liveChatList}>
+          <div className={`${styles.liveChatRow} ${styles.rowA}`}>
+            <span>Ravi Kumar</span>
+            <span className={styles.liveChatTag}>Support</span>
+          </div>
+          <div className={`${styles.liveChatRow} ${styles.rowB}`}>
+            <span>Priya Sharma</span>
+            <span className={styles.liveChatTag}>Sales</span>
+          </div>
+          <div className={`${styles.liveChatRow} ${styles.rowC}`}>
+            <span>Neha Jain</span>
+            <span className={styles.liveChatTag}>VIP</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (type === 'analytics') {
+    const campaignStats = [
+      { pct: '100%', count: '17.9K', label: 'Sent', active: false },
+      { pct: '97%', count: '17.3K', label: 'Delivered', active: false },
+      { pct: '93%', count: '16.6K', label: 'Read', active: false },
+      { pct: '45%', count: '7.3K', label: 'Clicked', active: true },
+      { pct: '42%', count: '7.5K', label: 'Replied', active: false },
+    ]
+
+    return (
+      <div className={styles.analyticsMock}>
+        <div className={styles.anSidebar} aria-hidden="true">
+          <span className={styles.anSidebarLogo}>TK</span>
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className={styles.anMain}>
+          <div className={styles.anHeader}>
+            <span className={styles.liveDot} aria-hidden="true" />
+            FESTIVAL OFFER
+          </div>
+          <div className={styles.anStats}>
+            {campaignStats.map((stat) => (
+              <div key={stat.label} className={`${styles.anStat} ${stat.active ? styles.anStatActive : ''}`}>
+                <strong>{stat.pct}</strong>
+                <small>({stat.count})</small>
+                <span>{stat.label}</span>
+              </div>
+            ))}
+          </div>
+          <div className={styles.anMiddle}>
+            <div className={styles.anMsgCard}>
+              <span className={styles.anWaBadge} aria-hidden="true">WA</span>
+              <strong>Hey Ravi</strong>
+              <p>The Festival Offer is LIVE! Order today and win a shopping voucher worth Rs. 1,000</p>
+              <em>4:31 pm &#10003;&#10003;</em>
+            </div>
+            <div className={styles.anCampaignCard}>
+              <div className={styles.anCampaignMeta}>
+                <small>Campaign name</small>
+                <strong>Festival_Offer</strong>
+                <small>Sent on</small>
+                <strong>2 July, 2026</strong>
+                <small>CTA (URL)</small>
+                <strong>Shop Now</strong>
+              </div>
+              <svg className={styles.donut} viewBox="0 0 36 36" aria-hidden="true">
+                <circle className={styles.donutTrack} cx="18" cy="18" r="15.9" pathLength="100" />
+                <circle className={styles.donutValue} cx="18" cy="18" r="15.9" pathLength="100" />
+                <text className={styles.donutLabel} x="18" y="18" dy="2.5">45%</text>
+              </svg>
+            </div>
+          </div>
+          <div className={styles.anChartCard}>
+            <span>Audience (per day)</span>
+            <svg className={styles.anChart} viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+              <line className={styles.anChartGrid} x1="0" y1="10" x2="100" y2="10" />
+              <line className={styles.anChartGrid} x1="0" y1="20" x2="100" y2="20" />
+              <line className={styles.anChartGrid} x1="0" y1="30" x2="100" y2="30" />
+              <path
+                className={styles.anChartLine}
+                d="M 2 34 L 16 28 L 30 30 L 44 18 L 58 22 L 72 10 L 86 14 L 98 6"
+                pathLength="100"
+              />
+            </svg>
+            <div className={styles.anChartX}>
+              <span>Mon</span>
+              <span>Tue</span>
+              <span>Wed</span>
+              <span>Thu</span>
+              <span>Fri</span>
+              <span>Sat</span>
+              <span>Sun</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (type === 'chatbot') {
+    return (
+      <div className={styles.chatbotMock}>
+        <div className={styles.builderCanvas}>
+          <svg className={styles.flowLines} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <path className={styles.flowLine1} d="M 40 23 C 47 23, 46 33, 53 33" />
+            <path className={styles.flowLine2} d="M 74 62 C 74 71, 60 75, 52 77" />
+          </svg>
+          <div className={`${styles.builderNode} ${styles.nodeStart} ${styles.bStep1}`}>
+            <span className={styles.nodeTitle}>Flow Start</span>
+            <span className={styles.keywordChip}>Hi</span>
+            <span className={styles.keywordChip}>Hello</span>
+            <span className={styles.keywordChip}>Help</span>
+          </div>
+          <div className={`${styles.builderNode} ${styles.nodeMedia} ${styles.bStep2}`}>
+            <span className={styles.nodeTitle}>Media + Buttons</span>
+            <div className={styles.nodeImage} />
+            <p>Welcome to TallyKonnect. Select an option below</p>
+            <span className={styles.nodeButton}>Track Order</span>
+            <span className={styles.nodeButton}>Talk to an Agent</span>
+          </div>
+          <div className={`${styles.builderNode} ${styles.nodeIntervene} ${styles.bStep3}`}>
+            <span className={styles.nodeTitle}>Request Intervention</span>
+            <p>Our team will be in touch with you soon!</p>
+          </div>
+        </div>
+        <div className={styles.phoneFrame}>
+          <div className={styles.phoneHeader}>
+            <span className={styles.phoneAvatar}>TK</span>
+            <div>
+              <strong>TallyKonnect</strong>
+              <small>online</small>
+            </div>
+          </div>
+          <div className={styles.phoneChat}>
+            <div className={`${styles.phoneBubbleUser} ${styles.pMsg1}`}>
+              Help
+              <span className={styles.msgMeta}>
+                4:31 pm <span className={styles.msgTicks}>&#10003;&#10003;</span>
+              </span>
+            </div>
+            <div className={`${styles.phoneCard} ${styles.pMsg2}`}>
+              <div className={styles.phoneCardImage} />
+              <p>Welcome to TallyKonnect. Select an option below</p>
+              <span className={`${styles.phoneCardBtn} ${styles.pBtn1}`}>Track Order</span>
+              <span className={`${styles.phoneCardBtn} ${styles.pBtn2}`}>Talk to an Agent</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const broadcastContacts = [
+    'Ravi Kumar',
+    'Priya Sharma',
+    'Amit Verma',
+    'Neha Jain',
+    'Suresh Reddy',
+    'Kavita Nair',
+    'Manoj Verma',
+  ]
+
+  return (
+    <div className={styles.broadcastMock}>
+      <div className={styles.broadcastHeaderRow}>
+        <span className={styles.liveDot} aria-hidden="true" />
+        Broadcast: Payment reminder
+        <span className={styles.broadcastSendIcon} aria-hidden="true">
+          <Send className="h-3.5 w-3.5" />
+        </span>
+      </div>
+      <div className={styles.broadcastQueue}>
+        {broadcastContacts.map((name, index) => (
+          <div className={`${styles.queueRow} ${styles[`queue${index + 1}`]}`} key={name}>
+            <span className={styles.queueIndex}>{index + 1}</span>
+            <span className={styles.queueName}>{name}</span>
+            <span className={styles.queueStatus}>Sent</span>
+            <span className={styles.queueTicks}>&#10003;&#10003;</span>
+          </div>
+        ))}
+      </div>
+      <div className={styles.broadcastProgress} aria-hidden="true">
+        <div className={styles.broadcastProgressFill} />
+      </div>
+    </div>
+  )
+}
+
 const testimonials = [
-  ['Rohit Gupta', 'Gupta & Co.', 'TallyKonnect helped us manage customer communication from one place. Our response time improved within the first week.'],
-  ['Anjali Mehta', 'Mehta Finance Solutions', 'The automation and Tally workflow feels made for finance teams. It is clean, practical and easy to recommend.'],
-  ['Vikram Jain', 'Jain Traders', 'We moved reminders, replies and campaigns into one system. The team finally has a clear view of every conversation.'],
+  {
+    initials: 'RG',
+    name: 'Rohit Gupta',
+    role: 'Gupta & Co.',
+    quote: 'TallyKonnect helped us manage customer communication from one place. Our response time improved within the first week.',
+  },
+  {
+    initials: 'AM',
+    name: 'Anjali Mehta',
+    role: 'Mehta Finance Solutions',
+    quote: 'The automation and Tally workflow feels made for finance teams. It is clean, practical and easy to recommend.',
+  },
+  {
+    initials: 'VJ',
+    name: 'Vikram Jain',
+    role: 'Jain Traders',
+    quote: 'We moved reminders, replies and campaigns into one system. The team finally has a clear view of every conversation.',
+  },
+  {
+    initials: 'SR',
+    name: 'Suresh Reddy',
+    role: 'Reddy Textiles',
+    quote: 'Payment reminders that used to take hours now go out automatically. Our outstanding collections improved within a month.',
+  },
+  {
+    initials: 'KN',
+    name: 'Kavita Nair',
+    role: 'Nair Distributors',
+    quote: 'Customers request their ledger balance on WhatsApp and get it instantly. It has cut our support calls in half.',
+  },
+  {
+    initials: 'MV',
+    name: 'Manoj Verma',
+    role: 'Verma Enterprises',
+    quote: 'Invoices sync straight from Tally to WhatsApp the moment they are raised. No more manual PDF exports.',
+  },
+  {
+    initials: 'PI',
+    name: 'Priya Iyer',
+    role: 'Iyer & Associates',
+    quote: 'As a CA firm managing multiple clients, the team inbox keeps every conversation organized and accountable.',
+  },
 ]
 
 const plans: {
@@ -226,6 +583,40 @@ export default function Home() {
         </div>
       </section>
 
+      <section className={styles.deepFeatures}>
+        <div className={styles.sectionContainer}>
+          {deepFeatures.map((feature, index) => (
+            <div
+              className={`${styles.deepFeatureRow} ${index % 2 === 1 ? styles.reverse : ''}`}
+              key={feature.title}
+            >
+              <Reveal direction={index % 2 === 1 ? 'right' : 'left'} className={styles.deepFeatureText}>
+                <span className={styles.kicker}>{feature.kicker}</span>
+                <h2>{feature.title}</h2>
+                <p>{feature.description}</p>
+                <Link className={styles.exploreLink} href="/sign-up">
+                  Explore
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </Reveal>
+              <Reveal direction={index % 2 === 1 ? 'left' : 'right'} className={styles.deepFeatureVisual}>
+                <div className={styles.visualWindow}>
+                  <div className={styles.visualChrome} aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                    <em>TallyKonnect &middot; {feature.kicker}</em>
+                  </div>
+                  <div className={styles.visualBody}>
+                    <FeatureVisual type={feature.visual} />
+                  </div>
+                </div>
+              </Reveal>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className={styles.integrationBand} id="integrations">
         <div className={styles.integrationBandContainer}>
           <Reveal direction="left">
@@ -407,22 +798,48 @@ export default function Home() {
       </section>
 
       <section className={styles.testimonials}>
-        <RevealGroup className={styles.testimonialsContainer}>
-          <RevealItem>
-            <span className={styles.kicker}>What our clients say</span>
-            <h2>Loved by businesses, trusted for results</h2>
-          </RevealItem>
-          {testimonials.map(([name, company, quote]) => (
-            <RevealItem key={name}>
-              <article className={styles.testimonialCard}>
-                <span className={styles.stars}>5 star rating</span>
-                <p>{quote}</p>
-                <strong>{name}</strong>
-                <small>{company}</small>
-              </article>
-            </RevealItem>
-          ))}
-        </RevealGroup>
+        <Reveal className={styles.testimonialsIntro}>
+          <span className={styles.kicker}>What our clients say</span>
+          <h2>Loved by businesses, trusted for results</h2>
+          <p className={styles.testimonialsHint}>
+            From CA firms to traders, hear what businesses say after switching to TallyKonnect. Hover a card to read their story.
+          </p>
+        </Reveal>
+        <div className={styles.marqueeViewport}>
+          <div className={styles.marqueeTrack}>
+            {[...testimonials, ...testimonials].map((testimonial, index) => (
+              <div
+                className={styles.flipCard}
+                key={`${testimonial.name}-${index}`}
+                aria-hidden={index >= testimonials.length}
+              >
+                <div className={styles.flipCardInner}>
+                  <div className={`${styles.flipFace} ${styles.flipFront}`}>
+                    <span className={styles.flipIcon} aria-hidden="true">
+                      <RefreshCw className="h-4 w-4" />
+                    </span>
+                    <span className={styles.flipInitials} aria-hidden="true">
+                      {testimonial.initials}
+                    </span>
+                    <div>
+                      <strong>{testimonial.name}</strong>
+                      <small>Verified customer</small>
+                      <span className={styles.reviewBadge}>5/5 review</span>
+                    </div>
+                  </div>
+                  <div className={`${styles.flipFace} ${styles.flipBack}`}>
+                    <Quote className={styles.flipQuoteMark} aria-hidden="true" />
+                    <p className={styles.flipQuoteText}>{testimonial.quote}</p>
+                    <div>
+                      <strong>{testimonial.name}</strong>
+                      <small>{testimonial.role}</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* NEW: FAQ Section */}

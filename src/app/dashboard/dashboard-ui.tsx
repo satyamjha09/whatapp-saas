@@ -145,15 +145,15 @@ export const labelClass = "mb-2 block text-sm font-medium text-[#102040]";
 export const helperTextClass = "mt-2 text-xs leading-5 text-[#526173]";
 
 export function statusTone(status: string): "zinc" | "green" | "blue" | "amber" | "red" | "violet" {
-  if (["CONNECTED", "APPROVED", "SENT", "DELIVERED", "READ", "SUCCESS", "COMPLETED", "ACTIVE"].includes(status)) {
+  if (["CONNECTED", "APPROVED", "SENT", "DELIVERED", "READ", "SUCCESS", "COMPLETED", "ACTIVE", "PUBLISHED"].includes(status)) {
     return "green";
   }
 
-  if (["QUEUED", "SENDING", "RETRY_PENDING", "PENDING", "PENDING_APPROVAL", "RUNNING", "SCHEDULED", "TRIALING"].includes(status)) {
+  if (["QUEUED", "SENDING", "RETRY_PENDING", "PENDING", "PENDING_APPROVAL", "RUNNING", "SCHEDULED", "TRIALING", "WAITING_FOR_REPLY", "PAUSED"].includes(status)) {
     return "amber";
   }
 
-  if (["FAILED", "PARTIAL_FAILED", "REJECTED", "ERROR", "DISCONNECTED", "CANCELLED", "CANCELED", "PAST_DUE", "INCOMPLETE", "DELETED", "DISABLED", "LIMIT_EXCEEDED"].includes(status)) {
+  if (["FAILED", "PARTIAL_FAILED", "REJECTED", "ERROR", "DISCONNECTED", "CANCELLED", "CANCELED", "PAST_DUE", "INCOMPLETE", "DELETED", "DISABLED", "LIMIT_EXCEEDED", "ABANDONED", "ARCHIVED"].includes(status)) {
     return "red";
   }
 
