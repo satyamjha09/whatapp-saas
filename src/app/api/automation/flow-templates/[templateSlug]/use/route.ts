@@ -22,7 +22,7 @@ export async function POST(
     }
 
     const { templateSlug } = await params;
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const result = UseTemplateInputSchema.safeParse(body);
 
     if (!result.success) {
@@ -52,6 +52,10 @@ export async function POST(
     const err = error as Error;
     if (err.name === "TemplateNotFoundError") {
       return NextResponse.json({ message: err.message }, { status: 404 });
+    }
+
+    if (err.name === "TemplateMappingValidationError") {
+      return NextResponse.json({ message: err.message }, { status: 400 });
     }
 
     return NextResponse.json(

@@ -46,7 +46,7 @@ export default function TemplateDetailPage({ params }: TemplateDetailPageProps) 
   const [flowDesc, setFlowDesc] = useState("");
   const [keywordOverride, setKeywordOverride] = useState("");
   const [templateMappings, setTemplateMappings] = useState<Record<string, string>>({});
-  const [integrationMappings, setIntegrationMappings] = useState<Record<string, string>>({});
+  const [integrationMappings] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
 
@@ -417,9 +417,9 @@ export default function TemplateDetailPage({ params }: TemplateDetailPageProps) 
                         className="w-full px-3 py-2 text-sm rounded-lg border border-[#D8E6F3] bg-white focus:outline-none"
                       >
                         <option value="">-- Choose Approved Template (Optional) --</option>
-                        {dbTemplates.map((dbT) => (
+                        {dbTemplates.filter((dbT) => dbT.status === "APPROVED").map((dbT) => (
                           <option key={dbT.id} value={dbT.id}>
-                            {dbT.name} ({dbT.language}) - {dbT.status}
+                            {dbT.name} ({dbT.language})
                           </option>
                         ))}
                       </select>
@@ -432,22 +432,19 @@ export default function TemplateDetailPage({ params }: TemplateDetailPageProps) 
               {template.requiredIntegrations.length > 0 && (
                 <div className="space-y-3 pt-1 border-t border-[#F1F5F9]">
                   <p className="text-xs font-bold text-[#081B3A] uppercase tracking-wider">
-                    Map Integrations Connections
+                    Integration Setup
                   </p>
                   {template.requiredIntegrations.map((ri) => (
-                    <div key={ri.type}>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Connection ID for {ri.label}
-                      </label>
-                      <input
-                        type="text"
-                        value={integrationMappings[ri.type] || ""}
-                        onChange={(e) =>
-                          setIntegrationMappings((prev) => ({ ...prev, [ri.type]: e.target.value }))
-                        }
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-[#D8E6F3] focus:outline-none"
-                        placeholder="e.g. conn_10293848 (Optional)"
-                      />
+                    <div key={ri.type} className="rounded-lg border border-[#D8E6F3] bg-[#F8FAFC] px-3 py-2">
+                      <p className="text-[11px] font-semibold text-slate-700">
+                        {ri.label}
+                        {ri.required ? " is required before publishing." : " is optional."}
+                      </p>
+                      <p className="mt-1 text-[10px] leading-relaxed text-[#526173]">
+                        {ri.type === "CASHFREE"
+                          ? "Cashfree is checked from server configuration. No raw connection ID is needed here."
+                          : "Create the draft now, then connect or map this integration from the builder once the tenant-safe integration is configured."}
+                      </p>
                     </div>
                   ))}
                 </div>

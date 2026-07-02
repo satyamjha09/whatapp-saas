@@ -32,6 +32,14 @@ export async function POST(
     }
 
     const { flowId } = await params;
+
+    const { requireAutomationPermission } = await import("@/server/services/automation-permission.service");
+    await requireAutomationPermission(
+      context.membership.companyId,
+      context.user.id,
+      "automation.flow.publish"
+    );
+
     const body = await request.json().catch(() => ({}));
     const validation = publishAutomationFlowSchema.safeParse(body);
 
@@ -67,7 +75,12 @@ export async function POST(
         versionNumber: result.version.versionNumber,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as Error;
+    if (err?.name === "AutomationPermissionDeniedError") {
+      return NextResponse.json({ message: err.message }, { status: 403 });
+    }
+
     if (error instanceof AutomationFlowNotFoundError) {
       return NextResponse.json({ message: error.message }, { status: 404 });
     }

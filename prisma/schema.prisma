@@ -1248,16 +1248,18 @@ model Company {
   productionChecklistNotes       String?
   productionChecklistUpdatedAt   DateTime?
 
-  billingPlan            BillingPlan        @default(FREE)
-  subscriptionStatus     SubscriptionStatus @default(TRIALING)
-  trialEndsAt            DateTime?
-  currentPeriodStart     DateTime?
-  currentPeriodEnd       DateTime?
-  monthlyMessageLimit    Int                @default(100)
-  cancelAtPeriodEnd      Boolean            @default(false)
-  subscriptionCanceledAt DateTime?
+  billingPlan                    BillingPlan        @default(FREE)
+  subscriptionStatus             SubscriptionStatus @default(TRIALING)
+  trialEndsAt                    DateTime?
+  currentPeriodStart             DateTime?
+  currentPeriodEnd               DateTime?
+  monthlyMessageLimit            Int                @default(100)
+  cancelAtPeriodEnd              Boolean            @default(false)
+  subscriptionCanceledAt         DateTime?
+  automationPublishApprovalRequired Boolean          @default(false)
 
   users                             CompanyUser[]
+  automationPublishRequests         AutomationPublishRequest[]
   whatsAppAccounts                  WhatsAppAccount[]
   whatsAppPhoneNumbers              WhatsAppPhoneNumber[]
   whatsAppEmbeddedSignupEvents      WhatsAppEmbeddedSignupEvent[]
@@ -1882,9 +1884,10 @@ model AutomationFlow {
 
   metadata Json?
 
-  versions   AutomationFlowVersion[]
-  sessions   AutomationSession[]
-  executions AutomationExecution[]
+  versions        AutomationFlowVersion[]
+  sessions        AutomationSession[]
+  executions      AutomationExecution[]
+  publishRequests AutomationPublishRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2102,6 +2105,45 @@ model AutomationTestStep {
   @@index([companyId])
   @@index([testRunId])
   @@index([nodeId])
+}
+
+model AutomationPublishRequest {
+  id String @id @default(cuid())
+
+  companyId String
+  flowId    String
+
+  status AutomationPublishRequestStatus @default(PENDING)
+
+  requestedByUserId String
+  reviewedByUserId  String?
+
+  draftGraph         Json
+  validationSnapshot Json?
+  publishNotes       String?
+
+  requestedAt     DateTime  @default(now())
+  reviewedAt      DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  flow        AutomationFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([companyId, flowId])
+  @@index([companyId, status])
+  @@index([requestedByUserId])
+}
+
+enum AutomationPublishRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  SUPERSEDED
 }
 
 model Template {

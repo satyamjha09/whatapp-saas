@@ -50,6 +50,8 @@ export default async function AutomationFlowBuilderPage({
 
       <AutomationBuilder
         flowId={flowId}
+        userRole={context.membership.role}
+        approvalRequired={context.membership.company.automationPublishApprovalRequired}
         initialFlow={{
           currentVersionNumber: draft.publishedVersion?.versionNumber ?? null,
           description: draft.flow.description,

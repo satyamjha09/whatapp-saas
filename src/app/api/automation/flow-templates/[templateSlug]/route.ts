@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
-import { getAutomationFlowTemplate } from "@/lib/automation-templates/template-registry";
+import { getAutomationFlowTemplateBySlug } from "@/server/services/automation-template-library.service";
 
 export async function GET(
   _request: Request,
@@ -21,7 +21,7 @@ export async function GET(
     }
 
     const { templateSlug } = await params;
-    const template = getAutomationFlowTemplate(templateSlug);
+    const template = getAutomationFlowTemplateBySlug(templateSlug);
 
     if (!template) {
       return NextResponse.json(

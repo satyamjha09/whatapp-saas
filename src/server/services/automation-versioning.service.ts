@@ -46,15 +46,15 @@ export class AutomationPublishConflictError extends Error {
   }
 }
 
-function toJson(value: unknown): Prisma.InputJsonValue {
+export function toJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
-function graphFromJson(value: Prisma.JsonValue): AutomationGraph {
+export function graphFromJson(value: Prisma.JsonValue): AutomationGraph {
   return normalizeAutomationGraph(value as unknown as AutomationGraph);
 }
 
-function validationSnapshot(validation: AutomationGraphValidationResult) {
+export function validationSnapshot(validation: AutomationGraphValidationResult) {
   return {
     errors: validation.errors,
     valid: validation.valid,

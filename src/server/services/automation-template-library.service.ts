@@ -1,14 +1,26 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { randomUUID } from "crypto";
+import { isCashfreeCheckoutConfigured } from "@/server/services/cashfree-payment.service";
 import {
   getAutomationFlowTemplate,
+  listAutomationFlowTemplates as listRegisteredAutomationFlowTemplates,
+  AUTOMATION_FLOW_TEMPLATES,
 } from "../../lib/automation-templates/template-registry";
+import { validateAutomationFlowTemplate } from "../../lib/automation-templates/template-validation";
 import type {
   AutomationFlowTemplate,
+  AutomationFlowTemplateRequirementType,
   AutomationTemplateSetupChecklistItem,
 } from "../../lib/automation-templates/template-types";
-import type { AutomationGraph, StartNodeData, SendTemplateNodeData } from "../../lib/automation-builder/types";
+import type {
+  AutomationGraph,
+  AutomationNode,
+  GoogleSheetAppendRowNodeData,
+  GoogleSheetUpdateRowNodeData,
+  SendTemplateNodeData,
+  StartNodeData,
+} from "../../lib/automation-builder/types";
 
 export class TemplateNotFoundError extends Error {
   constructor(slug: string) {
@@ -28,12 +40,139 @@ function generateNodeId(prefix: string): string {
   return `${prefix}_${randomUUID().slice(0, 8)}`;
 }
 
+function parseKeywordInput(value?: string | null): string[] {
+  if (!value) return [];
+
+  const seen = new Set<string>();
+  const keywords: string[] = [];
+
+  value
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .forEach((keyword) => {
+      const key = keyword.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        keywords.push(keyword);
+      }
+    });
+
+  return keywords;
+}
+
+function templatePlaceholder(key: string) {
+  return `{{WHATSAPP_TEMPLATE_${key.toUpperCase()}}}`;
+}
+
+function integrationPlaceholder(type: AutomationFlowTemplateRequirementType) {
+  if (type === "GOOGLE_CONNECTION") return "{{GOOGLE_CONNECTION_ID}}";
+  if (type === "TALLY_CONNECTION") return "{{TALLY_CONNECTION_ID}}";
+  if (type === "CASHFREE") return "{{CASHFREE_PROVIDER}}";
+  return "";
+}
+
+function integrationAliases(type: AutomationFlowTemplateRequirementType) {
+  if (type === "GOOGLE_CONNECTION") return ["GOOGLE_CONNECTION", "GOOGLE"];
+  if (type === "TALLY_CONNECTION") return ["TALLY_CONNECTION", "TALLY"];
+  return [type];
+}
+
+function getMappedIntegrationValue(
+  type: AutomationFlowTemplateRequirementType,
+  mappings?: Record<string, string>,
+) {
+  if (!mappings) return "";
+
+  for (const alias of integrationAliases(type)) {
+    const value = mappings[alias]?.trim();
+    if (value) return value;
+  }
+
+  return "";
+}
+
+function checklistIntegrationKey(itemKey: string) {
+  return itemKey.replace("CONNECT_", "");
+}
+
+function checklistTemplateKey(itemKey: string) {
+  return itemKey.replace("SELECT_WHATSAPP_TEMPLATE_", "");
+}
+
+type ValidatedTemplateMapping = {
+  category: string;
+  id: string;
+  language: string;
+  name: string;
+  status: string;
+};
+
+type MissingTemplateRequirement = {
+  key: string;
+  label: string;
+  message: string;
+  required: boolean;
+  type: string;
+};
+
+function warnAboutTemplateRegistryIssues() {
+  if (process.env.NODE_ENV === "production") return;
+
+  const issues = AUTOMATION_FLOW_TEMPLATES.flatMap((template) =>
+    validateAutomationFlowTemplate(template, AUTOMATION_FLOW_TEMPLATES).map((issue) => ({
+      ...issue,
+      templateSlug: template.slug,
+    })),
+  );
+
+  if (issues.length > 0) {
+    console.warn("AUTOMATION_TEMPLATE_REGISTRY_ISSUES:", issues);
+  }
+}
+
+let registryWarned = false;
+
+function warnAboutTemplateRegistryIssuesOnce() {
+  if (registryWarned) return;
+  registryWarned = true;
+  warnAboutTemplateRegistryIssues();
+}
+
+export function getAutomationFlowTemplateBySlug(slug: string) {
+  warnAboutTemplateRegistryIssuesOnce();
+  return getAutomationFlowTemplate(slug);
+}
+
+export function listAutomationFlowTemplateSummaries(filters?: {
+  category?: string;
+  difficulty?: string;
+  integration?: string;
+  search?: string;
+  tag?: string;
+}) {
+  warnAboutTemplateRegistryIssuesOnce();
+  return listRegisteredAutomationFlowTemplates(filters).map((template) => ({
+    category: template.category,
+    description: template.description,
+    difficulty: template.difficulty,
+    estimatedSetupMinutes: template.estimatedSetupMinutes,
+    name: template.name,
+    nodesCount: template.graph.nodes.length,
+    previewNodeTypes: Array.from(new Set(template.graph.nodes.map((node) => node.type))),
+    requiredIntegrations: template.requiredIntegrations,
+    slug: template.slug,
+    tags: template.tags,
+  }));
+}
+
 export function cloneAutomationTemplateGraph(
   graph: AutomationGraph,
   triggerKeyword?: string
 ): AutomationGraph {
   const cloned = JSON.parse(JSON.stringify(graph)) as AutomationGraph;
   const nodeIdMap = new Map<string, string>();
+  const overrideKeywords = parseKeywordInput(triggerKeyword);
 
   // 1. Generate new Node IDs and apply trigger keyword override if available
   cloned.nodes.forEach((node) => {
@@ -41,12 +180,12 @@ export function cloneAutomationTemplateGraph(
     nodeIdMap.set(node.id, newId);
     node.id = newId;
 
-    if (node.type === "START" && triggerKeyword) {
+    if (node.type === "START" && overrideKeywords.length > 0) {
       if (!node.data) {
         node.data = { label: "Trigger: Keyword", triggerType: "KEYWORD", keywords: [] } as StartNodeData;
       }
       const data = node.data as StartNodeData;
-      data.keywords = [triggerKeyword.trim()];
+      data.keywords = overrideKeywords;
       data.triggerType = "KEYWORD";
     }
   });
@@ -72,66 +211,180 @@ export async function validateTemplateUseRequest(
     integrationMappings?: Record<string, string>;
   }
 ) {
-  const missingRequirements: Array<{
-    type: string;
-    key: string;
-    label: string;
-    message: string;
-  }> = [];
+  const missingRequirements: MissingTemplateRequirement[] = [];
+  const validTemplateMappings = new Map<string, ValidatedTemplateMapping>();
+  const validIntegrationMappings = new Set<AutomationFlowTemplateRequirementType>();
 
-  // Validate WhatsApp Template mappings if provided
-  if (input.templateMappings) {
-    for (const [reqKey, templateId] of Object.entries(input.templateMappings)) {
-      const reqConfig = template.requiredWhatsAppTemplates.find((w) => w.key === reqKey);
-      if (!reqConfig) continue;
+  for (const requirement of template.requiredWhatsAppTemplates) {
+    const templateId = input.templateMappings?.[requirement.key]?.trim();
 
-      if (templateId) {
-        // Query database to verify template ownership and status
-        const dbTemplate = await prisma.template.findFirst({
-          where: {
-            id: templateId,
-            companyId,
-          },
-        });
-
-        if (!dbTemplate) {
-          missingRequirements.push({
-            type: "WHATSAPP_TEMPLATE",
-            key: reqKey,
-            label: reqConfig.label,
-            message: `Template ID "${templateId}" is not configured for this company.`,
-          });
-        } else if (dbTemplate.status !== "APPROVED") {
-          missingRequirements.push({
-            type: "WHATSAPP_TEMPLATE",
-            key: reqKey,
-            label: reqConfig.label,
-            message: `Template "${dbTemplate.name}" has status ${dbTemplate.status}. It must be APPROVED to use in automation.`,
-          });
-        }
-      }
+    if (!templateId) {
+      missingRequirements.push({
+        key: requirement.key,
+        label: requirement.label,
+        message: `Select an approved WhatsApp template for "${requirement.label}".`,
+        required: true,
+        type: "WHATSAPP_TEMPLATE",
+      });
+      continue;
     }
+
+    const dbTemplate = await prisma.template.findFirst({
+      where: {
+        companyId,
+        id: templateId,
+      },
+      select: {
+        category: true,
+        id: true,
+        language: true,
+        name: true,
+        status: true,
+      },
+    });
+
+    if (!dbTemplate) {
+      throw new TemplateMappingValidationError(
+        `Template ID "${templateId}" does not belong to this workspace.`,
+      );
+    }
+
+    if (dbTemplate.status !== "APPROVED") {
+      throw new TemplateMappingValidationError(
+        `Template "${dbTemplate.name}" is ${dbTemplate.status}. Only APPROVED templates can be mapped.`,
+      );
+    }
+
+    validTemplateMappings.set(requirement.key, {
+      category: dbTemplate.category,
+      id: dbTemplate.id,
+      language: dbTemplate.language,
+      name: dbTemplate.name,
+      status: dbTemplate.status,
+    });
   }
 
-  // Validate Integrations if provided
-  if (input.integrationMappings) {
-    for (const [reqType, connectionId] of Object.entries(input.integrationMappings)) {
-      const reqConfig = template.requiredIntegrations.find((r) => r.type === reqType);
-      if (!reqConfig) continue;
+  for (const requirement of template.requiredIntegrations) {
+    const mappedValue = getMappedIntegrationValue(requirement.type, input.integrationMappings);
 
-      // In this Phase, integration connections are simulated. We just verify the presence of the mapped ID.
-      if (reqConfig.required && !connectionId) {
+    if (requirement.type === "CASHFREE") {
+      if (isCashfreeCheckoutConfigured()) {
+        validIntegrationMappings.add("CASHFREE");
+      } else if (requirement.required || mappedValue) {
         missingRequirements.push({
-          type: reqType,
-          key: reqType,
-          label: reqConfig.label,
-          message: `Integration "${reqConfig.label}" is required.`,
+          key: requirement.type,
+          label: requirement.label,
+          message: "Cashfree checkout credentials are not configured yet.",
+          required: requirement.required,
+          type: requirement.type,
         });
       }
+      continue;
+    }
+
+    if (mappedValue) {
+      throw new TemplateMappingValidationError(
+        `${requirement.label} mapping cannot be verified yet. Connect this integration from the builder after the tenant-safe connection model exists.`,
+      );
+    }
+
+    if (requirement.required) {
+      missingRequirements.push({
+        key: requirement.type,
+        label: requirement.label,
+        message: `Connect ${requirement.label} before publishing this flow.`,
+        required: true,
+        type: requirement.type,
+      });
     }
   }
 
-  return { missingRequirements };
+  return {
+    missingRequirements,
+    validIntegrationMappings,
+    validTemplateMappings,
+  };
+}
+
+function applyTemplateMappingsToGraph(
+  graph: AutomationGraph,
+  mappings: Map<string, ValidatedTemplateMapping>,
+) {
+  if (mappings.size === 0) return graph;
+
+  const cloned = JSON.parse(JSON.stringify(graph)) as AutomationGraph;
+
+  cloned.nodes.forEach((node: AutomationNode) => {
+    if (node.type !== "SEND_TEMPLATE") return;
+
+    const data = node.data as SendTemplateNodeData;
+    const mapping = Array.from(mappings.entries()).find(([key]) => {
+      return data.templateId === templatePlaceholder(key) || data.templateName === key;
+    });
+
+    if (!mapping) return;
+
+    const [, template] = mapping;
+    data.category = template.category;
+    data.languageCode = template.language;
+    data.templateId = template.id;
+    data.templateName = template.name;
+    data.templateStatus = template.status;
+  });
+
+  return cloned;
+}
+
+function applyVerifiedIntegrationMappingsToGraph(
+  graph: AutomationGraph,
+  mappings: Set<AutomationFlowTemplateRequirementType>,
+) {
+  if (mappings.size === 0) return graph;
+
+  const graphText = Array.from(mappings).reduce((text, type) => {
+    const placeholder = integrationPlaceholder(type);
+    if (!placeholder) return text;
+    return text.replaceAll(placeholder, type);
+  }, JSON.stringify(graph));
+
+  const resolvedGraph = JSON.parse(graphText) as AutomationGraph;
+
+  resolvedGraph.nodes.forEach((node) => {
+    if (node.type === "GOOGLE_SHEET_APPEND_ROW") {
+      const data = node.data as GoogleSheetAppendRowNodeData;
+      if (data.connectedGoogleAccountId === "GOOGLE_CONNECTION") {
+        data.connectedGoogleAccountId = "";
+      }
+    }
+
+    if (node.type === "GOOGLE_SHEET_UPDATE_ROW") {
+      const data = node.data as GoogleSheetUpdateRowNodeData;
+      if (data.connectedGoogleAccountId === "GOOGLE_CONNECTION") {
+        data.connectedGoogleAccountId = "";
+      }
+    }
+  });
+
+  return resolvedGraph;
+}
+
+function isChecklistItemComplete(
+  item: AutomationTemplateSetupChecklistItem,
+  validTemplateMappings: Map<string, ValidatedTemplateMapping>,
+  validIntegrationMappings: Set<AutomationFlowTemplateRequirementType>,
+) {
+  if (item.completedBy === "TEMPLATE_MAPPING") {
+    return validTemplateMappings.has(checklistTemplateKey(item.key));
+  }
+
+  if (item.completedBy === "INTEGRATION_MAPPING") {
+    const key = checklistIntegrationKey(item.key);
+    return Array.from(validIntegrationMappings).some((type) =>
+      integrationAliases(type).includes(key),
+    );
+  }
+
+  return false;
 }
 
 export async function createAutomationFlowFromTemplate(
@@ -152,94 +405,32 @@ export async function createAutomationFlowFromTemplate(
   }
 
   // 1. Validate the mapping requests
-  const { missingRequirements } = await validateTemplateUseRequest(companyId, template, input);
+  const { missingRequirements, validIntegrationMappings, validTemplateMappings } =
+    await validateTemplateUseRequest(companyId, template, input);
 
   // 2. Clone the static template graph
   const clonedGraph = cloneAutomationTemplateGraph(template.graph, input.triggerKeyword);
 
   // 3. Apply mappings (template IDs, integration IDs) to the cloned graph
-  const graphText = JSON.stringify(clonedGraph);
-  let resolvedGraphText = graphText;
-
-  // Apply template mappings
-  if (input.templateMappings) {
-    for (const [reqKey, templateId] of Object.entries(input.templateMappings)) {
-      if (!templateId) continue;
-      const placeholder = `{{WHATSAPP_TEMPLATE_${reqKey.toUpperCase()}}}`;
-
-      // Fetch template details to pre-populate name and language in the graph nodes
-      const dbTemplate = await prisma.template.findFirst({
-        where: { id: templateId, companyId },
-      });
-
-      if (dbTemplate) {
-        // Replace in raw JSON text to handle nested string values
-        resolvedGraphText = resolvedGraphText.replace(new RegExp(placeholder, "g"), templateId);
-      }
-    }
-  }
-
-  // Apply integration mappings
-  if (input.integrationMappings) {
-    for (const [reqType, connectionId] of Object.entries(input.integrationMappings)) {
-      if (!connectionId) continue;
-      let placeholder = "";
-      if (reqType === "GOOGLE_CONNECTION") {
-        placeholder = "{{GOOGLE_CONNECTION_ID}}";
-      } else if (reqType === "TALLY_CONNECTION") {
-        placeholder = "{{TALLY_CONNECTION_ID}}";
-      } else if (reqType === "CASHFREE") {
-        placeholder = "{{CASHFREE_PROVIDER}}";
-      }
-
-      if (placeholder) {
-        resolvedGraphText = resolvedGraphText.replace(new RegExp(placeholder, "g"), connectionId);
-      }
-    }
-  }
-
-  const resolvedGraph = JSON.parse(resolvedGraphText) as AutomationGraph;
-
-  // If there are still mapped nodes that need specific property updates, handle them:
-  resolvedGraph.nodes.forEach((node) => {
-    if (node.type === "SEND_TEMPLATE" && node.data) {
-      const data = node.data as SendTemplateNodeData;
-      // If templateId has been replaced by a real cuid/uuid instead of keeping the placeholder:
-      if (data.templateId && !data.templateId.startsWith("{{")) {
-        // Make sure node labels look clean
-        data.templateStatus = "APPROVED";
-      }
-    }
-  });
+  const graphWithTemplates = applyTemplateMappingsToGraph(clonedGraph, validTemplateMappings);
+  const resolvedGraph = applyVerifiedIntegrationMappingsToGraph(
+    graphWithTemplates,
+    validIntegrationMappings,
+  );
 
   // 4. Compute the dynamic setup checklist
   const updatedChecklist: AutomationTemplateSetupChecklistItem[] = template.setupChecklist.map((item) => {
-    let completed = false;
-
-    if (item.completedBy === "TEMPLATE_MAPPING" && input.templateMappings) {
-      // Find the specific template key
-      const keySuffix = item.key.replace("SELECT_WHATSAPP_TEMPLATE_", "");
-      const mappedId = input.templateMappings[keySuffix];
-      const hasValidMapping = mappedId && !missingRequirements.some((mr) => mr.key === keySuffix);
-      if (hasValidMapping) {
-        completed = true;
-      }
-    } else if (item.completedBy === "INTEGRATION_MAPPING" && input.integrationMappings) {
-      const keySuffix = item.key.replace("CONNECT_", "");
-      const mappedId = input.integrationMappings[keySuffix];
-      const hasValidMapping = mappedId && !missingRequirements.some((mr) => mr.key === keySuffix);
-      if (hasValidMapping) {
-        completed = true;
-      }
-    }
-
     return {
       key: item.key,
       title: item.title,
       description: item.description,
       required: item.required,
       completedBy: item.completedBy,
-      completed, // Dynamic indicator
+      completed: isChecklistItemComplete(
+        item,
+        validTemplateMappings,
+        validIntegrationMappings,
+      ),
     } as AutomationTemplateSetupChecklistItem;
   });
 
@@ -252,8 +443,9 @@ export async function createAutomationFlowFromTemplate(
   };
 
   const startNode = template.graph.nodes.find((n) => n.type === "START");
-  const keywords = input.triggerKeyword
-    ? [input.triggerKeyword.trim()]
+  const overrideKeywords = parseKeywordInput(input.triggerKeyword);
+  const keywords = overrideKeywords.length > 0
+    ? overrideKeywords
     : (startNode?.data as StartNodeData)?.keywords ?? [];
 
   // 6. Persist AutomationFlow draft in DB

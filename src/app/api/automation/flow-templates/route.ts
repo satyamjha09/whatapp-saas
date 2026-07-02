@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
-import { listAutomationFlowTemplates } from "@/lib/automation-templates/template-registry";
+import { listAutomationFlowTemplateSummaries } from "@/server/services/automation-template-library.service";
 
 export async function GET(request: Request) {
   try {
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const integration = searchParams.get("integration") || undefined;
     const tag = searchParams.get("tag") || undefined;
 
-    const templates = listAutomationFlowTemplates({
+    const templates = listAutomationFlowTemplateSummaries({
       search,
       category,
       difficulty,
@@ -32,21 +32,7 @@ export async function GET(request: Request) {
       tag,
     });
 
-    // Map list to template summaries
-    const summaries = templates.map((t) => ({
-      slug: t.slug,
-      name: t.name,
-      description: t.description,
-      category: t.category,
-      difficulty: t.difficulty,
-      estimatedSetupMinutes: t.estimatedSetupMinutes,
-      tags: t.tags,
-      requiredIntegrations: t.requiredIntegrations,
-      nodesCount: t.graph.nodes.length,
-      previewNodeTypes: Array.from(new Set(t.graph.nodes.map((n) => n.type))),
-    }));
-
-    return NextResponse.json({ templates: summaries });
+    return NextResponse.json({ templates });
   } catch (error) {
     console.error("AUTOMATION_TEMPLATES_LIST_ERROR:", error);
     return NextResponse.json(

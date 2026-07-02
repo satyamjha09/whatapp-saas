@@ -26,9 +26,12 @@ import {
   PlayCircle,
   Rocket,
   Save,
+  Send,
   TestTube2,
   Workflow,
 } from "lucide-react";
+import { useAutomationPermissions } from "./permission-guard";
+import RequestPublishModal from "../automation-approvals/request-publish-modal";
 import AutomationTestPanel from "@/components/automation-builder/automation-test-panel";
 import type { AutomationTestRun } from "@/components/automation-builder/automation-test-types";
 import AutomationVersionHistoryPanel, {
@@ -94,6 +97,8 @@ type AutomationBuilderProps = {
   flowId: string;
   initialFlow?: AutomationBuilderInitialFlow;
   initialGraph?: AutomationGraph;
+  userRole?: string;
+  approvalRequired?: boolean;
 };
 
 const nodeTypes = {
@@ -185,7 +190,15 @@ export default function AutomationBuilder({
   flowId,
   initialFlow,
   initialGraph,
+  userRole = "MEMBER",
+  approvalRequired = false,
 }: AutomationBuilderProps) {
+  const { canEdit, canPublish, canRequestPublish } = useAutomationPermissions({
+    userRole,
+    approvalRequired,
+  });
+
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const graph = useMemo(
     () => normalizeAutomationGraph(initialGraph ?? createDefaultAutomationGraph()),
     [initialGraph],
@@ -246,15 +259,22 @@ export default function AutomationBuilder({
       completed: boolean;
     }>;
 
+    const hasResolvedValue = (value: unknown) => {
+      return (
+        typeof value === "string" &&
+        value.trim().length > 0 &&
+        !value.trim().startsWith("{{")
+      );
+    };
+
     return list.map((item) => {
-      let completed = false;
+      let completed = Boolean(item.completed);
 
       if (item.completedBy === "TEMPLATE_MAPPING") {
         const hasTemplateMapped = nodes.some(
           (n) =>
             n.data?.nodeType === "SEND_TEMPLATE" &&
-            n.data?.templateId &&
-            !n.data.templateId.startsWith("{{")
+            hasResolvedValue(n.data?.templateId)
         );
         if (hasTemplateMapped) {
           completed = true;
@@ -262,27 +282,16 @@ export default function AutomationBuilder({
       } else if (item.completedBy === "INTEGRATION_MAPPING") {
         const keySuffix = item.key.replace("CONNECT_", "");
         if (keySuffix === "CASHFREE") {
-          const hasCashfree = nodes.some(
-            (n) =>
-              n.data?.nodeType === "PAYMENT_LINK" &&
-              n.data?.amountSource
-          );
-          if (hasCashfree) completed = true;
+          completed = Boolean(item.completed);
         } else if (keySuffix === "GOOGLE") {
           const hasGoogle = nodes.some(
             (n) =>
               n.data?.nodeType === "GOOGLE_SHEET_APPEND_ROW" &&
-              n.data?.connectedGoogleAccountId &&
-              !n.data.connectedGoogleAccountId.startsWith("{{")
+              hasResolvedValue(n.data?.connectedGoogleAccountId)
           );
           if (hasGoogle) completed = true;
         } else if (keySuffix === "TALLY") {
-          const hasTally = nodes.some(
-            (n) =>
-              n.data?.nodeType === "TALLY_LOOKUP" &&
-              n.data?.customerIdentifierSource
-          );
-          if (hasTally) completed = true;
+          completed = Boolean(item.completed);
         }
       } else if (item.completedBy === "TEST_RUN") {
         if (testRun) completed = true;
@@ -933,15 +942,26 @@ export default function AutomationBuilder({
                   {flowState.status === "PAUSED" ? "Resume" : "Pause"}
                 </button>
               ) : null}
-              <button
-                className="inline-flex items-center rounded-xl bg-[#128C7E] px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(18,140,126,0.18)] transition hover:bg-[#075E54] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isPublishing}
-                onClick={openPublishModal}
-                type="button"
-              >
-                <Rocket className="mr-1.5 h-3.5 w-3.5" />
-                {isPublishing ? "Publishing" : "Publish"}
-              </button>
+              {canPublish ? (
+                <button
+                  className="inline-flex items-center rounded-xl bg-[#128C7E] px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(18,140,126,0.18)] transition hover:bg-[#075E54] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isPublishing}
+                  onClick={openPublishModal}
+                  type="button"
+                >
+                  <Rocket className="mr-1.5 h-3.5 w-3.5" />
+                  {isPublishing ? "Publishing" : "Publish"}
+                </button>
+              ) : canRequestPublish ? (
+                <button
+                  className="inline-flex items-center rounded-xl bg-[#0052CC] px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_22px_rgba(0,82,204,0.18)] transition hover:bg-[#0040A3] disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setIsRequestModalOpen(true)}
+                  type="button"
+                >
+                  <Send className="mr-1.5 h-3.5 w-3.5" />
+                  Request Approval
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -1019,6 +1039,9 @@ export default function AutomationBuilder({
               minZoom={0.35}
               nodeTypes={nodeTypes}
               nodes={nodesWithValidation}
+              nodesDraggable={canEdit}
+              nodesConnectable={canEdit}
+              elementsSelectable={true}
               onInit={setFlowInstance}
               onConnect={onConnect}
               onEdgesChange={onEdgesChange}
@@ -1245,6 +1268,24 @@ export default function AutomationBuilder({
           {JSON.stringify(graphSnapshot, null, 2)}
         </pre>
       </div>
+      <RequestPublishModal
+        isOpen={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
+        onSubmit={async (publishNotes) => {
+          const res = await fetch(`/api/automation/flows/${flowId}/publish-requests`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ publishNotes }),
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.message || "Failed to submit publish approval request.");
+          }
+
+          setStatus("Publish approval requested!");
+        }}
+      />
     </ReactFlowProvider>
   );
 }
