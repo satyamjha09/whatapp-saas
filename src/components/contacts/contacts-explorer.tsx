@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Clock3, Search, ShieldCheck } from "lucide-react";
 import { fieldClass } from "@/app/dashboard/dashboard-ui";
 
 type ExplorerContact = {
@@ -301,11 +302,11 @@ export function ContactsExplorer({
       {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
 
       {/* Table */}
-      <div className="mt-4 overflow-x-auto rounded-2xl border border-[#BFE9D0]">
-        <table className="min-w-full divide-y divide-[#E7F8EF] text-left text-sm">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-[#BFE9D0]">
+        <table className="w-full table-fixed divide-y divide-[#E7F8EF] text-left text-sm">
           <thead className="bg-[#E7F8EF]">
             <tr>
-              <th className="w-10 px-4 py-3">
+              <th className="w-10 px-3 py-3">
                 <input
                   type="checkbox"
                   aria-label="Select all"
@@ -314,20 +315,33 @@ export function ContactsExplorer({
                   className="h-4 w-4 accent-[#128C7E]"
                 />
               </th>
-              {["Name", "Phone", "Email", "City", "Tags", "Opted out"].map((header) => (
-                <th
-                  key={header}
-                  className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#128C7E]"
-                >
-                  {header}
-                </th>
-              ))}
+              <th className="w-[18%] px-3 py-3 text-xs font-semibold uppercase tracking-wide text-[#128C7E]">
+                Name
+              </th>
+              <th className="w-[20%] px-3 py-3 text-xs font-semibold uppercase tracking-wide text-[#128C7E]">
+                Phone
+              </th>
+              <th className="hidden w-[18%] px-3 py-3 text-xs font-semibold uppercase tracking-wide text-[#128C7E] 2xl:table-cell">
+                Email
+              </th>
+              <th className="hidden w-[10%] px-3 py-3 text-xs font-semibold uppercase tracking-wide text-[#128C7E] 2xl:table-cell">
+                City
+              </th>
+              <th className="hidden w-[14%] px-3 py-3 text-xs font-semibold uppercase tracking-wide text-[#128C7E] xl:table-cell">
+                Tags
+              </th>
+              <th className="w-[12%] px-3 py-3 text-xs font-semibold uppercase tracking-wide text-[#128C7E]">
+                Opted out
+              </th>
+              <th className="w-[20%] px-3 py-3 text-xs font-semibold uppercase tracking-wide text-[#128C7E]">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E7F8EF] bg-white">
             {contacts.map((contact) => (
               <tr key={contact.id}>
-                <td className="px-4 py-3">
+                <td className="px-3 py-3">
                   <input
                     type="checkbox"
                     aria-label={`Select ${contact.name ?? contact.phoneNumber}`}
@@ -336,34 +350,54 @@ export function ContactsExplorer({
                     className="h-4 w-4 accent-[#128C7E]"
                   />
                 </td>
-                <td className="max-w-[200px] truncate px-4 py-3 font-medium text-[#081B3A]">
+                <td className="truncate px-3 py-3 font-medium text-[#081B3A]">
                   {contact.name ?? "-"}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-[#102040]">
+                <td className="truncate px-3 py-3 text-[#102040]">
                   +{contact.countryCode} {contact.phoneNumber}
                 </td>
-                <td className="max-w-[200px] truncate px-4 py-3 text-[#526173]">
+                <td className="hidden truncate px-3 py-3 text-[#526173] 2xl:table-cell">
                   {contact.email ?? "-"}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-[#526173]">
+                <td className="hidden truncate px-3 py-3 text-[#526173] 2xl:table-cell">
                   {contact.city ?? "-"}
                 </td>
-                <td className="max-w-[180px] truncate px-4 py-3 text-xs text-[#526173]">
+                <td className="hidden truncate px-3 py-3 text-xs text-[#526173] xl:table-cell">
                   {contact.tags.join(", ") || "-"}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-xs">
+                <td className="px-3 py-3 text-xs">
                   {contact.optedOut ? (
                     <span className="font-semibold text-rose-600">Yes</span>
                   ) : (
                     <span className="text-[#526173]">No</span>
                   )}
                 </td>
+                <td className="px-3 py-3">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <Link
+                      href={`/dashboard/contacts/${contact.id}/crm`}
+                      className="inline-flex min-w-0 items-center gap-1 rounded-lg bg-[#E7F8EF] px-2.5 py-1.5 text-xs font-semibold text-[#075E54] transition hover:bg-[#D7F2E4]"
+                      aria-label={`Open CRM and consent for ${contact.name ?? contact.phoneNumber}`}
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      <span className="truncate">Consent</span>
+                    </Link>
+                    <Link
+                      href={`/dashboard/contacts/${contact.id}/timeline`}
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#BFE9D0] text-[#128C7E] transition hover:bg-[#F0FBF6]"
+                      aria-label={`Open timeline for ${contact.name ?? contact.phoneNumber}`}
+                      title="Timeline"
+                    >
+                      <Clock3 className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                </td>
               </tr>
             ))}
 
             {contacts.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-sm text-[#526173]">
+                <td colSpan={8} className="px-4 py-12 text-center text-sm text-[#526173]">
                   {isLoading ? "Loading contacts..." : "No contacts match these filters."}
                 </td>
               </tr>

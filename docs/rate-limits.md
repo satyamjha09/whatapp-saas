@@ -1,6 +1,6 @@
 # Global Rate Limits
 
-TallyKonnect uses Redis-backed IP rate limits for sensitive endpoints.
+metawhat uses Redis-backed IP rate limits for sensitive endpoints.
 
 ## Protected areas
 

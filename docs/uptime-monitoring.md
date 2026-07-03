@@ -1,6 +1,6 @@
 # Uptime Monitoring
 
-TallyKonnect includes internal uptime monitoring for production URLs.
+metawhat includes internal uptime monitoring for production URLs.
 
 ## What it monitors
 

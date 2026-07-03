@@ -21,7 +21,7 @@ export default async function CompanyOnboardingPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <div>
-        <p className="text-sm font-medium text-gray-500">TallyKonnect</p>
+        <p className="text-sm font-medium text-gray-500">metawhat</p>
         <h1 className="mt-1 text-3xl font-bold text-gray-900">
           Create your company workspace
         </h1>

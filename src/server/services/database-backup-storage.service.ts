@@ -11,7 +11,7 @@ function getRemoteStorageConfig() {
   const endpoint = process.env.S3_BACKUP_ENDPOINT;
   const accessKeyId = process.env.S3_BACKUP_ACCESS_KEY_ID;
   const secretAccessKey = process.env.S3_BACKUP_SECRET_ACCESS_KEY;
-  const prefix = process.env.S3_BACKUP_PREFIX ?? "tallykonnect/postgres";
+  const prefix = process.env.S3_BACKUP_PREFIX ?? "metawhat/postgres";
 
   if (!bucket || !accessKeyId || !secretAccessKey) {
     throw new Error("S3 backup storage is not configured");
@@ -71,7 +71,7 @@ export async function uploadDatabaseBackupToRemoteStorage({
       ContentType: "application/octet-stream",
       Metadata: {
         checksumsha256: checksumSha256,
-        service: "tallykonnect",
+        service: "metawhat",
       },
     }),
   );

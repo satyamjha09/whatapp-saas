@@ -1,6 +1,6 @@
 # Public Status Page & Trust Center
 
-TallyKonnect includes a customer-facing status page to publish service status, active incidents, and maintenance schedules.
+metawhat includes a customer-facing status page to publish service status, active incidents, and maintenance schedules.
 
 ## Public Route
 
@@ -13,8 +13,8 @@ This route is publicly accessible, SEO-optimized, and does not require authentic
 
 ```env
 STATUS_PAGE_ENABLED="true"
-STATUS_PAGE_PUBLIC_SLUG="tallykonnect"
-STATUS_PAGE_BRAND_NAME="TallyKonnect Status"
+STATUS_PAGE_PUBLIC_SLUG="metawhat"
+STATUS_PAGE_BRAND_NAME="metawhat Status"
 STATUS_PAGE_SUPPORT_EMAIL="support@your-domain.com"
 STATUS_PAGE_AUTO_SYNC_UPTIME="true"
 ```

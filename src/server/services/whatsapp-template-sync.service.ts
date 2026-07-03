@@ -1,6 +1,10 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
+  readTemplateComponents,
+  serializeTemplateVariables,
+} from "@/lib/whatsapp-template/template-variable-parser";
+import {
   assertUsageQuotaAvailable,
   incrementUsageQuota,
 } from "@/server/services/usage-quota.service";
@@ -25,6 +29,9 @@ type MetaTemplate = {
   status: string;
   category: string;
   components?: MetaTemplateComponent[];
+  quality_score?: unknown;
+  rejected_reason?: unknown;
+  rejection_reason?: unknown;
 };
 
 type MetaTemplatesResponse = {
@@ -60,54 +67,40 @@ function getMetaGraphBaseUrl() {
 }
 
 function extractTemplateBody(components: MetaTemplateComponent[] = []) {
-  return components.find((component) => component.type === "BODY")?.text ?? "";
+  return (
+    readTemplateComponents({ components }).find(
+      (component) => component.type?.toUpperCase() === "BODY",
+    )?.text ?? ""
+  );
 }
 
-function extractAllTemplateVariables(components: MetaTemplateComponent[] = []) {
-  const variables: string[] = [];
+function normalizeQualityScore(value: unknown) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
 
-  for (const component of components) {
-    if (component.type === "HEADER") {
-      if (component.format === "TEXT" && component.text) {
-        const matches = Array.from(new Set(component.text.match(/{{\d+}}/g) ?? [])).sort(
-          (left, right) => Number(left.slice(2, -2)) - Number(right.slice(2, -2))
-        );
-        for (const m of matches) {
-          const num = m.slice(2, -2);
-          variables.push(`HEADER_${num}`);
-        }
-      } else if (["IMAGE", "VIDEO", "DOCUMENT"].includes(component.format || "")) {
-        variables.push("HEADER_MEDIA");
-      }
-    }
-
-    if (component.type === "BODY" && component.text) {
-      const matches = Array.from(new Set(component.text.match(/{{\d+}}/g) ?? [])).sort(
-        (left, right) => Number(left.slice(2, -2)) - Number(right.slice(2, -2))
-      );
-      for (const m of matches) {
-        const num = m.slice(2, -2);
-        variables.push(`BODY_${num}`);
-      }
-    }
-
-    if (component.type === "BUTTONS" && Array.isArray(component.buttons)) {
-      component.buttons.forEach((button, btnIdx) => {
-        const btn = button as Record<string, unknown>;
-        if (typeof btn.url === "string") {
-          const matches = Array.from(new Set(btn.url.match(/{{\d+}}/g) ?? [])).sort(
-            (left, right) => Number(left.slice(2, -2)) - Number(right.slice(2, -2))
-          );
-          for (const m of matches) {
-            const num = m.slice(2, -2);
-            variables.push(`BUTTON_${btnIdx}_${num}`);
-          }
-        }
-      });
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const score = (value as { score?: unknown }).score;
+    if (typeof score === "string" && score.trim().length > 0) {
+      return score.trim();
     }
   }
 
-  return variables;
+  return null;
+}
+
+function normalizeRejectionReason(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toUpperCase() === "NONE") {
+    return null;
+  }
+
+  return trimmed;
 }
 
 function normalizeTemplateStatus(status: string): TemplateStatus | null {
@@ -186,29 +179,49 @@ async function fetchMetaTemplatePage({
     throw new Error(NUMERIC_WABA_ID_MESSAGE);
   }
 
-  const url = new URL(`${getMetaGraphBaseUrl()}/${wabaId}/message_templates`);
-  url.searchParams.set(
-    "fields",
-    "id,name,language,status,category,components",
-  );
-  url.searchParams.set("limit", "100");
+  async function fetchWithFields(fields: string) {
+    const url = new URL(`${getMetaGraphBaseUrl()}/${wabaId}/message_templates`);
+    url.searchParams.set("fields", fields);
+    url.searchParams.set("limit", "100");
 
-  if (after) url.searchParams.set("after", after);
+    if (after) url.searchParams.set("after", after);
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-    cache: "no-store",
-  });
-  const data = (await response.json()) as MetaTemplatesResponse;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    });
+    const data = (await response.json()) as MetaTemplatesResponse;
 
-  if (!response.ok || data.error) {
-    throw new Error(getMetaTemplatesFetchErrorMessage(data, wabaId));
+    return {
+      data,
+      ok: response.ok && !data.error,
+    };
   }
 
-  return data;
+  const extendedFields =
+    "id,name,language,status,category,components,quality_score,rejected_reason,rejection_reason";
+  let result = await fetchWithFields(extendedFields);
+
+  if (!result.ok) {
+    const message = result.data.error?.message?.toLowerCase() ?? "";
+    const fieldUnavailable =
+      message.includes("nonexisting field") ||
+      message.includes("unknown field") ||
+      message.includes("cannot query field");
+
+    if (fieldUnavailable) {
+      result = await fetchWithFields("id,name,language,status,category,components");
+    }
+  }
+
+  if (!result.ok) {
+    throw new Error(getMetaTemplatesFetchErrorMessage(result.data, wabaId));
+  }
+
+  return result.data;
 }
 
 export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
@@ -310,6 +323,11 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
     );
     const components = template.components ?? [];
     const body = extractTemplateBody(components);
+    const variables = serializeTemplateVariables({ body, components });
+    const qualityScore = normalizeQualityScore(template.quality_score);
+    const rejectionReason = normalizeRejectionReason(
+      template.rejected_reason ?? template.rejection_reason,
+    );
 
     const syncedTemplate = await prisma.template.upsert({
       where: {
@@ -324,8 +342,11 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
         category,
         status,
         body,
-        variables: extractAllTemplateVariables(components),
+        variables,
         components: serializeComponents(components),
+        lastSyncedAt: new Date(),
+        qualityScore,
+        rejectionReason,
       },
       create: {
         companyId,
@@ -335,8 +356,11 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
         category,
         status,
         body,
-        variables: extractAllTemplateVariables(components),
+        variables,
         components: serializeComponents(components),
+        lastSyncedAt: new Date(),
+        qualityScore,
+        rejectionReason,
       },
     });
 

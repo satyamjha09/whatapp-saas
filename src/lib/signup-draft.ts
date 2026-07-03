@@ -1,4 +1,4 @@
-export const SIGNUP_COMPANY_DRAFT_KEY = "tallykonnect.signup.companyDraft.v1";
+export const SIGNUP_COMPANY_DRAFT_KEY = "metawhat.signup.companyDraft.v1";
 
 export type SignupCompanyDraft = {
   businessName: string;

@@ -28,7 +28,7 @@ function fromAddress() {
   return (
     process.env.BILLING_DOCUMENT_EMAILS_FROM ||
     process.env.SMTP_FROM ||
-    "TallyKonnect Billing <no-reply@example.com>"
+    "metawhat Billing <no-reply@example.com>"
   );
 }
 
@@ -125,7 +125,7 @@ function invoiceEmailHtml({
         </a>
       </p>
       <p style="font-size:12px;color:#6b7280;">
-        This is an automated billing email from TallyKonnect.
+        This is an automated billing email from metawhat.
       </p>
     </div>
   `;
@@ -154,7 +154,7 @@ function creditNoteEmailHtml({
         </a>
       </p>
       <p style="font-size:12px;color:#6b7280;">
-        This is an automated billing email from TallyKonnect.
+        This is an automated billing email from metawhat.
       </p>
     </div>
   `;
@@ -209,7 +209,7 @@ export async function sendBillingInvoiceEmail({
     }
   }
 
-  const subject = `Invoice ${invoice.invoiceNumber} from TallyKonnect`;
+  const subject = `Invoice ${invoice.invoiceNumber} from metawhat`;
   const invoiceUrl = `${appUrl()}/dashboard/billing/invoices/${invoice.id}`;
   const amount = money(invoice.totalPaise, invoice.currency);
 
@@ -374,7 +374,7 @@ export async function sendCreditNoteEmail({
     }
   }
 
-  const subject = `Credit Note ${creditNote.creditNoteNumber} from TallyKonnect`;
+  const subject = `Credit Note ${creditNote.creditNoteNumber} from metawhat`;
   const refundsUrl = `${appUrl()}/dashboard/billing/refunds`;
   const amount = money(creditNote.totalPaise, creditNote.currency);
 

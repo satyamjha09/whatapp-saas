@@ -131,7 +131,7 @@ async function enableMaintenanceMode() {
   await setSystemMaintenanceMode({
     enabled: true,
     message:
-      "TallyKonnect is being rolled back. Sending and billing actions are temporarily paused.",
+      "metawhat is being rolled back. Sending and billing actions are temporarily paused.",
     updatedByUserId: null,
   });
 }

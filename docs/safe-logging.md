@@ -1,6 +1,6 @@
 # Safe Logging
 
-TallyKonnect uses a safe logger that redacts secrets before writing logs or storing security metadata.
+metawhat uses a safe logger that redacts secrets before writing logs or storing security metadata.
 
 ## Environment
 

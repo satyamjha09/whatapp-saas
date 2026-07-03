@@ -2,7 +2,7 @@
 
 Date: 2026-06-30
 
-This analysis is for building a MessageAPI-like WhatsApp SaaS experience in TallyKonnect / Red Lava.
+This analysis is for building a MessageAPI-like WhatsApp SaaS experience in metawhat / Red Lava.
 
 ## Scope And Sources
 
@@ -11,7 +11,7 @@ What was inspected:
 - Public marketing site: `https://messageapi.in`
 - Public app shell: `https://meta.messageapi.in/ConnectedAccount`
 - Public dashboard JavaScript chunks exposed by the app shell, especially `MainApp-UCko9oxW.js`
-- Local TallyKonnect codebase at `C:\tallykonnect\whatsapp-saas`
+- Local metawhat codebase at `C:\metawhat\whatsapp-saas`
 
 Limitation:
 
@@ -32,7 +32,7 @@ MessageAPI is not just a send-message panel. It is a full WhatsApp business oper
 - Wallet, subscription, charges, AI credits, calling charges, invoices, plan migration, and reseller margin controls
 - API keys, API documentation, webhooks, WhatsApp widget, click-to-chat, ChatGPT/OpenAI, TradeIndia, and white-label/reseller controls
 
-TallyKonnect already has many enterprise-grade foundations that MessageAPI appears to have, and in some areas TallyKonnect is stronger: multi-tenant architecture, RBAC, entitlements, compliance evidence, data retention, privacy center, billing reconciliation, status/incident tooling, worker health, developer webhooks, and public API idempotency.
+metawhat already has many enterprise-grade foundations that MessageAPI appears to have, and in some areas metawhat is stronger: multi-tenant architecture, RBAC, entitlements, compliance evidence, data retention, privacy center, billing reconciliation, status/incident tooling, worker health, developer webhooks, and public API idempotency.
 
 The biggest competitor-parity gaps are product-facing modules that are currently placeholders or missing from navigation:
 
@@ -72,7 +72,7 @@ Feature meaning:
 - Postpaid onboarding path
 - Troubleshooting and reconnect flows
 
-Recommended TallyKonnect target:
+Recommended metawhat target:
 
 - Keep `/dashboard/whatsapp/connect` as the primary flow.
 - Add a clear connected-account dashboard with phone number, WABA ID, business ID, webhook status, template sync status, quality rating, messaging limits, and token health.
@@ -94,7 +94,7 @@ Feature meaning:
 - KPI tiles for messaging, wallet, plan, campaigns, and account health
 - Recent activity and reporting shortcuts
 
-TallyKonnect state:
+metawhat state:
 
 - Strong existing dashboard in `src/app/dashboard/page.tsx`
 - Tracks messages sent, delivery rate, contacts, open inbox, wallet balance, message status mix, campaign performance, and recent activity
@@ -137,7 +137,7 @@ Feature meaning:
 - Use predefined template library
 - Match inbound text/patterns to template automation
 
-TallyKonnect state:
+metawhat state:
 
 - Good foundation: `/dashboard/templates`, `/dashboard/templates/create`, template sync, submit button, status table, variable mapping models and docs
 - Placeholder: template match logs route
@@ -185,7 +185,7 @@ Feature meaning:
 - Payment messages
 - Drip campaigns
 
-TallyKonnect state:
+metawhat state:
 
 - Strong existing: single template send, bulk template send, campaign records, launch orchestrator, throughput guard, reply attribution, completion reports, failure intelligence
 - Existing bulk page supports groups and templates
@@ -217,7 +217,7 @@ Feature meaning:
 - List and manage scheduled chatbot messages
 - Preview next run times
 
-TallyKonnect state:
+metawhat state:
 
 - Navigation exists, but dynamic scheduled pages are placeholders:
   - `/dashboard/scheduled/single-messages`
@@ -254,13 +254,13 @@ Feature meaning:
 - Embedded inbox mode for iframe/CRM embedding
 - Inbox settings
 
-TallyKonnect state:
+metawhat state:
 
 - Strong existing: inbox list/detail, reply, notes, tags, saved views, status, priority, assignee, snooze, SLA, quick replies, realtime events
 
 Recommended target:
 
-- Add embedded inbox mode if partners need to embed TallyKonnect inside ERP/CRM.
+- Add embedded inbox mode if partners need to embed metawhat inside ERP/CRM.
 - Add inbox settings page if not yet functional.
 - Add sales pipeline/customer stage fields to the contact side panel.
 - Add conversation-level conversion attribution for campaigns.
@@ -294,7 +294,7 @@ Feature meaning:
 - Blocked contacts
 - Imports
 
-TallyKonnect state:
+metawhat state:
 
 - Strong existing: contacts, import jobs, groups, segments, CRM page, consent ledger, contact activity
 - Placeholders: blocked contacts, contact addresses, contact settings
@@ -326,7 +326,7 @@ Feature meaning:
 - Trigger messages from form/sheet submissions
 - Schedule reminders from sheet data
 
-TallyKonnect state:
+metawhat state:
 
 - `/dashboard/integrations/google-sheets` is placeholder
 
@@ -364,7 +364,7 @@ Feature meaning:
 - Send catalog/product messages
 - View catalog orders
 
-TallyKonnect state:
+metawhat state:
 
 - `/dashboard/catalogs` is placeholder
 - Reports include catalog orders as placeholder
@@ -417,7 +417,7 @@ Feature meaning:
 - Subscription and plan purchase
 - Wallet recharge and point purchase
 
-TallyKonnect state:
+metawhat state:
 
 - Strong existing: wallet, billing, subscriptions, Cashfree, invoices, refunds, usage quotas, scheduled plan changes, reconciliation, billing analytics
 - Placeholder: WhatsApp payment configurations and payment transactions report
@@ -452,7 +452,7 @@ Feature meaning:
 - Node validation
 - Scheduled chatbot messages
 
-TallyKonnect state:
+metawhat state:
 
 - Chatbot reports/scheduled pages are placeholders
 - WhatsApp Flows exist and are more official/productized than generic bot flows
@@ -498,7 +498,7 @@ Feature meaning:
 - TradeIndia integration
 - Cross-account sync utilities
 
-TallyKonnect state:
+metawhat state:
 
 - Strong existing: public API v1, API keys, developer webhooks, webhook outbox, logs, idempotency, docs route
 - Placeholder: OpenAI and Google Sheets integration pages
@@ -535,7 +535,7 @@ Feature meaning:
 - Template insights
 - Payment reports
 
-TallyKonnect state:
+metawhat state:
 
 - Strong existing analytics services and pages for campaigns, campaign replies, failure insights, completion reports
 - Specific report pages exist for messages and campaigns
@@ -588,7 +588,7 @@ Feature meaning:
 - Support settings
 - Theme editor
 
-TallyKonnect state:
+metawhat state:
 
 - Good platform foundation: company/partner model, platform company control, company plan assignment, audit logs, entitlements, billing profile
 - Missing or not productized: full reseller dashboard, margin rules, white-label custom domain, theme editor, support settings
@@ -620,7 +620,7 @@ Feature meaning:
 - QR warranty document generation
 - Payment reminder automation
 
-TallyKonnect state:
+metawhat state:
 
 - The current SaaS has messaging, contacts, wallet, templates, and campaigns.
 - No obvious desktop printer/ERP agent module in the scanned app routes.
@@ -649,9 +649,9 @@ Recommended target:
 - Keep RCS out of the first WhatsApp parity milestone.
 - Add as future multi-channel module if customers ask for promotional alternatives.
 
-## Local TallyKonnect Coverage Matrix
+## Local metawhat Coverage Matrix
 
-| Area | TallyKonnect status | Priority | Recommendation |
+| Area | metawhat status | Priority | Recommendation |
 |---|---:|---:|---|
 | Multi-tenant SaaS | Strong | P0 | Keep as core advantage |
 | Connected WhatsApp | Good | P0 | Add richer account health and audit UI |
@@ -802,7 +802,7 @@ MessageAPI appears to use these UX patterns:
 - Wallet and plan status visible throughout the product
 - Embedded signup buttons for Meta/Google
 
-Recommended TallyKonnect UX direction:
+Recommended metawhat UX direction:
 
 - Keep the product quiet, dense, and work-focused.
 - Reduce placeholder routes before adding more navigation.
@@ -812,7 +812,7 @@ Recommended TallyKonnect UX direction:
 
 ## Compliance And Platform Notes
 
-- WhatsApp templates and opt-in/consent should remain first-class. TallyKonnect already has consent-ledger foundations; use them in imports, Google Sheets, and campaigns.
+- WhatsApp templates and opt-in/consent should remain first-class. metawhat already has consent-ledger foundations; use them in imports, Google Sheets, and campaigns.
 - AI should be business-workflow-specific, not a broad general-purpose WhatsApp assistant.
 - Groups are now visible in Meta's current platform messaging as an official API area, but implementation should still be gated by eligibility, WABA status, permissions, and policy review.
 - ERP/POS automation must avoid unofficial WhatsApp Web automation. Route sends through official WhatsApp Business Platform APIs.
@@ -828,4 +828,4 @@ If the goal is "make like MessageAPI" quickly, do this order:
 4. Build ERP/POS/Tally/Busy connector MVP around public API and invoice PDF send jobs.
 5. Add partner/reseller dashboard only after customer workflows are solid.
 
-This order gives the fastest visible parity without wasting the strong backend platform already built in TallyKonnect.
+This order gives the fastest visible parity without wasting the strong backend platform already built in metawhat.

@@ -5,7 +5,7 @@ import { buildNotificationEmailContent } from "@/server/services/notification-em
 import { toAbsoluteAppUrl } from "@/server/utils/app-url";
 
 function buildNotificationSubject(title: string) {
-  return `[TallyKonnect] ${title}`;
+  return `[metawhat] ${title}`;
 }
 
 export async function enqueueCompanyNotificationEmails({

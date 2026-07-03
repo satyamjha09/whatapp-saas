@@ -17,7 +17,7 @@ CONTACT_IMPORT_DEFAULT_CONSENT_STATUS="UNKNOWN"
 
 ```csv
 name,email,phone,city,companyName,marketingConsentStatus,marketingConsentProof,marketingConsentSource
-Satyam,satyam@example.com,918178444398,Delhi,TallyKonnect,GRANTED,Website signup form,FORM
+Satyam,satyam@example.com,918178444398,Delhi,metawhat,GRANTED,Website signup form,FORM
 ```
 
 ## Pages

@@ -1,6 +1,6 @@
 # Request Body Guard
 
-TallyKonnect blocks oversized request bodies before parsing JSON.
+metawhat blocks oversized request bodies before parsing JSON.
 
 ## Why
 

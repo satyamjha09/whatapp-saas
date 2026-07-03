@@ -1,9 +1,18 @@
 import Link from "next/link";
-import { BarChart3, ChevronRight, CopyPlus, Filter, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  BarChart3,
+  CheckCircle2,
+  ChevronRight,
+  CopyPlus,
+  Filter,
+  Trash2,
+} from "lucide-react";
 import { redirect } from "next/navigation";
 import { actionButtonClass } from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getTemplatesByCompany } from "@/server/services/template.service";
+import { validateTemplateForMetaSubmission } from "@/server/services/whatsapp-template-validation.service";
 import SubmitTemplateButton from "./submit-template-button";
 import SyncWhatsAppTemplatesButton from "./sync-whatsapp-templates-button";
 
@@ -42,8 +51,52 @@ function templateStatusLabel(status: string) {
   return labels[status] ?? status.replaceAll("_", " ");
 }
 
+function templateOperationalNote(
+  template: Awaited<ReturnType<typeof getTemplatesByCompany>>[number],
+) {
+  if (template.status === "REJECTED" && template.rejectionReason) {
+    return template.rejectionReason;
+  }
+
+  if (template.lastSubmitError) {
+    return template.lastSubmitError;
+  }
+
+  if (template.status === "APPROVED") {
+    return template.lastSyncedAt
+      ? `Synced ${formatTemplateDate(template.lastSyncedAt)}`
+      : "Ready for sending";
+  }
+
+  if (template.status === "PENDING_APPROVAL") {
+    return template.lastSubmittedAt
+      ? `Submitted ${formatTemplateDate(template.lastSubmittedAt)}; waiting for Meta approval`
+      : "Waiting for Meta approval";
+  }
+
+  if (template.status === "PAUSED") {
+    return "Paused by Meta; sync again after quality improves";
+  }
+
+  if (template.status === "IN_APPEAL") {
+    return "In appeal with Meta";
+  }
+
+  const validation = validateTemplateForMetaSubmission(template);
+
+  if (!validation.canSubmit) {
+    return validation.errors[0]?.message ?? "Needs fixes before Meta submission";
+  }
+
+  if (validation.warnings.length > 0) {
+    return validation.warnings[0]?.message;
+  }
+
+  return "Ready to submit";
+}
+
 const templateTableColumns =
-  "grid-cols-[220px_108px_108px_minmax(260px,1fr)_146px_96px]";
+  "grid-cols-[200px_92px_176px_minmax(220px,1fr)_138px_96px]";
 
 export default async function TemplatesPage() {
   const context = await getCurrentWorkspaceContext();
@@ -139,6 +192,16 @@ export default async function TemplatesPage() {
                       >
                         {templateStatusLabel(template.status)}
                       </span>
+                      <p className="mt-1 flex min-w-0 items-start gap-1 text-[11px] leading-4 text-[#526173]">
+                        {template.status === "APPROVED" ? (
+                          <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-[#128C7E]" />
+                        ) : (
+                          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-[#B7791F]" />
+                        )}
+                        <span className="line-clamp-2">
+                          {templateOperationalNote(template)}
+                        </span>
+                      </p>
                     </div>
                     <div className="min-w-0 px-3 py-2">
                       <p className="truncate">{template.language}</p>

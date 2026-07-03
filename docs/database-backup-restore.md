@@ -1,6 +1,6 @@
 # Database Backup and Restore
 
-TallyKonnect uses PostgreSQL. Production backups are created with `pg_dump` in custom format.
+metawhat uses PostgreSQL. Production backups are created with `pg_dump` in custom format.
 
 ## Required environment
 
@@ -24,7 +24,7 @@ S3_BACKUP_REGION="auto"
 S3_BACKUP_ENDPOINT="https://your-r2-or-s3-endpoint"
 S3_BACKUP_ACCESS_KEY_ID="..."
 S3_BACKUP_SECRET_ACCESS_KEY="..."
-S3_BACKUP_PREFIX="tallykonnect/postgres"
+S3_BACKUP_PREFIX="metawhat/postgres"
 ```
 
 Each backup stores:
@@ -91,10 +91,10 @@ pg_dump \
 Never restore directly over production without a maintenance window.
 
 ```bash
-createdb tallykonnect_restore_test
+createdb metawhat_restore_test
 
 pg_restore \
-  --dbname "postgresql://postgres:password@localhost:5432/tallykonnect_restore_test" \
+  --dbname "postgresql://postgres:password@localhost:5432/metawhat_restore_test" \
   --clean \
   --if-exists \
   --no-owner \
@@ -105,7 +105,7 @@ pg_restore \
 ## Verify restore
 
 ```bash
-psql "postgresql://postgres:password@localhost:5432/tallykonnect_restore_test" \
+psql "postgresql://postgres:password@localhost:5432/metawhat_restore_test" \
   -c "select count(*) from \"Company\";"
 ```
 

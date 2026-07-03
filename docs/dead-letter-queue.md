@@ -1,6 +1,6 @@
 # Dead Letter Queue
 
-TallyKonnect syncs failed BullMQ jobs into a database-backed dead letter queue.
+metawhat syncs failed BullMQ jobs into a database-backed dead letter queue.
 
 ## Dashboard
 

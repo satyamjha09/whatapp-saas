@@ -79,7 +79,7 @@ export default function PaymentLinkNodeForm({
         errors={errors}
         field="mockPaymentLink"
         label="Mock payment link"
-        placeholder="https://payments.test/tallykonnect/mock-payment-link"
+        placeholder="https://payments.test/metawhat/mock-payment-link"
         setDraft={setDraft}
         type="url"
       />

@@ -22,6 +22,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -117,11 +118,18 @@ function OnboardingLayout({ children }: { children: ReactNode }) {
 
       <div className="relative mx-auto max-w-[1180px]">
         <div className="mb-7 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#128C7E] shadow-[0_12px_30px_rgba(8,27,58,0.08)] ring-1 ring-[#BFE9D0]">
-            <Building2 className="h-7 w-7" aria-hidden="true" />
+          <div className="mx-auto grid h-14 w-14 place-items-center overflow-hidden rounded-2xl bg-white shadow-[0_12px_30px_rgba(8,27,58,0.08)] ring-1 ring-[#BFE9D0]">
+            <Image
+              src="/brand/metawhat-mark.png"
+              alt="metawhat logo"
+              width={50}
+              height={50}
+              className="h-12 w-12 object-contain"
+              priority
+            />
           </div>
           <h1 className="mt-4 text-2xl font-extrabold tracking-normal text-[#081B3A]">
-            TallyKonnect
+            metawhat
           </h1>
           <p className="mt-1 text-sm font-medium text-[#526173]">
             Business Management Platform
@@ -161,7 +169,7 @@ function BrandInformationPanel() {
         </span>
 
         <h2 className="mt-6 text-3xl font-extrabold leading-tight text-[#081B3A] lg:text-4xl">
-          Set up your TallyKonnect workspace
+          Set up your metawhat workspace
         </h2>
 
         <p className="mt-4 text-sm leading-6 text-[#526173]">
@@ -586,7 +594,7 @@ function ConsentCard({
       <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#526173]" aria-hidden="true" />
       <span className="text-sm font-medium leading-6 text-[#526173]">
         I agree to receive account, service, product and promotional updates
-        from TallyKonnect on WhatsApp.
+        from metawhat on WhatsApp.
       </span>
     </label>
   );
@@ -874,7 +882,7 @@ export function SignupForm({
                 {!isInviteSignup ? (
                   <FormSection
                     title="Business information"
-                    description="Tell us about the organisation using TallyKonnect."
+                    description="Tell us about the organisation using metawhat."
                   >
                     <div className="grid gap-5 md:grid-cols-2">
                       <FormField

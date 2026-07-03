@@ -58,7 +58,7 @@ export async function sendTeamInviteTransactionalEmail({
 
   const from =
     process.env.SMTP_FROM ||
-    `${process.env.TEAM_INVITE_FROM_NAME ?? "TallyKonnect"} <${process.env.SMTP_USER}>`;
+    `${process.env.TEAM_INVITE_FROM_NAME ?? "metawhat"} <${process.env.SMTP_USER}>`;
   const transporter = getTransporter();
   const info = await transporter.sendMail({
     from,

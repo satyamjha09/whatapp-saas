@@ -1,6 +1,6 @@
 # Public API v1
 
-TallyKonnect Public API v1 is the stable customer-facing API at `/api/v1`.
+metawhat Public API v1 is the stable customer-facing API at `/api/v1`.
 
 ## Authentication
 

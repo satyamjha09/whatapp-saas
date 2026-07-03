@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import styles from './page.module.css'
 import { FileText, Clock, CheckCircle2, XCircle, Shield, Zap, RefreshCw, Quote, ArrowRight, Send } from 'lucide-react'
 import { Reveal, RevealGroup, RevealItem } from './Reveal'
@@ -72,7 +73,7 @@ const deepFeatures: {
     kicker: 'Broadcast',
     title: 'Import & Broadcast Instantly',
     description:
-      'Import your contacts and broadcast approved messages instantly. See real-time delivery and read rates right inside your TallyKonnect dashboard.',
+      'Import your contacts and broadcast approved messages instantly. See real-time delivery and read rates right inside your metawhat dashboard.',
     visual: 'broadcast',
   },
 ]
@@ -82,9 +83,9 @@ function FeatureVisual({ type }: { type: (typeof deepFeatures)[number]['visual']
     return (
       <div className={styles.formsMock}>
         <div className={styles.formsMockHeader}>
-          <span className={styles.formsMockAvatar}>TK</span>
+          <span className={styles.formsMockAvatar}>MW</span>
           <div>
-            <strong>TallyKonnect</strong>
+            <strong>metawhat</strong>
             <small>online</small>
           </div>
         </div>
@@ -186,7 +187,7 @@ function FeatureVisual({ type }: { type: (typeof deepFeatures)[number]['visual']
     return (
       <div className={styles.analyticsMock}>
         <div className={styles.anSidebar} aria-hidden="true">
-          <span className={styles.anSidebarLogo}>TK</span>
+          <span className={styles.anSidebarLogo}>MW</span>
           <span />
           <span />
           <span />
@@ -273,7 +274,7 @@ function FeatureVisual({ type }: { type: (typeof deepFeatures)[number]['visual']
           <div className={`${styles.builderNode} ${styles.nodeMedia} ${styles.bStep2}`}>
             <span className={styles.nodeTitle}>Media + Buttons</span>
             <div className={styles.nodeImage} />
-            <p>Welcome to TallyKonnect. Select an option below</p>
+            <p>Welcome to metawhat. Select an option below</p>
             <span className={styles.nodeButton}>Track Order</span>
             <span className={styles.nodeButton}>Talk to an Agent</span>
           </div>
@@ -284,9 +285,9 @@ function FeatureVisual({ type }: { type: (typeof deepFeatures)[number]['visual']
         </div>
         <div className={styles.phoneFrame}>
           <div className={styles.phoneHeader}>
-            <span className={styles.phoneAvatar}>TK</span>
+            <span className={styles.phoneAvatar}>MW</span>
             <div>
-              <strong>TallyKonnect</strong>
+              <strong>metawhat</strong>
               <small>online</small>
             </div>
           </div>
@@ -299,7 +300,7 @@ function FeatureVisual({ type }: { type: (typeof deepFeatures)[number]['visual']
             </div>
             <div className={`${styles.phoneCard} ${styles.pMsg2}`}>
               <div className={styles.phoneCardImage} />
-              <p>Welcome to TallyKonnect. Select an option below</p>
+              <p>Welcome to metawhat. Select an option below</p>
               <span className={`${styles.phoneCardBtn} ${styles.pBtn1}`}>Track Order</span>
               <span className={`${styles.phoneCardBtn} ${styles.pBtn2}`}>Talk to an Agent</span>
             </div>
@@ -350,7 +351,7 @@ const testimonials = [
     initials: 'RG',
     name: 'Rohit Gupta',
     role: 'Gupta & Co.',
-    quote: 'TallyKonnect helped us manage customer communication from one place. Our response time improved within the first week.',
+    quote: 'metawhat helped us manage customer communication from one place. Our response time improved within the first week.',
   },
   {
     initials: 'AM',
@@ -423,9 +424,16 @@ export default function Home() {
         <div className={styles.navContainer}>
           <Link className={styles.brand} href="/">
             <span className={styles.brandMark} aria-hidden="true">
-              <span />
+              <Image
+                src="/brand/metawhat-mark.png"
+                alt=""
+                width={34}
+                height={34}
+                className={styles.brandLogo}
+                priority
+              />
             </span>
-            <span>TallyKonnect</span>
+            <span>metawhat</span>
           </Link>
           <div className={styles.navLinks} aria-label="Primary navigation">
             <Link href="/">Home</Link>
@@ -472,7 +480,7 @@ export default function Home() {
             </Reveal>
             <Reveal direction="up" delay={0.16}>
               <p>
-                TallyKonnect helps finance teams and businesses automate WhatsApp conversations,
+                metawhat helps finance teams and businesses automate WhatsApp conversations,
                 manage customer communication and sync important data with Tally from one clean platform.
               </p>
             </Reveal>
@@ -495,9 +503,9 @@ export default function Home() {
             </Reveal>
           </div>
 
-          <div className={styles.productVisual} aria-label="TallyKonnect dashboard preview">
+          <div className={styles.productVisual} aria-label="metawhat dashboard preview">
             <div className={styles.sidebar}>
-              <span className={styles.sidebarLogo}>TK</span>
+              <span className={styles.sidebarLogo}>MW</span>
               {['Dashboard', 'Conversations', 'Contacts', 'Campaigns', 'Templates', 'Analytics'].map((item) => (
                 <span key={item} className={item === 'Dashboard' ? styles.activeNavItem : undefined}>
                   {item}
@@ -605,7 +613,7 @@ export default function Home() {
                     <span />
                     <span />
                     <span />
-                    <em>TallyKonnect &middot; {feature.kicker}</em>
+                    <em>metawhat &middot; {feature.kicker}</em>
                   </div>
                   <div className={styles.visualBody}>
                     <FeatureVisual type={feature.visual} />
@@ -622,7 +630,7 @@ export default function Home() {
           <Reveal direction="left">
             <span className={styles.badgeDark}>Powerful integrations</span>
             <h2>Works seamlessly with your tools</h2>
-            <p>Connect TallyKonnect with the platforms you already use and automate communication, reminders and data flow.</p>
+            <p>Connect metawhat with the platforms you already use and automate communication, reminders and data flow.</p>
           </Reveal>
           <RevealGroup className={styles.integrationGrid}>
             {integrations.map((integration) => (
@@ -699,7 +707,7 @@ export default function Home() {
             <span className={styles.kicker}>Tally ERP Automation</span>
             <h2>Built Specifically for <span>Tally ERP Workflows</span></h2>
             <p style={{ marginTop: '12px', color: '#526173' }}>
-              No manual uploads. TallyKonnect connects directly with your Tally ERP database to automate major business communications in real time.
+              No manual uploads. metawhat connects directly with your Tally ERP database to automate major business communications in real time.
             </p>
           </Reveal>
           <RevealGroup className={styles.showcaseGrid}>
@@ -743,11 +751,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* NEW: Manual vs TallyKonnect Comparison Section */}
+      {/* NEW: Manual vs metawhat Comparison Section */}
       <section className={styles.comparisonSection}>
         <div className={styles.sectionContainer}>
           <Reveal className={styles.sectionHeading}>
-            <span className={styles.kicker}>Why TallyKonnect?</span>
+            <span className={styles.kicker}>Why metawhat?</span>
             <h2>Automate the <span>Heavy Lifting</span></h2>
           </Reveal>
           <RevealGroup className={styles.comparisonGrid}>
@@ -773,7 +781,7 @@ export default function Home() {
               </ul>
             </RevealItem>
             <RevealItem direction="right" className={`${styles.comparisonCol} ${styles.automated}`}>
-              <h3>TallyKonnect Automation</h3>
+              <h3>metawhat Automation</h3>
               <ul className={styles.comparisonList}>
                 <li className={styles.comparisonItem}>
                   <CheckCircle2 className="h-5 w-5 text-green-500" style={{ color: '#22c55e' }} />
@@ -802,7 +810,7 @@ export default function Home() {
           <span className={styles.kicker}>What our clients say</span>
           <h2>Loved by businesses, trusted for results</h2>
           <p className={styles.testimonialsHint}>
-            From CA firms to traders, hear what businesses say after switching to TallyKonnect. Hover a card to read their story.
+            From CA firms to traders, hear what businesses say after switching to metawhat. Hover a card to read their story.
           </p>
         </Reveal>
         <div className={styles.marqueeViewport}>
@@ -853,13 +861,13 @@ export default function Home() {
             <RevealItem>
               <div className={styles.faqCard}>
                 <h3>How does the Tally integration work?</h3>
-                <p>We provide a secure, lightweight connector that runs alongside your Tally ERP installation. It reads ledger balances and invoice details and pushes them securely to TallyKonnect to trigger updates.</p>
+                <p>We provide a secure, lightweight connector that runs alongside your Tally ERP installation. It reads ledger balances and invoice details and pushes them securely to metawhat to trigger updates.</p>
               </div>
             </RevealItem>
             <RevealItem>
               <div className={styles.faqCard}>
                 <h3>Do I need a WhatsApp Business API account?</h3>
-                <p>Yes. TallyKonnect uses the official Meta Cloud API to ensure delivery rates and prevent number bans. We provide embedded onboarding inside our app to help you set it up in under 5 minutes.</p>
+                <p>Yes. metawhat uses the official Meta Cloud API to ensure delivery rates and prevent number bans. We provide embedded onboarding inside our app to help you set it up in under 5 minutes.</p>
               </div>
             </RevealItem>
             <RevealItem>
@@ -927,8 +935,16 @@ export default function Home() {
         <div className={styles.footerContainer}>
           <div>
             <Link className={styles.footerBrand} href="/">
-              <span className={styles.brandMark}>TK</span>
-              <span>TallyKonnect</span>
+              <span className={styles.brandMark} aria-hidden="true">
+                <Image
+                  src="/brand/metawhat-mark.png"
+                  alt=""
+                  width={30}
+                  height={30}
+                  className={styles.brandLogo}
+                />
+              </span>
+              <span>metawhat</span>
             </Link>
             <p>Automate WhatsApp. Manage business. Integrate with Tally. Grow more.</p>
           </div>

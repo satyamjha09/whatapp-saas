@@ -4,7 +4,7 @@ import { getProductionEnvAudit } from "@/server/services/production-env-audit.se
 const audit = getProductionEnvAudit();
 
 console.log("");
-console.log("TallyKonnect Production Doctor");
+console.log("metawhat Production Doctor");
 console.log("================================");
 console.log("");
 

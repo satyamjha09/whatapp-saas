@@ -10,8 +10,12 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'TallyKonnect',
-  description: 'Premium WhatsApp Business and Tally workflow dashboard',
+  title: 'metawhat',
+  description: 'Premium WhatsApp Business workflow dashboard',
+  icons: {
+    icon: '/brand/metawhat-mark.png',
+    apple: '/brand/metawhat-mark.png',
+  },
 }
 
 function getAllowedRedirectOrigins() {

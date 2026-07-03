@@ -40,7 +40,7 @@ function getFrom() {
   return (
     process.env.PUBLIC_PRIVACY_EMAIL_FROM ||
     process.env.SMTP_FROM ||
-    "TallyKonnect Privacy <privacy@localhost>"
+    "metawhat Privacy <privacy@localhost>"
   );
 }
 

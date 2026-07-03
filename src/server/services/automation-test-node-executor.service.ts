@@ -587,7 +587,7 @@ export async function executeAutomationTestNode({
     );
     const paymentLink =
       stringValue(data.mockPaymentLink) ||
-      `https://payments.test/tallykonnect/${node.id}`;
+      `https://payments.test/metawhat/${node.id}`;
     const nextContext = setTestContextValue(
       context,
       `variables.${stringValue(data.savePaymentLinkAs, "paymentLink")}`,

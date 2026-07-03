@@ -1,22 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
+import { serializeTemplateVariables } from "@/lib/whatsapp-template/template-variable-parser";
 import {
   assertUsageQuotaAvailable,
   incrementUsageQuota,
 } from "@/server/services/usage-quota.service";
 import { CreateTemplateInput } from "@/server/validators/template.validator";
-
-function extractTemplateVariables(body: string) {
-  const matches = body.match(/{{\d+}}/g);
-
-  if (!matches) {
-    return [];
-  }
-
-  return Array.from(new Set(matches)).sort((left, right) => {
-    return Number(left.slice(2, -2)) - Number(right.slice(2, -2));
-  });
-}
 
 export async function getTemplatesByCompany(companyId: string) {
   return prisma.template.findMany({
@@ -39,7 +28,11 @@ export async function createTemplateForCompany(
     amount: 1,
   });
 
-  const variables = extractTemplateVariables(input.body);
+  const templateLike = {
+    body: input.body,
+    components: input.components,
+  };
+  const variables = serializeTemplateVariables(templateLike);
 
   const template = await prisma.template.create({
     data: {

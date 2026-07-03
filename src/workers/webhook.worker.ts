@@ -388,6 +388,32 @@ function mapMetaStatusToMessageStatus(status: string): MessageStatus | null {
   }
 }
 
+function messageStatusRank(status: MessageStatus) {
+  const ranks: Record<MessageStatus, number> = {
+    CANCELED: 99,
+    DELIVERED: 3,
+    FAILED: 99,
+    QUEUED: 1,
+    RECEIVED: 0,
+    RETRY_PENDING: 1,
+    READ: 4,
+    SENDING: 1,
+    SENT: 2,
+  };
+
+  return ranks[status] ?? 0;
+}
+
+function shouldApplyMessageStatus(
+  currentStatus: MessageStatus,
+  nextStatus: MessageStatus,
+) {
+  if (currentStatus === "FAILED" || currentStatus === "CANCELED") return false;
+  if (nextStatus === "FAILED") return true;
+
+  return messageStatusRank(nextStatus) >= messageStatusRank(currentStatus);
+}
+
 const worker = new Worker<ProcessWebhookJobData>(
   "webhook-queue",
   async (job) => {
@@ -724,12 +750,17 @@ const worker = new Worker<ProcessWebhookJobData>(
         continue;
       }
 
+      const shouldApplyStatus = shouldApplyMessageStatus(
+        message.status,
+        nextStatus,
+      );
+
       const updatedMessage = await prisma.message.update({
         where: {
           id: message.id,
         },
         data: {
-          status: nextStatus,
+          ...(shouldApplyStatus ? { status: nextStatus } : {}),
           events: {
             create: {
               companyId: message.companyId,
@@ -740,6 +771,10 @@ const worker = new Worker<ProcessWebhookJobData>(
           },
         },
       });
+
+      if (!shouldApplyStatus) {
+        continue;
+      }
 
       await updateBulkMessageRecipientTracking(
         updatedMessage.id,
@@ -754,7 +789,7 @@ const worker = new Worker<ProcessWebhookJobData>(
 
       if (
         updatedMessage.campaignContactId &&
-        ["DELIVERED", "READ", "FAILED"].includes(nextStatus)
+        ["SENT", "DELIVERED", "READ", "FAILED"].includes(nextStatus)
       ) {
         await prisma.campaignContact.update({
           where: {
@@ -762,12 +797,38 @@ const worker = new Worker<ProcessWebhookJobData>(
           },
           data: {
             status:
-              nextStatus === "DELIVERED"
+              nextStatus === "SENT"
+                ? "SENT"
+                : nextStatus === "DELIVERED"
                 ? "DELIVERED"
                 : nextStatus === "READ"
                   ? "READ"
                   : "FAILED",
           },
+        });
+      }
+
+      if (["SENT", "DELIVERED", "READ", "FAILED"].includes(nextStatus)) {
+        await prisma.campaignLaunchRecipient.updateMany({
+          where: {
+            messageId: updatedMessage.id,
+            status:
+              nextStatus === "FAILED"
+                ? { notIn: ["READ", "REPLIED"] }
+                : { not: "REPLIED" },
+          },
+          data:
+            nextStatus === "SENT"
+              ? { sentAt: new Date(), status: "SENT" }
+              : nextStatus === "DELIVERED"
+                ? { deliveredAt: new Date(), status: "DELIVERED" }
+                : nextStatus === "READ"
+                  ? { readAt: new Date(), status: "READ" }
+                  : {
+                      failedAt: new Date(),
+                      failureReason: "Meta reported delivery failure",
+                      status: "FAILED",
+                    },
         });
       }
 

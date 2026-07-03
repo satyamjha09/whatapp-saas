@@ -23,7 +23,7 @@ and import in the background with live progress.
    `contact-import-queue` (BullMQ, jobId `contact-import:{companyId}:{importId}`,
    3 attempts, exponential backoff).
 5. **Worker** — `src/workers/contact-import.worker.ts`
-   (`npm run worker:contact-import`, PM2 `tallykonnect-contact-import-worker`).
+   (`npm run worker:contact-import`, PM2 `metawhat-contact-import-worker`).
    Processes rows in batches of 100, refreshes job counters per batch for
    live progress, honours mid-run cancellation, and finalizes the job.
 6. **Progress / rows** — `GET /api/contacts/import/[jobId]` and

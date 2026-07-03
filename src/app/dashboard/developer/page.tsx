@@ -78,7 +78,7 @@ const featureCards = [
 const steps = [
   {
     title: "Create API Key",
-    description: "Generate a scoped API key from your TallyKonnect dashboard.",
+    description: "Generate a scoped API key from your metawhat dashboard.",
   },
   {
     title: "Connect WhatsApp",
@@ -203,7 +203,7 @@ const endpointGroups: Array<{ title: string; endpoints: Endpoint[] }> = [
 const codeExamples = [
   {
     title: "Send WhatsApp Message",
-    code: `const res = await fetch("https://api.tallykonnect.com/api/v1/messages/send-template", {
+    code: `const res = await fetch("https://api.metawhat.com/api/v1/messages/send-template", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -222,7 +222,7 @@ const codeExamples = [
   },
   {
     title: "Record Consent",
-    code: `await fetch("https://api.tallykonnect.com/api/v1/contacts/consent", {
+    code: `await fetch("https://api.metawhat.com/api/v1/contacts/consent", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -346,7 +346,7 @@ export default async function DeveloperPage() {
               <p className="mt-5 max-w-2xl text-base leading-7 text-[#64748B]">
                 Connect business systems, automate WhatsApp messages, manage
                 contacts and consent, monitor API logs, and receive signed
-                webhook events using the TallyKonnect Developer API.
+                webhook events using the metawhat Developer API.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
@@ -376,7 +376,7 @@ export default async function DeveloperPage() {
                 </span>
               </div>
               <pre className="mt-4 overflow-x-auto whitespace-pre-wrap text-sm leading-6 text-slate-100">
-                <code>{`const response = await fetch("https://api.tallykonnect.com/api/v1/messages/send-template", {
+                <code>{`const response = await fetch("https://api.metawhat.com/api/v1/messages/send-template", {
   method: "POST",
   headers: {
     "Authorization": "Bearer YOUR_API_KEY",
@@ -539,7 +539,7 @@ export default async function DeveloperPage() {
                   Security built for business data
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-[#64748B]">
-                  TallyKonnect APIs protect financial, customer, and
+                  metawhat APIs protect financial, customer, and
                   communication data with secure API keys, encrypted transport,
                   scoped access, webhook signatures, and detailed audit logs.
                 </p>
@@ -613,7 +613,7 @@ export default async function DeveloperPage() {
           <div className="flex flex-wrap items-center justify-between gap-6">
             <div>
               <h2 className="text-3xl font-bold">
-                Start building with TallyKonnect API
+                Start building with metawhat API
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-100">
                 Automate your Tally and WhatsApp workflows with secure APIs

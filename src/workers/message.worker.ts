@@ -554,6 +554,19 @@ async function markCampaignMessageSent(message: {
     });
   }
 
+  await prisma.campaignLaunchRecipient.updateMany({
+    where: {
+      messageId: message.id,
+      status: {
+        in: ["QUEUED", "MESSAGE_CREATED", "PROCESSING"],
+      },
+    },
+    data: {
+      sentAt: new Date(),
+      status: "SENT",
+    },
+  });
+
   if (message.campaignId) {
     await prisma.campaignSequenceExecution.updateMany({
       where: {
@@ -655,6 +668,20 @@ async function markMessageAsFailed(
       },
     });
   }
+
+  await prisma.campaignLaunchRecipient.updateMany({
+    where: {
+      messageId: message.id,
+      status: {
+        notIn: ["READ", "REPLIED"],
+      },
+    },
+    data: {
+      failedAt: new Date(),
+      failureReason: reason,
+      status: "FAILED",
+    },
+  });
 
   if (message.campaignId) {
     await prisma.campaign.update({

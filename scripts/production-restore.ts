@@ -181,7 +181,7 @@ async function enableMaintenanceMode() {
   await setSystemMaintenanceMode({
     enabled: true,
     message:
-      "TallyKonnect database restore is in progress. Sending and billing actions are temporarily paused.",
+      "metawhat database restore is in progress. Sending and billing actions are temporarily paused.",
     updatedByUserId: null,
   });
 }

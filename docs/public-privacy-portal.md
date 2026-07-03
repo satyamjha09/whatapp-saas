@@ -18,7 +18,7 @@ PUBLIC_PRIVACY_TOKEN_SECRET="use_a_long_random_secret_32_chars_min"
 PUBLIC_PRIVACY_TOKEN_TTL_MINUTES="30"
 PUBLIC_PRIVACY_MAX_REQUESTS_PER_EMAIL_PER_DAY="3"
 
-PUBLIC_PRIVACY_EMAIL_FROM="TallyKonnect Privacy <privacy@your-domain.com>"
+PUBLIC_PRIVACY_EMAIL_FROM="metawhat Privacy <privacy@your-domain.com>"
 PUBLIC_PRIVACY_EMAIL_REPLY_TO="support@your-domain.com"
 ```
 

@@ -467,7 +467,7 @@ export default async function DeveloperDocsPage() {
           <div className="mt-4 rounded-xl bg-gray-950 p-4 text-sm text-gray-100">
             <pre className="overflow-auto text-xs">{`import crypto from "crypto";
 
-function verifyTallyKonnectWebhook({
+function verifyMetaWhatWebhook({
   rawBody,
   signatureHeader,
   secret,
@@ -495,10 +495,10 @@ function verifyTallyKonnectWebhook({
             <p className="font-medium text-gray-900">Headers</p>
 
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>X-TallyKonnect-Webhook-Id</li>
-              <li>X-TallyKonnect-Webhook-Event</li>
-              <li>X-TallyKonnect-Webhook-Timestamp</li>
-              <li>X-TallyKonnect-Webhook-Signature</li>
+              <li>X-MetaWhat-Webhook-Id</li>
+              <li>X-MetaWhat-Webhook-Event</li>
+              <li>X-MetaWhat-Webhook-Timestamp</li>
+              <li>X-MetaWhat-Webhook-Signature</li>
             </ul>
           </div>
         </section>
@@ -509,7 +509,7 @@ function verifyTallyKonnectWebhook({
           </h2>
 
           <p className="mt-2 text-sm text-gray-600">
-            If a webhook endpoint repeatedly fails, TallyKonnect automatically
+            If a webhook endpoint repeatedly fails, metawhat automatically
             disables it to prevent unnecessary retries and delivery noise. Fix
             your receiver endpoint, then re-enable the webhook from Developer
             Webhooks.

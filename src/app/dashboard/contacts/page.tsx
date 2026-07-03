@@ -100,7 +100,7 @@ export default async function ContactsPage() {
         />
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
+      <div className="grid gap-6 2xl:grid-cols-[340px_minmax(0,1fr)]">
         <ContactForm />
 
         <Panel>

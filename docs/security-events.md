@@ -1,6 +1,6 @@
 # Security Events
 
-TallyKonnect logs security violations (such as CSP reports) as `SecurityEvent` database records to provide visibility and audit trails.
+metawhat logs security violations (such as CSP reports) as `SecurityEvent` database records to provide visibility and audit trails.
 
 ## Resolving events
 

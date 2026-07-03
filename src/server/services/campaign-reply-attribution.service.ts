@@ -392,6 +392,19 @@ export async function attributeInboundCampaignReply({
     },
   });
 
+  await prisma.campaignLaunchRecipient.updateMany({
+    where: {
+      messageId: outbound.id,
+      status: {
+        not: "REPLIED",
+      },
+    },
+    data: {
+      repliedAt: inbound.createdAt,
+      status: "REPLIED",
+    },
+  });
+
   await createConversionEvent({
     campaignId: outbound.campaignId,
     companyId,

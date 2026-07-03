@@ -48,7 +48,7 @@ export default function WebhookNodeForm({
         draft={draft}
         field="headers"
         label="Headers JSON"
-        placeholder='[{"key":"X-Source","value":"TallyKonnect","secret":false}]'
+        placeholder='[{"key":"X-Source","value":"metawhat","secret":false}]'
         setDraft={setDraft}
       />
       <JsonTextarea

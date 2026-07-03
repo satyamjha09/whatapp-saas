@@ -75,7 +75,7 @@ async function enableMaintenanceMode() {
   await setSystemMaintenanceMode({
     enabled: true,
     message:
-      "TallyKonnect is being updated. Sending and billing actions are temporarily paused.",
+      "metawhat is being updated. Sending and billing actions are temporarily paused.",
     updatedByUserId: null,
   });
 }

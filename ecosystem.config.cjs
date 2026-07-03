@@ -34,7 +34,7 @@ function tsxWorker({ name, script, env = {} }) {
 module.exports = {
   apps: [
     {
-      name: "tallykonnect-web",
+      name: "metawhat-web",
       cwd,
       script: "node_modules/next/dist/bin/next",
       args: "start -p 3000",
@@ -50,12 +50,12 @@ module.exports = {
     },
 
     tsxWorker({
-      name: "tallykonnect-message-worker",
+      name: "metawhat-message-worker",
       script: "src/workers/message.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-bulk-message-worker",
+      name: "metawhat-bulk-message-worker",
       script: "src/workers/message.worker.ts",
       env: {
         WORKER_HEARTBEAT_NAME: "bulk-message-worker",
@@ -68,62 +68,62 @@ module.exports = {
     }),
 
     tsxWorker({
-      name: "tallykonnect-campaign-sequence-worker",
+      name: "metawhat-campaign-sequence-worker",
       script: "src/workers/campaign-sequence.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-webhook-worker",
+      name: "metawhat-webhook-worker",
       script: "src/workers/webhook.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-developer-webhook-worker",
+      name: "metawhat-developer-webhook-worker",
       script: "src/workers/developer-webhook.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-developer-webhook-outbox-worker",
+      name: "metawhat-developer-webhook-outbox-worker",
       script: "src/workers/developer-webhook-outbox.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-inbox-sla-worker",
+      name: "metawhat-inbox-sla-worker",
       script: "src/workers/inbox-sla.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-maintenance-worker",
+      name: "metawhat-maintenance-worker",
       script: "src/workers/maintenance.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-notification-email-worker",
+      name: "metawhat-notification-email-worker",
       script: "src/workers/notification-email.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-template-status-sync-worker",
+      name: "metawhat-template-status-sync-worker",
       script: "src/workers/template-status-sync.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-lead-score-worker",
+      name: "metawhat-lead-score-worker",
       script: "src/workers/lead-score.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-automation-runtime-worker",
+      name: "metawhat-automation-runtime-worker",
       script: "src/workers/automation-runtime.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-automation-monitoring-worker",
+      name: "metawhat-automation-monitoring-worker",
       script: "src/workers/automation-monitoring.worker.ts",
     }),
 
     tsxWorker({
-      name: "tallykonnect-contact-import-worker",
+      name: "metawhat-contact-import-worker",
       script: "src/workers/contact-import.worker.ts",
     }),
   ],

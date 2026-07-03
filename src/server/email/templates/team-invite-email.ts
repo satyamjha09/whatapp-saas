@@ -29,9 +29,9 @@ export function buildTeamInviteEmail({
   const expiryText = expiresAt.toLocaleString("en-IN", {
     timeZone: "Asia/Kolkata",
   });
-  const subject = `You're invited to join ${companyName} on TallyKonnect`;
+  const subject = `You're invited to join ${companyName} on metawhat`;
   const text = [
-    `You have been invited to join ${companyName} on TallyKonnect.`,
+    `You have been invited to join ${companyName} on metawhat.`,
     `Invited by: ${invitedByName || invitedByEmail}`,
     `Role: ${role}`,
     `Accept invite: ${inviteUrl}`,
@@ -47,9 +47,9 @@ export function buildTeamInviteEmail({
           <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:20px;border:1px solid #e2e8f0;overflow:hidden;">
             <tr>
               <td style="padding:28px 28px 10px;">
-                <div style="font-size:14px;font-weight:700;color:#2563eb;">TallyKonnect</div>
+                <div style="font-size:14px;font-weight:700;color:#2563eb;">metawhat</div>
                 <h1 style="margin:12px 0 0;font-size:24px;line-height:32px;color:#0f172a;">Join ${safeCompanyName}</h1>
-                <p style="margin:12px 0 0;font-size:15px;line-height:24px;color:#475569;">${safeInvitedBy} invited you to join their workspace on TallyKonnect.</p>
+                <p style="margin:12px 0 0;font-size:15px;line-height:24px;color:#475569;">${safeInvitedBy} invited you to join their workspace on metawhat.</p>
               </td>
             </tr>
             <tr>
@@ -72,7 +72,7 @@ export function buildTeamInviteEmail({
               </td>
             </tr>
           </table>
-          <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;">This invite was sent from TallyKonnect.</p>
+          <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;">This invite was sent from metawhat.</p>
         </td>
       </tr>
     </table>

@@ -3,6 +3,10 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { cancelScheduledCampaign } from "@/server/services/campaign-cancel.service";
 import {
+  CampaignLaunchOrchestratorError,
+  cancelCampaignLaunch,
+} from "@/server/services/campaign-launch-orchestrator.service";
+import {
   assertSystemWritesAllowed,
   SystemMaintenanceModeError,
 } from "@/server/services/system-maintenance-mode.service";
@@ -43,21 +47,40 @@ export async function POST(request: Request, { params }: RouteContext) {
       operation: "Canceling campaigns",
     });
 
-    const result = await cancelScheduledCampaign(
-      context.membership.companyId,
-      campaignId,
-    );
+    let result: unknown;
+    let action = "campaign.scheduled.canceled";
+    let entityType = "BulkMessageBatch";
+
+    try {
+      result = await cancelCampaignLaunch({
+        actorUserId: context.user.id,
+        campaignId,
+        companyId: context.membership.companyId,
+      });
+      action = "campaign.launch.canceled";
+      entityType = "CampaignLaunchRun";
+    } catch (error) {
+      if (!(error instanceof CampaignLaunchOrchestratorError)) {
+        throw error;
+      }
+
+      result = await cancelScheduledCampaign(
+        context.membership.companyId,
+        campaignId,
+      );
+    }
+
     await createAuditLog({
       companyId: context.membership.companyId,
       actorUserId: context.user.id,
-      action: "campaign.scheduled.canceled",
-      entityType: "BulkMessageBatch",
+      action,
+      entityType,
       entityId: campaignId,
-      metadata: result,
+      metadata: JSON.parse(JSON.stringify(result)),
     });
 
     return NextResponse.json({
-      message: "Scheduled campaign canceled successfully",
+      message: "Campaign canceled successfully",
       result,
     });
   } catch (error) {

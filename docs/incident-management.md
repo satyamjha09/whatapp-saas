@@ -1,6 +1,6 @@
 # Incident Management
 
-TallyKonnect incidents track production-impacting issues.
+metawhat incidents track production-impacting issues.
 
 ## Sources
 

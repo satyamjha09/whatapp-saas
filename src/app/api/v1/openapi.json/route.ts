@@ -4,7 +4,7 @@ export async function GET() {
   return NextResponse.json({
     openapi: "3.1.0",
     info: {
-      title: "TallyKonnect Public API",
+      title: "metawhat Public API",
       version: "1.0.0",
       description: "Stable public API for WhatsApp messaging and CRM automation.",
     },
@@ -14,7 +14,7 @@ export async function GET() {
         ApiKeyAuth: {
           type: "http",
           scheme: "bearer",
-          description: "Use your TallyKonnect API key as the Bearer token.",
+          description: "Use your metawhat API key as the Bearer token.",
         },
       },
       schemas: {

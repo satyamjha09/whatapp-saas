@@ -155,7 +155,7 @@ export default function WhatsAppMessagePreview({
                 {interactive.type === "Call Permission Request" ? (
                   <div className="mb-2 flex items-center gap-3">
                     <span className="text-base">☎</span>
-                    <p className="font-semibold">Can TallyKonnect call you ?</p>
+                    <p className="font-semibold">Can metawhat call you ?</p>
                   </div>
                 ) : null}
                 {interactive.body ? (

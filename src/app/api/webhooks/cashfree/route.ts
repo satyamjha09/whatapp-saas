@@ -307,7 +307,7 @@ export async function POST(request: Request) {
       await markEvent({
         eventRecordId,
         status: "IGNORED",
-        errorMessage: "No matching TallyKonnect payment order",
+        errorMessage: "No matching metawhat payment order",
       });
       return completeAndRespond({ message: "Webhook ignored" });
     }

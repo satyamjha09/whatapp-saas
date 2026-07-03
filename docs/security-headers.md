@@ -1,6 +1,6 @@
 # Security Headers
 
-TallyKonnect adds browser security headers through `src/middleware.ts`.
+metawhat adds browser security headers through `src/middleware.ts`.
 
 ## Headers
 

@@ -48,7 +48,7 @@ export function buildNotificationEmailContent({
     "",
     absoluteActionUrl ? `Open: ${absoluteActionUrl}` : "",
     "",
-    "TallyKonnect",
+    "metawhat",
   ]
     .filter(Boolean)
     .join("\n");
@@ -59,7 +59,7 @@ export function buildNotificationEmailContent({
   <body style="margin:0;background:#f3f4f6;padding:24px;font-family:Arial,sans-serif;color:#111827;">
     <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
       <div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;background:#111827;color:#ffffff;">
-        <div style="font-size:18px;font-weight:700;">TallyKonnect</div>
+        <div style="font-size:18px;font-weight:700;">metawhat</div>
         <div style="margin-top:4px;font-size:13px;color:#d1d5db;">Workspace alert</div>
       </div>
 
@@ -87,7 +87,7 @@ export function buildNotificationEmailContent({
                 <a href="${escapeHtml(
                   absoluteActionUrl,
                 )}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;border-radius:10px;padding:12px 18px;font-size:14px;font-weight:700;">
-                  Open in TallyKonnect
+                  Open in metawhat
                 </a>
               </div>
             `

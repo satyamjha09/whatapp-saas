@@ -106,7 +106,7 @@ export async function createPaidPlanUpgradeInvoice({
       billingAddress: billingSnapshot.billingAddress || null,
       billingTaxId: billingSnapshot.billingTaxId,
 
-      sellerName: process.env.BILLING_SELLER_NAME || "TallyKonnect",
+      sellerName: process.env.BILLING_SELLER_NAME || "metawhat",
       sellerEmail: process.env.BILLING_SELLER_EMAIL || null,
       sellerAddress: process.env.BILLING_SELLER_ADDRESS || null,
       sellerTaxId: process.env.BILLING_SELLER_TAX_ID || null,

@@ -118,6 +118,56 @@ function extractTriggerMetadata(graph: AutomationGraph) {
   };
 }
 
+export async function validateApprovedTemplateNodes(
+  companyId: string,
+  graph: AutomationGraph,
+): Promise<AutomationGraphValidationIssue[]> {
+  const templateNodes = graph.nodes
+    .filter((node) => node.type === "SEND_TEMPLATE")
+    .map((node) => {
+      const data =
+        node.data && typeof node.data === "object" && !Array.isArray(node.data)
+          ? (node.data as Record<string, unknown>)
+          : {};
+      const templateId = typeof data.templateId === "string" ? data.templateId : "";
+
+      return {
+        nodeId: node.id,
+        templateId,
+      };
+    })
+    .filter((node) => node.templateId.trim());
+
+  if (templateNodes.length === 0) return [];
+
+  const approvedTemplateIds = new Set(
+    (
+      await prisma.template.findMany({
+        select: {
+          id: true,
+        },
+        where: {
+          companyId,
+          id: {
+            in: Array.from(new Set(templateNodes.map((node) => node.templateId))),
+          },
+          status: "APPROVED",
+        },
+      })
+    ).map((template) => template.id),
+  );
+
+  return templateNodes
+    .filter((node) => !approvedTemplateIds.has(node.templateId))
+    .map((node) => ({
+      code: "SEND_TEMPLATE_NOT_APPROVED_ON_SERVER",
+      message:
+        "Selected WhatsApp template must still be approved before publishing.",
+      nodeId: node.nodeId,
+      severity: "ERROR",
+    }));
+}
+
 function isPublishConflict(error: unknown) {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -358,11 +408,15 @@ export async function publishAutomationFlow(
   await checkCanPublishAutomationFlow(companyId, flowId, normalizedGraph);
 
   const validation = validateAutomationGraph(normalizedGraph);
+  const templateErrors = await validateApprovedTemplateNodes(
+    companyId,
+    normalizedGraph,
+  );
 
-  if (validation.errors.length > 0) {
+  if (validation.errors.length > 0 || templateErrors.length > 0) {
     throw new AutomationPublishBlockedError(
       "Fix validation errors before publishing",
-      validation.errors,
+      [...validation.errors, ...templateErrors],
       validation.warnings,
       400,
     );

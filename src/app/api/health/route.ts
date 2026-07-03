@@ -19,7 +19,7 @@ export async function GET() {
   return NextResponse.json(
     {
       ok,
-      service: "tallykonnect",
+      service: "metawhat",
       database: database.ok ? "ok" : "error",
       redis: redis.ok ? "ok" : "error",
       maintenanceMode: maintenanceMode.enabled,

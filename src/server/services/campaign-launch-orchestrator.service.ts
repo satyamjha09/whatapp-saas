@@ -453,7 +453,33 @@ export async function queueCampaignMessagesFromLaunch(input: {
 
   if (!launchRun) throw new CampaignLaunchOrchestratorError("Launch run not found.");
 
-  if (!["QUEUING", "WALLET_RESERVED", "DRY_RUN_CONFIRMED", "DRY_RUN_CREATED"].includes(launchRun.status)) {
+  if (
+    ![
+      "QUEUING",
+      "RUNNING",
+      "WALLET_RESERVED",
+      "DRY_RUN_CONFIRMED",
+      "DRY_RUN_CREATED",
+    ].includes(launchRun.status)
+  ) {
+    return launchRun;
+  }
+
+  const claim = await prisma.campaignLaunchRun.updateMany({
+    where: {
+      id: launchRun.id,
+      companyId: input.companyId,
+      status: {
+        in: ["QUEUING", "WALLET_RESERVED", "DRY_RUN_CONFIRMED", "DRY_RUN_CREATED"],
+      },
+    },
+    data: {
+      startedAt: launchRun.startedAt ?? new Date(),
+      status: "RUNNING",
+    },
+  });
+
+  if (claim.count === 0 && launchRun.status !== "RUNNING") {
     return launchRun;
   }
 
@@ -469,64 +495,334 @@ export async function queueCampaignMessagesFromLaunch(input: {
   });
 
   if (planned.length === 0) {
-    return prisma.campaignLaunchRun.update({
-      where: { id: launchRun.id },
-      data: {
-        status: "RUNNING",
-        queuedAt: new Date(),
-      },
-    });
-  }
-
-  const contacts = await prisma.contact.findMany({
-    where: {
-      companyId: input.companyId,
-      id: { in: planned.map((recipient) => recipient.contactId).filter(Boolean) as string[] },
-    },
-  });
-  const contactById = new Map(contacts.map((contact) => [contact.id, contact]));
-  const chargePaise = planned.length * MESSAGE_PRICE_PAISE;
-
-  const transactionResult = await prisma.$transaction(async (tx) => {
-    const debitResult = await tx.wallet.updateMany({
+    const unfinished = await prisma.campaignLaunchRecipient.count({
       where: {
         companyId: input.companyId,
-        balancePaise: { gte: chargePaise },
+        launchRunId: launchRun.id,
+        status: {
+          in: ["PLANNED", "PROCESSING"],
+        },
       },
-      data: { balancePaise: { decrement: chargePaise } },
     });
 
-    if (debitResult.count !== 1) {
-      throw new CampaignLaunchOrchestratorError("Insufficient wallet balance");
+    if (unfinished > 0) return launchRun;
+
+    const finalRun = await prisma.campaignLaunchRun.update({
+      where: { id: launchRun.id },
+      data: {
+        completedAt: new Date(),
+        status:
+          launchRun.failedRecipients > 0 && launchRun.queuedMessageCount === 0
+            ? "FAILED"
+            : "COMPLETED",
+      },
+    });
+
+    await prisma.campaign.update({
+      where: { id: launchRun.campaignId },
+      data: {
+        status:
+          launchRun.failedRecipients > 0 && launchRun.queuedMessageCount === 0
+            ? "FAILED"
+            : "COMPLETED",
+      },
+    });
+
+    return finalRun;
+  }
+
+  const recipientIds = planned.map((recipient) => recipient.id);
+  const claimed = await prisma.campaignLaunchRecipient.updateMany({
+    where: {
+      companyId: input.companyId,
+      id: { in: recipientIds },
+      status: "PLANNED",
+    },
+    data: {
+      status: "PROCESSING",
+    },
+  });
+
+  if (claimed.count === 0) {
+    return launchRun;
+  }
+
+  const recipients = await prisma.campaignLaunchRecipient.findMany({
+    where: {
+      companyId: input.companyId,
+      id: { in: recipientIds },
+      launchRunId: launchRun.id,
+      status: "PROCESSING",
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const queuedMessages: Array<{ id: string }> = [];
+  let stopForInsufficientBalance = false;
+  let processedCount = 0;
+
+  for (const recipient of recipients) {
+    if (!recipient.contactId) {
+      await prisma.campaignLaunchRecipient.update({
+        where: { id: recipient.id },
+        data: {
+          failureReason: "Recipient is not linked to a contact",
+          skippedAt: new Date(),
+          status: "SKIPPED",
+        },
+      });
+      processedCount += 1;
+      continue;
     }
 
-    const walletTransaction = await tx.walletTransaction.create({
-      data: {
-        companyId: input.companyId,
-        type: "DEBIT",
-        status: "SUCCESS",
-        amountPaise: chargePaise,
-        description: `${planned.length} campaign launch message(s) queued`,
-        referenceType: "CAMPAIGN_LAUNCH_USAGE",
-        referenceId: `${launchRun.id}:${planned[0]?.id}`,
-      },
-    });
+    const idempotencyKey = `campaign:${launchRun.campaignId}:launch:${launchRun.id}:recipient:${recipient.id}`;
 
-    const messages: Array<{ id: string; recipientId: string }> = [];
+    const result = await prisma.$transaction(async (tx) => {
+      const existingMessage = await tx.message.findFirst({
+        where: {
+          companyId: input.companyId,
+          idempotencyKey,
+        },
+      });
 
-    for (const recipient of planned) {
-      const contact = recipient.contactId ? contactById.get(recipient.contactId) : null;
+      if (existingMessage) {
+        await tx.campaignLaunchRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            messageId: existingMessage.id,
+            queuedAt: existingMessage.queuedAt ?? new Date(),
+            status:
+              existingMessage.status === "READ"
+                ? "READ"
+                : existingMessage.status === "DELIVERED"
+                  ? "DELIVERED"
+                  : existingMessage.status === "SENT"
+                    ? "SENT"
+                    : existingMessage.status === "FAILED"
+                      ? "FAILED"
+                      : "QUEUED",
+          },
+        });
+
+        return {
+          messageId: existingMessage.id,
+          queued: !["FAILED", "CANCELED"].includes(existingMessage.status),
+          reused: true,
+          stop: false,
+        };
+      }
+
+      const [freshRun, contact, template] = await Promise.all([
+        tx.campaignLaunchRun.findFirst({
+          where: {
+            companyId: input.companyId,
+            id: launchRun.id,
+          },
+        }),
+        tx.contact.findFirst({
+          where: {
+            companyId: input.companyId,
+            id: recipient.contactId!,
+          },
+        }),
+        launchRun.templateId
+          ? tx.template.findFirst({
+              where: {
+                companyId: input.companyId,
+                id: launchRun.templateId,
+                status: "APPROVED",
+              },
+            })
+          : Promise.resolve(null),
+      ]);
+
+      if (!freshRun || freshRun.status === "CANCELED") {
+        await tx.campaignLaunchRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            failureReason: "Campaign launch was canceled",
+            skippedAt: new Date(),
+            status: "SKIPPED",
+          },
+        });
+
+        return { queued: false, reused: false, stop: false };
+      }
 
       if (!contact) {
         await tx.campaignLaunchRecipient.update({
           where: { id: recipient.id },
           data: {
-            status: "FAILED",
+            failedAt: new Date(),
             failureReason: "Contact not found",
+            status: "FAILED",
           },
         });
-        continue;
+        await tx.campaignLaunchRun.update({
+          where: { id: launchRun.id },
+          data: { failedRecipients: { increment: 1 } },
+        });
+
+        return { queued: false, reused: false, stop: false };
       }
+
+      if (contact.isBlocked || contact.optedOutAt) {
+        await tx.campaignLaunchRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            failureReason: contact.isBlocked
+              ? "Contact is blocked"
+              : "Contact has opted out",
+            skippedAt: new Date(),
+            status: "SKIPPED",
+          },
+        });
+        await tx.campaignLaunchRun.update({
+          where: { id: launchRun.id },
+          data: { skippedRecipients: { increment: 1 } },
+        });
+
+        return { queued: false, reused: false, stop: false };
+      }
+
+      if (!template) {
+        await tx.campaignLaunchRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            failedAt: new Date(),
+            failureReason: "Campaign template is no longer approved",
+            status: "FAILED",
+          },
+        });
+        await tx.campaignLaunchRun.update({
+          where: { id: launchRun.id },
+          data: {
+            failedAt: new Date(),
+            failureReason: "Campaign template is no longer approved",
+            status: "FAILED",
+          },
+        });
+        await tx.campaign.update({
+          where: { id: launchRun.campaignId },
+          data: { status: "FAILED" },
+        });
+
+        return { queued: false, reused: false, stop: true };
+      }
+
+      try {
+        await assertContactCanReceiveTemplate({
+          companyId: input.companyId,
+          contactId: contact.id,
+          templateCategory: templateCategory(template.category),
+        });
+      } catch (error) {
+        if (!(error instanceof ConsentRequiredError)) throw error;
+
+        await tx.campaignLaunchRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            failureReason: error.message,
+            skippedAt: new Date(),
+            status: "SKIPPED",
+          },
+        });
+        await tx.campaignLaunchRun.update({
+          where: { id: launchRun.id },
+          data: { skippedRecipients: { increment: 1 } },
+        });
+
+        return { queued: false, reused: false, stop: false };
+      }
+
+      const bodyParameters = asStringArray(recipient.bodyParameters);
+
+      if (bodyParameters.length !== template.variables.length) {
+        await tx.campaignLaunchRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            failedAt: new Date(),
+            failureReason: `Template requires ${template.variables.length} variable value(s)`,
+            status: "FAILED",
+          },
+        });
+        await tx.campaignLaunchRun.update({
+          where: { id: launchRun.id },
+          data: { failedRecipients: { increment: 1 } },
+        });
+
+        return { queued: false, reused: false, stop: false };
+      }
+
+      if (bodyParameters.some((value) => !value.trim())) {
+        await tx.campaignLaunchRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            failedAt: new Date(),
+            failureReason: "Required template variable is missing",
+            status: "FAILED",
+          },
+        });
+        await tx.campaignLaunchRun.update({
+          where: { id: launchRun.id },
+          data: { failedRecipients: { increment: 1 } },
+        });
+
+        return { queued: false, reused: false, stop: false };
+      }
+
+      const debitResult = await tx.wallet.updateMany({
+        where: {
+          balancePaise: { gte: MESSAGE_PRICE_PAISE },
+          companyId: input.companyId,
+        },
+        data: {
+          balancePaise: { decrement: MESSAGE_PRICE_PAISE },
+        },
+      });
+
+      if (debitResult.count !== 1) {
+        await tx.campaignLaunchRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            failedAt: new Date(),
+            failureReason: "Insufficient wallet balance",
+            status: "FAILED",
+          },
+        });
+        await tx.campaignLaunchRun.update({
+          where: { id: launchRun.id },
+          data: {
+            failedAt: new Date(),
+            failureReason: "Insufficient wallet balance",
+            status: "FAILED",
+          },
+        });
+        await tx.campaign.update({
+          where: { id: launchRun.campaignId },
+          data: { status: "FAILED" },
+        });
+
+        return { queued: false, reused: false, stop: true };
+      }
+
+      const wallet = await tx.wallet.findUnique({
+        where: { companyId: input.companyId },
+        select: { balancePaise: true },
+      });
+
+      const walletTransaction = await tx.walletTransaction.create({
+        data: {
+          amountPaise: MESSAGE_PRICE_PAISE,
+          balanceAfterPaise: wallet?.balancePaise ?? null,
+          companyId: input.companyId,
+          description: "Campaign launch message queued",
+          referenceId: idempotencyKey,
+          referenceType: "CAMPAIGN_MESSAGE",
+          status: "SUCCESS",
+          type: "DEBIT",
+        },
+      });
 
       const campaignContact = await tx.campaignContact.upsert({
         where: {
@@ -537,99 +833,120 @@ export async function queueCampaignMessagesFromLaunch(input: {
         },
         update: {
           status: "QUEUED",
-          variables: asStringArray(recipient.bodyParameters),
+          variables: bodyParameters,
         },
         create: {
-          companyId: input.companyId,
           campaignId: launchRun.campaignId,
+          companyId: input.companyId,
           contactId: contact.id,
           status: "QUEUED",
-          variables: asStringArray(recipient.bodyParameters),
+          variables: bodyParameters,
         },
       });
 
       const message = await tx.message.create({
         data: {
+          body: recipient.renderedPreview ?? launchRun.templateBody,
+          campaignContactId: campaignContact.id,
+          campaignId: launchRun.campaignId,
           companyId: input.companyId,
           contactId: contact.id,
-          templateId: launchRun.templateId,
-          campaignId: launchRun.campaignId,
-          campaignContactId: campaignContact.id,
           direction: "OUTBOUND",
-          status: "QUEUED",
-          toPhoneNumber: `${contact.countryCode}${contact.phoneNumber}`,
-          body: recipient.renderedPreview ?? launchRun.templateBody,
-          variables: asStringArray(recipient.bodyParameters),
           events: {
             create: {
               companyId: input.companyId,
-              status: "QUEUED",
               raw: {
-                source: "campaign_launch",
+                idempotencyKey,
                 launchRunId: launchRun.id,
+                source: "campaign_launch",
               },
+              status: "QUEUED",
             },
           },
+          idempotencyKey,
+          metadata: safeJson({
+            campaignLaunchRecipientId: recipient.id,
+            launchRunId: launchRun.id,
+            source: "campaign_launch",
+          }),
+          queuedAt: new Date(),
+          status: "QUEUED",
+          templateId: template.id,
+          toPhoneNumber: `${contact.countryCode}${contact.phoneNumber}`,
+          variables: bodyParameters,
+        },
+      });
+
+      await tx.messageUsageLedger.create({
+        data: {
+          amountPaise: MESSAGE_PRICE_PAISE,
+          companyId: input.companyId,
+          messageId: message.id,
+          status: "CHARGED",
+          walletTransactionId: walletTransaction.id,
         },
       });
 
       await tx.campaignLaunchRecipient.update({
         where: { id: recipient.id },
         data: {
-          status: "QUEUED",
           messageId: message.id,
+          queuedAt: new Date(),
+          status: "QUEUED",
         },
       });
 
-      messages.push({ id: message.id, recipientId: recipient.id });
-    }
-
-    if (messages.length > 0) {
-      await tx.messageUsageLedger.createMany({
-        data: messages.map((message) => ({
+      await tx.campaignWalletReservation.updateMany({
+        where: {
           companyId: input.companyId,
-          messageId: message.id,
-          walletTransactionId: walletTransaction.id,
-          status: "CHARGED" as const,
-          amountPaise: MESSAGE_PRICE_PAISE,
-        })),
+          launchRunId: launchRun.id,
+          status: "RESERVED",
+        },
+        data: {
+          consumedAmountPaise: { increment: MESSAGE_PRICE_PAISE },
+        },
       });
+
+      await tx.campaign.update({
+        where: { id: launchRun.campaignId },
+        data: {
+          queuedCount: { increment: 1 },
+          status: "RUNNING",
+          totalContacts: launchRun.validRecipients,
+        },
+      });
+
+      await tx.campaignLaunchRun.update({
+        where: { id: launchRun.id },
+        data: {
+          createdMessageCount: { increment: 1 },
+          queuedMessageCount: { increment: 1 },
+        },
+      });
+
+      return {
+        messageId: message.id,
+        queued: true,
+        reused: false,
+        stop: false,
+      };
+    });
+
+    processedCount += 1;
+
+    if (result.messageId && result.queued) {
+      queuedMessages.push({ id: result.messageId });
     }
 
-    await tx.campaignWalletReservation.updateMany({
-      where: {
-        companyId: input.companyId,
-        launchRunId: launchRun.id,
-        status: "RESERVED",
-      },
-      data: {
-        consumedAmountPaise: { increment: messages.length * MESSAGE_PRICE_PAISE },
-      },
-    });
+    if (result.stop) {
+      stopForInsufficientBalance = true;
+      break;
+    }
+  }
 
-    await tx.campaign.update({
-      where: { id: launchRun.campaignId },
-      data: {
-        status: "RUNNING",
-        totalContacts: launchRun.validRecipients,
-        queuedCount: { increment: messages.length },
-      },
-    });
-
-    await tx.campaignLaunchRun.update({
-      where: { id: launchRun.id },
-      data: {
-        createdMessageCount: { increment: messages.length },
-        queuedMessageCount: { increment: messages.length },
-      },
-    });
-
-    return { messages };
-  });
-
-  if (transactionResult.messages.length > 0) {
+  if (queuedMessages.length > 0) {
     await getMessageQueue().addBulk(
-      transactionResult.messages.map((message) => ({
+      queuedMessages.map((message) => ({
         name: "send-template-message",
         data: { messageId: message.id, companyId: input.companyId },
         opts: { jobId: message.id },
@@ -639,14 +956,20 @@ export async function queueCampaignMessagesFromLaunch(input: {
     await incrementUsageQuota({
       companyId: input.companyId,
       featureKey: "BULK_MESSAGING",
-      amount: transactionResult.messages.length,
-      idempotencyKey: `campaign-launch-messages-created:${launchRun.id}:${planned[0]?.id}`,
+      amount: queuedMessages.length,
+      idempotencyKey: `campaign-launch-messages-created:${launchRun.id}:${recipientIds.join(":")}`,
       reason: "campaign-launch-messages-created",
       metadata: {
         launchRunId: launchRun.id,
         campaignId: launchRun.campaignId,
-        messageCount: transactionResult.messages.length,
+        messageCount: queuedMessages.length,
       },
+    });
+  }
+
+  if (stopForInsufficientBalance) {
+    return prisma.campaignLaunchRun.findUnique({
+      where: { id: launchRun.id },
     });
   }
 
@@ -668,21 +991,22 @@ export async function queueCampaignMessagesFromLaunch(input: {
       },
       {
         delay: 1000,
-        jobId: `campaign-launch:${launchRun.id}:${Date.now()}`,
+        jobId: `campaign-launch:${launchRun.id}:${processedCount}:${remaining}`,
       },
     );
 
     return prisma.campaignLaunchRun.update({
       where: { id: launchRun.id },
-      data: { status: "QUEUING" },
+      data: { status: "RUNNING" },
     });
   }
 
   return prisma.campaignLaunchRun.update({
     where: { id: launchRun.id },
     data: {
-      status: "RUNNING",
+      completedAt: new Date(),
       queuedAt: new Date(),
+      status: "COMPLETED",
     },
   }).then(async (updated) => {
     await prisma.campaignWalletReservation.updateMany({
@@ -733,6 +1057,219 @@ export async function getCampaignLaunchDashboard(input: {
   ]);
 
   return { launchRuns, reservations };
+}
+
+function rate(count: number, total: number) {
+  return total > 0 ? Math.round((count / total) * 10_000) / 100 : 0;
+}
+
+export async function getCampaignLaunchProgress(input: {
+  companyId: string;
+  campaignId: string;
+}) {
+  const campaign = await prisma.campaign.findFirst({
+    where: {
+      companyId: input.companyId,
+      id: input.campaignId,
+    },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+    },
+  });
+
+  if (!campaign) {
+    throw new CampaignLaunchOrchestratorError("Campaign not found.");
+  }
+
+  const launchRun = await prisma.campaignLaunchRun.findFirst({
+    where: {
+      campaignId: input.campaignId,
+      companyId: input.companyId,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!launchRun) {
+    return {
+      campaign,
+      launchRun: null,
+      rates: {
+        deliveredRate: 0,
+        failedRate: 0,
+        readRate: 0,
+        replyRate: 0,
+        sentRate: 0,
+      },
+      recentFailures: [],
+    };
+  }
+
+  const [statusCounts, recentFailures] = await Promise.all([
+    prisma.campaignLaunchRecipient.groupBy({
+      by: ["status"],
+      where: {
+        companyId: input.companyId,
+        launchRunId: launchRun.id,
+      },
+      _count: {
+        _all: true,
+      },
+    }),
+    prisma.campaignLaunchRecipient.findMany({
+      where: {
+        companyId: input.companyId,
+        launchRunId: launchRun.id,
+        status: "FAILED",
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 10,
+      select: {
+        contactId: true,
+        failedAt: true,
+        failureReason: true,
+        id: true,
+        phoneLast4: true,
+        phoneMasked: true,
+      },
+    }),
+  ]);
+
+  const counts = new Map(
+    statusCounts.map((item) => [item.status, item._count._all]),
+  );
+  const sentRecipients =
+    (counts.get("SENT") ?? 0) +
+    (counts.get("DELIVERED") ?? 0) +
+    (counts.get("READ") ?? 0) +
+    (counts.get("REPLIED") ?? 0);
+  const deliveredRecipients =
+    (counts.get("DELIVERED") ?? 0) +
+    (counts.get("READ") ?? 0) +
+    (counts.get("REPLIED") ?? 0);
+  const readRecipients = (counts.get("READ") ?? 0) + (counts.get("REPLIED") ?? 0);
+  const repliedRecipients = counts.get("REPLIED") ?? 0;
+  const failedRecipients = counts.get("FAILED") ?? 0;
+  const skippedRecipients = counts.get("SKIPPED") ?? 0;
+  const queuedRecipients =
+    (counts.get("QUEUED") ?? 0) +
+    sentRecipients;
+  const totalRecipients = launchRun.totalRecipients;
+  const actualCostPaise = queuedRecipients * MESSAGE_PRICE_PAISE;
+
+  return {
+    campaign,
+    launchRun: {
+      actualCostPaise,
+      completedAt: launchRun.completedAt,
+      deliveredRecipients,
+      estimatedCostPaise: launchRun.estimatedCostPaise,
+      failedRecipients,
+      id: launchRun.id,
+      queuedRecipients,
+      readRecipients,
+      repliedRecipients,
+      sentRecipients,
+      skippedRecipients,
+      startedAt: launchRun.startedAt,
+      status: launchRun.status,
+      totalRecipients,
+    },
+    rates: {
+      deliveredRate: rate(deliveredRecipients, totalRecipients),
+      failedRate: rate(failedRecipients, totalRecipients),
+      readRate: rate(readRecipients, totalRecipients),
+      replyRate: rate(repliedRecipients, totalRecipients),
+      sentRate: rate(sentRecipients, totalRecipients),
+    },
+    recentFailures: recentFailures.map((failure) => ({
+      contactId: failure.contactId,
+      errorMessage: failure.failureReason,
+      failedAt: failure.failedAt ?? undefined,
+      phoneNumber: failure.phoneMasked ?? failure.phoneLast4 ?? "-",
+      recipientId: failure.id,
+    })),
+  };
+}
+
+export async function cancelCampaignLaunch(input: {
+  actorUserId?: string | null;
+  campaignId: string;
+  companyId: string;
+}) {
+  const launchRun = await prisma.campaignLaunchRun.findFirst({
+    where: {
+      campaignId: input.campaignId,
+      companyId: input.companyId,
+      status: {
+        in: [
+          "DRY_RUN_CREATED",
+          "DRY_RUN_CONFIRMED",
+          "WALLET_RESERVED",
+          "QUEUING",
+          "QUEUED",
+          "RUNNING",
+        ],
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!launchRun) {
+    throw new CampaignLaunchOrchestratorError("Active campaign launch not found.");
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const skipped = await tx.campaignLaunchRecipient.updateMany({
+      where: {
+        companyId: input.companyId,
+        launchRunId: launchRun.id,
+        status: {
+          in: ["PLANNED", "PROCESSING"],
+        },
+      },
+      data: {
+        failureReason: "Campaign launch canceled",
+        skippedAt: new Date(),
+        status: "SKIPPED",
+      },
+    });
+
+    const updatedRun = await tx.campaignLaunchRun.update({
+      where: { id: launchRun.id },
+      data: {
+        completedAt: new Date(),
+        failureReason: "Campaign launch canceled",
+        skippedRecipients: { increment: skipped.count },
+        status: "CANCELED",
+      },
+    });
+
+    await tx.campaign.update({
+      where: { id: input.campaignId },
+      data: { status: "CANCELLED" },
+    });
+
+    return {
+      launchRun: updatedRun,
+      skippedRecipients: skipped.count,
+    };
+  });
+
+  await createAuditLog({
+    action: "campaign.launch_canceled",
+    actorUserId: input.actorUserId,
+    companyId: input.companyId,
+    entityId: launchRun.id,
+    entityType: "CampaignLaunchRun",
+    metadata: safeJson({
+      campaignId: input.campaignId,
+      skippedRecipients: result.skippedRecipients,
+    }),
+  }).catch(() => undefined);
+
+  return result;
 }
 
 export async function getCampaignLaunchHealth() {

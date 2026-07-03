@@ -56,7 +56,7 @@ export async function createDatabaseBackup() {
     .replaceAll(":", "-")
     .replaceAll(".", "-");
 
-  const fileName = `tallykonnect-postgres-${timestamp}.dump`;
+  const fileName = `metawhat-postgres-${timestamp}.dump`;
   const filePath = path.join(backupDir, fileName);
 
   try {

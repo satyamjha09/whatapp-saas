@@ -493,8 +493,13 @@ enum CampaignLaunchRunStatus {
 
 enum CampaignLaunchRecipientStatus {
   PLANNED
+  PROCESSING
   MESSAGE_CREATED
   QUEUED
+  SENT
+  DELIVERED
+  READ
+  REPLIED
   SKIPPED
   FAILED
 }
@@ -2318,6 +2323,13 @@ model Template {
   components Json?
 
   metaTemplateId String?
+  rejectionReason String?
+  qualityScore    String?
+  submittedPayload Json?
+  lastSubmitError  String?
+  lastSubmittedAt  DateTime?
+  submittedByUserId String?
+  lastSyncedAt      DateTime?
 
   company               Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   messages              Message[]
@@ -3568,6 +3580,7 @@ model Message {
   errorCode     String?
   errorMessage  String?
   metadata      Json?
+  idempotencyKey String?
 
   inboxReadAt DateTime?
   queuedAt    DateTime?
@@ -3600,6 +3613,7 @@ model Message {
   @@index([errorCode])
   @@index([campaignId])
   @@index([campaignContactId])
+  @@unique([companyId, idempotencyKey])
   @@index([companyId, direction, inboxReadAt])
   @@index([companyId, scheduledAt])
 }
@@ -3790,6 +3804,13 @@ model CampaignLaunchRecipient {
   renderedPreview String?
 
   failureReason String?
+  queuedAt      DateTime?
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  repliedAt     DateTime?
+  failedAt      DateTime?
+  skippedAt     DateTime?
 
   company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   launchRun CampaignLaunchRun @relation(fields: [launchRunId], references: [id], onDelete: Cascade)
@@ -3804,6 +3825,7 @@ model CampaignLaunchRecipient {
   @@index([messageId])
   @@index([status])
   @@index([createdAt])
+  @@unique([launchRunId, contactId])
 }
 
 model CampaignWalletReservation {

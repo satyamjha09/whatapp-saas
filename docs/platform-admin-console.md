@@ -1,6 +1,6 @@
 # Platform Admin Console
 
-The platform admin console is an internal super-admin area for TallyKonnect operators.
+The platform admin console is an internal super-admin area for metawhat operators.
 
 ## URL
 

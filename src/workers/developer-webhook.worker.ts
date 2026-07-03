@@ -80,11 +80,11 @@ const worker = new Worker<DeliverDeveloperWebhookJobData>(
         timeout: 10000,
         headers: {
           "Content-Type": "application/json",
-          "User-Agent": "TallyKonnect-Webhooks/1.0",
-          "X-TallyKonnect-Webhook-Id": delivery.id,
-          "X-TallyKonnect-Webhook-Event": delivery.eventType,
-          "X-TallyKonnect-Webhook-Timestamp": String(timestamp),
-          "X-TallyKonnect-Webhook-Signature": signatureHeader,
+          "User-Agent": "MetaWhat-Webhooks/1.0",
+          "X-MetaWhat-Webhook-Id": delivery.id,
+          "X-MetaWhat-Webhook-Event": delivery.eventType,
+          "X-MetaWhat-Webhook-Timestamp": String(timestamp),
+          "X-MetaWhat-Webhook-Signature": signatureHeader,
         },
       });
 

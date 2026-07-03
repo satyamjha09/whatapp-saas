@@ -44,7 +44,7 @@ async function fetchWithTimeout({
       signal: controller.signal,
       cache: "no-store",
       headers: {
-        "User-Agent": "TallyKonnect-Uptime-Monitor/1.0",
+        "User-Agent": "metawhat-Uptime-Monitor/1.0",
       },
     });
 

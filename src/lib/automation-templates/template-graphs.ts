@@ -182,7 +182,7 @@ export const LEAD_CAPTURE_GRAPH: AutomationGraph = {
       position: { x: 320, y: 250 },
       data: {
         label: "Welcome Message",
-        messageText: "Welcome to TallyKonnect! How can we help you scale your business today?",
+        messageText: "Welcome to metawhat! How can we help you scale your business today?",
       },
     },
     {

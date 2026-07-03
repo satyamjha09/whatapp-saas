@@ -52,9 +52,9 @@ export async function POST() {
 
     await sendTransactionalEmail({
       to: context.user.email,
-      subject: "[TallyKonnect] Test notification email",
+      subject: "[metawhat] Test notification email",
       text: [
-        "TallyKonnect test email",
+        "metawhat test email",
         "",
         "Your SMTP configuration is working.",
         "",
@@ -62,7 +62,7 @@ export async function POST() {
       ].join("\n"),
       html: `
         <div style="font-family:Arial,sans-serif;line-height:1.5">
-          <h2>TallyKonnect test email</h2>
+          <h2>metawhat test email</h2>
           <p>Your SMTP configuration is working.</p>
           <p>
             <a href="${appBaseUrl}/dashboard/notifications">

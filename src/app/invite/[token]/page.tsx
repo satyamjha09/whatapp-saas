@@ -93,7 +93,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
       <main className="flex min-h-screen items-center justify-center bg-gray-50 p-8">
         <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm">
           <p className="text-sm font-medium text-gray-500">
-            TallyKonnect Invite
+            metawhat Invite
           </p>
           <h1 className="mt-1 text-2xl font-bold text-gray-900">
             Join {invite.company.name}

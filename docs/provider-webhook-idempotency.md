@@ -1,6 +1,6 @@
 # Provider Webhook Idempotency
 
-TallyKonnect stores Meta and Cashfree webhook events in a provider webhook ledger before processing.
+metawhat stores Meta and Cashfree webhook events in a provider webhook ledger before processing.
 
 ## Why
 

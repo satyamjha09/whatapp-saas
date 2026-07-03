@@ -10,7 +10,7 @@ export default function DevWhatsAppBulkTestPage() {
     <main className="min-h-screen bg-[#F1FBF5] px-4 py-10">
       <div className="mx-auto max-w-4xl">
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#128C7E]">
-          TallyKonnect Developer Test
+          metawhat Developer Test
         </p>
         <h1 className="mt-4 text-4xl font-extrabold leading-tight text-[#081B3A]">
           Send WhatsApp Bulk Test

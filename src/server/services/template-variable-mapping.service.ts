@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { extractVariablesFromText } from "@/lib/whatsapp-template/template-variable-parser";
 import { createAuditLog } from "@/server/services/audit.service";
 import { getSegmentContactsForCampaign } from "@/server/services/contact-segment-builder.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
@@ -42,8 +43,7 @@ function safeJson(value: unknown): Prisma.InputJsonValue {
 }
 
 export function parseTemplateVariables(body: string) {
-  const matches = [...body.matchAll(/{{\s*([a-zA-Z0-9_]+)\s*}}/g)];
-  return Array.from(new Set(matches.map((match) => match[1])));
+  return extractVariablesFromText(body).map((variable) => variable.variableName);
 }
 
 function getContactValue(contact: SegmentContact, field?: string | null) {
@@ -58,7 +58,7 @@ function getSystemValue(key?: string | null) {
   if (key === "current_month") {
     return new Date().toLocaleString("en-IN", { month: "long", year: "numeric" });
   }
-  if (key === "company_name") return process.env.NEXT_PUBLIC_APP_NAME || "TallyKonnect";
+  if (key === "company_name") return process.env.NEXT_PUBLIC_APP_NAME || "metawhat";
   return null;
 }
 

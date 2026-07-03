@@ -17,7 +17,7 @@ export default async function LegalAcceptancePage() {
           Accept latest legal documents
         </h1>
         <p className="mt-3 text-sm text-gray-600">
-          To continue using TallyKonnect, your company must accept the latest
+          To continue using metawhat, your company must accept the latest
           published legal documents.
         </p>
 

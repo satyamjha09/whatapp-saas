@@ -50,7 +50,7 @@ export const AUTOMATION_FLOW_TEMPLATES: AutomationFlowTemplate[] = [
       { from: "system", text: "Customer replies with keyword 'payment'" },
       { from: "business", text: "Hi John Doe, your payment of ₹5,200 for invoice INV-1002 is pending. Reply PAY to settle." },
       { from: "customer", text: "PAY" },
-      { from: "business", text: "Here is your secure link to pay: https://payments.tallykonnect.com/l/cf_102938" },
+      { from: "business", text: "Here is your secure link to pay: https://payments.metawhat.com/l/cf_102938" },
     ],
   },
   {
@@ -81,7 +81,7 @@ export const AUTOMATION_FLOW_TEMPLATES: AutomationFlowTemplate[] = [
     ],
     exampleConversation: [
       { from: "customer", text: "Hi, I am interested in your software." },
-      { from: "business", text: "Welcome to TallyKonnect! How can we help you scale your business today?\n\nSelect:\n1. View Pricing\n2. Request Demo\n3. Talk to Sales" },
+      { from: "business", text: "Welcome to metawhat! How can we help you scale your business today?\n\nSelect:\n1. View Pricing\n2. Request Demo\n3. Talk to Sales" },
       { from: "customer", text: "View Pricing" },
       { from: "business", text: "Here is our updated brochure & pricing information. Let us know if you want to book a call!" },
     ],
@@ -240,7 +240,7 @@ export const AUTOMATION_FLOW_TEMPLATES: AutomationFlowTemplate[] = [
       { from: "system", text: "Webhook checkout_dropped received" },
       { from: "business", text: "Hi Emma, we noticed you left items in your cart. Settle today or click below to speak with an assistant." },
       { from: "customer", text: "Pay Now" },
-      { from: "business", text: "Here is your checkout link: https://payments.tallykonnect.com/l/recover_829374" },
+      { from: "business", text: "Here is your checkout link: https://payments.metawhat.com/l/recover_829374" },
     ],
   },
   {

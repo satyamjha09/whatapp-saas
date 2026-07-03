@@ -223,7 +223,7 @@ export async function generateInvoicePdf({
       margin: 50,
       info: {
         Title: `Invoice ${invoice.invoiceNumber}`,
-        Author: invoice.sellerName ?? "TallyKonnect",
+        Author: invoice.sellerName ?? "metawhat",
       },
     });
 
@@ -381,7 +381,7 @@ export async function generateCreditNotePdf({
       margin: 50,
       info: {
         Title: `Credit Note ${creditNote.creditNoteNumber}`,
-        Author: "TallyKonnect",
+        Author: "metawhat",
       },
     });
 

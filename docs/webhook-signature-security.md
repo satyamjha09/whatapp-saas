@@ -1,6 +1,6 @@
 # Webhook Signature Security
 
-TallyKonnect verifies provider webhook signatures before processing webhook payloads.
+metawhat verifies provider webhook signatures before processing webhook payloads.
 
 ## Providers
 

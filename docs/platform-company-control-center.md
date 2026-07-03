@@ -1,6 +1,6 @@
 # Platform Company Control Center
 
-This module gives TallyKonnect platform admins control over all companies and
+This module gives metawhat platform admins control over all companies and
 partners.
 
 ## Environment

@@ -1,21 +1,17 @@
-import type { TemplateStatus } from "@/generated/prisma/client";
+import type { Prisma, TemplateStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  readTemplateComponents,
+  type WhatsAppTemplateComponent,
+} from "@/lib/whatsapp-template/template-variable-parser";
 import { createAuditLog } from "@/server/services/audit.service";
 import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
+import { validateTemplateForMetaSubmission } from "@/server/services/whatsapp-template-validation.service";
 import { syncWhatsAppTemplatesFromMeta } from "@/server/services/whatsapp-template-sync.service";
 import {
   isMetaNumericId,
   NUMERIC_WABA_ID_MESSAGE,
 } from "@/server/whatsapp/meta-ids";
-
-type MetaTemplateComponent = {
-  type: string;
-  format?: string;
-  text?: string;
-  example?: unknown;
-  buttons?: unknown[];
-  cards?: unknown[];
-};
 
 type MetaTemplateSubmitResponse = {
   id?: string;
@@ -60,7 +56,7 @@ function normalizeTemplateStatus(status?: string | null): TemplateStatus {
   }
 }
 
-function isMetaComponent(value: unknown): value is MetaTemplateComponent {
+function isMetaComponent(value: unknown): value is WhatsAppTemplateComponent {
   return (
     Boolean(value) &&
     typeof value === "object" &&
@@ -99,8 +95,14 @@ function buildMetaComponents({
   body: string;
   components: unknown;
 }) {
+  const parsedComponents = readTemplateComponents({
+    body,
+    components,
+  });
+
   return (
-    getStoredMetaComponents(components) ?? [
+    getStoredMetaComponents(components) ??
+    (parsedComponents.length > 0 ? parsedComponents : null) ?? [
       {
         type: "BODY",
         text: body,
@@ -147,6 +149,13 @@ async function submitTemplateToMeta({
     throw new Error(NUMERIC_WABA_ID_MESSAGE);
   }
 
+  const payload = {
+    name,
+    language,
+    category,
+    components: buildMetaComponents({ body, components }),
+  };
+
   const response = await fetch(
     `${getMetaGraphBaseUrl()}/${wabaId}/message_templates`,
     {
@@ -155,12 +164,7 @@ async function submitTemplateToMeta({
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        name,
-        language,
-        category,
-        components: buildMetaComponents({ body, components }),
-      }),
+      body: JSON.stringify(payload),
       cache: "no-store",
     },
   );
@@ -170,7 +174,10 @@ async function submitTemplateToMeta({
     throw new Error(getMetaTemplateSubmitErrorMessage(data, wabaId));
   }
 
-  return data;
+  return {
+    data,
+    payload,
+  };
 }
 
 export async function submitTemplateForMetaApproval({
@@ -212,25 +219,69 @@ export async function submitTemplateForMetaApproval({
     throw new Error("WhatsApp account is not connected");
   }
 
+  const validation = validateTemplateForMetaSubmission(template);
+
+  if (!validation.canSubmit) {
+    const message =
+      validation.errors[0]?.message ?? "Template is not ready for Meta submission";
+
+    await prisma.template.update({
+      where: {
+        id: template.id,
+      },
+      data: {
+        lastSubmitError: message,
+      },
+    });
+
+    throw new Error(message);
+  }
+
   const accessToken = await getWhatsAppAccessToken({ companyId });
-  const result = await submitTemplateToMeta({
-    accessToken,
-    body: template.body,
-    category: template.category,
-    components: template.components,
-    language: template.language,
-    name: template.name,
-    wabaId: account.wabaId,
-  });
-  const status = normalizeTemplateStatus(result.status);
+  let result: Awaited<ReturnType<typeof submitTemplateToMeta>>;
+
+  try {
+    result = await submitTemplateToMeta({
+      accessToken,
+      body: template.body,
+      category: template.category,
+      components: template.components,
+      language: template.language,
+      name: template.name,
+      wabaId: account.wabaId,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to submit template to Meta";
+
+    await prisma.template.update({
+      where: {
+        id: template.id,
+      },
+      data: {
+        lastSubmitError: message,
+      },
+    });
+
+    throw error;
+  }
+
+  const responseData = result.data;
+  const status = normalizeTemplateStatus(responseData.status);
 
   const updatedTemplate = await prisma.template.update({
     where: {
       id: template.id,
     },
     data: {
-      metaTemplateId: result.id ?? template.metaTemplateId,
+      metaTemplateId: responseData.id ?? template.metaTemplateId,
       status,
+      lastSubmitError: null,
+      lastSubmittedAt: new Date(),
+      submittedByUserId: actorUserId,
+      submittedPayload: JSON.parse(
+        JSON.stringify(result.payload),
+      ) as Prisma.InputJsonValue,
     },
   });
 

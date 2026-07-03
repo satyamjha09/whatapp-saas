@@ -31,7 +31,7 @@ const DEFAULT_DOCUMENTS: Array<{
     slug: "terms-of-service",
     version: "2026-06-24",
     content:
-      "# Terms of Service\n\nThese Terms govern access to and use of TallyKonnect. By accepting them on behalf of a company, you confirm that you are authorized to bind that company and that its use of the service will comply with applicable law and platform policies.",
+      "# Terms of Service\n\nThese Terms govern access to and use of metawhat. By accepting them on behalf of a company, you confirm that you are authorized to bind that company and that its use of the service will comply with applicable law and platform policies.",
   },
   {
     type: "PRIVACY_POLICY",
@@ -39,7 +39,7 @@ const DEFAULT_DOCUMENTS: Array<{
     slug: "privacy-policy",
     version: "2026-06-24",
     content:
-      "# Privacy Policy\n\nThis policy describes how TallyKonnect processes account, contact, messaging, billing, security, and usage data to provide, secure, support, and improve the service, and how data-subject requests can be submitted.",
+      "# Privacy Policy\n\nThis policy describes how metawhat processes account, contact, messaging, billing, security, and usage data to provide, secure, support, and improve the service, and how data-subject requests can be submitted.",
   },
   {
     type: "DATA_PROCESSING_AGREEMENT",

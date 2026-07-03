@@ -23,6 +23,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -233,13 +234,20 @@ function SidebarContent({
     <div className="flex h-full flex-col">
       <div className="flex h-18 items-center justify-between px-4">
         <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#128C7E] text-white shadow-[0_12px_26px_rgba(18,140,126,0.22)]">
-            <Sparkles className="h-5 w-5" />
+          <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-white shadow-[0_12px_26px_rgba(18,140,126,0.18)] ring-1 ring-[#BFE9D0]">
+            <Image
+              src="/brand/metawhat-mark.png"
+              alt="metawhat logo"
+              width={34}
+              height={34}
+              className="h-8 w-8 object-contain"
+              priority
+            />
           </div>
           {!collapsed && (
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#081B3A]">
-                TallyKonnect
+                metawhat
               </p>
               <p className="truncate text-xs text-[#526173]">{companyName}</p>
             </div>

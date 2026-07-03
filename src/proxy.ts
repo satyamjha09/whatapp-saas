@@ -130,6 +130,6 @@ export default clerkMiddleware(
 export const config = {
   matcher: [
     /* Skip Next internals and static files. Apply to app pages and API routes. */
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+    "/((?!_next/static|_next/image|brand|samples|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|map|txt|xml)$).*)",
   ],
 };

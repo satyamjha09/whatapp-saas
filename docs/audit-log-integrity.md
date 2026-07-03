@@ -1,6 +1,6 @@
 # Audit Log Integrity
 
-TallyKonnect hash-chains audit logs using HMAC-SHA256.
+metawhat hash-chains audit logs using HMAC-SHA256.
 
 ## Environment
 

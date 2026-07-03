@@ -8,6 +8,7 @@ import {
 import {
   graphFromJson,
   toJson,
+  validateApprovedTemplateNodes,
   validationSnapshot,
 } from "@/server/services/automation-versioning.service";
 import {
@@ -60,9 +61,14 @@ export async function createPublishRequest(
 
   const validation = validateAutomationGraph(normalizedGraph);
 
-  if (validation.errors.length > 0) {
+  const templateErrors = await validateApprovedTemplateNodes(
+    companyId,
+    normalizedGraph,
+  );
+
+  if (validation.errors.length > 0 || templateErrors.length > 0) {
     throw new InvalidPublishRequestStateError(
-      `Cannot request approval for invalid flow graph. (${validation.errors.length} errors found)`
+      `Cannot request approval for invalid flow graph. (${validation.errors.length + templateErrors.length} errors found)`
     );
   }
 
@@ -211,9 +217,14 @@ export async function approvePublishRequest(
 
   const validation = validateAutomationGraph(snapshotGraph);
 
-  if (validation.errors.length > 0) {
+  const templateErrors = await validateApprovedTemplateNodes(
+    companyId,
+    snapshotGraph,
+  );
+
+  if (validation.errors.length > 0 || templateErrors.length > 0) {
     throw new InvalidPublishRequestStateError(
-      `Cannot approve publish request. Snapshot graph contains ${validation.errors.length} errors.`
+      `Cannot approve publish request. Snapshot graph contains ${validation.errors.length + templateErrors.length} errors.`
     );
   }
 

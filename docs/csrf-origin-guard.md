@@ -1,6 +1,6 @@
 # CSRF Origin Guard
 
-TallyKonnect protects authenticated dashboard/internal API mutations with an Origin/Referer guard.
+metawhat protects authenticated dashboard/internal API mutations with an Origin/Referer guard.
 
 ## What it blocks
 
@@ -23,8 +23,8 @@ Cross-site form/fetch attacks are rejected with:
 Configure:
 
 ```env
-NEXT_PUBLIC_APP_URL="https://tallykonnect.com"
-CSRF_TRUSTED_ORIGINS="https://tallykonnect.com,https://www.tallykonnect.com"
+NEXT_PUBLIC_APP_URL="https://metawhat.com"
+CSRF_TRUSTED_ORIGINS="https://metawhat.com,https://www.metawhat.com"
 ```
 
 ## Excluded routes

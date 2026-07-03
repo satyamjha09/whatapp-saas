@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
-import { submitTemplateForMetaApproval } from "@/server/services/meta-template.service";
+import { submitWhatsAppTemplateForApproval } from "@/server/services/whatsapp-template-submit.service";
 import { NUMERIC_WABA_ID_MESSAGE } from "@/server/whatsapp/meta-ids";
 
 type RouteContext = {
@@ -35,7 +35,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
     }
 
     const { templateId } = await params;
-    const template = await submitTemplateForMetaApproval({
+    const template = await submitWhatsAppTemplateForApproval({
       actorUserId: context.user.id,
       companyId: context.membership.companyId,
       templateId,
@@ -54,9 +54,12 @@ export async function POST(_request: Request, { params }: RouteContext) {
         "Template not found",
         "Only draft or rejected templates can be submitted",
         "WhatsApp account is not connected",
+        "Template is not ready for Meta submission",
         NUMERIC_WABA_ID_MESSAGE,
       ].includes(error.message) ||
-        error.message.startsWith("Meta rejected WABA ID"))
+        error.message.startsWith("Meta rejected WABA ID") ||
+        error.message.startsWith("Template ") ||
+        error.message.includes("Meta submission"))
     ) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }

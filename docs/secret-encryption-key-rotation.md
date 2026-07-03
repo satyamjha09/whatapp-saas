@@ -1,6 +1,6 @@
 # Secret Encryption and Key Rotation
 
-TallyKonnect encrypts sensitive provider secrets with versioned AES-256-GCM encryption.
+metawhat encrypts sensitive provider secrets with versioned AES-256-GCM encryption.
 
 ## Protected secrets
 

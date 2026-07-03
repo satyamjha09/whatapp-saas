@@ -1,6 +1,6 @@
 # Multi-Tenant SaaS Architecture
 
-TallyKonnect is a multi-tenant SaaS platform.
+metawhat is a multi-tenant SaaS platform.
 
 ## Account Levels
 

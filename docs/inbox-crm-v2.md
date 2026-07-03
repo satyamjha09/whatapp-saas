@@ -1,6 +1,6 @@
 # Inbox CRM v2
 
-Inbox CRM v2 adds customer profile management and timeline history to TallyKonnect.
+Inbox CRM v2 adds customer profile management and timeline history to metawhat.
 
 ## Features
 

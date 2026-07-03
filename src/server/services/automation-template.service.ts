@@ -78,6 +78,7 @@ export async function getAutomationTemplateDetails({
     where: {
       companyId,
       id: templateId,
+      status: "APPROVED",
     },
   });
 

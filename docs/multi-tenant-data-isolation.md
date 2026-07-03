@@ -1,6 +1,6 @@
 # Multi-tenant Data Isolation
 
-TallyKonnect uses a tenant guard to prevent one company from accessing another company's resources.
+metawhat uses a tenant guard to prevent one company from accessing another company's resources.
 
 ## Rule
 

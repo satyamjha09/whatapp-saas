@@ -7,13 +7,13 @@ users create an account before accepting the invite.
 
 ```env
 TEAM_INVITE_EMAIL_ENABLED="true"
-TEAM_INVITE_FROM_NAME="TallyKonnect"
+TEAM_INVITE_FROM_NAME="metawhat"
 
 SMTP_HOST="smtp.gmail.com"
 SMTP_PORT="587"
 SMTP_USER="your-email@gmail.com"
 SMTP_PASSWORD="your-app-password"
-SMTP_FROM="TallyKonnect <your-email@gmail.com>"
+SMTP_FROM="metawhat <your-email@gmail.com>"
 ```
 
 For Gmail, use an app password instead of the normal Gmail password.

@@ -758,7 +758,7 @@ export async function getCustomerJourney(
     type: "CONTACT_CREATED",
     source: "CONTACT",
     title: "Contact created",
-    description: "Customer was added to TallyKonnect.",
+    description: "Customer was added to metawhat.",
     timestamp: contact.createdAt.toISOString(),
     status: "COMPLETED",
     links: { inboxContactId: contact.id },

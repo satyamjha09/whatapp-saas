@@ -1,20 +1,20 @@
 # Production Processes
 
-TallyKonnect requires one web process and several worker processes. Use PM2, or an equivalent process manager, to keep them running and automatically restart them after crashes or server reboots.
+metawhat requires one web process and several worker processes. Use PM2, or an equivalent process manager, to keep them running and automatically restart them after crashes or server reboots.
 
 ## Required processes
 
-- `tallykonnect-web`
-- `tallykonnect-message-worker`
-- `tallykonnect-bulk-message-worker`
-- `tallykonnect-webhook-worker`
-- `tallykonnect-developer-webhook-worker`
-- `tallykonnect-developer-webhook-outbox-worker`
-- `tallykonnect-inbox-sla-worker`
-- `tallykonnect-maintenance-worker`
-- `tallykonnect-notification-email-worker`
+- `metawhat-web`
+- `metawhat-message-worker`
+- `metawhat-bulk-message-worker`
+- `metawhat-webhook-worker`
+- `metawhat-developer-webhook-worker`
+- `metawhat-developer-webhook-outbox-worker`
+- `metawhat-inbox-sla-worker`
+- `metawhat-maintenance-worker`
+- `metawhat-notification-email-worker`
 
-Bulk and campaign sends are processed through `src/workers/message.worker.ts` in this codebase. The PM2 `tallykonnect-bulk-message-worker` process runs the same queue consumer with a distinct heartbeat name so production can scale and monitor it separately.
+Bulk and campaign sends are processed through `src/workers/message.worker.ts` in this codebase. The PM2 `metawhat-bulk-message-worker` process runs the same queue consumer with a distinct heartbeat name so production can scale and monitor it separately.
 
 ## First deploy
 
@@ -78,7 +78,7 @@ Expected:
 ```json
 {
   "ok": true,
-  "service": "tallykonnect",
+  "service": "metawhat",
   "database": "ok",
   "redis": "ok"
 }

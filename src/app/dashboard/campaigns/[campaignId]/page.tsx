@@ -237,6 +237,14 @@ export default async function CampaignDetailPage({
             {campaign.status === "DRAFT" ? (
               <StartCampaignButton campaignId={campaign.id} />
             ) : null}
+            {campaign.status !== "DRAFT" ? (
+              <Link
+                href={`/dashboard/campaigns/${campaign.id}/progress`}
+                className="rounded-lg bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white hover:bg-[#075E54]"
+              >
+                View progress
+              </Link>
+            ) : null}
           </div>
 
           <div className="mt-6 rounded-xl border p-4">

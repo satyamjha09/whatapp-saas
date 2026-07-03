@@ -358,7 +358,7 @@ export function ChatbotNodeCreateForm({
             id="nodeFooter"
             maxLength={60}
             name="footer"
-            placeholder="Powered by TallyKonnect"
+            placeholder="Powered by metawhat"
           />
         </div>
       ) : null}

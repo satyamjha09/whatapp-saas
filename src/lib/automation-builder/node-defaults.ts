@@ -637,7 +637,7 @@ export function createDefaultNodeData(
       },
       expiryMinutes: 1440,
       label: "Payment Link",
-      mockPaymentLink: "https://payments.test/tallykonnect/mock-payment-link",
+      mockPaymentLink: "https://payments.test/metawhat/mock-payment-link",
       provider: "CASHFREE",
       purpose: "Payment request",
       savePaymentLinkAs: "paymentLink",

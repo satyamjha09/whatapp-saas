@@ -7,7 +7,7 @@ Billing Document Emails send invoices and credit notes to customers.
 ```env
 BILLING_DOCUMENT_EMAILS_ENABLED="true"
 BILLING_DOCUMENT_EMAILS_AUTO_SEND="true"
-BILLING_DOCUMENT_EMAILS_FROM="TallyKonnect Billing <billing@your-domain.com>"
+BILLING_DOCUMENT_EMAILS_FROM="metawhat Billing <billing@your-domain.com>"
 BILLING_DOCUMENT_EMAILS_REPLY_TO="support@your-domain.com"
 ```
 
@@ -17,7 +17,7 @@ SMTP_HOST="smtp.your-domain.com"
 SMTP_PORT="587"
 SMTP_USER="your-smtp-user"
 SMTP_PASSWORD="your-smtp-password"
-SMTP_FROM="TallyKonnect <no-reply@your-domain.com>"
+SMTP_FROM="metawhat <no-reply@your-domain.com>"
 ```
 
 ## Dashboard

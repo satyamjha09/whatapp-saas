@@ -11,11 +11,11 @@ export function isStatusPageEnabled() {
 }
 
 export function getDefaultStatusPageSlug() {
-  return process.env.STATUS_PAGE_PUBLIC_SLUG || "tallykonnect";
+  return process.env.STATUS_PAGE_PUBLIC_SLUG || "metawhat";
 }
 
 function brandName() {
-  return process.env.STATUS_PAGE_BRAND_NAME || "TallyKonnect Status";
+  return process.env.STATUS_PAGE_BRAND_NAME || "metawhat Status";
 }
 
 function supportEmail() {
@@ -40,12 +40,12 @@ export async function seedDefaultStatusPage() {
       isDefault: true,
       visibility: "PUBLIC",
       description:
-        "Current system status for TallyKonnect messaging, APIs, webhooks, and dashboard.",
+        "Current system status for metawhat messaging, APIs, webhooks, and dashboard.",
       components: {
         create: [
           {
             name: "Dashboard",
-            description: "TallyKonnect web dashboard",
+            description: "metawhat web dashboard",
             sortOrder: 1,
           },
           {
