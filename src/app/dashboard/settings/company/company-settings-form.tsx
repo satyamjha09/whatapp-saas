@@ -4,21 +4,29 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type CompanySettingsFormProps = {
+  approvalWorkflowAllowed: boolean;
+  automationPublishApprovalRequired: boolean;
   companyName: string;
 };
 
 type UpdateCompanyResponse = {
   message: string;
   errors?: {
+    automationPublishApprovalRequired?: string[];
     name?: string[];
   };
 };
 
 export default function CompanySettingsForm({
+  approvalWorkflowAllowed,
+  automationPublishApprovalRequired,
   companyName,
 }: CompanySettingsFormProps) {
   const router = useRouter();
 
+  const [approvalRequired, setApprovalRequired] = useState(
+    automationPublishApprovalRequired,
+  );
   const [name, setName] = useState(companyName);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -38,6 +46,7 @@ export default function CompanySettingsForm({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          automationPublishApprovalRequired: approvalRequired,
           name,
         }),
       });
@@ -45,7 +54,10 @@ export default function CompanySettingsForm({
       const data: UpdateCompanyResponse = await response.json();
 
       if (!response.ok) {
-        const firstError = data.errors?.name?.[0] ?? data.message;
+        const firstError =
+          data.errors?.name?.[0] ??
+          data.errors?.automationPublishApprovalRequired?.[0] ??
+          data.message;
         setError(firstError);
         return;
       }
@@ -87,6 +99,28 @@ export default function CompanySettingsForm({
             className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-black"
           />
         </div>
+
+        {approvalWorkflowAllowed || automationPublishApprovalRequired ? (
+          <label className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
+            <input
+              type="checkbox"
+              checked={approvalRequired}
+              disabled={!approvalWorkflowAllowed}
+              onChange={(event) => setApprovalRequired(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-gray-900">
+                Require approval before publishing automations
+              </span>
+              <span className="mt-1 block text-sm text-gray-600">
+                {approvalWorkflowAllowed
+                  ? "When enabled, automation managers can request approval, but only owners/admins can approve and publish."
+                  : "Your current plan does not include automation approval workflow. Existing approval history is kept, but new approval requests are disabled until you upgrade."}
+              </span>
+            </span>
+          </label>
+        ) : null}
 
         {error ? (
           <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">

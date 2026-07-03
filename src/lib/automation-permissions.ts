@@ -16,7 +16,34 @@ export type AutomationPermissionName =
   | "automation.flow.resume"
   | "automation.analytics.view"
   | "automation.execution.view"
-  | "automation.template_library.use";
+  | "automation.template_library.use"
+  | "automation.monitoring.view"
+  | "automation.alert.view"
+  | "automation.alert.manage"
+  | "automation.monitoring.run_checks";
+
+export const AUTOMATION_PERMISSION_NAMES: AutomationPermissionName[] = [
+  "automation.flow.view",
+  "automation.flow.create",
+  "automation.flow.edit",
+  "automation.flow.delete",
+  "automation.flow.archive",
+  "automation.flow.test",
+  "automation.flow.publish",
+  "automation.flow.request_publish",
+  "automation.flow.approve_publish",
+  "automation.flow.reject_publish",
+  "automation.flow.rollback",
+  "automation.flow.pause",
+  "automation.flow.resume",
+  "automation.analytics.view",
+  "automation.execution.view",
+  "automation.template_library.use",
+  "automation.monitoring.view",
+  "automation.alert.view",
+  "automation.alert.manage",
+  "automation.monitoring.run_checks",
+];
 
 export function hasAutomationPermission(
   role: CompanyRole | string,
@@ -44,6 +71,8 @@ export function hasAutomationPermission(
       case "automation.analytics.view":
       case "automation.execution.view":
       case "automation.template_library.use":
+      case "automation.monitoring.view":
+      case "automation.alert.view":
         return true;
 
       case "automation.flow.publish":
@@ -54,6 +83,8 @@ export function hasAutomationPermission(
       case "automation.flow.reject_publish":
       case "automation.flow.delete":
       case "automation.flow.archive":
+      case "automation.alert.manage":
+      case "automation.monitoring.run_checks":
         return false;
 
       default:
@@ -91,27 +122,8 @@ export function getUserAutomationPermissions(
   role: CompanyRole | string,
   approvalRequired = false
 ): Record<AutomationPermissionName, boolean> {
-  const permissions: AutomationPermissionName[] = [
-    "automation.flow.view",
-    "automation.flow.create",
-    "automation.flow.edit",
-    "automation.flow.delete",
-    "automation.flow.archive",
-    "automation.flow.test",
-    "automation.flow.publish",
-    "automation.flow.request_publish",
-    "automation.flow.approve_publish",
-    "automation.flow.reject_publish",
-    "automation.flow.rollback",
-    "automation.flow.pause",
-    "automation.flow.resume",
-    "automation.analytics.view",
-    "automation.execution.view",
-    "automation.template_library.use",
-  ];
-
   const result = {} as Record<AutomationPermissionName, boolean>;
-  permissions.forEach((perm) => {
+  AUTOMATION_PERMISSION_NAMES.forEach((perm) => {
     result[perm] = hasAutomationPermission(role, perm, approvalRequired);
   });
 

@@ -404,6 +404,11 @@ export async function createAutomationFlowFromTemplate(
     throw new TemplateNotFoundError(templateSlug);
   }
 
+  const { checkCanCreateAutomationFlow, checkCanUseTemplateLibrary } = await import("./automation-plan-limit.service");
+  await checkCanCreateAutomationFlow(companyId);
+  const templateNodeTypes = Array.from(new Set(template.graph.nodes.map((n) => n.type)));
+  await checkCanUseTemplateLibrary(companyId, templateNodeTypes);
+
   // 1. Validate the mapping requests
   const { missingRequirements, validIntegrationMappings, validTemplateMappings } =
     await validateTemplateUseRequest(companyId, template, input);

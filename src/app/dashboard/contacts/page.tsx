@@ -1,16 +1,17 @@
 import { Calendar, Phone, Users } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  EmptyState,
+  actionButtonClass,
   MetricCard,
   PageHeader,
   Panel,
   PanelTitle,
-  StatusPill,
 } from "@/app/dashboard/dashboard-ui";
+import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
-import { getContactsByCompany } from "@/server/services/contact.service";
 import ContactForm from "./contact-form";
+import { ContactsExplorer } from "@/components/contacts/contacts-explorer";
 
 export default async function ContactsPage() {
   const context = await getCurrentWorkspaceContext();
@@ -23,8 +24,30 @@ export default async function ContactsPage() {
     redirect("/onboarding");
   }
 
-  const contacts = await getContactsByCompany(context.membership.companyId);
-  const namedContacts = contacts.filter((contact) => contact.name).length;
+  const companyId = context.membership.companyId;
+
+  const [totalContacts, namedContacts, latestContact, lists, segments] =
+    await Promise.all([
+      prisma.contact.count({ where: { companyId } }),
+      prisma.contact.count({ where: { companyId, name: { not: null } } }),
+      prisma.contact.findFirst({
+        where: { companyId },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      }),
+      prisma.contactGroup.findMany({
+        where: { companyId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+        take: 200,
+      }),
+      prisma.contactSegment.findMany({
+        where: { companyId, status: "ACTIVE" },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+        take: 100,
+      }),
+    ]);
 
   return (
     <div>
@@ -32,13 +55,35 @@ export default async function ContactsPage() {
         eyebrow={context.membership.company.name}
         title="Contacts"
         description="Maintain the real customer phonebook used for inbox threads, campaigns, and template message delivery."
+        actions={
+          <>
+            <Link
+              href="/dashboard/contacts/lists"
+              className={actionButtonClass("secondary")}
+            >
+              Lists
+            </Link>
+            <Link
+              href="/dashboard/contacts/segments"
+              className={actionButtonClass("secondary")}
+            >
+              Segments
+            </Link>
+            <Link
+              href="/dashboard/contacts/import"
+              className={actionButtonClass("primary")}
+            >
+              Import contacts
+            </Link>
+          </>
+        }
       />
 
       <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <MetricCard
           icon={Users}
           label="Total contacts"
-          value={contacts.length.toLocaleString("en-IN")}
+          value={totalContacts.toLocaleString("en-IN")}
           detail="Stored in this workspace"
         />
         <MetricCard
@@ -50,51 +95,23 @@ export default async function ContactsPage() {
         <MetricCard
           icon={Calendar}
           label="Latest contact"
-          value={contacts[0]?.createdAt.toLocaleDateString() ?? "-"}
+          value={latestContact?.createdAt.toLocaleDateString() ?? "-"}
           detail="Most recent record"
         />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+      <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
         <ContactForm />
 
         <Panel>
           <PanelTitle
-            title="Saved contacts"
-            description="Real contacts available for message and campaign workflows."
+            title="All contacts"
+            description="Filter by list, segment, tag, or opt-out status. Select contacts to apply bulk actions."
           />
 
-          {contacts.length === 0 ? (
-            <div className="mt-6">
-              <EmptyState>No contacts created yet.</EmptyState>
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-3">
-              {contacts.map((contact) => (
-                <div
-                  key={contact.id}
-                  className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 transition hover:border-indigo-300/25 hover:bg-white/[0.06]"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <h3 className="truncate font-semibold text-white">
-                        {contact.name ?? "Unnamed Contact"}
-                      </h3>
-                      <p className="mt-1 text-sm text-zinc-500">
-                        +{contact.countryCode} {contact.phoneNumber}
-                      </p>
-                    </div>
-
-                    <StatusPill tone="violet">Contact</StatusPill>
-                  </div>
-
-                  <p className="mt-4 text-xs text-zinc-600">
-                    Created {contact.createdAt.toLocaleDateString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="mt-5">
+            <ContactsExplorer lists={lists} segments={segments} />
+          </div>
         </Panel>
       </div>
     </div>

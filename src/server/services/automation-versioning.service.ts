@@ -195,6 +195,9 @@ export async function ensureAutomationFlowDraft({
 
   if (existing) return existing;
 
+  const { checkCanCreateAutomationFlow } = await import("./automation-plan-limit.service");
+  await checkCanCreateAutomationFlow(companyId);
+
   return prisma.automationFlow.create({
     data: {
       companyId,
@@ -242,6 +245,9 @@ export async function saveAutomationFlowDraft(
   if (!flow) throw new AutomationFlowNotFoundError();
 
   const normalizedGraph = normalizeAutomationGraph(draftGraph);
+  const { checkCanSaveDraft } = await import("./automation-plan-limit.service");
+  await checkCanSaveDraft(companyId, flowId, normalizedGraph);
+
   const validation = validateAutomationGraph(normalizedGraph);
   const triggerMetadata = extractTriggerMetadata(normalizedGraph);
   const updatedFlow = await prisma.$transaction(async (tx) => {
@@ -347,6 +353,10 @@ export async function publishAutomationFlow(
   if (!flow) throw new AutomationFlowNotFoundError();
 
   const normalizedGraph = graphFromJson(flow.draftGraph);
+
+  const { checkCanPublishAutomationFlow } = await import("./automation-plan-limit.service");
+  await checkCanPublishAutomationFlow(companyId, flowId, normalizedGraph);
+
   const validation = validateAutomationGraph(normalizedGraph);
 
   if (validation.errors.length > 0) {
@@ -507,6 +517,9 @@ export async function rollbackAutomationFlowVersion(
   if (!sourceVersion) throw new AutomationFlowNotFoundError();
 
   const graph = graphFromJson(sourceVersion.graph);
+  const { checkCanPublishAutomationFlow } = await import("./automation-plan-limit.service");
+  await checkCanPublishAutomationFlow(companyId, flowId, graph);
+
   const validation = validateAutomationGraph(graph);
   const triggerMetadata = extractTriggerMetadata(graph);
   const publishNotes =

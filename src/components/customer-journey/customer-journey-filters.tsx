@@ -16,20 +16,26 @@ const FILTER_SOURCES: Array<{ value: string; label: string }> = [
   { value: "MESSAGE", label: "Messages" },
   { value: "CAMPAIGN", label: "Campaigns" },
   { value: "AUTOMATION", label: "Automations" },
+  { value: "PAYMENT", label: "Payments" },
+  { value: "TALLY", label: "Tally" },
+  { value: "GOOGLE_SHEET", label: "Google Sheets" },
+  { value: "AI", label: "AI" },
   { value: "INBOX", label: "Agent & Inbox" },
   { value: "WHATSAPP_WEBHOOK", label: "WhatsApp Statuses" },
 ];
 
 export default function CustomerJourneyFilters({
+  selectedType,
   selectedSource,
   selectedDateRange,
   sortOrder,
+  onTypeChange,
   onSourceChange,
   onDateRangeChange,
   onSortOrderChange,
 }: CustomerJourneyFiltersProps) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-white p-4 rounded-xl border border-[#D8E6F3]">
+    <div className="flex flex-col gap-4 bg-white p-4 rounded-xl border border-[#D8E6F3]">
       {/* Source Category Chips */}
       <div className="flex flex-wrap gap-2">
         {FILTER_SOURCES.map((s) => (
@@ -48,7 +54,21 @@ export default function CustomerJourneyFilters({
       </div>
 
       {/* Date & Sorting Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          value={selectedType}
+          onChange={(e) => onTypeChange(e.target.value)}
+          className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#D8E6F3] bg-white text-[#081B3A] focus:outline-none"
+        >
+          <option value="ALL">All event types</option>
+          <option value="ERRORS">Errors only</option>
+          <option value="HUMAN_HANDOFF">Handoffs</option>
+          <option value="BUTTON_CLICKED">Button clicks</option>
+          <option value="PAYMENT_LINK_CREATED">Payment links</option>
+          <option value="PAYMENT_COMPLETED">Payments completed</option>
+          <option value="AUTOMATION_WAITING">Waiting automations</option>
+        </select>
+
         <select
           value={selectedDateRange}
           onChange={(e) => onDateRangeChange(e.target.value)}

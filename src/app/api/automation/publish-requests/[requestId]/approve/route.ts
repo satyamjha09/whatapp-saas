@@ -56,6 +56,17 @@ export async function POST(
       return NextResponse.json({ message: err.message }, { status: 400 });
     }
 
+    if (err.name === "PlanFeatureAccessError") {
+      return NextResponse.json(
+        {
+          code: (err as Error & { code?: string }).code,
+          message: err.message,
+          requiredPlan: (err as Error & { requiredPlan?: string }).requiredPlan,
+        },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json(
       { message: "Unable to approve publish request." },
       { status: 500 }

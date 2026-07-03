@@ -4,6 +4,10 @@ import {
   AutomationFlowNotFoundError,
   pauseAutomationFlow,
 } from "@/server/services/automation-versioning.service";
+import {
+  assertAutomationApiPermission,
+  createAutomationPermissionErrorResponse,
+} from "@/server/utils/automation-api-permission";
 
 export async function POST(
   _request: Request,
@@ -23,6 +27,12 @@ export async function POST(
       );
     }
 
+    await assertAutomationApiPermission({
+      companyId: context.membership.companyId,
+      permission: "automation.flow.pause",
+      userId: context.user.id,
+    });
+
     const { flowId } = await params;
     const flow = await pauseAutomationFlow(
       context.membership.companyId,
@@ -37,6 +47,9 @@ export async function POST(
       },
     });
   } catch (error) {
+    const permissionError = createAutomationPermissionErrorResponse(error);
+    if (permissionError) return permissionError;
+
     if (error instanceof AutomationFlowNotFoundError) {
       return NextResponse.json({ message: error.message }, { status: 404 });
     }

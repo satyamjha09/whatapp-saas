@@ -4,6 +4,10 @@ import {
   AutomationFlowNotFoundError,
   listAutomationFlowVersions,
 } from "@/server/services/automation-versioning.service";
+import {
+  assertAutomationApiPermission,
+  createAutomationPermissionErrorResponse,
+} from "@/server/utils/automation-api-permission";
 
 export async function GET(
   _request: Request,
@@ -23,6 +27,12 @@ export async function GET(
       );
     }
 
+    await assertAutomationApiPermission({
+      companyId: context.membership.companyId,
+      permission: "automation.flow.view",
+      userId: context.user.id,
+    });
+
     const { flowId } = await params;
     const result = await listAutomationFlowVersions(
       context.membership.companyId,
@@ -38,6 +48,9 @@ export async function GET(
       versions: result.versions,
     });
   } catch (error) {
+    const permissionError = createAutomationPermissionErrorResponse(error);
+    if (permissionError) return permissionError;
+
     if (error instanceof AutomationFlowNotFoundError) {
       return NextResponse.json({ message: error.message }, { status: 404 });
     }

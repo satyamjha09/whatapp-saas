@@ -1,0 +1,5 @@
+name,countryCode,phoneNumber,email,companyName,tags,city,source
+Ramesh Kumar,91,9876543210,ramesh@example.com,Acme Traders,"vip,retail",Mumbai,website
+Priya Sharma,91,9812345678,priya@example.com,Sharma Textiles,wholesale,Delhi,referral
+John Smith,1,4155552671,john@example.com,Smith LLC,international,San Francisco,import
+Anita Desai,91,+919898989898,anita@example.com,Desai Foods,"lead,follow-up",Ahmedabad,facebook

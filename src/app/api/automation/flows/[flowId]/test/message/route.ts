@@ -5,6 +5,10 @@ import {
   automationFlowTestParamsSchema,
   continueAutomationTestSchema,
 } from "@/server/validators/automation-test.validator";
+import {
+  assertAutomationApiPermission,
+  createAutomationPermissionErrorResponse,
+} from "@/server/utils/automation-api-permission";
 
 export async function POST(
   request: Request,
@@ -23,6 +27,12 @@ export async function POST(
         { status: 403 },
       );
     }
+
+    await assertAutomationApiPermission({
+      companyId: context.membership.companyId,
+      permission: "automation.flow.test",
+      userId: context.user.id,
+    });
 
     const resolvedParams = await params;
     const paramValidation =
@@ -56,6 +66,9 @@ export async function POST(
 
     return NextResponse.json({ testRun });
   } catch (error) {
+    const permissionError = createAutomationPermissionErrorResponse(error);
+    if (permissionError) return permissionError;
+
     console.error("AUTOMATION_TEST_MESSAGE_ERROR:", error);
 
     return NextResponse.json(

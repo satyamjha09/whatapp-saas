@@ -116,5 +116,15 @@ module.exports = {
       name: "tallykonnect-automation-runtime-worker",
       script: "src/workers/automation-runtime.worker.ts",
     }),
+
+    tsxWorker({
+      name: "tallykonnect-automation-monitoring-worker",
+      script: "src/workers/automation-monitoring.worker.ts",
+    }),
+
+    tsxWorker({
+      name: "tallykonnect-contact-import-worker",
+      script: "src/workers/contact-import.worker.ts",
+    }),
   ],
 };

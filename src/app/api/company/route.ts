@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import { updateCompany } from "@/server/services/company.service";
+import { getCompanyPlanFeatures } from "@/server/services/plan-feature.service";
 import { updateCompanySchema } from "@/server/validators/company.validator";
 
 export async function PATCH(request: Request) {
@@ -40,6 +41,23 @@ export async function PATCH(request: Request) {
       );
     }
 
+    if (validation.data.automationPublishApprovalRequired) {
+      const planFeatures = await getCompanyPlanFeatures(context.membership.companyId);
+
+      if (
+        !planFeatures.approvalWorkflow &&
+        !context.membership.company.automationPublishApprovalRequired
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Automation approval workflow requires the Business plan or higher.",
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     const company = await updateCompany(
       context.membership.companyId,
       validation.data,
@@ -52,6 +70,8 @@ export async function PATCH(request: Request) {
       entityType: "Company",
       entityId: company.id,
       metadata: {
+        automationPublishApprovalRequired:
+          company.automationPublishApprovalRequired,
         name: company.name,
       },
     });

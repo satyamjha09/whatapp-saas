@@ -81,6 +81,17 @@ export async function POST(
       return NextResponse.json({ message: err.message }, { status: 403 });
     }
 
+    if (err?.name === "PlanFeatureAccessError") {
+      return NextResponse.json(
+        {
+          code: (err as Error & { code?: string }).code,
+          message: err.message,
+          requiredPlan: (err as Error & { requiredPlan?: string }).requiredPlan,
+        },
+        { status: 403 },
+      );
+    }
+
     if (error instanceof AutomationFlowNotFoundError) {
       return NextResponse.json({ message: error.message }, { status: 404 });
     }

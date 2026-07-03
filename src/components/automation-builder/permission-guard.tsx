@@ -9,15 +9,24 @@ import {
 type UseAutomationPermissionsProps = {
   userRole?: string;
   approvalRequired?: boolean;
+  permissionOverrides?: Partial<Record<AutomationPermissionName, boolean>>;
 };
 
 export function useAutomationPermissions({
   userRole = "MEMBER",
   approvalRequired = false,
+  permissionOverrides,
 }: UseAutomationPermissionsProps) {
   const permissions = useMemo(() => {
+    if (permissionOverrides) {
+      return {
+        ...getUserAutomationPermissions(userRole, approvalRequired),
+        ...permissionOverrides,
+      };
+    }
+
     return getUserAutomationPermissions(userRole, approvalRequired);
-  }, [userRole, approvalRequired]);
+  }, [approvalRequired, permissionOverrides, userRole]);
 
   const canEdit = permissions["automation.flow.edit"];
   const canPublish = permissions["automation.flow.publish"];
@@ -42,6 +51,7 @@ export function useAutomationPermissions({
 type PermissionGuardProps = {
   userRole?: string;
   approvalRequired?: boolean;
+  permissionOverrides?: Partial<Record<AutomationPermissionName, boolean>>;
   permission: AutomationPermissionName;
   fallback?: React.ReactNode;
   children: React.ReactNode;
@@ -50,11 +60,16 @@ type PermissionGuardProps = {
 export function PermissionGuard({
   userRole = "MEMBER",
   approvalRequired = false,
+  permissionOverrides,
   permission,
   fallback = null,
   children,
 }: PermissionGuardProps) {
-  const { permissions } = useAutomationPermissions({ userRole, approvalRequired });
+  const { permissions } = useAutomationPermissions({
+    approvalRequired,
+    permissionOverrides,
+    userRole,
+  });
 
   if (!permissions[permission]) {
     return <>{fallback}</>;

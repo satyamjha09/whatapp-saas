@@ -23,8 +23,11 @@ import {
   statusTone,
 } from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { checkUserAutomationPermission } from "@/server/services/automation-permission.service";
 import { getFlowAnalytics } from "@/server/services/automation-analytics.service";
+import { getCompanyPlanFeatures } from "@/server/services/plan-feature.service";
 import { automationFlowAnalyticsQuerySchema } from "@/server/validators/automation-analytics.validator";
+import UpgradeRequiredBanner from "@/components/automation-builder/upgrade-required-banner";
 
 type FlowAnalyticsPageProps = {
   params: Promise<{
@@ -72,6 +75,13 @@ export default async function FlowAnalyticsPage({
   if (!context) redirect("/sign-in");
   if (!context.membership) redirect("/onboarding");
 
+  const canViewAnalytics = await checkUserAutomationPermission(
+    context.membership.companyId,
+    context.user.id,
+    "automation.analytics.view",
+  );
+  if (!canViewAnalytics) redirect("/dashboard");
+
   const { flowId } = await params;
   const rawFilters = normalizeSearchParams(await searchParams);
   const parsedFilters = automationFlowAnalyticsQuerySchema.safeParse(rawFilters);
@@ -83,8 +93,17 @@ export default async function FlowAnalyticsPage({
     flowId,
     filters,
   );
+  const planFeatures = await getCompanyPlanFeatures(context.membership.companyId);
 
   if (!analytics) notFound();
+
+  if (!planFeatures.advancedAnalytics) {
+    analytics.nodeAnalytics = [];
+    analytics.dropOffNodes = [];
+    analytics.topFailedNodes = [];
+    analytics.topTriggerKeywords = [];
+    analytics.versionBreakdown = [];
+  }
 
   return (
     <div>
@@ -228,6 +247,16 @@ export default async function FlowAnalyticsPage({
           value={analytics.summary.paymentLinkCreatedCount.toLocaleString("en-IN")}
         />
       </section>
+
+      {!planFeatures.advancedAnalytics ? (
+        <div className="mb-6">
+          <UpgradeRequiredBanner
+            title="Advanced analytics locked"
+            message="Node-wise analytics, drop-off nodes, failed-node trends, trigger keywords, and version breakdown require the Pro plan or higher."
+            requiredPlan="PRO"
+          />
+        </div>
+      ) : null}
 
       <Panel className="mb-6 overflow-hidden p-0 sm:p-0">
         <div className="border-b border-[#BFE9D0] px-5 py-4 sm:px-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addEdge,
   Background,
@@ -32,6 +32,9 @@ import {
 } from "lucide-react";
 import { useAutomationPermissions } from "./permission-guard";
 import RequestPublishModal from "../automation-approvals/request-publish-modal";
+import type { AutomationPermissionName } from "@/lib/automation-permissions";
+import LockedNodeModal from "./locked-node-card";
+import UpgradeRequiredBanner from "./upgrade-required-banner";
 import AutomationTestPanel from "@/components/automation-builder/automation-test-panel";
 import type { AutomationTestRun } from "@/components/automation-builder/automation-test-types";
 import AutomationVersionHistoryPanel, {
@@ -78,6 +81,21 @@ interface ChecklistMetadata {
   }>;
 }
 
+function validationIssueKey(
+  issue: AutomationGraphValidationIssue,
+  index: number,
+  scope: string,
+) {
+  return [
+    scope,
+    issue.severity,
+    issue.code,
+    issue.nodeId ?? issue.edgeId ?? "graph",
+    issue.message,
+    index,
+  ].join("-");
+}
+
 export type AutomationBuilderInitialFlow = {
   currentVersionNumber: number | null;
   description: string | null;
@@ -99,6 +117,7 @@ type AutomationBuilderProps = {
   initialGraph?: AutomationGraph;
   userRole?: string;
   approvalRequired?: boolean;
+  permissions?: Partial<Record<AutomationPermissionName, boolean>>;
 };
 
 const nodeTypes = {
@@ -192,13 +211,63 @@ export default function AutomationBuilder({
   initialGraph,
   userRole = "MEMBER",
   approvalRequired = false,
+  permissions: permissionOverrides,
 }: AutomationBuilderProps) {
   const { canEdit, canPublish, canRequestPublish } = useAutomationPermissions({
-    userRole,
     approvalRequired,
+    permissionOverrides,
+    userRole,
   });
 
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [planLimits, setPlanLimits] = useState<{
+    planName: string;
+    allowedNodes: string[];
+    lockedNodes: Array<{ nodeType: string; requiredPlan: string }>;
+  } | null>(null);
+  const [usageSummary, setUsageSummary] = useState<{
+    limits: {
+      executions: number | null;
+      flows: number | null;
+    };
+    usage: {
+      executionsUsed: number;
+      flowsUsed: number;
+    };
+  } | null>(null);
+  const [lockedModalNodeType, setLockedModalNodeType] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchLimits() {
+      try {
+        const res = await fetch("/api/automation/plan-limits");
+        if (res.ok) {
+          const data = await res.json();
+          setPlanLimits(data);
+        }
+      } catch (err) {
+        console.error("Failed to load plan limits:", err);
+      }
+    }
+    void fetchLimits();
+  }, []);
+
+  useEffect(() => {
+    async function fetchUsage() {
+      try {
+        const res = await fetch("/api/automation/usage");
+        if (res.ok) {
+          const data = await res.json();
+          setUsageSummary(data);
+        }
+      } catch (err) {
+        console.error("Failed to load automation usage:", err);
+      }
+    }
+
+    void fetchUsage();
+  }, []);
+
   const graph = useMemo(
     () => normalizeAutomationGraph(initialGraph ?? createDefaultAutomationGraph()),
     [initialGraph],
@@ -214,6 +283,11 @@ export default function AutomationBuilder({
   const [nodes, setNodes, onNodesChange] =
     useNodesState<AutomationFlowNode>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const currentDraftLockedNodes = useMemo(() => {
+    if (!planLimits?.allowedNodes) return [];
+    const nodeTypes = Array.from(new Set(nodes.map((n) => n.data.nodeType)));
+    return nodeTypes.filter((t) => !planLimits.allowedNodes.includes(t));
+  }, [nodes, planLimits]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isTestPanelOpen, setIsTestPanelOpen] = useState(false);
@@ -830,7 +904,13 @@ export default function AutomationBuilder({
   return (
     <ReactFlowProvider>
       <section className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_430px]">
-        <NodePalette onAddNode={addNode} />
+        <div className="w-80 shrink-0">
+          <NodePalette
+            onAddNode={addNode}
+            allowedNodes={planLimits?.allowedNodes}
+            onLockedNodeClick={(nodeType) => setLockedModalNodeType(nodeType)}
+          />
+        </div>
 
         <div className="min-w-0 overflow-hidden rounded-2xl border border-[#BFE9D0] bg-[#F7FBFF] shadow-[0_18px_44px_rgba(8,27,58,0.08)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#BFE9D0] bg-white px-5 py-4">
@@ -898,6 +978,24 @@ export default function AutomationBuilder({
                   ? "Valid flow"
                   : `${validation.errors.length} errors, ${validation.warnings.length} warnings`}
               </span>
+              {usageSummary ? (
+                <>
+                  <span className="inline-flex items-center rounded-full bg-[#E7F8EF] px-3 py-1 text-xs font-semibold text-[#128C7E]">
+                    {usageSummary.usage.flowsUsed.toLocaleString("en-IN")}/
+                    {usageSummary.limits.flows === null
+                      ? "∞"
+                      : usageSummary.limits.flows.toLocaleString("en-IN")}{" "}
+                    flows
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-[#E7F8EF] px-3 py-1 text-xs font-semibold text-[#128C7E]">
+                    {usageSummary.usage.executionsUsed.toLocaleString("en-IN")}/
+                    {usageSummary.limits.executions === null
+                      ? "∞"
+                      : usageSummary.limits.executions.toLocaleString("en-IN")}{" "}
+                    executions
+                  </span>
+                </>
+              ) : null}
               <button
                 className="inline-flex items-center rounded-xl border border-[#BFE9D0] bg-white px-3 py-2 text-xs font-semibold text-[#128C7E] transition hover:bg-[#E7F8EF] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isSavingDraft}
@@ -1015,6 +1113,15 @@ export default function AutomationBuilder({
               )}
             </div>
           ) : null}
+
+          {currentDraftLockedNodes.length > 0 && (
+            <div className="p-3 border-b border-[#BFE9D0] bg-white">
+              <UpgradeRequiredBanner
+                title="Plan Limit Warning"
+                message={`This flow draft contains ${currentDraftLockedNodes.length} node(s) (${currentDraftLockedNodes.join(", ")}) not included in your current ${planLimits?.planName || "Starter"} plan. Upgrade or remove them before publishing.`}
+              />
+            </div>
+          )}
 
           <div className="h-[720px]">
             <ReactFlow
@@ -1147,10 +1254,10 @@ export default function AutomationBuilder({
                   <p className="text-sm font-bold text-rose-700">
                     Publish blocked
                   </p>
-                  {validation.errors.map((issue) => (
+                  {validation.errors.map((issue, index) => (
                     <p
                       className="text-sm leading-5 text-rose-700"
-                      key={`publish-error-${issue.code}-${issue.nodeId ?? issue.edgeId ?? "graph"}`}
+                      key={validationIssueKey(issue, index, "publish-error")}
                     >
                       {issue.message}
                     </p>
@@ -1163,10 +1270,10 @@ export default function AutomationBuilder({
                   <p className="text-sm font-bold text-amber-800">
                     Warnings need confirmation
                   </p>
-                  {validation.warnings.map((issue) => (
+                  {validation.warnings.map((issue, index) => (
                     <p
                       className="text-sm leading-5 text-amber-800"
-                      key={`publish-warning-${issue.code}-${issue.nodeId ?? issue.edgeId ?? "graph"}`}
+                      key={validationIssueKey(issue, index, "publish-warning")}
                     >
                       {issue.message}
                     </p>
@@ -1241,7 +1348,7 @@ export default function AutomationBuilder({
         </div>
         {validation.errors.length > 0 || validation.warnings.length > 0 ? (
           <div className="mt-4 grid gap-2">
-            {[...validation.errors, ...validation.warnings].map((issue) => (
+            {[...validation.errors, ...validation.warnings].map((issue, index) => (
               <button
                 className={[
                   "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition",
@@ -1249,7 +1356,7 @@ export default function AutomationBuilder({
                     ? "border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100"
                     : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100",
                 ].join(" ")}
-                key={`${issue.severity}-${issue.code}-${issue.nodeId ?? issue.edgeId ?? "graph"}`}
+                key={validationIssueKey(issue, index, "graph-structure")}
                 onClick={() => selectIssue(issue)}
                 type="button"
               >
@@ -1285,6 +1392,19 @@ export default function AutomationBuilder({
 
           setStatus("Publish approval requested!");
         }}
+      />
+      <LockedNodeModal
+        isOpen={Boolean(lockedModalNodeType)}
+        nodeType={lockedModalNodeType}
+        nodeLabel={
+          lockedModalNodeType
+            ? getAutomationNodeLabel(lockedModalNodeType as AutomationNodeType)
+            : ""
+        }
+        requiredPlan={
+          planLimits?.lockedNodes.find((l) => l.nodeType === lockedModalNodeType)?.requiredPlan || "PRO"
+        }
+        onClose={() => setLockedModalNodeType(null)}
       />
     </ReactFlowProvider>
   );

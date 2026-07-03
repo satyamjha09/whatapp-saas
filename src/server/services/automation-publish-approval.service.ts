@@ -10,7 +10,13 @@ import {
   toJson,
   validationSnapshot,
 } from "@/server/services/automation-versioning.service";
-import { requireAutomationPermission } from "./automation-permission.service";
+import {
+  AutomationPermissionDeniedError,
+  checkUserAutomationPermission,
+  requireAutomationPermission,
+} from "./automation-permission.service";
+import { checkCanPublishAutomationFlow } from "./automation-plan-limit.service";
+import { requireFeature } from "./plan-feature.service";
 import type {
   ApprovePublishRequestInput,
   CreatePublishRequestInput,
@@ -39,6 +45,7 @@ export async function createPublishRequest(
   input: CreatePublishRequestInput
 ) {
   await requireAutomationPermission(companyId, requestedByUserId, "automation.flow.request_publish");
+  await requireFeature(companyId, "automation.approval_workflow.enabled");
 
   const flow = await prisma.automationFlow.findFirst({
     where: { id: flowId, companyId },
@@ -49,6 +56,8 @@ export async function createPublishRequest(
   }
 
   const normalizedGraph = normalizeAutomationGraph(graphFromJson(flow.draftGraph));
+  await checkCanPublishAutomationFlow(companyId, flowId, normalizedGraph);
+
   const validation = validateAutomationGraph(normalizedGraph);
 
   if (validation.errors.length > 0) {
@@ -102,16 +111,24 @@ export async function createPublishRequest(
 export async function listPublishRequests(
   companyId: string,
   userId: string,
-  userRole: string,
   query: ListPublishRequestsQuery
 ) {
-  const isManagement = userRole === "OWNER" || userRole === "ADMIN";
+  const [canApprove, canReject, canRequest] = await Promise.all([
+    checkUserAutomationPermission(companyId, userId, "automation.flow.approve_publish"),
+    checkUserAutomationPermission(companyId, userId, "automation.flow.reject_publish"),
+    checkUserAutomationPermission(companyId, userId, "automation.flow.request_publish"),
+  ]);
+
+  const canReviewAll = canApprove || canReject;
+  if (!canReviewAll && !canRequest) {
+    throw new AutomationPermissionDeniedError("automation.flow.request_publish");
+  }
 
   const where: Prisma.AutomationPublishRequestWhereInput = {
     companyId,
     ...(query.status ? { status: query.status } : {}),
     ...(query.flowId ? { flowId: query.flowId } : {}),
-    ...(!isManagement ? { requestedByUserId: userId } : {}),
+    ...(!canReviewAll ? { requestedByUserId: userId } : {}),
   };
 
   const total = await prisma.automationPublishRequest.count({ where });
@@ -140,7 +157,8 @@ export async function listPublishRequests(
 
 export async function getPublishRequestById(
   companyId: string,
-  requestId: string
+  requestId: string,
+  userId: string
 ) {
   const request = await prisma.automationPublishRequest.findFirst({
     where: { id: requestId, companyId },
@@ -151,6 +169,15 @@ export async function getPublishRequestById(
 
   if (!request) {
     throw new PublishRequestNotFoundError(requestId);
+  }
+
+  const [canApprove, canReject] = await Promise.all([
+    checkUserAutomationPermission(companyId, userId, "automation.flow.approve_publish"),
+    checkUserAutomationPermission(companyId, userId, "automation.flow.reject_publish"),
+  ]);
+
+  if (!canApprove && !canReject && request.requestedByUserId !== userId) {
+    throw new AutomationPermissionDeniedError("automation.flow.approve_publish");
   }
 
   return request;
@@ -180,6 +207,8 @@ export async function approvePublishRequest(
   }
 
   const snapshotGraph = graphFromJson(request.draftGraph);
+  await checkCanPublishAutomationFlow(companyId, request.flowId, snapshotGraph);
+
   const validation = validateAutomationGraph(snapshotGraph);
 
   if (validation.errors.length > 0) {
@@ -300,8 +329,7 @@ export async function rejectPublishRequest(
 export async function cancelPublishRequest(
   companyId: string,
   requestId: string,
-  userId: string,
-  userRole: string
+  userId: string
 ) {
   const request = await prisma.automationPublishRequest.findFirst({
     where: { id: requestId, companyId },
@@ -311,8 +339,12 @@ export async function cancelPublishRequest(
     throw new PublishRequestNotFoundError(requestId);
   }
 
-  const isManagement = userRole === "OWNER" || userRole === "ADMIN";
-  if (!isManagement && request.requestedByUserId !== userId) {
+  const [canApprove, canReject] = await Promise.all([
+    checkUserAutomationPermission(companyId, userId, "automation.flow.approve_publish"),
+    checkUserAutomationPermission(companyId, userId, "automation.flow.reject_publish"),
+  ]);
+
+  if (!canApprove && !canReject && request.requestedByUserId !== userId) {
     throw new InvalidPublishRequestStateError("You can only cancel your own pending publish requests.");
   }
 

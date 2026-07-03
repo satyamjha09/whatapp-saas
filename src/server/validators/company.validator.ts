@@ -16,6 +16,7 @@ export const updateCompanySchema = z.object({
     .trim()
     .min(2, "Company name must be at least 2 characters")
     .max(100, "Company name must be less than 100 characters"),
+  automationPublishApprovalRequired: z.boolean().optional(),
 });
 
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;

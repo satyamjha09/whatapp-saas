@@ -17,6 +17,7 @@ const EXPECTED_WORKER_NAMES = [
   "campaign-sequence-worker",
   "template-status-sync-worker",
   "automation-runtime-worker",
+  "automation-monitoring-worker",
 ];
 
 export function createWorkerHeartbeat({

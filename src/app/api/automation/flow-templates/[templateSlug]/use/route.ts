@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAutomationFlowFromTemplate } from "@/server/services/automation-template-library.service";
 import { UseTemplateInputSchema } from "@/server/validators/automation-template-library.validator";
+import {
+  assertAutomationApiPermission,
+  createAutomationPermissionErrorResponse,
+} from "@/server/utils/automation-api-permission";
 
 export async function POST(
   request: Request,
@@ -20,6 +24,12 @@ export async function POST(
         { status: 403 }
       );
     }
+
+    await assertAutomationApiPermission({
+      companyId: context.membership.companyId,
+      permission: "automation.template_library.use",
+      userId: context.user.id,
+    });
 
     const { templateSlug } = await params;
     const body = await request.json().catch(() => ({}));
@@ -47,6 +57,9 @@ export async function POST(
       missingRequirements,
     });
   } catch (error: unknown) {
+    const permissionError = createAutomationPermissionErrorResponse(error);
+    if (permissionError) return permissionError;
+
     console.error("AUTOMATION_TEMPLATES_USE_ERROR:", error);
 
     const err = error as Error;
@@ -56,6 +69,17 @@ export async function POST(
 
     if (err.name === "TemplateMappingValidationError") {
       return NextResponse.json({ message: err.message }, { status: 400 });
+    }
+
+    if (err.name === "PlanFeatureAccessError") {
+      return NextResponse.json(
+        {
+          code: (err as Error & { code?: string }).code,
+          message: err.message,
+          requiredPlan: (err as Error & { requiredPlan?: string }).requiredPlan,
+        },
+        { status: 403 }
+      );
     }
 
     return NextResponse.json(

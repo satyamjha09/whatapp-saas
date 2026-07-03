@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getAutomationExecutionList } from "@/server/services/automation-execution-log.service";
 import { automationExecutionListQuerySchema } from "@/server/validators/automation-analytics.validator";
+import {
+  assertAutomationApiPermission,
+  createAutomationPermissionErrorResponse,
+} from "@/server/utils/automation-api-permission";
 
 export async function GET(request: Request) {
   try {
@@ -17,6 +21,12 @@ export async function GET(request: Request) {
         { status: 403 },
       );
     }
+
+    await assertAutomationApiPermission({
+      companyId: context.membership.companyId,
+      permission: "automation.execution.view",
+      userId: context.user.id,
+    });
 
     const url = new URL(request.url);
     const validation = automationExecutionListQuerySchema.safeParse(
@@ -40,6 +50,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
+    const permissionError = createAutomationPermissionErrorResponse(error);
+    if (permissionError) return permissionError;
+
     console.error("AUTOMATION_EXECUTIONS_LIST_ERROR:", error);
 
     return NextResponse.json(

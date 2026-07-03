@@ -42,6 +42,7 @@ export default function CustomerJourneyTimeline({
   const [error, setError] = useState("");
 
   // Filters State
+  const [selectedType, setSelectedType] = useState("ALL");
   const [selectedSource, setSelectedSource] = useState("ALL");
   const [dateRange, setDateRange] = useState("90d");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -61,6 +62,9 @@ export default function CustomerJourneyTimeline({
 
         if (selectedSource !== "ALL") {
           params.set("source", selectedSource);
+        }
+        if (selectedType !== "ALL") {
+          params.set("type", selectedType);
         }
 
         if (dateRange !== "all") {
@@ -85,7 +89,7 @@ export default function CustomerJourneyTimeline({
     }
 
     void fetchJourney();
-  }, [contactId, page, selectedSource, dateRange, sortOrder]);
+  }, [contactId, page, selectedSource, selectedType, dateRange, sortOrder]);
 
   // Group events by Date string
   const groupedEvents = useMemo(() => {
@@ -142,11 +146,14 @@ export default function CustomerJourneyTimeline({
 
       {/* Filter Toolbar */}
       <CustomerJourneyFilters
-        selectedType="ALL"
+        selectedType={selectedType}
         selectedSource={selectedSource}
         selectedDateRange={dateRange}
         sortOrder={sortOrder}
-        onTypeChange={() => {}}
+        onTypeChange={(type) => {
+          setSelectedType(type);
+          setPage(1);
+        }}
         onSourceChange={(src) => {
           setSelectedSource(src);
           setPage(1);

@@ -31,7 +31,6 @@ export async function GET(request: Request) {
     const result = await listPublishRequests(
       context.membership.companyId,
       context.user.id,
-      context.membership.role,
       validatedInput
     );
 
@@ -39,6 +38,11 @@ export async function GET(request: Request) {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("LIST_PUBLISH_REQUESTS_ERROR:", err);
+
+    if (err.name === "AutomationPermissionDeniedError") {
+      return NextResponse.json({ message: err.message }, { status: 403 });
+    }
+
     return NextResponse.json(
       { message: err.message || "Unable to list publish approval requests." },
       { status: 500 }

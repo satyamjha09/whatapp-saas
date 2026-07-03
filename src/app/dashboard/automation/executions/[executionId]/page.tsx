@@ -19,6 +19,7 @@ import {
   statusTone,
 } from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { checkUserAutomationPermission } from "@/server/services/automation-permission.service";
 import { getAutomationExecutionDetail } from "@/server/services/automation-execution-log.service";
 
 type ExecutionDetailPageProps = {
@@ -76,6 +77,13 @@ export default async function AutomationExecutionDetailPage({
 
   if (!context) redirect("/sign-in");
   if (!context.membership) redirect("/onboarding");
+
+  const canViewExecutions = await checkUserAutomationPermission(
+    context.membership.companyId,
+    context.user.id,
+    "automation.execution.view",
+  );
+  if (!canViewExecutions) redirect("/dashboard");
 
   const { executionId } = await params;
   const detail = await getAutomationExecutionDetail(

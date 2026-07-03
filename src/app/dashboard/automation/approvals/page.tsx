@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { checkUserAutomationPermission } from "@/server/services/automation-permission.service";
 import { listPublishRequests } from "@/server/services/automation-publish-approval.service";
 import { PageHeader } from "@/app/dashboard/dashboard-ui";
 import AutomationApprovalList from "@/components/automation-approvals/automation-approval-list";
@@ -24,6 +25,28 @@ export default async function AutomationApprovalsPage({ searchParams }: PageProp
   }
 
   const sp = await searchParams;
+  const [canApprove, canReject, canRequest] = await Promise.all([
+    checkUserAutomationPermission(
+      context.membership.companyId,
+      context.user.id,
+      "automation.flow.approve_publish",
+    ),
+    checkUserAutomationPermission(
+      context.membership.companyId,
+      context.user.id,
+      "automation.flow.reject_publish",
+    ),
+    checkUserAutomationPermission(
+      context.membership.companyId,
+      context.user.id,
+      "automation.flow.request_publish",
+    ),
+  ]);
+
+  if (!canApprove && !canReject && !canRequest) {
+    redirect("/dashboard");
+  }
+
   const status = sp.status || undefined;
   const flowId = sp.flowId || undefined;
   const page = parseInt(sp.page || "1", 10);
@@ -31,7 +54,6 @@ export default async function AutomationApprovalsPage({ searchParams }: PageProp
   const { requests } = await listPublishRequests(
     context.membership.companyId,
     context.user.id,
-    context.membership.role,
     { status: status as "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED" | "SUPERSEDED" | undefined, flowId, page, pageSize: 50 }
   );
 

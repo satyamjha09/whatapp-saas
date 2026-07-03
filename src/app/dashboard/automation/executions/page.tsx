@@ -21,6 +21,7 @@ import {
 } from "@/app/dashboard/dashboard-ui";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { checkUserAutomationPermission } from "@/server/services/automation-permission.service";
 import { getAutomationExecutionList } from "@/server/services/automation-execution-log.service";
 import { automationExecutionListQuerySchema } from "@/server/validators/automation-analytics.validator";
 
@@ -70,6 +71,13 @@ export default async function AutomationExecutionsPage({
 
   if (!context) redirect("/sign-in");
   if (!context.membership) redirect("/onboarding");
+
+  const canViewExecutions = await checkUserAutomationPermission(
+    context.membership.companyId,
+    context.user.id,
+    "automation.execution.view",
+  );
+  if (!canViewExecutions) redirect("/dashboard");
 
   const rawFilters = normalizeSearchParams(await searchParams);
   const parsedFilters = automationExecutionListQuerySchema.safeParse(rawFilters);

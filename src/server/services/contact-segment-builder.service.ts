@@ -16,9 +16,11 @@ export type SegmentRuleInput = {
     | "PHONE"
     | "NAME"
     | "EMAIL"
+    | "COMPANY_NAME"
     | "SOURCE"
     | "CITY"
     | "TAG"
+    | "OPTED_OUT"
     | "MARKETING_CONSENT"
     | "UTILITY_CONSENT"
     | "CREATED_AT"
@@ -41,11 +43,45 @@ export type SegmentRuleInput = {
     | "AFTER"
     | "BETWEEN"
     | "GREATER_THAN"
-    | "LESS_THAN";
+    | "LESS_THAN"
+    | "IN_LAST_DAYS"
+    | "NOT_IN_LAST_DAYS"
+    | "IS_TRUE"
+    | "IS_FALSE";
   customFieldKey?: string | null;
   value?: string | null;
   values?: unknown;
 };
+
+export const SEGMENT_FIELD_OPERATORS: Record<
+  SegmentRuleInput["field"],
+  SegmentRuleInput["operator"][]
+> = {
+  PHONE: ["EQUALS", "NOT_EQUALS", "CONTAINS", "NOT_CONTAINS", "STARTS_WITH", "ENDS_WITH"],
+  NAME: ["EQUALS", "NOT_EQUALS", "CONTAINS", "NOT_CONTAINS", "STARTS_WITH", "ENDS_WITH", "EXISTS", "NOT_EXISTS"],
+  EMAIL: ["EQUALS", "NOT_EQUALS", "CONTAINS", "NOT_CONTAINS", "STARTS_WITH", "ENDS_WITH", "EXISTS", "NOT_EXISTS"],
+  COMPANY_NAME: ["EQUALS", "NOT_EQUALS", "CONTAINS", "NOT_CONTAINS", "STARTS_WITH", "ENDS_WITH", "EXISTS", "NOT_EXISTS"],
+  SOURCE: ["EQUALS", "NOT_EQUALS", "CONTAINS", "NOT_CONTAINS"],
+  CITY: ["EQUALS", "NOT_EQUALS", "CONTAINS", "NOT_CONTAINS", "EXISTS", "NOT_EXISTS"],
+  TAG: ["CONTAINS", "NOT_CONTAINS", "EQUALS", "IN", "EXISTS", "NOT_EXISTS"],
+  OPTED_OUT: ["IS_TRUE", "IS_FALSE"],
+  MARKETING_CONSENT: ["EQUALS", "NOT_EQUALS", "IN", "NOT_IN"],
+  UTILITY_CONSENT: ["EQUALS", "NOT_EQUALS", "IN", "NOT_IN"],
+  CREATED_AT: ["BEFORE", "AFTER", "BETWEEN", "IN_LAST_DAYS", "NOT_IN_LAST_DAYS"],
+  LAST_MESSAGE_AT: ["BEFORE", "AFTER", "BETWEEN", "IN_LAST_DAYS", "NOT_IN_LAST_DAYS", "EXISTS", "NOT_EXISTS"],
+  CUSTOM_FIELD: ["EQUALS", "NOT_EQUALS", "CONTAINS", "EXISTS", "NOT_EXISTS"],
+  CAMPAIGN_OUTCOME: ["EQUALS"],
+  LEAD_SCORE: ["EQUALS", "GREATER_THAN", "LESS_THAN", "BETWEEN"],
+};
+
+const VALUELESS_OPERATORS = new Set<SegmentRuleInput["operator"]>([
+  "EXISTS",
+  "NOT_EXISTS",
+  "IS_TRUE",
+  "IS_FALSE",
+]);
+
+const CUSTOM_FIELD_KEY_PATTERN = /^[a-zA-Z0-9_.-]{1,60}$/;
 
 type CampaignOutcomeRuleValues = {
   campaignId?: unknown;
@@ -114,10 +150,85 @@ function dateCondition(rule: SegmentRuleInput) {
   if (rule.operator === "BEFORE") return { lt: new Date(cleaned) };
   if (rule.operator === "AFTER") return { gt: new Date(cleaned) };
   if (rule.operator === "BETWEEN") return { gte: new Date(list[0]), lte: new Date(list[1]) };
+  if (rule.operator === "IN_LAST_DAYS") {
+    return { gte: new Date(Date.now() - Number(cleaned) * 86_400_000) };
+  }
+  if (rule.operator === "NOT_IN_LAST_DAYS") {
+    return { lt: new Date(Date.now() - Number(cleaned) * 86_400_000) };
+  }
   if (rule.operator === "EXISTS") return { not: null };
   if (rule.operator === "NOT_EXISTS") return null;
 
   return undefined;
+}
+
+function customFieldWhere(rule: SegmentRuleInput): Prisma.ContactWhereInput {
+  const key = clean(rule.customFieldKey);
+
+  if (!CUSTOM_FIELD_KEY_PATTERN.test(key)) {
+    throw new ContactSegmentBuilderError(
+      "Custom field rules need a key (letters, numbers, dot, dash, underscore).",
+    );
+  }
+
+  const cleaned = clean(rule.value);
+
+  if (rule.operator === "EQUALS") {
+    return { customAttributes: { path: [key], equals: cleaned } };
+  }
+
+  if (rule.operator === "NOT_EQUALS") {
+    return { NOT: [{ customAttributes: { path: [key], equals: cleaned } }] };
+  }
+
+  if (rule.operator === "CONTAINS") {
+    return { customAttributes: { path: [key], string_contains: cleaned } };
+  }
+
+  if (rule.operator === "EXISTS") {
+    return { customAttributes: { path: [key], not: Prisma.AnyNull } };
+  }
+
+  if (rule.operator === "NOT_EXISTS") {
+    return { NOT: [{ customAttributes: { path: [key], not: Prisma.AnyNull } }] };
+  }
+
+  throw new ContactSegmentBuilderError(
+    `Unsupported custom field operator: ${rule.operator}`,
+  );
+}
+
+function tagWhere(rule: SegmentRuleInput, list: string[]): Prisma.ContactWhereInput {
+  if (rule.operator === "EXISTS") {
+    return { inboxTags: { some: {} } };
+  }
+
+  if (rule.operator === "NOT_EXISTS") {
+    return { inboxTags: { none: {} } };
+  }
+
+  if (rule.operator === "NOT_CONTAINS") {
+    return {
+      inboxTags: {
+        none: {
+          tag: { name: { contains: clean(rule.value), mode: "insensitive" } },
+        },
+      },
+    };
+  }
+
+  return {
+    inboxTags: {
+      some: {
+        tag: {
+          name:
+            rule.operator === "IN"
+              ? { in: list, mode: "insensitive" }
+              : stringCondition(rule.operator, rule.value),
+        },
+      },
+    },
+  } as Prisma.ContactWhereInput;
 }
 
 function campaignOutcomeWhere(
@@ -235,24 +346,34 @@ function buildContactWhereFromRule(
   if (rule.field === "PHONE") return { phoneNumber: stringCondition(rule.operator, rule.value) } as Prisma.ContactWhereInput;
   if (rule.field === "NAME") return { name: stringCondition(rule.operator, rule.value) } as Prisma.ContactWhereInput;
   if (rule.field === "EMAIL") return { email: stringCondition(rule.operator, rule.value) } as Prisma.ContactWhereInput;
+  if (rule.field === "COMPANY_NAME") return { companyName: stringCondition(rule.operator, rule.value) } as Prisma.ContactWhereInput;
+  if (rule.field === "CITY") return { city: stringCondition(rule.operator, rule.value) } as Prisma.ContactWhereInput;
   if (rule.field === "SOURCE") return { source: stringCondition(rule.operator, rule.value) } as Prisma.ContactWhereInput;
+  if (rule.field === "OPTED_OUT") {
+    return rule.operator === "IS_TRUE"
+      ? { optedOutAt: { not: null } }
+      : { optedOutAt: null };
+  }
   if (rule.field === "MARKETING_CONSENT") return { marketingConsentStatus: enumCondition(rule) } as Prisma.ContactWhereInput;
   if (rule.field === "UTILITY_CONSENT") return { utilityConsentStatus: enumCondition(rule) } as Prisma.ContactWhereInput;
   if (rule.field === "CREATED_AT") return { createdAt: dateCondition(rule) } as Prisma.ContactWhereInput;
-  if (rule.field === "LAST_MESSAGE_AT") return { lastRepliedAt: dateCondition(rule) } as Prisma.ContactWhereInput;
+  if (rule.field === "LAST_MESSAGE_AT") {
+    if (rule.operator === "NOT_IN_LAST_DAYS") {
+      // "Not messaged in the last N days" includes contacts who never replied.
+      return {
+        OR: [
+          { lastRepliedAt: null },
+          { lastRepliedAt: dateCondition(rule) },
+        ],
+      } as Prisma.ContactWhereInput;
+    }
+
+    return { lastRepliedAt: dateCondition(rule) } as Prisma.ContactWhereInput;
+  }
+  if (rule.field === "CUSTOM_FIELD") return customFieldWhere(rule);
   if (rule.field === "CAMPAIGN_OUTCOME") return campaignOutcomeWhere(companyId, rule.values);
   if (rule.field === "LEAD_SCORE") return leadScoreWhere(rule);
-  if (rule.field === "TAG") {
-    return {
-      inboxTags: {
-        some: {
-          tag: {
-            name: rule.operator === "IN" ? { in: list, mode: "insensitive" } : stringCondition(rule.operator, rule.value),
-          },
-        },
-      },
-    } as Prisma.ContactWhereInput;
-  }
+  if (rule.field === "TAG") return tagWhere(rule, list);
 
   throw new ContactSegmentBuilderError(`${rule.field} segment rules are not supported by the current contact schema.`);
 }
@@ -288,6 +409,65 @@ function normalizeRules(rules: { field: string; operator: string; customFieldKey
 
 function validateRules(rules: SegmentRuleInput[]) {
   for (const rule of rules) {
+    const allowedOperators = SEGMENT_FIELD_OPERATORS[rule.field];
+
+    if (!allowedOperators) {
+      throw new ContactSegmentBuilderError(`Unsupported segment field: ${rule.field}`);
+    }
+
+    if (!allowedOperators.includes(rule.operator)) {
+      throw new ContactSegmentBuilderError(
+        `Operator ${rule.operator} is not allowed for ${rule.field}.`,
+      );
+    }
+
+    if (rule.field === "CUSTOM_FIELD" && !CUSTOM_FIELD_KEY_PATTERN.test(clean(rule.customFieldKey))) {
+      throw new ContactSegmentBuilderError(
+        "Custom field rules need a key (letters, numbers, dot, dash, underscore).",
+      );
+    }
+
+    if (
+      !VALUELESS_OPERATORS.has(rule.operator) &&
+      rule.field !== "CAMPAIGN_OUTCOME"
+    ) {
+      if (rule.operator === "BETWEEN") {
+        if (values(rule).length !== 2) {
+          throw new ContactSegmentBuilderError(
+            `${rule.field} BETWEEN operator requires exactly two values.`,
+          );
+        }
+      } else if (rule.operator === "IN" || rule.operator === "NOT_IN") {
+        if (values(rule).length === 0) {
+          throw new ContactSegmentBuilderError(
+            `${rule.field} ${rule.operator} operator requires at least one value.`,
+          );
+        }
+      } else if (!clean(rule.value)) {
+        throw new ContactSegmentBuilderError(
+          `${rule.field} ${rule.operator} rule requires a value.`,
+        );
+      }
+    }
+
+    if (rule.operator === "IN_LAST_DAYS" || rule.operator === "NOT_IN_LAST_DAYS") {
+      const days = Number(clean(rule.value));
+
+      if (!Number.isFinite(days) || days < 1 || days > 3650) {
+        throw new ContactSegmentBuilderError(
+          "Day-based rules require a number of days between 1 and 3650.",
+        );
+      }
+    }
+
+    if (rule.operator === "BEFORE" || rule.operator === "AFTER") {
+      if (Number.isNaN(new Date(clean(rule.value)).getTime())) {
+        throw new ContactSegmentBuilderError(
+          `${rule.field} ${rule.operator} rule requires a valid date.`,
+        );
+      }
+    }
+
     if (rule.field === "LEAD_SCORE") {
       const allowedOps = ["EQUALS", "GREATER_THAN", "LESS_THAN", "BETWEEN"];
       if (!allowedOps.includes(rule.operator)) {
@@ -570,4 +750,285 @@ export async function getContactSegmentBuilderHealth() {
     previews24h,
     isHealthy: isEnabled(),
   };
+}
+
+/* -------------------------------------------------------------------------
+ * Import & Broadcast Suite - Phase 16B additions
+ * ------------------------------------------------------------------------- */
+
+// TODO: Replace with plan-based entitlements once segment limits are added to
+// the plan gating system.
+function maxSegmentsPerCompany() {
+  const value = Number(process.env.CONTACT_SEGMENTS_MAX_PER_COMPANY ?? 100);
+  return Number.isFinite(value) && value > 0 ? value : 100;
+}
+
+export function validateSegmentRules(input: {
+  matchMode: "ALL" | "ANY";
+  rules: SegmentRuleInput[];
+}) {
+  if (!["ALL", "ANY"].includes(input.matchMode)) {
+    throw new ContactSegmentBuilderError("Match mode must be ALL or ANY.");
+  }
+
+  if (input.rules.length > maxRules()) {
+    throw new ContactSegmentBuilderError(`Segment cannot exceed ${maxRules()} rules.`);
+  }
+
+  validateRules(input.rules);
+}
+
+export async function assertSegmentLimit(companyId: string) {
+  const total = await prisma.contactSegment.count({ where: { companyId } });
+
+  if (total >= maxSegmentsPerCompany()) {
+    throw new ContactSegmentBuilderError(
+      `Company cannot have more than ${maxSegmentsPerCompany()} segments.`,
+    );
+  }
+}
+
+function segmentWarnings(rules: SegmentRuleInput[], totalMatched: number) {
+  const warnings: string[] = [];
+
+  const excludesOptedOut = rules.some(
+    (rule) => rule.field === "OPTED_OUT" && rule.operator === "IS_FALSE",
+  );
+
+  if (!excludesOptedOut) {
+    warnings.push(
+      "This segment may include opted-out contacts. Broadcasts exclude them automatically.",
+    );
+  }
+
+  if (rules.length === 0) {
+    warnings.push("Segment has no rules and will include all contacts.");
+  }
+
+  if (totalMatched === 0) {
+    warnings.push("No contacts currently match this segment.");
+  }
+
+  return warnings;
+}
+
+/**
+ * Ad-hoc preview for unsaved rules (used by the segment builder live count).
+ */
+export async function previewSegmentRules(input: {
+  companyId: string;
+  matchMode: "ALL" | "ANY";
+  rules: SegmentRuleInput[];
+}) {
+  validateSegmentRules({ matchMode: input.matchMode, rules: input.rules });
+
+  const where = buildSegmentWhere({
+    companyId: input.companyId,
+    matchMode: input.matchMode,
+    rules: input.rules,
+  });
+
+  const [count, sampleContacts] = await Promise.all([
+    prisma.contact.count({ where }),
+    prisma.contact.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        countryCode: true,
+        phoneNumber: true,
+        email: true,
+        city: true,
+        optedOutAt: true,
+        inboxTags: {
+          select: { tag: { select: { name: true } } },
+          take: 5,
+        },
+      },
+      take: 10,
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  return {
+    count,
+    warnings: segmentWarnings(input.rules, count),
+    sampleContacts: sampleContacts.map((contact) => ({
+      id: contact.id,
+      name: contact.name,
+      countryCode: contact.countryCode,
+      phoneNumber: contact.phoneNumber,
+      email: contact.email,
+      city: contact.city,
+      optedOut: Boolean(contact.optedOutAt),
+      tags: contact.inboxTags.map((entry) => entry.tag.name),
+    })),
+  };
+}
+
+export async function getContactSegmentDetail(input: {
+  companyId: string;
+  segmentId: string;
+}) {
+  const segment = await prisma.contactSegment.findFirst({
+    where: { id: input.segmentId, companyId: input.companyId },
+    include: {
+      rules: true,
+      createdByUser: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  if (!segment) throw new ContactSegmentBuilderError("Segment not found.");
+
+  return segment;
+}
+
+/**
+ * Paginated, dynamically-evaluated contacts for a saved segment.
+ * Membership is never stored; rules are evaluated on every request.
+ */
+export async function getSegmentContactsPage(input: {
+  companyId: string;
+  segmentId: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const segment = await prisma.contactSegment.findFirst({
+    where: { id: input.segmentId, companyId: input.companyId },
+    include: { rules: true },
+  });
+
+  if (!segment) throw new ContactSegmentBuilderError("Segment not found.");
+
+  const where = buildSegmentWhere({
+    companyId: input.companyId,
+    matchMode: segment.matchMode,
+    rules: normalizeRules(segment.rules),
+  });
+
+  const take = Math.min(Math.max(input.pageSize ?? 25, 1), 100);
+  const skip = (Math.max(input.page ?? 1, 1) - 1) * take;
+
+  const [contacts, total] = await Promise.all([
+    prisma.contact.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        countryCode: true,
+        phoneNumber: true,
+        email: true,
+        city: true,
+        companyName: true,
+        source: true,
+        optedOutAt: true,
+        lastRepliedAt: true,
+        createdAt: true,
+        inboxTags: {
+          select: { tag: { select: { name: true } } },
+          take: 5,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
+    }),
+    prisma.contact.count({ where }),
+  ]);
+
+  return {
+    segment: {
+      id: segment.id,
+      name: segment.name,
+      status: segment.status,
+    },
+    contacts: contacts.map((contact) => ({
+      id: contact.id,
+      name: contact.name,
+      countryCode: contact.countryCode,
+      phoneNumber: contact.phoneNumber,
+      email: contact.email,
+      city: contact.city,
+      companyName: contact.companyName,
+      source: contact.source,
+      optedOut: Boolean(contact.optedOutAt),
+      lastMessageAt: contact.lastRepliedAt,
+      createdAt: contact.createdAt,
+      tags: contact.inboxTags.map((entry) => entry.tag.name),
+    })),
+    pagination: {
+      page: Math.max(input.page ?? 1, 1),
+      pageSize: take,
+      total,
+      totalPages: Math.max(Math.ceil(total / take), 1),
+    },
+  };
+}
+
+export async function getSegmentCount(input: {
+  companyId: string;
+  segmentId: string;
+}) {
+  const segment = await prisma.contactSegment.findFirst({
+    where: { id: input.segmentId, companyId: input.companyId },
+    include: { rules: true },
+  });
+
+  if (!segment) throw new ContactSegmentBuilderError("Segment not found.");
+
+  const where = buildSegmentWhere({
+    companyId: input.companyId,
+    matchMode: segment.matchMode,
+    rules: normalizeRules(segment.rules),
+  });
+
+  return prisma.contact.count({ where });
+}
+
+/**
+ * Builds a Prisma Contact where clause for a saved segment - used by the
+ * contacts page segment filter (and later by the broadcast builder).
+ */
+export async function buildWhereForSavedSegment(input: {
+  companyId: string;
+  segmentId: string;
+}) {
+  const segment = await prisma.contactSegment.findFirst({
+    where: { id: input.segmentId, companyId: input.companyId },
+    include: { rules: true },
+  });
+
+  if (!segment) throw new ContactSegmentBuilderError("Segment not found.");
+
+  return buildSegmentWhere({
+    companyId: input.companyId,
+    matchMode: segment.matchMode,
+    rules: normalizeRules(segment.rules),
+  });
+}
+
+export async function deleteContactSegment(input: {
+  companyId: string;
+  segmentId: string;
+  actorUserId?: string | null;
+}) {
+  const segment = await prisma.contactSegment.findFirst({
+    where: { id: input.segmentId, companyId: input.companyId },
+    select: { id: true, name: true },
+  });
+
+  if (!segment) throw new ContactSegmentBuilderError("Segment not found.");
+
+  await prisma.contactSegment.delete({ where: { id: segment.id } });
+
+  await createAuditLog({
+    companyId: input.companyId,
+    actorUserId: input.actorUserId,
+    action: "contact.segment_deleted",
+    entityType: "ContactSegment",
+    entityId: segment.id,
+    metadata: safeJson({ name: segment.name }),
+  }).catch(() => undefined);
+
+  return { deleted: true };
 }

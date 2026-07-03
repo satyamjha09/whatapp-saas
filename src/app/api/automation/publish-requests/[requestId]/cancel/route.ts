@@ -24,8 +24,7 @@ export async function POST(
     const updatedRequest = await cancelPublishRequest(
       context.membership.companyId,
       requestId,
-      context.user.id,
-      context.membership.role
+      context.user.id
     );
 
     return NextResponse.json({ request: updatedRequest });

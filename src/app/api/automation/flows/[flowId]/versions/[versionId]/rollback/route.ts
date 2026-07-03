@@ -6,6 +6,10 @@ import {
   AutomationPublishConflictError,
   rollbackAutomationFlowVersion,
 } from "@/server/services/automation-versioning.service";
+import {
+  assertAutomationApiPermission,
+  createAutomationPermissionErrorResponse,
+} from "@/server/utils/automation-api-permission";
 
 const rollbackAutomationFlowSchema = z.object({
   publishNotes: z.string().trim().max(1000).optional(),
@@ -28,6 +32,12 @@ export async function POST(
         { status: 403 },
       );
     }
+
+    await assertAutomationApiPermission({
+      companyId: context.membership.companyId,
+      permission: "automation.flow.rollback",
+      userId: context.user.id,
+    });
 
     const { flowId, versionId } = await params;
     const body = await request.json().catch(() => ({}));
@@ -73,6 +83,9 @@ export async function POST(
       },
     });
   } catch (error) {
+    const permissionError = createAutomationPermissionErrorResponse(error);
+    if (permissionError) return permissionError;
+
     if (error instanceof AutomationFlowNotFoundError) {
       return NextResponse.json({ message: error.message }, { status: 404 });
     }

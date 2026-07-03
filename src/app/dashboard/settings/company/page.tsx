@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { getCompanyPlanFeatures } from "@/server/services/plan-feature.service";
 import CompanySettingsForm from "./company-settings-form";
 
 export default async function CompanySettingsPage() {
@@ -14,6 +15,7 @@ export default async function CompanySettingsPage() {
   }
 
   const canEditCompany = context.membership.role === "OWNER";
+  const planFeatures = await getCompanyPlanFeatures(context.membership.companyId);
 
   return (
     <main className="p-8">
@@ -29,7 +31,13 @@ export default async function CompanySettingsPage() {
         </div>
 
         {canEditCompany ? (
-          <CompanySettingsForm companyName={context.membership.company.name} />
+          <CompanySettingsForm
+            approvalWorkflowAllowed={planFeatures.approvalWorkflow}
+            automationPublishApprovalRequired={
+              context.membership.company.automationPublishApprovalRequired
+            }
+            companyName={context.membership.company.name}
+          />
         ) : (
           <div className="rounded-2xl border bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-gray-900">
@@ -45,6 +53,17 @@ export default async function CompanySettingsPage() {
 
               <p className="mt-1 font-semibold text-gray-900">
                 {context.membership.company.name}
+              </p>
+            </div>
+            <div className="mt-4 rounded-xl border p-4">
+              <p className="text-sm text-gray-500">
+                Automation publish approval
+              </p>
+
+              <p className="mt-1 font-semibold text-gray-900">
+                {context.membership.company.automationPublishApprovalRequired
+                  ? "Required"
+                  : "Not required"}
               </p>
             </div>
           </div>

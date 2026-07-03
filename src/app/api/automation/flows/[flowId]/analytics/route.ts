@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getFlowAnalytics } from "@/server/services/automation-analytics.service";
+import { getCompanyPlanFeatures } from "@/server/services/plan-feature.service";
 import { automationFlowAnalyticsQuerySchema } from "@/server/validators/automation-analytics.validator";
+import {
+  assertAutomationApiPermission,
+  createAutomationPermissionErrorResponse,
+} from "@/server/utils/automation-api-permission";
 
 export async function GET(
   request: Request,
@@ -20,6 +25,12 @@ export async function GET(
         { status: 403 },
       );
     }
+
+    await assertAutomationApiPermission({
+      companyId: context.membership.companyId,
+      permission: "automation.analytics.view",
+      userId: context.user.id,
+    });
 
     const url = new URL(request.url);
     const validation = automationFlowAnalyticsQuerySchema.safeParse(
@@ -50,8 +61,24 @@ export async function GET(
       );
     }
 
+    const features = await getCompanyPlanFeatures(context.membership.companyId);
+    if (!features.advancedAnalytics) {
+      return NextResponse.json({
+        ...analytics,
+        advancedAnalyticsLocked: true,
+        dropOffNodes: [],
+        nodeAnalytics: [],
+        topFailedNodes: [],
+        topTriggerKeywords: [],
+        versionBreakdown: [],
+      });
+    }
+
     return NextResponse.json(analytics);
   } catch (error) {
+    const permissionError = createAutomationPermissionErrorResponse(error);
+    if (permissionError) return permissionError;
+
     console.error("AUTOMATION_FLOW_ANALYTICS_ERROR:", error);
 
     return NextResponse.json(

@@ -458,6 +458,8 @@ export async function startAutomationTestRun({
   userId: string;
 }) {
   await assertFlowAccess({ companyId, flowId });
+  const { checkCanRunLiveTest } = await import("./automation-plan-limit.service");
+  await checkCanRunLiveTest(companyId);
 
   const graph = normalizeAutomationGraph(input.graph);
   const validation = validateAutomationGraph(graph);
@@ -487,6 +489,8 @@ export async function startAutomationTestRun({
       status: "RUNNING",
     },
   });
+  const { incrementTestRunUsage } = await import("./automation-usage.service");
+  await incrementTestRunUsage(companyId, testRun.id);
 
   try {
     await executeTestGraph({

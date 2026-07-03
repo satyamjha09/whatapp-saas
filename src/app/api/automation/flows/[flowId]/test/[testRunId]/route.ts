@@ -5,6 +5,10 @@ import {
   getAutomationTestRun,
 } from "@/server/services/automation-test-runner.service";
 import { automationTestRunParamsSchema } from "@/server/validators/automation-test.validator";
+import {
+  assertAutomationApiPermission,
+  createAutomationPermissionErrorResponse,
+} from "@/server/utils/automation-api-permission";
 
 export async function GET(
   _request: Request,
@@ -23,6 +27,12 @@ export async function GET(
         { status: 403 },
       );
     }
+
+    await assertAutomationApiPermission({
+      companyId: context.membership.companyId,
+      permission: "automation.flow.test",
+      userId: context.user.id,
+    });
 
     const resolvedParams = await params;
     const validation = automationTestRunParamsSchema.safeParse(resolvedParams);
@@ -49,6 +59,9 @@ export async function GET(
 
     return NextResponse.json({ testRun });
   } catch (error) {
+    const permissionError = createAutomationPermissionErrorResponse(error);
+    if (permissionError) return permissionError;
+
     console.error("AUTOMATION_TEST_GET_ERROR:", error);
 
     return NextResponse.json(
@@ -76,6 +89,12 @@ export async function DELETE(
       );
     }
 
+    await assertAutomationApiPermission({
+      companyId: context.membership.companyId,
+      permission: "automation.flow.test",
+      userId: context.user.id,
+    });
+
     const resolvedParams = await params;
     const validation = automationTestRunParamsSchema.safeParse(resolvedParams);
 
@@ -101,6 +120,9 @@ export async function DELETE(
 
     return NextResponse.json({ testRun });
   } catch (error) {
+    const permissionError = createAutomationPermissionErrorResponse(error);
+    if (permissionError) return permissionError;
+
     console.error("AUTOMATION_TEST_DELETE_ERROR:", error);
 
     return NextResponse.json(

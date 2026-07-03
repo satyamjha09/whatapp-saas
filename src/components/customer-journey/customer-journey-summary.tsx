@@ -8,6 +8,7 @@ import {
   Workflow,
   UserCheck,
   TrendingUp,
+  CreditCard,
 } from "lucide-react";
 import type { CustomerJourneySummary } from "@/lib/customer-journey/journey-types";
 
@@ -84,6 +85,18 @@ export default function CustomerJourneySummaryCards({ summary }: CustomerJourney
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-[#526173]">Handoffs</p>
           <p className="text-sm font-bold text-[#081B3A] mt-0.5">{summary.handoffCount}</p>
+        </div>
+      </div>
+
+      <div className="bg-white p-4 rounded-xl border border-[#D8E6F3] shadow-xs flex items-center gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-green-50 text-green-600">
+          <CreditCard className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#526173]">Payments</p>
+          <p className="text-sm font-bold text-[#081B3A] mt-0.5">
+            {summary.paymentsCompleted} paid · {summary.paymentLinksCreated} links
+          </p>
         </div>
       </div>
 

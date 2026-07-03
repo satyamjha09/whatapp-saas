@@ -274,6 +274,44 @@ enum AutomationTestStepStatus {
   SKIPPED
 }
 
+enum AutomationAlertType {
+  AUTOMATION_EXECUTION_FAILURE_SPIKE
+  AUTOMATION_NODE_FAILURE_SPIKE
+  AUTOMATION_RUNTIME_QUEUE_STUCK
+  AUTOMATION_RUNTIME_QUEUE_FAILED
+  WEBHOOK_QUEUE_FAILED
+  DEVELOPER_WEBHOOK_QUEUE_FAILED
+  MESSAGE_SEND_FAILURE_SPIKE
+  TALLY_CONNECTION_FAILED
+  GOOGLE_SHEET_AUTH_EXPIRED
+  CASHFREE_PAYMENT_LINK_FAILED
+  CASHFREE_WEBHOOK_DELAYED
+  AI_NODE_FAILED
+  WEBHOOK_NODE_FAILED
+  LOOP_DETECTED
+  DUPLICATE_EXECUTION_BLOCKED
+  INSUFFICIENT_WALLET_SPIKE
+  PLAN_LIMIT_REACHED
+  FLOW_BLOCKED_BY_PLAN
+  WAITING_SESSION_TIMEOUT_SPIKE
+  REDIS_UNHEALTHY
+  WORKER_UNHEALTHY
+  CUSTOM
+}
+
+enum AutomationAlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AutomationAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  MUTED
+}
+
 enum AutomationTriggerType {
   KEYWORD
   DEFAULT
@@ -806,9 +844,11 @@ enum ContactSegmentRuleField {
   PHONE
   NAME
   EMAIL
+  COMPANY_NAME
   SOURCE
   CITY
   TAG
+  OPTED_OUT
   MARKETING_CONSENT
   UTILITY_CONSENT
   CREATED_AT
@@ -834,6 +874,10 @@ enum ContactSegmentRuleOperator {
   BETWEEN
   GREATER_THAN
   LESS_THAN
+  IN_LAST_DAYS
+  NOT_IN_LAST_DAYS
+  IS_TRUE
+  IS_FALSE
 }
 
 enum TemplateVariableMappingStatus {
@@ -986,6 +1030,26 @@ enum RbacPermission {
   PRIVACY_REQUEST_PROCESS
   TRUST_CENTER_VIEW
   TRUST_CENTER_MANAGE
+  AUTOMATION_FLOW_VIEW
+  AUTOMATION_FLOW_CREATE
+  AUTOMATION_FLOW_EDIT
+  AUTOMATION_FLOW_DELETE
+  AUTOMATION_FLOW_ARCHIVE
+  AUTOMATION_FLOW_TEST
+  AUTOMATION_FLOW_PUBLISH
+  AUTOMATION_FLOW_REQUEST_PUBLISH
+  AUTOMATION_FLOW_APPROVE_PUBLISH
+  AUTOMATION_FLOW_REJECT_PUBLISH
+  AUTOMATION_FLOW_ROLLBACK
+  AUTOMATION_FLOW_PAUSE
+  AUTOMATION_FLOW_RESUME
+  AUTOMATION_ANALYTICS_VIEW
+  AUTOMATION_EXECUTION_VIEW
+  AUTOMATION_TEMPLATE_LIBRARY_USE
+  AUTOMATION_MONITORING_VIEW
+  AUTOMATION_ALERT_VIEW
+  AUTOMATION_ALERT_MANAGE
+  AUTOMATION_MONITORING_RUN_CHECKS
 }
 
 enum CompanyAccessRoleStatus {
@@ -1248,18 +1312,21 @@ model Company {
   productionChecklistNotes       String?
   productionChecklistUpdatedAt   DateTime?
 
-  billingPlan                    BillingPlan        @default(FREE)
-  subscriptionStatus             SubscriptionStatus @default(TRIALING)
-  trialEndsAt                    DateTime?
-  currentPeriodStart             DateTime?
-  currentPeriodEnd               DateTime?
-  monthlyMessageLimit            Int                @default(100)
-  cancelAtPeriodEnd              Boolean            @default(false)
-  subscriptionCanceledAt         DateTime?
-  automationPublishApprovalRequired Boolean          @default(false)
+  billingPlan                       BillingPlan        @default(FREE)
+  subscriptionStatus                SubscriptionStatus @default(TRIALING)
+  trialEndsAt                       DateTime?
+  currentPeriodStart                DateTime?
+  currentPeriodEnd                  DateTime?
+  monthlyMessageLimit               Int                @default(100)
+  cancelAtPeriodEnd                 Boolean            @default(false)
+  subscriptionCanceledAt            DateTime?
+  automationPublishApprovalRequired Boolean            @default(false)
 
   users                             CompanyUser[]
+  automationAlerts                  AutomationAlert[]
   automationPublishRequests         AutomationPublishRequest[]
+  automationUsageCounters           AutomationUsageCounter[]
+  featureOverrides                  CompanyFeatureOverride[]
   whatsAppAccounts                  WhatsAppAccount[]
   whatsAppPhoneNumbers              WhatsAppPhoneNumber[]
   whatsAppEmbeddedSignupEvents      WhatsAppEmbeddedSignupEvent[]
@@ -1887,6 +1954,7 @@ model AutomationFlow {
   versions        AutomationFlowVersion[]
   sessions        AutomationSession[]
   executions      AutomationExecution[]
+  alerts          AutomationAlert[]
   publishRequests AutomationPublishRequest[]
 
   createdAt DateTime @default(now())
@@ -1917,6 +1985,7 @@ model AutomationFlowVersion {
 
   sessions   AutomationSession[]
   executions AutomationExecution[]
+  alerts     AutomationAlert[]
 
   @@unique([flowId, versionNumber])
   @@index([companyId])
@@ -2004,7 +2073,8 @@ model AutomationExecution {
   flowVersion AutomationFlowVersion @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
   session     AutomationSession?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
-  steps AutomationExecutionStep[]
+  steps  AutomationExecutionStep[]
+  alerts AutomationAlert[]
 
   @@unique([companyId, triggerMessageId, flowId])
   @@index([companyId])
@@ -2129,8 +2199,8 @@ model AutomationPublishRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  flow        AutomationFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  flow    AutomationFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([companyId, flowId])
@@ -2144,6 +2214,94 @@ enum AutomationPublishRequestStatus {
   REJECTED
   CANCELLED
   SUPERSEDED
+}
+
+model AutomationUsageCounter {
+  id String @id @default(cuid())
+
+  companyId   String
+  periodStart DateTime
+  periodEnd   DateTime
+
+  executionsUsed Int @default(0)
+  testRunsUsed   Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, periodStart, periodEnd])
+  @@index([companyId])
+  @@index([periodStart, periodEnd])
+}
+
+model AutomationAlert {
+  id String @id @default(cuid())
+
+  companyId String
+
+  type     AutomationAlertType
+  severity AutomationAlertSeverity
+  status   AutomationAlertStatus   @default(OPEN)
+
+  title   String
+  message String
+
+  flowId          String?
+  flowVersionId   String?
+  executionId     String?
+  nodeId          String?
+  nodeType        String?
+  contactId       String?
+  queueName       String?
+  integrationType String?
+
+  fingerprint String
+  count       Int    @default(1)
+
+  firstSeenAt          DateTime  @default(now())
+  lastSeenAt           DateTime  @default(now())
+  acknowledgedAt       DateTime?
+  acknowledgedByUserId String?
+  resolvedAt           DateTime?
+  resolvedByUserId     String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company     Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  flow        AutomationFlow?        @relation(fields: [flowId], references: [id], onDelete: SetNull)
+  flowVersion AutomationFlowVersion? @relation(fields: [flowVersionId], references: [id], onDelete: SetNull)
+  execution   AutomationExecution?   @relation(fields: [executionId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, fingerprint, status])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, severity])
+  @@index([companyId, type])
+  @@index([companyId, flowId])
+  @@index([companyId, lastSeenAt])
+  @@index([flowVersionId])
+  @@index([executionId])
+}
+
+model CompanyFeatureOverride {
+  id String @id @default(cuid())
+
+  companyId  String
+  featureKey String
+  value      Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, featureKey])
+  @@index([companyId])
 }
 
 model Template {
@@ -2215,6 +2373,9 @@ model Contact {
   leadScoreUpdatedAt DateTime?
   leadScoreBreakdown Json?
   leadScorePriority  InboxPriority?
+
+  city             String?
+  customAttributes Json?
 
   company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignedTo                 User?                       @relation("ContactAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
@@ -5974,14 +6135,22 @@ model BillingMetricSnapshot {
 
 enum ContactImportJobStatus {
   DRAFT
+  UPLOADED
+  MAPPING
   PREVIEWED
+  READY
   IMPORTING
   COMPLETED
   FAILED
+  CANCELLED
 }
 
 enum ContactImportRowStatus {
+  PENDING
   READY
+  VALID
+  INVALID
+  DUPLICATE
   SKIPPED
   IMPORTED
   FAILED
@@ -5990,6 +6159,7 @@ enum ContactImportRowStatus {
 enum ContactImportDuplicateStrategy {
   UPDATE_EXISTING
   SKIP_EXISTING
+  CREATE_NEW_ONLY
 }
 
 model ContactImportJob {
@@ -6001,21 +6171,36 @@ model ContactImportJob {
   status            ContactImportJobStatus         @default(DRAFT)
   duplicateStrategy ContactImportDuplicateStrategy @default(UPDATE_EXISTING)
 
-  fileName     String?
-  totalRows    Int     @default(0)
-  readyRows    Int     @default(0)
-  skippedRows  Int     @default(0)
-  importedRows Int     @default(0)
-  failedRows   Int     @default(0)
+  fileName      String?
+  fileType      String?
+  fileSizeBytes Int?
+
+  totalRows     Int @default(0)
+  readyRows     Int @default(0)
+  validRows     Int @default(0)
+  invalidRows   Int @default(0)
+  duplicateRows Int @default(0)
+  skippedRows   Int @default(0)
+  importedRows  Int @default(0)
+  failedRows    Int @default(0)
 
   fieldMapping   Json?
   consentMapping Json?
+  columnMapping  Json?
+  headers        Json?
   previewSummary Json?
+  summary        Json?
   errorMessage   String?
+
+  defaultCountryCode String?
+  tags               String[] @default([])
+  contactGroupId     String?
+  createGroupName    String?
 
   startedAt   DateTime?
   completedAt DateTime?
   failedAt    DateTime?
+  cancelledAt DateTime?
 
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actorUser User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
@@ -6042,10 +6227,12 @@ model ContactImportRow {
 
   raw        Json?
   normalized Json?
+  warnings   Json?
 
-  phone String?
-  email String?
-  name  String?
+  phone       String?
+  countryCode String?
+  email       String?
+  name        String?
 
   contactId String?
 

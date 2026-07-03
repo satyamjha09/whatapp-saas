@@ -168,6 +168,52 @@ async function findExistingExecution({
   });
 }
 
+async function emitRuntimeAlert(input: {
+  code: string;
+  companyId: string;
+  executionId?: string | null;
+  flowId?: string | null;
+  flowVersionId?: string | null;
+  message: string;
+  nodeId?: string | null;
+  nodeType?: string | null;
+  severity: "INFO" | "WARNING" | "CRITICAL";
+  title: string;
+  type:
+    | "DUPLICATE_EXECUTION_BLOCKED"
+    | "FLOW_BLOCKED_BY_PLAN"
+    | "LOOP_DETECTED";
+}) {
+  try {
+    const { createOrUpdateAlert } = await import(
+      "@/server/services/automation-alert.service"
+    );
+    await createOrUpdateAlert({
+      companyId: input.companyId,
+      type: input.type,
+      severity: input.severity,
+      title: input.title,
+      message: input.message,
+      fingerprint: [
+        input.companyId,
+        input.type,
+        input.flowId ?? "unknown-flow",
+        input.nodeId ?? "flow",
+      ].join(":"),
+      flowId: input.flowId,
+      flowVersionId: input.flowVersionId,
+      executionId: input.executionId,
+      nodeId: input.nodeId,
+      nodeType: input.nodeType,
+      metadata: {
+        code: input.code,
+      },
+    });
+  } catch (error) {
+    console.error("AUTOMATION_RUNTIME_ALERT_EMIT_ERROR:", error);
+  }
+}
+
 async function createAutomationExecution({
   companyId,
   flowId,
@@ -192,10 +238,25 @@ async function createAutomationExecution({
   });
 
   if (existing && existing.status !== "RUNNING") {
+    await emitRuntimeAlert({
+      code: "DUPLICATE_EXECUTION_BLOCKED",
+      companyId,
+      executionId: existing.id,
+      flowId,
+      flowVersionId,
+      message: "Duplicate inbound trigger was blocked by automation idempotency.",
+      severity: "INFO",
+      title: "Duplicate automation execution blocked",
+      type: "DUPLICATE_EXECUTION_BLOCKED",
+    });
     return null;
   }
 
-  if (existing) return existing;
+  if (existing) {
+    const { incrementExecutionUsage } = await import("./automation-usage.service");
+    await incrementExecutionUsage(companyId, existing.id);
+    return existing;
+  }
 
   try {
     const execution = await prisma.automationExecution.create({
@@ -223,15 +284,32 @@ async function createAutomationExecution({
       });
     }
 
+    const { incrementExecutionUsage } = await import("./automation-usage.service");
+    await incrementExecutionUsage(companyId, execution.id);
+
     return execution;
   } catch (error) {
     if (!isUniqueConstraintError(error)) throw error;
 
-    return findExistingExecution({
+    const existingExecution = await findExistingExecution({
       companyId,
       flowId,
       triggerMessageId,
     });
+
+    await emitRuntimeAlert({
+      code: "DUPLICATE_EXECUTION_BLOCKED",
+      companyId,
+      executionId: existingExecution?.id,
+      flowId,
+      flowVersionId,
+      message: "Concurrent duplicate trigger was blocked by automation idempotency.",
+      severity: "INFO",
+      title: "Duplicate automation execution blocked",
+      type: "DUPLICATE_EXECUTION_BLOCKED",
+    });
+
+    return existingExecution;
   }
 }
 
@@ -521,6 +599,17 @@ export async function executeAutomationGraph({
     visits.set(node.id, visitCount);
 
     if (visitCount > MAX_AUTOMATION_NODE_VISITS_PER_RUN) {
+      await emitRuntimeAlert({
+        code: "LOOP_DETECTED",
+        companyId,
+        executionId,
+        message: "Automation exceeded the maximum visits for a single node.",
+        nodeId: node.id,
+        nodeType: node.type,
+        severity: "CRITICAL",
+        title: "Automation loop detected",
+        type: "LOOP_DETECTED",
+      });
       throw new Error("Automation exceeded max node visit count. Possible loop detected.");
     }
 
@@ -557,6 +646,9 @@ export async function executeAutomationGraph({
     });
 
     try {
+      const { requireAutomationNodeAccess } = await import("./plan-feature.service");
+      await requireAutomationNodeAccess(companyId, node.type);
+
       const result = await executeAutomationNode({
         companyId,
         contact,
@@ -644,6 +736,16 @@ export async function executeAutomationGraph({
   const error = new Error(
     "Automation exceeded max step count. Possible loop detected.",
   );
+
+  await emitRuntimeAlert({
+    code: "LOOP_DETECTED",
+    companyId,
+    executionId,
+    message: "Automation exceeded the maximum step count for one run.",
+    severity: "CRITICAL",
+    title: "Automation loop detected",
+    type: "LOOP_DETECTED",
+  });
 
   await failAutomationExecution(executionId, error);
   await failAutomationSession({
@@ -896,6 +998,14 @@ export async function runAutomationForInboundMessage(
   });
 
   if (activeSession) {
+    const { checkCanRunAutomationExecution } = await import("./automation-plan-limit.service");
+    try {
+      await checkCanRunAutomationExecution(input.companyId, activeSession.flowId);
+    } catch (err) {
+      console.warn(`[AUTOMATION_PLAN_LIMIT_EXCEEDED] Skipping runtime execution for company ${input.companyId}:`, (err as Error).message);
+      return;
+    }
+
     await continueAutomationSession({
       contact,
       inboundMessage,
@@ -911,6 +1021,14 @@ export async function runAutomationForInboundMessage(
   );
 
   if (!match) return;
+
+  const { checkCanRunAutomationExecution } = await import("./automation-plan-limit.service");
+  try {
+    await checkCanRunAutomationExecution(input.companyId, match.flow.id);
+  } catch (err) {
+    console.warn(`[AUTOMATION_PLAN_LIMIT_EXCEEDED] Skipping runtime execution for company ${input.companyId}:`, (err as Error).message);
+    return;
+  }
 
   await startAutomationSessionFromMatch({
     contact,
@@ -960,6 +1078,14 @@ export async function processAutomationReplyTimeouts({
       continue;
     }
 
+    const { checkCanRunAutomationExecution } = await import("./automation-plan-limit.service");
+    try {
+      await checkCanRunAutomationExecution(session.companyId, session.flowId);
+    } catch (err) {
+      console.warn(`[AUTOMATION_PLAN_LIMIT_EXCEEDED] Skipping timeout execution for company ${session.companyId}:`, (err as Error).message);
+      continue;
+    }
+
     const execution = await prisma.automationExecution.create({
       data: {
         companyId: session.companyId,
@@ -974,6 +1100,8 @@ export async function processAutomationReplyTimeouts({
         triggerType: "MANUAL",
       },
     });
+    const { incrementExecutionUsage } = await import("./automation-usage.service");
+    await incrementExecutionUsage(session.companyId, execution.id);
 
     await markAutomationSessionActive({
       context,

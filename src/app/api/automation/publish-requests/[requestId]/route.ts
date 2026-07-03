@@ -23,7 +23,8 @@ export async function GET(
     const { requestId } = await params;
     const request = await getPublishRequestById(
       context.membership.companyId,
-      requestId
+      requestId,
+      context.user.id
     );
 
     return NextResponse.json({ request });
@@ -33,6 +34,10 @@ export async function GET(
 
     if (err.name === "PublishRequestNotFoundError") {
       return NextResponse.json({ message: err.message }, { status: 404 });
+    }
+
+    if (err.name === "AutomationPermissionDeniedError") {
+      return NextResponse.json({ message: err.message }, { status: 403 });
     }
 
     return NextResponse.json(

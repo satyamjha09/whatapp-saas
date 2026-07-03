@@ -83,6 +83,15 @@ export default function CustomerJourneyEventCard({ event }: CustomerJourneyEvent
                 <ExternalLink className="h-3 w-3" />
               </Link>
             )}
+            {event.links.messageId && (
+              <Link
+                href={`/dashboard/messages/${event.links.messageId}`}
+                className="flex items-center gap-1 font-semibold text-[#0052CC] hover:underline"
+              >
+                <span>Open Message</span>
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+            )}
             {event.links.inboxContactId && (
               <Link
                 href={`/dashboard/inbox/${event.links.inboxContactId}`}

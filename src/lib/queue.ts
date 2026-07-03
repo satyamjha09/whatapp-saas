@@ -9,6 +9,36 @@ let developerWebhookQueue: Queue | undefined;
 let maintenanceQueue: Queue | undefined;
 let leadScoreQueue: Queue | undefined;
 let automationRuntimeQueue: Queue | undefined;
+let automationMonitoringQueue: Queue | undefined;
+let contactImportQueue: Queue | undefined;
+
+export function getContactImportQueue() {
+  contactImportQueue ??= new Queue("contact-import-queue", {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 30_000,
+      },
+      removeOnComplete: {
+        age: 24 * 60 * 60,
+        count: 1000,
+      },
+      removeOnFail: {
+        age: 7 * 24 * 60 * 60,
+        count: 1000,
+      },
+    },
+  });
+
+  return contactImportQueue;
+}
+
+export type ContactImportQueueJobData = {
+  companyId: string;
+  importId: string;
+};
 
 export function getMessageQueue() {
   messageQueue ??= new Queue("message-queue", {
@@ -95,6 +125,29 @@ export function getAutomationRuntimeQueue() {
   });
 
   return automationRuntimeQueue;
+}
+
+export function getAutomationMonitoringQueue() {
+  automationMonitoringQueue ??= new Queue("automation-monitoring-queue", {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 30_000,
+      },
+      removeOnComplete: {
+        age: 24 * 60 * 60,
+        count: 200,
+      },
+      removeOnFail: {
+        age: 7 * 24 * 60 * 60,
+        count: 500,
+      },
+    },
+  });
+
+  return automationMonitoringQueue;
 }
 
 export type SendMessageJobData = {

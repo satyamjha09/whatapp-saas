@@ -11,6 +11,28 @@ import { sanitizeJourneyMetadata } from "../../lib/customer-journey/sanitize-jou
 
 export { sanitizeJourneyMetadata };
 
+function formatMoneyFromPaise(amountPaise?: number | null, currency = "INR") {
+  if (amountPaise === null || amountPaise === undefined) return "";
+
+  return new Intl.NumberFormat("en-IN", {
+    currency,
+    style: "currency",
+  }).format(amountPaise / 100);
+}
+
+function shortText(value?: string | null, maxLength = 120) {
+  if (!value) return undefined;
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+}
+
+function metadataRecord(value: unknown) {
+  return sanitizeJourneyMetadata(value) as Record<string, unknown>;
+}
+
+function statusIsFailure(status?: string | null) {
+  return status === "FAILED" || status === "ERROR" || status === "CANCELLED";
+}
+
 export async function buildContactActivityJourneyEvents(
   companyId: string,
   contactId: string,
@@ -42,6 +64,29 @@ export async function buildContactActivityJourneyEvents(
         type = "TAG_REMOVED";
         source = "CONTACT";
         break;
+      case "NOTE_CREATED":
+      case "NOTE_UPDATED":
+      case "NOTE_DELETED":
+      case "ASSIGNED":
+      case "UNASSIGNED":
+      case "STATUS_CHANGED":
+      case "PRIORITY_CHANGED":
+      case "SNOOZED":
+      case "UNSNOOZED":
+        source = "INBOX";
+        break;
+      case "CAMPAIGN_REPLY_ATTRIBUTED":
+      case "CAMPAIGN_CONVERSION":
+      case "CAMPAIGN_FOLLOW_UP_CREATED":
+        source = "CAMPAIGN";
+        break;
+      case "PROFILE_UPDATED":
+      case "OPTED_IN":
+      case "OPTED_OUT":
+      case "BLOCKED":
+      case "UNBLOCKED":
+        source = "CONTACT";
+        break;
       case "MESSAGE_INBOUND":
         type = "INBOUND_MESSAGE";
         source = "INBOX";
@@ -63,12 +108,70 @@ export async function buildContactActivityJourneyEvents(
       description: act.description || undefined,
       timestamp: act.createdAt.toISOString(),
       status: "COMPLETED",
-      metadata: sanitizeJourneyMetadata(act.metadata) as Record<string, unknown>,
+      metadata: metadataRecord({
+        activityType: act.type,
+        actor: act.actor,
+        details: act.metadata,
+      }),
       links: {
         inboxContactId: contactId,
       },
     };
   });
+}
+
+export async function buildInboxJourneyEvents(
+  companyId: string,
+  contactId: string,
+  dateFilter: { gte?: Date; lte?: Date }
+): Promise<CustomerJourneyEvent[]> {
+  const [notes, tags] = await Promise.all([
+    prisma.inboxNote.findMany({
+      where: { companyId, contactId, createdAt: dateFilter },
+      include: { author: { select: { email: true, name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    prisma.contactInboxTag.findMany({
+      where: { companyId, contactId, createdAt: dateFilter },
+      include: { tag: { select: { color: true, name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+  ]);
+
+  return [
+    ...notes.map((note): CustomerJourneyEvent => ({
+      id: `note_${note.id}`,
+      type: "CUSTOM_EVENT",
+      source: "INBOX",
+      title: "Agent note added",
+      description: shortText(note.body),
+      timestamp: note.createdAt.toISOString(),
+      status: "COMPLETED",
+      metadata: metadataRecord({
+        author: note.author,
+        noteId: note.id,
+        updatedAt: note.updatedAt,
+      }),
+      links: { inboxContactId: contactId },
+    })),
+    ...tags.map((contactTag): CustomerJourneyEvent => ({
+      id: `tag_${contactTag.id}`,
+      type: "TAG_ADDED",
+      source: "CONTACT",
+      title: "Contact tag added",
+      description: contactTag.tag.name,
+      timestamp: contactTag.createdAt.toISOString(),
+      status: "COMPLETED",
+      metadata: metadataRecord({
+        color: contactTag.tag.color,
+        tagId: contactTag.tagId,
+        tagName: contactTag.tag.name,
+      }),
+      links: { inboxContactId: contactId },
+    })),
+  ];
 }
 
 export async function buildMessageJourneyEvents(
@@ -141,7 +244,7 @@ export async function buildMessageJourneyEvents(
             title: "WhatsApp message delivered",
             timestamp: ev.createdAt.toISOString(),
             status: "DELIVERED",
-            links: { messageId: msg.id, campaignId: msg.campaignId || undefined },
+            links: { messageId: msg.id, campaignId: msg.campaignId || undefined, inboxContactId: contactId },
           });
         } else if (ev.status === "READ") {
           events.push({
@@ -151,7 +254,7 @@ export async function buildMessageJourneyEvents(
             title: "Customer read message",
             timestamp: ev.createdAt.toISOString(),
             status: "READ",
-            links: { messageId: msg.id, campaignId: msg.campaignId || undefined },
+            links: { messageId: msg.id, campaignId: msg.campaignId || undefined, inboxContactId: contactId },
           });
         } else if (ev.status === "FAILED") {
           events.push({
@@ -162,7 +265,11 @@ export async function buildMessageJourneyEvents(
             description: msg.errorMessage || "Delivery failed",
             timestamp: ev.createdAt.toISOString(),
             status: "FAILED",
-            links: { messageId: msg.id, campaignId: msg.campaignId || undefined },
+            metadata: metadataRecord({
+              errorCode: msg.errorCode,
+              errorMessage: msg.errorMessage,
+            }),
+            links: { messageId: msg.id, campaignId: msg.campaignId || undefined, inboxContactId: contactId },
           });
         }
       }
@@ -183,6 +290,127 @@ export async function buildMessageJourneyEvents(
       });
     }
   }
+
+  return events;
+}
+
+export async function buildCampaignJourneyEvents(
+  companyId: string,
+  contactId: string,
+  dateFilter: { gte?: Date; lte?: Date }
+): Promise<CustomerJourneyEvent[]> {
+  const [replyAttributions, conversions, followUpTasks] = await Promise.all([
+    prisma.campaignReplyAttribution.findMany({
+      where: { companyId, contactId, repliedAt: dateFilter },
+      include: { campaign: { select: { name: true } } },
+      orderBy: { repliedAt: "desc" },
+      take: 100,
+    }),
+    prisma.campaignConversionEvent.findMany({
+      where: {
+        companyId,
+        contactId,
+        occurredAt: dateFilter,
+        NOT: { type: "PAYMENT_RECEIVED" },
+      },
+      include: { campaign: { select: { name: true } } },
+      orderBy: { occurredAt: "desc" },
+      take: 100,
+    }),
+    prisma.campaignFollowUpTask.findMany({
+      where: { companyId, contactId, createdAt: dateFilter },
+      include: { campaign: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+  ]);
+
+  const events: CustomerJourneyEvent[] = [];
+
+  replyAttributions.forEach((reply) => {
+    events.push({
+      id: `campaign_reply_${reply.id}`,
+      type: reply.intent !== "UNKNOWN" ? "BUTTON_CLICKED" : "INBOUND_MESSAGE",
+      source: "CAMPAIGN",
+      title: "Customer replied to campaign",
+      description: shortText(
+        reply.replyBodyPreview ||
+          reply.replyBody ||
+          `Campaign: ${reply.campaign.name}`,
+      ),
+      timestamp: reply.repliedAt.toISOString(),
+      status: reply.status,
+      metadata: metadataRecord({
+        autoClassified: reply.autoClassified,
+        intent: reply.intent,
+        responseTimeMinutes: reply.responseTimeMinutes,
+        source: reply.source,
+        details: reply.metadata,
+      }),
+      links: {
+        campaignId: reply.campaignId,
+        inboxContactId: contactId,
+        messageId: reply.messageId,
+      },
+    });
+  });
+
+  conversions.forEach((conversion) => {
+    const isWon = conversion.type === "LEAD_WON";
+    const isLost = conversion.type === "LEAD_LOST";
+
+    events.push({
+      id: `campaign_conversion_${conversion.id}`,
+      type: isWon || isLost ? "LEAD_SCORE_CHANGED" : "CUSTOM_EVENT",
+      source: "CAMPAIGN",
+      title: isWon
+        ? "Customer converted"
+        : isLost
+          ? "Lead marked lost"
+          : "Campaign conversion recorded",
+      description:
+        conversion.note ||
+        [
+          `Campaign: ${conversion.campaign.name}`,
+          conversion.valuePaise ? `Value: ${formatMoneyFromPaise(conversion.valuePaise, conversion.currency)}` : "",
+        ].filter(Boolean).join(" · "),
+      timestamp: conversion.occurredAt.toISOString(),
+      status: "COMPLETED",
+      metadata: metadataRecord({
+        conversionType: conversion.type,
+        currency: conversion.currency,
+        valuePaise: conversion.valuePaise,
+        details: conversion.metadata,
+      }),
+      links: {
+        campaignId: conversion.campaignId,
+        inboxContactId: contactId,
+        messageId: conversion.messageId || undefined,
+      },
+    });
+  });
+
+  followUpTasks.forEach((task) => {
+    events.push({
+      id: `campaign_followup_${task.id}`,
+      type: "HUMAN_HANDOFF",
+      source: "INBOX",
+      title: "Campaign follow-up created",
+      description: shortText(task.description || task.title),
+      timestamp: task.createdAt.toISOString(),
+      status: task.status,
+      metadata: metadataRecord({
+        campaignName: task.campaign.name,
+        dueAt: task.dueAt,
+        priority: task.priority,
+        details: task.metadata,
+      }),
+      links: {
+        campaignId: task.campaignId,
+        inboxContactId: contactId,
+      },
+    });
+  });
 
   return events;
 }
@@ -226,6 +454,10 @@ export async function buildAutomationJourneyEvents(
       description: `Flow: ${flowName}, Version ${verNum}`,
       timestamp: session.startedAt.toISOString(),
       status: session.status,
+      metadata: metadataRecord({
+        currentNodeId: session.currentNodeId,
+        waitingNodeId: session.waitingNodeId,
+      }),
       links: {
         automationFlowId: session.flowId,
         automationExecutionId: session.lastExecutionId || undefined,
@@ -248,6 +480,23 @@ export async function buildAutomationJourneyEvents(
       });
     }
 
+    if (session.status === "WAITING" && session.waitingNodeId) {
+      events.push({
+        id: `auto_wait_${session.id}`,
+        type: "AUTOMATION_WAITING",
+        source: "AUTOMATION",
+        title: "Automation waiting for reply",
+        description: `Waiting at node ${session.waitingNodeId}`,
+        timestamp: session.updatedAt.toISOString(),
+        status: "WAITING",
+        links: {
+          automationFlowId: session.flowId,
+          automationExecutionId: session.lastExecutionId || undefined,
+          inboxContactId: contactId,
+        },
+      });
+    }
+
     if (session.completedAt) {
       events.push({
         id: `auto_comp_${session.id}`,
@@ -255,8 +504,9 @@ export async function buildAutomationJourneyEvents(
         source: "AUTOMATION",
         title: "Automation completed",
         timestamp: session.completedAt.toISOString(),
-        status: "COMPLETED",
-        links: {
+      status: "COMPLETED",
+      metadata: metadataRecord({ endedAt: session.endedAt }),
+      links: {
           automationFlowId: session.flowId,
         },
       });
@@ -266,10 +516,11 @@ export async function buildAutomationJourneyEvents(
         type: "AUTOMATION_FAILED",
         source: "AUTOMATION",
         title: "Automation failed",
-        description: "Execution stopped due to error.",
-        timestamp: session.failedAt.toISOString(),
-        status: "FAILED",
-        links: {
+      description: "Execution stopped due to error.",
+      timestamp: session.failedAt.toISOString(),
+      status: "FAILED",
+      metadata: metadataRecord({ endedAt: session.endedAt }),
+      links: {
           automationFlowId: session.flowId,
         },
       });
@@ -281,21 +532,26 @@ export async function buildAutomationJourneyEvents(
         let type: CustomerJourneyEventType = "AUTOMATION_NODE_EXECUTED";
         let title = "Automation step completed";
         let description = `Node: ${step.nodeType}`;
+        let source: CustomerJourneyEventSource = "AUTOMATION";
 
         if (step.nodeType === "PAYMENT_LINK") {
           type = "PAYMENT_LINK_CREATED";
+          source = "PAYMENT";
           title = "Payment link created";
           description = "Payment link generated by automation.";
         } else if (step.nodeType === "TALLY_LOOKUP") {
           type = "TALLY_LOOKUP";
+          source = "TALLY";
           title = "Tally lookup completed";
           description = "Lookup: ledger balance / invoice details";
         } else if (step.nodeType === "GOOGLE_SHEET_APPEND_ROW") {
           type = "GOOGLE_SHEET_UPDATED";
+          source = "GOOGLE_SHEET";
           title = "Google Sheet updated";
           description = "Appended row to spreadsheet.";
         } else if (step.nodeType === "AI_REPLY") {
           type = "AI_REPLY_CREATED";
+          source = "AI";
           title = "AI reply generated";
           description = "Smart AI reply generated for customer.";
         } else if (step.nodeType === "HUMAN_HANDOFF") {
@@ -307,12 +563,21 @@ export async function buildAutomationJourneyEvents(
         events.push({
           id: `auto_step_${step.id}`,
           type,
-          source: "AUTOMATION",
+          source,
           title,
-          description,
+          description: step.errorMessage ? shortText(step.errorMessage) : description,
           timestamp: step.startedAt.toISOString(),
           status: step.status,
-          metadata: sanitizeJourneyMetadata(step.metadata) as Record<string, unknown>,
+          metadata: metadataRecord({
+            durationMs: step.durationMs,
+            errorMessage: step.errorMessage,
+            input: step.input,
+            metadata: step.metadata,
+            output: step.output,
+            retryCount: step.retryCount,
+            sourceHandle: step.sourceHandle,
+            targetNodeId: step.targetNodeId,
+          }),
           links: {
             automationFlowId: session.flowId,
             automationExecutionId: exec.id,
@@ -326,14 +591,50 @@ export async function buildAutomationJourneyEvents(
 }
 
 export async function buildPaymentJourneyEvents(
-  _companyId: string,
-  _contactId: string,
-  _dateFilter: { gte?: Date; lte?: Date }
+  companyId: string,
+  contactId: string,
+  dateFilter: { gte?: Date; lte?: Date }
 ): Promise<CustomerJourneyEvent[]> {
-  void _companyId;
-  void _contactId;
-  void _dateFilter;
-  return [];
+  const paymentConversions = await prisma.campaignConversionEvent.findMany({
+    where: {
+      companyId,
+      contactId,
+      occurredAt: dateFilter,
+      type: "PAYMENT_RECEIVED",
+    },
+    include: {
+      campaign: { select: { name: true } },
+    },
+    orderBy: { occurredAt: "desc" },
+    take: 100,
+  });
+
+  return paymentConversions.map((conversion) => ({
+    id: `payment_conversion_${conversion.id}`,
+    type: "PAYMENT_COMPLETED",
+    source: "PAYMENT",
+    title: "Payment completed",
+    description:
+      conversion.note ||
+      [
+        conversion.campaign.name,
+        conversion.valuePaise ? formatMoneyFromPaise(conversion.valuePaise, conversion.currency) : "",
+      ].filter(Boolean).join(" · "),
+    timestamp: conversion.occurredAt.toISOString(),
+    status: "COMPLETED",
+    metadata: metadataRecord({
+      campaignId: conversion.campaignId,
+      conversionType: conversion.type,
+      currency: conversion.currency,
+      valuePaise: conversion.valuePaise,
+      details: conversion.metadata,
+    }),
+    links: {
+      campaignId: conversion.campaignId,
+      inboxContactId: contactId,
+      paymentId: conversion.id,
+    },
+  }));
 }
 
 export async function getCustomerJourneySummary(
@@ -369,6 +670,10 @@ export async function getCustomerJourneySummary(
     automationsCompletedCount,
     automationsFailedCount,
     handoffsCount,
+    paymentLinksCreatedCount,
+    paymentsCompletedCount,
+    contactActivitiesCount,
+    inboxNotesCount,
   ] = await Promise.all([
     prisma.message.count({ where: { companyId, contactId, createdAt: dateFilter, direction: "OUTBOUND" } }),
     prisma.message.count({ where: { companyId, contactId, createdAt: dateFilter, direction: "INBOUND" } }),
@@ -377,10 +682,33 @@ export async function getCustomerJourneySummary(
     prisma.automationSession.count({ where: { companyId, contactId, startedAt: dateFilter, status: "COMPLETED" } }),
     prisma.automationSession.count({ where: { companyId, contactId, startedAt: dateFilter, status: "FAILED" } }),
     prisma.automationSession.count({ where: { companyId, contactId, startedAt: dateFilter, handoffAt: { not: null } } }),
+    prisma.automationExecutionStep.count({
+      where: {
+        companyId,
+        nodeType: "PAYMENT_LINK",
+        startedAt: dateFilter,
+        execution: {
+          session: {
+            is: { contactId },
+          },
+        },
+      },
+    }),
+    prisma.campaignConversionEvent.count({ where: { companyId, contactId, occurredAt: dateFilter, type: "PAYMENT_RECEIVED" } }),
+    prisma.contactActivity.count({ where: { companyId, contactId, createdAt: dateFilter } }),
+    prisma.inboxNote.count({ where: { companyId, contactId, createdAt: dateFilter } }),
   ]);
 
   return {
-    totalEvents: messagesCount + repliesCount + campaignsCount + automationsCount,
+    totalEvents:
+      messagesCount +
+      repliesCount +
+      campaignsCount +
+      automationsCount +
+      paymentLinksCreatedCount +
+      paymentsCompletedCount +
+      contactActivitiesCount +
+      inboxNotesCount,
     firstSeenAt: contact.createdAt.toISOString(),
     lastActivityAt: contact.updatedAt.toISOString(),
     campaignsReceived: campaignsCount,
@@ -390,8 +718,8 @@ export async function getCustomerJourneySummary(
     automationsCompleted: automationsCompletedCount,
     automationsFailed: automationsFailedCount,
     handoffCount: handoffsCount,
-    paymentLinksCreated: 0,
-    paymentsCompleted: 0,
+    paymentLinksCreated: paymentLinksCreatedCount,
+    paymentsCompleted: paymentsCompletedCount,
     currentLeadScore: contact.leadScore ?? 0,
     currentInboxStatus: contact.inboxStatus,
   };
@@ -415,9 +743,11 @@ export async function getCustomerJourney(
   const dateFilter = { gte: startDateFilter, lte: endDateFilter };
 
   // 1. Gather events from all subsystems
-  const [actEvents, msgEvents, autoEvents, payEvents] = await Promise.all([
+  const [actEvents, inboxEvents, msgEvents, campaignEvents, autoEvents, payEvents] = await Promise.all([
     buildContactActivityJourneyEvents(companyId, contactId, dateFilter),
+    buildInboxJourneyEvents(companyId, contactId, dateFilter),
     buildMessageJourneyEvents(companyId, contactId, dateFilter),
+    buildCampaignJourneyEvents(companyId, contactId, dateFilter),
     buildAutomationJourneyEvents(companyId, contactId, dateFilter),
     buildPaymentJourneyEvents(companyId, contactId, dateFilter),
   ]);
@@ -437,14 +767,22 @@ export async function getCustomerJourney(
   let allEvents: CustomerJourneyEvent[] = [
     contactCreatedEvent,
     ...actEvents,
+    ...inboxEvents,
     ...msgEvents,
+    ...campaignEvents,
     ...autoEvents,
     ...payEvents,
   ];
 
   // 2. Filter by Type if specified
   if (filters.type && filters.type !== "ALL") {
-    allEvents = allEvents.filter((e) => e.type === filters.type);
+    if (filters.type === "ERRORS") {
+      allEvents = allEvents.filter((event) =>
+        event.type.endsWith("_FAILED") || statusIsFailure(event.status),
+      );
+    } else {
+      allEvents = allEvents.filter((e) => e.type === filters.type);
+    }
   }
 
   // 3. Filter by Source if specified

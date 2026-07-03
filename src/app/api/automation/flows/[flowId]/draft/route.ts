@@ -5,6 +5,10 @@ import {
   saveAutomationFlowDraft,
 } from "@/server/services/automation-versioning.service";
 import { automationGraphShapeSchema } from "@/server/validators/automation-builder.validator";
+import {
+  assertAutomationApiPermission,
+  createAutomationPermissionErrorResponse,
+} from "@/server/utils/automation-api-permission";
 import type { AutomationGraph } from "@/lib/automation-builder/types";
 
 export async function PATCH(
@@ -24,6 +28,12 @@ export async function PATCH(
         { status: 403 },
       );
     }
+
+    await assertAutomationApiPermission({
+      companyId: context.membership.companyId,
+      permission: "automation.flow.edit",
+      userId: context.user.id,
+    });
 
     const { flowId } = await params;
     const body = await request.json().catch(() => ({}));
@@ -57,6 +67,9 @@ export async function PATCH(
       validation: result.validation,
     });
   } catch (error) {
+    const permissionError = createAutomationPermissionErrorResponse(error);
+    if (permissionError) return permissionError;
+
     if (error instanceof AutomationFlowNotFoundError) {
       return NextResponse.json({ message: error.message }, { status: 404 });
     }

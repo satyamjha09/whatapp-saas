@@ -3,12 +3,25 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import {
   createContactForCompany,
   getContactsByCompany,
+  listContactsFiltered,
 } from "@/server/services/contact.service";
+import { ContactSegmentBuilderError } from "@/server/services/contact-segment-builder.service";
 import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
 import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 import { createContactSchema } from "@/server/validators/contact.validator";
+import { ContactsListQuerySchema } from "@/server/validators/contact-segment.validator";
 
-export async function GET() {
+const FILTER_PARAMS = [
+  "search",
+  "listId",
+  "segmentId",
+  "tag",
+  "optedOut",
+  "page",
+  "pageSize",
+] as const;
+
+export async function GET(request: Request) {
   try {
     const context = await getCurrentWorkspaceContext();
 
@@ -23,12 +36,40 @@ export async function GET() {
       );
     }
 
-    const contacts = await getContactsByCompany(context.membership.companyId);
+    const url = new URL(request.url);
+    const hasFilters = FILTER_PARAMS.some((param) =>
+      url.searchParams.has(param),
+    );
 
-    return NextResponse.json({
-      contacts,
-    });
+    if (!hasFilters) {
+      // Backwards-compatible unfiltered response.
+      const contacts = await getContactsByCompany(context.membership.companyId);
+
+      return NextResponse.json({
+        contacts,
+      });
+    }
+
+    const query = ContactsListQuerySchema.parse(
+      Object.fromEntries(
+        FILTER_PARAMS.map((param) => [
+          param,
+          url.searchParams.get(param) ?? undefined,
+        ]).filter(([, value]) => value !== undefined),
+      ),
+    );
+
+    const result = await listContactsFiltered(
+      context.membership.companyId,
+      query,
+    );
+
+    return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof ContactSegmentBuilderError) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+
     console.error("GET_CONTACTS_ERROR:", error);
 
     return NextResponse.json(

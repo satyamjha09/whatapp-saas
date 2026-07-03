@@ -75,6 +75,8 @@ export async function updateCompany(
     },
     data: {
       name: input.name,
+      automationPublishApprovalRequired:
+        input.automationPublishApprovalRequired ?? undefined,
     },
   });
 
