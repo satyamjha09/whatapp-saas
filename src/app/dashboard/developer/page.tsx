@@ -200,10 +200,13 @@ const endpointGroups: Array<{ title: string; endpoints: Endpoint[] }> = [
   },
 ];
 
+const publicApiBaseUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://metawhat.in";
+
 const codeExamples = [
   {
     title: "Send WhatsApp Message",
-    code: `const res = await fetch("https://api.metawhat.com/api/v1/messages/send-template", {
+    code: `const res = await fetch("${publicApiBaseUrl}/api/v1/messages/send-template", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -222,7 +225,7 @@ const codeExamples = [
   },
   {
     title: "Record Consent",
-    code: `await fetch("https://api.metawhat.com/api/v1/contacts/consent", {
+    code: `await fetch("${publicApiBaseUrl}/api/v1/contacts/consent", {
   method: "POST",
   headers: {
     Authorization: "Bearer YOUR_API_KEY",
@@ -376,7 +379,7 @@ export default async function DeveloperPage() {
                 </span>
               </div>
               <pre className="mt-4 overflow-x-auto whitespace-pre-wrap text-sm leading-6 text-slate-100">
-                <code>{`const response = await fetch("https://api.metawhat.com/api/v1/messages/send-template", {
+                <code>{`const response = await fetch("${publicApiBaseUrl}/api/v1/messages/send-template", {
   method: "POST",
   headers: {
     "Authorization": "Bearer YOUR_API_KEY",
