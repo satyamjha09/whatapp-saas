@@ -682,6 +682,7 @@ export default function MetaEmbeddedSignupButton({
     useState<ConnectionPhase>("idle");
   const signupSessionRef = useRef<SignupSession | null>(null);
   const flowSessionIdRef = useRef<string | null>(null);
+  const oauthDialogRedirectUriRef = useRef<string | null>(null);
 
   const appId = process.env.NEXT_PUBLIC_META_APP_ID;
   const configId = process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID;
@@ -858,6 +859,7 @@ export default function MetaEmbeddedSignupButton({
           flowSessionId: flowSessionIdRef.current,
           wabaId: session.wabaId,
           phoneNumberId: session.phoneNumberId,
+          redirectUri: oauthDialogRedirectUriRef.current,
         }),
       });
       const data = (await response.json()) as ConnectResponse;
@@ -906,6 +908,7 @@ export default function MetaEmbeddedSignupButton({
     setConnectionPhase("idle");
     signupSessionRef.current = null;
     flowSessionIdRef.current = createFlowSessionId();
+    oauthDialogRedirectUriRef.current = null;
     const originalWindowOpen = window.open.bind(window);
     let windowOpenRestored = false;
 
@@ -958,6 +961,8 @@ export default function MetaEmbeddedSignupButton({
       const debugPayload = getDialogOAuthDebugPayload(url);
 
       if (debugPayload) {
+        oauthDialogRedirectUriRef.current = debugPayload.redirectUri;
+
         void saveSignupEvent({
           eventType: "CLIENT_OAUTH_DIALOG_OPENED",
           payload: debugPayload,
