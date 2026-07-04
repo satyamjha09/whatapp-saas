@@ -288,6 +288,18 @@ function getSdkBlockedMessage() {
   return "Unable to load the Facebook SDK. Disable ad blockers or browser tracking protection for this site, then retry.";
 }
 
+function getNoAuthorizationCodeMessage(status: string | undefined) {
+  if (!status || status === "unknown" || status === "not_authorized") {
+    return "Meta signup did not finish. Keep the Facebook popup open, allow popups/cookies for this site, and complete the WhatsApp Business and phone-number steps before closing it.";
+  }
+
+  if (status === "connected") {
+    return "Facebook login completed, but Meta did not return the Embedded Signup authorization code. Please retry in a fresh browser session or incognito window, then complete the full WhatsApp Embedded Signup flow.";
+  }
+
+  return "Meta signup did not return an authorization code. Please restart the flow and complete every step in the Meta popup.";
+}
+
 function createFlowSessionId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -962,13 +974,17 @@ export default function MetaEmbeddedSignupButton({
           payload: {
             status: response.status,
             hasCode: Boolean(code),
+            hasAuthResponse: Boolean(response.authResponse),
+            authResponseKeys: response.authResponse
+              ? Object.keys(response.authResponse)
+              : [],
           },
         });
 
         if (!code) {
           setConnectionPhase("error");
           setIsConnecting(false);
-          setError("Meta signup was cancelled or returned no authorization code.");
+          setError(getNoAuthorizationCodeMessage(response.status));
           return;
         }
 
