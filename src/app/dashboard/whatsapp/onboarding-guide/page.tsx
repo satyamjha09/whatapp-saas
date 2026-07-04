@@ -38,8 +38,11 @@ const onboardingSteps = [
 
 const importantPoints = [
   "The user connecting WhatsApp should be an admin of the selected Meta Business Portfolio.",
-  "The phone number must be eligible for WhatsApp Cloud API onboarding or migration.",
+  "Use a new phone number that is not registered on WhatsApp, or an eligible phone number already inside the selected WhatsApp Business Account.",
+  "Avoid numbers currently active on the WhatsApp consumer app or another provider unless you are ready to migrate them.",
   "The display name should match the business and follow Meta display-name rules.",
+  "International payments should be enabled on the business payment method if Meta asks for billing/payment setup.",
+  "Use a trusted Facebook Business admin account with no security restrictions and complete 2FA when Meta asks.",
   "Allow popups and third-party cookies for the browser session before clicking Login with Facebook.",
   "If Meta requests business or display-name verification, sending limits can remain restricted until review is complete.",
   "Only approved WhatsApp templates should be used for campaigns, automation, and business-initiated messages.",

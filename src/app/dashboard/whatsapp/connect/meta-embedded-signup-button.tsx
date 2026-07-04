@@ -118,8 +118,11 @@ const metaFlowSteps = [
 
 const readinessChecks = [
   "You are an admin of the Facebook Business Portfolio.",
-  "The phone number is available for Cloud API onboarding or migration.",
+  "Use a new phone number that is not registered on WhatsApp, or an eligible phone number already inside the selected WhatsApp Business Account.",
+  "Avoid numbers currently active on the WhatsApp consumer app or another provider unless you are ready to migrate them.",
   "The WhatsApp display name matches the business and follows Meta guidelines.",
+  "International payments are enabled on the business payment method if Meta billing/payment setup is required.",
+  "Use a trusted Facebook Business admin account with no security restrictions and complete 2FA when Meta asks.",
   "Popups and third-party cookies are allowed for this browser session.",
   "The business is ready for Meta review if additional verification is requested.",
 ];
