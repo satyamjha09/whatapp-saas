@@ -15,6 +15,7 @@ export const RBAC_ROUTE_PERMISSION_RULES: RbacRoutePermissionRule[] = [
   { id: "billing-exports", method: "GET", pattern: /^\/api\/billing\/exports(?:\/download)?$/, permission: "BILLING_VIEW", description: "Download billing and accounting exports" },
   { id: "billing-profile-manage", method: "PATCH", pattern: /^\/api\/billing\/profile$/, permission: "BILLING_MANAGE", description: "Update billing profile" },
   { id: "billing-plan-checkouts", method: "POST", pattern: /^\/api\/billing\/plan-checkouts(?:\/[^/]+\/verify)?$/, permission: "BILLING_MANAGE", description: "Create or verify billing plan checkouts" },
+  { id: "billing-credit-purchases", method: "*", pattern: /^\/api\/billing\/credit-purchases(?:\/[^/]+\/verify)?$/, permission: "BILLING_MANAGE", description: "Create or verify wallet credit purchases" },
   { id: "billing-plan-checkouts-reconcile", method: "POST", pattern: /^\/api\/billing\/plan-checkouts\/reconcile$/, permission: "BILLING_MANAGE", description: "Reconcile plan checkout state" },
   { id: "billing-manual-reviews", method: "*", pattern: /^\/api\/billing\/ops\/manual-reviews(?:\/[^/]+\/(?:approve|reject))?$/, permission: "BILLING_MANAGE", description: "Review manual billing checkouts" },
   { id: "billing-refunds", method: "*", pattern: /^\/api\/billing\/refunds(?:\/reconcile)?$/, permission: "BILLING_MANAGE", description: "Manage billing refunds" },

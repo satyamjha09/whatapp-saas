@@ -15,6 +15,9 @@ import {
   getWalletTransactions,
   isManualWalletTopUpEnabled,
 } from "@/server/services/wallet.service";
+import { isCashfreeCheckoutConfigured } from "@/server/services/cashfree-payment.service";
+import { getCreditPacks } from "@/server/services/credit-purchase.service";
+import CreditPurchaseCheckout from "./credit-purchase-checkout";
 import WalletTopupForm from "./wallet-topup-form";
 
 function formatMoney(amountPaise: number) {
@@ -42,6 +45,8 @@ export default async function WalletPage() {
     getWalletTransactions(companyId),
   ]);
   const manualTopUpEnabled = isManualWalletTopUpEnabled();
+  const cashfreeConfigured = isCashfreeCheckoutConfigured();
+  const creditPacks = getCreditPacks();
 
   const credits = transactions
     .filter((transaction) => transaction.type === "CREDIT")
@@ -83,17 +88,10 @@ export default async function WalletPage() {
         {manualTopUpEnabled ? (
           <WalletTopupForm />
         ) : (
-          <Panel>
-            <PanelTitle
-              title="Wallet recharge"
-              description="Manual test top-ups are disabled in production."
-            />
-
-            <p className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-slate-600">
-              Use verified billing checkout or a platform-approved adjustment
-              before sending chargeable WhatsApp messages.
-            </p>
-          </Panel>
+          <CreditPurchaseCheckout
+            cashfreeConfigured={cashfreeConfigured}
+            packs={creditPacks}
+          />
         )}
 
         <Panel>

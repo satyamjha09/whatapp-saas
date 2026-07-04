@@ -13,6 +13,10 @@ import {
   markCashfreeSubscriptionPaymentPaidFromWebhook,
 } from "@/server/services/cashfree-subscription.service";
 import {
+  completeCreditPurchasePayment,
+  markCreditPurchaseFailedFromWebhook,
+} from "@/server/services/credit-purchase.service";
+import {
   processRefundWebhookPayload,
   type CashfreeRefundWebhookPayload,
 } from "@/server/services/billing-refund-reconciliation.service";
@@ -291,19 +295,36 @@ export async function POST(request: Request) {
       return completeAndRespond({ message: "Webhook ignored" });
     }
 
-    const [matchedCheckout, matchedSubscription] = await Promise.all([
-      prisma.planCheckout.findFirst({
-        where: {
-          cashfreeOrderId: paymentData.orderId,
-        },
-      }),
-      prisma.subscriptionPayment.findUnique({
-        where: { cashfreeOrderId: paymentData.orderId },
-        select: { id: true, companyId: true, userId: true, plan: true, amountPaise: true },
-      }),
-    ]);
+    const [matchedCheckout, matchedSubscription, matchedCreditPurchase] =
+      await Promise.all([
+        prisma.planCheckout.findFirst({
+          where: {
+            cashfreeOrderId: paymentData.orderId,
+          },
+        }),
+        prisma.subscriptionPayment.findUnique({
+          where: { cashfreeOrderId: paymentData.orderId },
+          select: {
+            id: true,
+            companyId: true,
+            userId: true,
+            plan: true,
+            amountPaise: true,
+          },
+        }),
+        prisma.creditPurchase.findUnique({
+          where: { cashfreeOrderId: paymentData.orderId },
+          select: {
+            id: true,
+            companyId: true,
+            userId: true,
+            credits: true,
+            amountPaise: true,
+          },
+        }),
+      ]);
 
-    if (!matchedCheckout && !matchedSubscription) {
+    if (!matchedCheckout && !matchedSubscription && !matchedCreditPurchase) {
       await markEvent({
         eventRecordId,
         status: "IGNORED",
@@ -313,7 +334,9 @@ export async function POST(request: Request) {
     }
 
     const matchedCompanyId =
-      matchedCheckout?.companyId ?? matchedSubscription!.companyId;
+      matchedCheckout?.companyId ??
+      matchedSubscription?.companyId ??
+      matchedCreditPurchase!.companyId;
 
     if (matchedCheckout) {
       if (failedEvents.has(eventType)) {
@@ -404,6 +427,55 @@ export async function POST(request: Request) {
         status: "PROCESSED",
       });
       return completeAndRespond({ message: "Cashfree subscription processed" });
+    }
+
+    if (matchedCreditPurchase) {
+      if (failedEvents.has(eventType)) {
+        await markCreditPurchaseFailedFromWebhook({
+          cashfreeOrderId: paymentData.orderId,
+          cashfreePaymentId: paymentData.paymentId,
+          failureReason: paymentData.failureReason,
+        });
+        await markEvent({
+          eventRecordId,
+          companyId: matchedCompanyId,
+          status: "PROCESSED",
+        });
+        return completeAndRespond({
+          message: "Cashfree credit purchase failure processed",
+        });
+      }
+
+      const creditResult = await completeCreditPurchasePayment({
+        cashfreeOrderId: paymentData.orderId,
+        cashfreePaymentId: paymentData.paymentId!,
+        amountPaise: paymentData.amountPaise,
+        currency: paymentData.currency,
+      });
+      if (!creditResult.alreadyPaid) {
+        await createAuditLog({
+          companyId: matchedCreditPurchase.companyId,
+          actorUserId: matchedCreditPurchase.userId,
+          action: "wallet.credit_purchase.webhook_verified",
+          entityType: "CreditPurchase",
+          entityId: matchedCreditPurchase.id,
+          metadata: {
+            provider: "CASHFREE",
+            credits: matchedCreditPurchase.credits,
+            amountPaise: matchedCreditPurchase.amountPaise,
+            cashfreeOrderId: paymentData.orderId,
+            cashfreePaymentId: paymentData.paymentId,
+          },
+        });
+      }
+      await markEvent({
+        eventRecordId,
+        companyId: matchedCompanyId,
+        status: "PROCESSED",
+      });
+      return completeAndRespond({
+        message: "Cashfree credit purchase processed",
+      });
     }
 
     await markEvent({
