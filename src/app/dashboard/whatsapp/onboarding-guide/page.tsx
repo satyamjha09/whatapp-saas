@@ -5,32 +5,44 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 
 const onboardingSteps = [
   {
-    title: "Connect Phone Number",
+    title: "Open the official Meta flow",
     description:
-      "Connect a new or existing WhatsApp Business phone number through Meta Embedded Signup.",
+      "Use Login with Facebook from metawhat. Meta opens a hosted popup for consent and WhatsApp onboarding.",
   },
   {
-    title: "Pre-Paid Wallet",
+    title: "Select business assets",
     description:
-      "Keep wallet/payment setup ready so Cloud API messages can be sent without billing interruptions.",
+      "Choose or create a Business Portfolio, then choose or create the WhatsApp Business Account.",
   },
   {
-    title: "Business Verification",
+    title: "Confirm business information",
     description:
-      "Complete Meta business verification when required to unlock production usage and higher trust.",
+      "Meta asks for business name, category, country, website, and time zone for new assets.",
   },
   {
-    title: "Create a Template",
+    title: "Add or select phone number",
     description:
-      "Create and submit WhatsApp message templates for approval before sending campaign messages.",
+      "Use an eligible existing phone, use display-name-only where available, or add and verify a new phone number.",
+  },
+  {
+    title: "Review access and confirm",
+    description:
+      "The customer confirms WhatsApp permissions. metawhat then saves WABA ID, phone ID, encrypted token, and webhook subscription.",
+  },
+  {
+    title: "Finish production checks",
+    description:
+      "Sync templates, check number status, complete payment or business verification if Meta requests it, then start sending.",
   },
 ];
 
 const importantPoints = [
-  "Use a new phone number that is not registered on any WhatsApp account.",
-  "Alternatively, use a phone number that is already on an existing WhatsApp Business account.",
-  "International payments must be activated on your credit/debit card to send messages via Cloud API.",
-  "Use an older Facebook account to avoid lengthy Meta verification processes for new accounts.",
+  "The user connecting WhatsApp should be an admin of the selected Meta Business Portfolio.",
+  "The phone number must be eligible for WhatsApp Cloud API onboarding or migration.",
+  "The display name should match the business and follow Meta display-name rules.",
+  "Allow popups and third-party cookies for the browser session before clicking Login with Facebook.",
+  "If Meta requests business or display-name verification, sending limits can remain restricted until review is complete.",
+  "Only approved WhatsApp templates should be used for campaigns, automation, and business-initiated messages.",
 ];
 
 export default async function WhatsAppOnboardingGuidePage() {
@@ -49,7 +61,7 @@ export default async function WhatsAppOnboardingGuidePage() {
       <PageHeader
         eyebrow={context.membership.company.name}
         title="Onboarding Guide"
-        description="Follow these steps before sending WhatsApp Cloud API messages."
+        description="Use this checklist to connect any customer company to WhatsApp Cloud API through Meta Embedded Signup."
         actions={
           <>
             <Link
@@ -72,7 +84,7 @@ export default async function WhatsAppOnboardingGuidePage() {
 
       <section className="rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
         <h2 className="text-lg font-bold text-[#081B3A]">
-          WhatsApp Account Setup
+          Customer Connection Flow
         </h2>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -98,7 +110,9 @@ export default async function WhatsAppOnboardingGuidePage() {
       </section>
 
       <section className="mt-5 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
-        <h2 className="text-lg font-bold text-[#081B3A]">Important Points</h2>
+        <h2 className="text-lg font-bold text-[#081B3A]">
+          Production Readiness
+        </h2>
 
         <ul className="mt-5 space-y-3">
           {importantPoints.map((point) => (

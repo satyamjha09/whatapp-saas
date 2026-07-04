@@ -2,10 +2,18 @@
 
 import {
   AlertTriangle,
+  BookOpen,
+  Building2,
   CheckCircle2,
+  ClipboardCheck,
+  KeyRound,
   LoaderCircle,
   LogIn,
+  MessageCircle,
+  PhoneCall,
   RotateCw,
+  ShieldCheck,
+  X,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -72,6 +80,81 @@ type ConnectResponse = {
     qualityRating?: string | null;
   };
 };
+
+type ConnectionPhase = "idle" | "opening" | "waiting" | "saving" | "done" | "error";
+
+const metaFlowSteps = [
+  {
+    title: "Intro and consent",
+    description:
+      "Meta explains that metawhat will receive access to manage the selected WhatsApp Business Account.",
+    icon: BookOpen,
+  },
+  {
+    title: "Business assets",
+    description:
+      "Choose or create a Business Portfolio, then select or create the WhatsApp Business Account.",
+    icon: Building2,
+  },
+  {
+    title: "Business details",
+    description:
+      "Confirm business name, country, website, category, and time zone inside Meta.",
+    icon: ClipboardCheck,
+  },
+  {
+    title: "Phone number",
+    description:
+      "Use a display name only, add a new number, or choose an eligible existing number.",
+    icon: PhoneCall,
+  },
+  {
+    title: "Review and confirm",
+    description:
+      "Confirm the permissions, then metawhat saves the WABA, phone ID, token, and webhook setup.",
+    icon: ShieldCheck,
+  },
+];
+
+const readinessChecks = [
+  "You are an admin of the Facebook Business Portfolio.",
+  "The phone number is available for Cloud API onboarding or migration.",
+  "The WhatsApp display name matches the business and follows Meta guidelines.",
+  "Popups and third-party cookies are allowed for this browser session.",
+  "The business is ready for Meta review if additional verification is requested.",
+];
+
+const phaseSteps: {
+  phase: ConnectionPhase;
+  title: string;
+  description: string;
+}[] = [
+  {
+    phase: "idle",
+    title: "Ready",
+    description: "Open Meta's secure Embedded Signup popup.",
+  },
+  {
+    phase: "opening",
+    title: "Meta popup",
+    description: "Complete the official Business Portfolio, WABA, and phone steps.",
+  },
+  {
+    phase: "waiting",
+    title: "Reading result",
+    description: "Waiting for Meta to return the authorization code and signup data.",
+  },
+  {
+    phase: "saving",
+    title: "Saving account",
+    description: "Encrypting token, saving phone numbers, and subscribing webhooks.",
+  },
+  {
+    phase: "done",
+    title: "Connected",
+    description: "Phone number connected and ready for templates or messaging.",
+  },
+];
 
 function isConfigured(value: string | undefined, placeholder: string) {
   return Boolean(value && value !== placeholder);
@@ -251,6 +334,182 @@ function phoneLabel(phone: SignupPhoneResult) {
     : phone.phoneNumberId;
 }
 
+function phaseIndex(phase: ConnectionPhase) {
+  if (phase === "error") return -1;
+
+  const index = phaseSteps.findIndex((step) => step.phase === phase);
+
+  return index >= 0 ? index : 0;
+}
+
+function OnboardingGuideModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#081B3A]/45 p-4">
+      <div className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(8,27,58,0.28)]">
+        <div className="flex items-start justify-between gap-4 border-b border-[#BFE9D0] p-5 sm:p-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-normal text-[#128C7E]">
+              Meta Embedded Signup
+            </p>
+            <h2 className="mt-2 text-xl font-bold text-[#081B3A]">
+              What your customer will see
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#526173]">
+              Meta owns the popup screens. metawhat starts the secure flow,
+              records diagnostic events, and saves only the approved account
+              details after Meta confirms the signup.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#BFE9D0] text-[#526173] transition hover:bg-[#E7F8EF] hover:text-[#081B3A]"
+            aria-label="Close onboarding guide"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="max-h-[calc(92vh-112px)] overflow-auto p-5 sm:p-6">
+          <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <section className="rounded-2xl border border-[#BFE9D0] bg-[#F8FFFB] p-4">
+              <h3 className="text-sm font-bold text-[#081B3A]">
+                Official Meta sequence
+              </h3>
+              <div className="mt-4 space-y-3">
+                {metaFlowSteps.map((step, index) => {
+                  const Icon = step.icon;
+
+                  return (
+                    <article
+                      key={step.title}
+                      className="flex gap-3 rounded-xl border border-[#BFE9D0] bg-white p-3"
+                    >
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#E7F8EF] text-[#128C7E]">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-normal text-[#128C7E]">
+                          Step {index + 1}
+                        </p>
+                        <h4 className="mt-1 text-sm font-bold text-[#081B3A]">
+                          {step.title}
+                        </h4>
+                        <p className="mt-1 text-xs leading-5 text-[#526173]">
+                          {step.description}
+                        </p>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-[#BFE9D0] bg-white p-4">
+              <h3 className="text-sm font-bold text-[#081B3A]">
+                Before clicking Login
+              </h3>
+              <ul className="mt-4 space-y-3">
+                {readinessChecks.map((check) => (
+                  <li
+                    key={check}
+                    className="flex gap-3 text-xs leading-5 text-[#526173]"
+                  >
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#128C7E]" />
+                    <span>{check}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-5 rounded-xl bg-[#E7F8EF] p-4 text-xs leading-5 text-[#526173] ring-1 ring-[#BFE9D0]">
+                If Meta asks for additional display-name or business review,
+                the phone may connect but sending limits can stay restricted
+                until Meta finishes verification.
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConnectionProgress({ phase }: { phase: ConnectionPhase }) {
+  if (phase === "error") {
+    return (
+      <section className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+        <div className="flex gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-rose-700 ring-1 ring-rose-200">
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-rose-700">
+              Connection needs attention
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-rose-700/80">
+              Review the message below, fix the configuration or Meta signup
+              step, then start the official flow again.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const activeIndex = phaseIndex(phase);
+
+  return (
+    <section className="rounded-xl border border-[#BFE9D0] bg-white p-4">
+      <div className="grid gap-3 sm:grid-cols-5">
+        {phaseSteps.map((step, index) => {
+          const isActive = index === activeIndex;
+          const isComplete = activeIndex > index;
+
+          return (
+            <div key={step.phase} className="min-w-0">
+              <div
+                className={[
+                  "flex h-full gap-2 rounded-xl border p-3 transition",
+                  isActive
+                    ? "border-[#128C7E] bg-[#E7F8EF]"
+                    : isComplete
+                      ? "border-[#BFE9D0] bg-white"
+                      : "border-[#DCEEE4] bg-[#F8FFFB]",
+                ].join(" ")}
+              >
+                <span
+                  className={[
+                    "grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold",
+                    isComplete
+                      ? "bg-[#128C7E] text-white"
+                      : isActive
+                        ? "bg-white text-[#128C7E] ring-1 ring-[#128C7E]/20"
+                        : "bg-[#E7F8EF] text-[#526173]",
+                  ].join(" ")}
+                >
+                  {isComplete ? (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  ) : (
+                    index + 1
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-[#081B3A]">
+                    {step.title}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[#526173]">
+                    {step.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function SignupResultModal({
   onClose,
   result,
@@ -401,6 +660,9 @@ export default function MetaEmbeddedSignupButton({
   const [error, setError] = useState("");
   const [sdkLoadAttempt, setSdkLoadAttempt] = useState(0);
   const [signupResult, setSignupResult] = useState<SignupResult | null>(null);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [connectionPhase, setConnectionPhase] =
+    useState<ConnectionPhase>("idle");
   const signupSessionRef = useRef<SignupSession | null>(null);
   const flowSessionIdRef = useRef<string | null>(null);
 
@@ -482,6 +744,8 @@ export default function MetaEmbeddedSignupButton({
       });
 
       if (signupEvent.event === "ERROR") {
+        setConnectionPhase("error");
+        setIsConnecting(false);
         setError(
           signupEvent.errorMessage ??
             "Meta Embedded Signup returned an error. Please try again.",
@@ -490,6 +754,8 @@ export default function MetaEmbeddedSignupButton({
       }
 
       if (signupEvent.event === "CANCEL") {
+        setConnectionPhase("error");
+        setIsConnecting(false);
         setError(
           signupEvent.currentStep
             ? `Meta signup was cancelled at ${signupEvent.currentStep}.`
@@ -499,6 +765,7 @@ export default function MetaEmbeddedSignupButton({
       }
 
       if (signupEvent.session) {
+        setConnectionPhase("waiting");
         signupSessionRef.current = signupEvent.session;
       }
     }
@@ -556,11 +823,13 @@ export default function MetaEmbeddedSignupButton({
   function retrySdkLoad() {
     setError("");
     setIsSdkReady(false);
+    setConnectionPhase("idle");
     setSdkLoadAttempt((attempt) => attempt + 1);
   }
 
   async function completeConnection(code: string, session: SignupSession) {
     setIsConnecting(true);
+    setConnectionPhase("saving");
     setError("");
 
     try {
@@ -577,6 +846,7 @@ export default function MetaEmbeddedSignupButton({
       const data = (await response.json()) as ConnectResponse;
 
       if (!response.ok) {
+        setConnectionPhase("error");
         setError(data.message ?? "Unable to complete WhatsApp connection.");
         return;
       }
@@ -603,8 +873,10 @@ export default function MetaEmbeddedSignupButton({
           : fallbackPhone,
         webhooksSubscribed: data.connection?.webhooksSubscribed,
       });
+      setConnectionPhase("done");
       router.refresh();
     } catch {
+      setConnectionPhase("error");
       setError("Unable to complete WhatsApp connection.");
     } finally {
       setIsConnecting(false);
@@ -614,6 +886,7 @@ export default function MetaEmbeddedSignupButton({
   function startEmbeddedSignup() {
     setError("");
     setSignupResult(null);
+    setConnectionPhase("idle");
     signupSessionRef.current = null;
     flowSessionIdRef.current = createFlowSessionId();
     const originalWindowOpen = window.open.bind(window);
@@ -637,12 +910,14 @@ export default function MetaEmbeddedSignupButton({
     });
 
     if (!window.FB || !isSdkReady) {
+      setConnectionPhase("error");
       setError("Facebook SDK is not ready yet.");
       restoreWindowOpen();
       return;
     }
 
     if (window.location.protocol !== "https:") {
+      setConnectionPhase("error");
       setError(
         appUrl?.startsWith("https://")
           ? `Facebook Login requires HTTPS. Open this page from ${appUrl}/dashboard/whatsapp/connect.`
@@ -653,10 +928,14 @@ export default function MetaEmbeddedSignupButton({
     }
 
     if (!hasConfigId || !configId) {
+      setConnectionPhase("error");
       setError("Meta Embedded Signup Configuration ID is not configured.");
       restoreWindowOpen();
       return;
     }
+
+    setIsConnecting(true);
+    setConnectionPhase("opening");
 
     window.open = ((url?: string | URL, target?: string, features?: string) => {
       const debugPayload = getDialogOAuthDebugPayload(url);
@@ -687,10 +966,13 @@ export default function MetaEmbeddedSignupButton({
         });
 
         if (!code) {
+          setConnectionPhase("error");
+          setIsConnecting(false);
           setError("Meta signup was cancelled or returned no authorization code.");
           return;
         }
 
+        setConnectionPhase("waiting");
         void waitForSignupSession(signupSessionRef).then((session) => {
           if (!session?.wabaId || !session.phoneNumberId) {
             const message = getMissingSessionMessage(session);
@@ -726,25 +1008,55 @@ export default function MetaEmbeddedSignupButton({
   }
 
   return (
-    <div>
-      <button
-        type="button"
-        onClick={startEmbeddedSignup}
-        disabled={
-          !isSdkReady ||
-          isConnecting ||
-          Boolean(configurationError) ||
-          Boolean(runtimeOriginError)
-        }
-        className={actionButtonClass()}
-      >
-        {isConnecting ? (
-          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <LogIn className="mr-2 h-4 w-4" />
-        )}
-        {isConnecting ? "Connecting..." : "Login with Facebook"}
-      </button>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setIsGuideOpen(true)}
+          className={actionButtonClass("secondary")}
+        >
+          <BookOpen className="mr-2 h-4 w-4" />
+          Onboarding Guide
+        </button>
+
+        <button
+          type="button"
+          onClick={startEmbeddedSignup}
+          disabled={
+            !isSdkReady ||
+            isConnecting ||
+            Boolean(configurationError) ||
+            Boolean(runtimeOriginError)
+          }
+          className={actionButtonClass()}
+        >
+          {isConnecting ? (
+            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <LogIn className="mr-2 h-4 w-4" />
+          )}
+          {isConnecting ? "Connecting..." : "Login with Facebook"}
+        </button>
+      </div>
+
+      <ConnectionProgress phase={connectionPhase} />
+
+      <div className="grid gap-3 rounded-xl border border-[#BFE9D0] bg-[#F8FFFB] p-4 text-xs leading-5 text-[#526173] sm:grid-cols-3">
+        <div className="flex gap-2">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#128C7E]" />
+          <span>Official Meta popup opens in a separate secure window.</span>
+        </div>
+        <div className="flex gap-2">
+          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-[#128C7E]" />
+          <span>Access token is exchanged server-side and encrypted.</span>
+        </div>
+        <div className="flex gap-2">
+          <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#128C7E]" />
+          <span>
+            Phone number, WABA, and webhook status are saved after success.
+          </span>
+        </div>
+      </div>
 
       {!isSdkReady && !visibleError ? (
         <p className="mt-3 text-xs text-[#526173]">Loading Facebook SDK...</p>
@@ -778,6 +1090,10 @@ export default function MetaEmbeddedSignupButton({
             router.refresh();
           }}
         />
+      ) : null}
+
+      {isGuideOpen ? (
+        <OnboardingGuideModal onClose={() => setIsGuideOpen(false)} />
       ) : null}
     </div>
   );
