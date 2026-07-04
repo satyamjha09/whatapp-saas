@@ -115,7 +115,12 @@ export default async function WhatsAppConnectPage() {
           </div>
 
           {canManage ? (
-            <MetaEmbeddedSignupButton graphVersion={graphVersion} />
+            <MetaEmbeddedSignupButton
+              graphVersion={graphVersion}
+              returnToOnboarding={
+                context.membership.company.status === "PENDING_ONBOARDING"
+              }
+            />
           ) : (
             <div className="max-w-sm rounded-xl bg-[#E7F8EF] p-4 text-sm text-[#526173] ring-1 ring-[#BFE9D0]">
               Only workspace owners and admins can connect WhatsApp accounts.

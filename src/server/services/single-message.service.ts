@@ -65,6 +65,16 @@ export async function uploadSingleMessageMedia(
 }
 
 export async function assertSingleMessageSendPreconditions(companyId: string) {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { status: true },
+  });
+
+  if (!company) throw new Error("Company not found");
+  if (company.status !== "ACTIVE") {
+    throw new Error("Complete company onboarding first");
+  }
+
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId);
   await assertUsageQuotaAvailable({

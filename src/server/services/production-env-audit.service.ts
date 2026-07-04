@@ -652,6 +652,20 @@ export function getProductionEnvAudit() {
   });
 
   items.push({
+    id: "company-onboarding-whatsapp-required",
+    title: "Company onboarding WhatsApp connection required",
+    severity:
+      process.env.COMPANY_ONBOARDING_REQUIRE_WHATSAPP_CONNECT !== "false"
+        ? "PASS"
+        : "FAIL",
+    message:
+      process.env.COMPANY_ONBOARDING_REQUIRE_WHATSAPP_CONNECT !== "false"
+        ? "New workspaces must connect WhatsApp before activation"
+        : "COMPANY_ONBOARDING_REQUIRE_WHATSAPP_CONNECT must not be false in production",
+    required: true,
+  });
+
+  items.push({
     id: "company-plan-assignment-enabled",
     title: "Company plan assignment enabled",
     severity:

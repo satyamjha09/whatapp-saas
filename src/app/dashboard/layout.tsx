@@ -25,7 +25,10 @@ export default async function DashboardLayout({
 
   const requestHeaders = await headers();
   const pathname = requestHeaders.get("x-pathname") ?? "";
-  const bypassesOnboardingGate = pathname.startsWith("/dashboard/onboarding");
+  const bypassesOnboardingGate =
+    pathname.startsWith("/dashboard/onboarding") ||
+    pathname.startsWith("/dashboard/whatsapp/connect") ||
+    pathname.startsWith("/dashboard/whatsapp/onboarding-guide");
   const bypassesPlanGate = pathname.startsWith("/dashboard/account/plan");
   const bypassesLegalGate =
     bypassesOnboardingGate ||

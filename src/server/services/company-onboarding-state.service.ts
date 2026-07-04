@@ -58,7 +58,10 @@ function isProfileRequired() {
 }
 
 function isWhatsAppConnectRequired() {
-  return envFlag("COMPANY_ONBOARDING_REQUIRE_WHATSAPP_CONNECT", false);
+  return envFlag(
+    "COMPANY_ONBOARDING_REQUIRE_WHATSAPP_CONNECT",
+    process.env.NODE_ENV === "production",
+  );
 }
 
 function isBillingRequired() {

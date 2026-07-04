@@ -666,8 +666,10 @@ function SignupResultModal({
 
 export default function MetaEmbeddedSignupButton({
   graphVersion,
+  returnToOnboarding = false,
 }: {
   graphVersion: string;
+  returnToOnboarding?: boolean;
 }) {
   const router = useRouter();
   const [isSdkReady, setIsSdkReady] = useState(false);
@@ -1105,7 +1107,9 @@ export default function MetaEmbeddedSignupButton({
           result={signupResult}
           onClose={() => {
             setSignupResult(null);
-            router.push("/dashboard/whatsapp");
+            router.push(
+              returnToOnboarding ? "/dashboard/onboarding" : "/dashboard/whatsapp",
+            );
             router.refresh();
           }}
         />
