@@ -205,32 +205,6 @@ function getSdkBlockedMessage() {
   return "Unable to load the Facebook SDK. Disable ad blockers or browser tracking protection for this site, then retry.";
 }
 
-function getOAuthRedirectUri({
-  appUrl,
-  configuredRedirectUri,
-}: {
-  appUrl: string | undefined;
-  configuredRedirectUri: string | undefined;
-}) {
-  try {
-    if (configuredRedirectUri?.startsWith("https://")) {
-      return configuredRedirectUri;
-    }
-
-    if (appUrl?.startsWith("https://")) {
-      return `${new URL(appUrl).origin}/dashboard/whatsapp/connect`;
-    }
-
-    if (typeof window !== "undefined") {
-      return `${window.location.origin}/dashboard/whatsapp/connect`;
-    }
-  } catch {
-    return undefined;
-  }
-
-  return undefined;
-}
-
 function createFlowSessionId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -429,12 +403,10 @@ export default function MetaEmbeddedSignupButton({
   const [signupResult, setSignupResult] = useState<SignupResult | null>(null);
   const signupSessionRef = useRef<SignupSession | null>(null);
   const flowSessionIdRef = useRef<string | null>(null);
-  const oauthDialogRedirectUriRef = useRef<string | null>(null);
 
   const appId = process.env.NEXT_PUBLIC_META_APP_ID;
   const configId = process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  const configuredRedirectUri = process.env.NEXT_PUBLIC_META_REDIRECT_URI;
   const hasAppId = isConfigured(appId, "your_meta_app_id");
   const hasConfigId = isConfigured(
     configId,
@@ -446,10 +418,6 @@ export default function MetaEmbeddedSignupButton({
     : !hasConfigId
       ? "Meta Embedded Signup Configuration ID is not configured."
       : "";
-  const oauthRedirectUri = getOAuthRedirectUri({
-    appUrl,
-    configuredRedirectUri,
-  });
   const visibleError = error || configurationError || runtimeOriginError;
   const canRetrySdkLoad = error === getSdkBlockedMessage();
 
@@ -602,7 +570,6 @@ export default function MetaEmbeddedSignupButton({
         body: JSON.stringify({
           code,
           flowSessionId: flowSessionIdRef.current,
-          redirectUri: oauthDialogRedirectUriRef.current ?? oauthRedirectUri,
           wabaId: session.wabaId,
           phoneNumberId: session.phoneNumberId,
         }),
@@ -648,7 +615,6 @@ export default function MetaEmbeddedSignupButton({
     setError("");
     setSignupResult(null);
     signupSessionRef.current = null;
-    oauthDialogRedirectUriRef.current = null;
     flowSessionIdRef.current = createFlowSessionId();
     const originalWindowOpen = window.open.bind(window);
     let windowOpenRestored = false;
@@ -665,8 +631,8 @@ export default function MetaEmbeddedSignupButton({
       payload: {
         graphVersion,
         hasConfigId,
-        redirectUri: oauthRedirectUri,
-        fallbackRedirectUri: oauthRedirectUri,
+        browserOrigin: window.location.origin,
+        tokenExchangeStrategy: "embedded_signup_js_sdk_without_redirect_uri",
       },
     });
 
@@ -696,8 +662,6 @@ export default function MetaEmbeddedSignupButton({
       const debugPayload = getDialogOAuthDebugPayload(url);
 
       if (debugPayload) {
-        oauthDialogRedirectUriRef.current = debugPayload.redirectUri;
-
         void saveSignupEvent({
           eventType: "CLIENT_OAUTH_DIALOG_OPENED",
           payload: debugPayload,
@@ -747,8 +711,6 @@ export default function MetaEmbeddedSignupButton({
       {
         config_id: configId,
         auth_type: "rerequest",
-        redirect_uri: oauthRedirectUri,
-        fallback_redirect_uri: oauthRedirectUri,
         scope:
           "business_management,whatsapp_business_management,whatsapp_business_messaging",
         response_type: "code",

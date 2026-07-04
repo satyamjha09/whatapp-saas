@@ -131,27 +131,6 @@ function metaErrorMessage(data: { error?: MetaError }, fallback: string) {
   return data.error?.message ?? fallback;
 }
 
-function getDefaultOAuthRedirectUri() {
-  const configuredRedirectUri =
-    process.env.META_REDIRECT_URI ?? process.env.NEXT_PUBLIC_META_REDIRECT_URI;
-
-  if (configuredRedirectUri) {
-    return configuredRedirectUri;
-  }
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL;
-
-  if (!appUrl) {
-    return null;
-  }
-
-  try {
-    return `${new URL(appUrl).origin}/dashboard/whatsapp/connect`;
-  } catch {
-    return null;
-  }
-}
-
 function normalizePhoneNumber(
   phoneNumber: MetaPhoneNumberResponse,
 ): MetaPhoneNumberDetails | null {
@@ -599,7 +578,8 @@ export async function completeWhatsAppEmbeddedSignup(
         wabaId: input.wabaId,
         phoneNumberId: input.phoneNumberId,
         payload: {
-          redirectUri: input.redirectUri ?? getDefaultOAuthRedirectUri(),
+          tokenExchangeStrategy: "embedded_signup_js_sdk_without_redirect_uri",
+          deprecatedRedirectUriReceived: Boolean(input.redirectUri),
         },
       },
     });
