@@ -189,6 +189,13 @@ export async function POST(request: Request) {
 
     if (
       error instanceof Error &&
+      error.message === "Complete company onboarding first"
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
+
+    if (
+      error instanceof Error &&
       error.message.includes("plan allows maximum")
     ) {
       return NextResponse.json({ message: error.message }, { status: 400 });

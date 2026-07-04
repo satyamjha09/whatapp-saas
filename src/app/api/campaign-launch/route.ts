@@ -81,6 +81,16 @@ export async function POST(request: Request) {
       return createUsageQuotaErrorResponse(error);
     }
 
+    if (
+      error instanceof Error &&
+      error.message === "Complete company onboarding first"
+    ) {
+      return NextResponse.json(
+        { ok: false, code: "ONBOARDING_REQUIRED", message: error.message },
+        { status: 403 },
+      );
+    }
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {

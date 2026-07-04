@@ -111,6 +111,13 @@ export async function POST(
 
     if (
       error instanceof Error &&
+      error.message === "Complete company onboarding first"
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
+
+    if (
+      error instanceof Error &&
       error.message === "Customer service window has expired"
     ) {
       return NextResponse.json({ message: error.message }, { status: 409 });

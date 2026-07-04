@@ -66,7 +66,8 @@ export async function POST(
     if (
       error instanceof Error &&
       (error.message.includes("BULK_CAMPAIGNS is not available") ||
-        error.message === "Subscription is past due")
+        error.message === "Subscription is past due" ||
+        error.message === "Complete company onboarding first")
     ) {
       return NextResponse.json({ message: error.message }, { status: 403 });
     }

@@ -92,6 +92,9 @@ function knownHandlerError(error: Error, requestId: string) {
   if (error.message === "Subscription is past due") {
     return publicApiError({ status: 403, code: "forbidden", message: error.message, requestId });
   }
+  if (error.message === "Complete company onboarding first") {
+    return publicApiError({ status: 403, code: "forbidden", message: error.message, requestId });
+  }
   if (error.message.includes("This template requires")) {
     return publicApiValidationError({ message: error.message, requestId });
   }

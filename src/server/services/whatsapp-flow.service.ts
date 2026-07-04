@@ -3,6 +3,8 @@ import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { getMessageQueue } from "@/lib/queue";
 import { Prisma } from "@/generated/prisma/client";
+import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
+import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import type {
   CreateWhatsAppFlowInput,
   SendTestWhatsAppFlowInput,
@@ -221,6 +223,9 @@ export async function sendTestWhatsAppFlow({
   flowId: string;
   input: SendTestWhatsAppFlowInput;
 }) {
+  await assertSubscriptionCanSend(companyId);
+  await assertCompanyMessageQuota(companyId);
+
   const countryCode = input.countryCode.replace(/^\+/, "");
   const phoneNumber = input.phoneNumber.replace(/\D/g, "");
   const contact = await prisma.contact.upsert({

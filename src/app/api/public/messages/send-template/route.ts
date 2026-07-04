@@ -112,6 +112,16 @@ export async function POST(request: Request) {
 
     if (
       error instanceof Error &&
+      error.message === "Complete company onboarding first"
+    ) {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 403 },
+      );
+    }
+
+    if (
+      error instanceof Error &&
       error.message.includes("This template requires")
     ) {
       return NextResponse.json(

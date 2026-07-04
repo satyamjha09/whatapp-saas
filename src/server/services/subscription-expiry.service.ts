@@ -127,6 +127,7 @@ export async function assertSubscriptionCanSend(companyId: string) {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: {
+      status: true,
       billingPlan: true,
       subscriptionStatus: true,
       currentPeriodEnd: true,
@@ -134,6 +135,10 @@ export async function assertSubscriptionCanSend(companyId: string) {
   });
 
   if (!company) throw new Error("Company not found");
+  if (company.status !== "ACTIVE") {
+    throw new Error("Complete company onboarding first");
+  }
+
   if (
     company.billingPlan !== "FREE" &&
     (company.subscriptionStatus === "PAST_DUE" ||
