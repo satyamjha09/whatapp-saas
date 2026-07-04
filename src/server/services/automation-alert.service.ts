@@ -110,7 +110,7 @@ function recommendedActions(type: AutomationAlertType) {
       {
         title: "Run Live Test Mode",
         description: "Replay the flow in a controlled test before publishing new changes.",
-        actionUrl: "/dashboard/automation/builder",
+        actionUrl: "/automation/builder",
       },
     ],
     AUTOMATION_NODE_FAILURE_SPIKE: [
@@ -118,7 +118,7 @@ function recommendedActions(type: AutomationAlertType) {
       {
         title: "Check node configuration",
         description: "Open the builder and inspect mappings, variables, URLs, credentials, and fallback paths.",
-        actionUrl: "/dashboard/automation/builder",
+        actionUrl: "/automation/builder",
       },
     ],
     AUTOMATION_RUNTIME_QUEUE_STUCK: [

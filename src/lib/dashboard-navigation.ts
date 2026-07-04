@@ -38,8 +38,9 @@ export const dashboardNavigation: DashboardNavGroup[] = [
   {
     label: "Automation",
     items: [
+      { label: "Overview", href: "/dashboard/automation" },
       { label: "Templates Library", href: "/dashboard/automation/templates" },
-      { label: "Builder", href: "/dashboard/automation/builder" },
+      { label: "Builder", href: "/automation/builder" },
       { label: "Publish Approvals", href: "/dashboard/automation/approvals" },
       { label: "Execution Logs", href: "/dashboard/automation/executions" },
       { label: "Monitoring", href: "/dashboard/automation/monitoring" },

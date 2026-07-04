@@ -471,7 +471,7 @@ export async function createAutomationFlowFromTemplate(
 
   return {
     flowId: flow.id,
-    redirectUrl: `/dashboard/automation/builder/${flow.id}`,
+    redirectUrl: `/automation/builder/${flow.id}`,
     setupChecklist: updatedChecklist,
     missingRequirements,
   };

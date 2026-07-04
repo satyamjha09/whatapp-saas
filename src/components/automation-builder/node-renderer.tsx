@@ -7,6 +7,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import {
+  Check,
   Bot,
   CircleDot,
   Clock3,
@@ -24,6 +25,7 @@ import {
   MessageSquareText,
   MousePointerClick,
   Play,
+  Plus,
   ReceiptText,
   RadioTower,
   Tags,
@@ -44,6 +46,14 @@ import {
 } from "@/components/automation-builder/types";
 
 export type AutomationFlowNode = Node<AutomationFlowNodeData, "automationNode">;
+
+type NodeRendererProps = NodeProps<AutomationFlowNode> & {
+  connectedSourceHandles?: Set<string>;
+  onAddFromHandle?: (input: {
+    sourceHandle: string;
+    sourceNodeId: string;
+  }) => void;
+};
 
 const nodeTone: Record<AutomationNodeType, string> = {
   ADD_TAG: "border-lime-200 bg-lime-50 text-lime-700",
@@ -251,10 +261,12 @@ function toAutomationNode(id: string, data: AutomationFlowNodeData) {
 }
 
 export default function NodeRenderer({
+  connectedSourceHandles,
   data,
   id,
+  onAddFromHandle,
   selected,
-}: NodeProps<AutomationFlowNode>) {
+}: NodeRendererProps) {
   const tone = nodeTone[data.nodeType];
   const graphNode = toAutomationNode(id, data);
   const inputHandles = getNodeInputHandles(graphNode);
@@ -360,7 +372,7 @@ export default function NodeRenderer({
         </p>
       </div>
 
-      {outputHandles.length > 1 ? (
+      {outputHandles.length > 0 ? (
         <div className="grid gap-1 border-t border-[#E7F8EF] px-3 py-2">
           {outputHandles.map((handle) => (
             <div
@@ -368,7 +380,39 @@ export default function NodeRenderer({
               key={`label-${handle.id}`}
             >
               <span className="truncate">{handle.label}</span>
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#128C7E]" />
+              {onAddFromHandle ? (
+                <button
+                  className={[
+                    "nodrag nopan grid h-6 w-6 shrink-0 place-items-center rounded-full border text-xs transition",
+                    connectedSourceHandles?.has(handle.id)
+                      ? "cursor-not-allowed border-[#BFE9D0] bg-[#E7F8EF] text-[#128C7E]"
+                      : "border-[#128C7E]/25 bg-white text-[#128C7E] hover:border-[#128C7E] hover:bg-[#E7F8EF]",
+                  ].join(" ")}
+                  disabled={connectedSourceHandles?.has(handle.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onAddFromHandle({
+                      sourceHandle: handle.id,
+                      sourceNodeId: id,
+                    });
+                  }}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  title={
+                    connectedSourceHandles?.has(handle.id)
+                      ? `${handle.label} path is already connected`
+                      : `Add node on ${handle.label} path`
+                  }
+                  type="button"
+                >
+                  {connectedSourceHandles?.has(handle.id) ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              ) : (
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#128C7E]" />
+              )}
             </div>
           ))}
         </div>

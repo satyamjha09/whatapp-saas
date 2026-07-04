@@ -260,6 +260,30 @@ export async function ensureAutomationFlowDraft({
   });
 }
 
+export async function createAutomationFlowDraft({
+  actorUserId,
+  companyId,
+  name = "WhatsApp Automation Flow",
+}: {
+  actorUserId?: string | null;
+  companyId: string;
+  name?: string;
+}) {
+  const { checkCanCreateAutomationFlow } = await import("./automation-plan-limit.service");
+  await checkCanCreateAutomationFlow(companyId);
+
+  return prisma.automationFlow.create({
+    data: {
+      companyId,
+      createdByUserId: actorUserId ?? null,
+      draftGraph: toJson(createDefaultAutomationGraph()),
+      name,
+      status: "DRAFT",
+      updatedByUserId: actorUserId ?? null,
+    },
+  });
+}
+
 export async function getAutomationFlowDraft(companyId: string, flowId: string) {
   const flow = await findFlow(companyId, flowId);
 

@@ -152,7 +152,7 @@ export default function AutomationApprovalDetail({
         </Link>
 
         <Link
-          href={`/dashboard/automation/builder/${request.flowId}`}
+          href={`/automation/builder/${request.flowId}`}
           className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 bg-white border border-[#D8E6F3] text-[#081B3A] rounded-lg hover:bg-[#F0F8FF] transition"
         >
           <span>Open Flow Builder</span>

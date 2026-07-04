@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addEdge,
   Background,
@@ -8,6 +8,7 @@ import {
   Controls,
   MarkerType,
   MiniMap,
+  type NodeProps,
   Panel as ReactFlowPanel,
   ReactFlow,
   ReactFlowProvider,
@@ -21,14 +22,22 @@ import {
 import {
   AlertTriangle,
   CheckCircle2,
+  Copy,
   History,
+  Lock,
   PauseCircle,
+  PlusCircle,
   PlayCircle,
+  Redo2,
   Rocket,
   Save,
+  Search,
   Send,
   TestTube2,
+  Trash2,
+  Undo2,
   Workflow,
+  X,
 } from "lucide-react";
 import { useAutomationPermissions } from "./permission-guard";
 import RequestPublishModal from "../automation-approvals/request-publish-modal";
@@ -48,6 +57,8 @@ import NodeRenderer, {
 import {
   createDefaultAutomationGraph,
   createDefaultNodeData,
+  automationNodeTypes,
+  getAutomationNodeDescription,
   getAutomationNodeLabel,
   normalizeAutomationGraph,
   normalizeAutomationNodeData,
@@ -59,9 +70,13 @@ import {
 import {
   canCreateConnection,
   getEdgeLabelForSourceHandle,
+  getNodeInputHandles,
   getNodeOutputHandles,
   resolveSourceHandleId,
 } from "@/lib/automation-builder/connection-handles";
+import {
+  isAutomationNodeTypeEnabled,
+} from "@/lib/automation-builder/feature-flags";
 import { hasUnpublishedChanges as detectUnpublishedChanges } from "@/lib/automation-builder/graph-diff";
 import { validateAutomationGraph } from "@/lib/automation-builder/graph-validation";
 import type { AutomationGraphValidationIssue } from "@/lib/automation-builder/types";
@@ -115,14 +130,23 @@ type AutomationBuilderProps = {
   flowId: string;
   initialFlow?: AutomationBuilderInitialFlow;
   initialGraph?: AutomationGraph;
+  layout?: "dashboard" | "fullscreen";
   userRole?: string;
   approvalRequired?: boolean;
   permissions?: Partial<Record<AutomationPermissionName, boolean>>;
 };
 
-const nodeTypes = {
-  automationNode: NodeRenderer,
+type NodeAddPickerState = {
+  sourceHandle: string;
+  sourceNodeId: string;
+} | null;
+
+type GraphHistoryState = {
+  past: AutomationGraph[];
+  future: AutomationGraph[];
 };
+
+const MAX_GRAPH_HISTORY = 50;
 
 function createId(prefix: string) {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -132,6 +156,27 @@ function createId(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random()
     .toString(36)
     .slice(2, 8)}`;
+}
+
+function cloneGraph(graph: AutomationGraph): AutomationGraph {
+  return JSON.parse(JSON.stringify(graph)) as AutomationGraph;
+}
+
+function graphFingerprint(graph: AutomationGraph) {
+  return JSON.stringify(graph);
+}
+
+function isTextEditingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+
+  const tagName = target.tagName.toLowerCase();
+
+  return (
+    tagName === "input" ||
+    tagName === "textarea" ||
+    tagName === "select" ||
+    target.isContentEditable
+  );
 }
 
 function toFlowNode(node: AutomationNode): AutomationFlowNode {
@@ -166,11 +211,122 @@ function toFlowEdge(edge: AutomationGraph["edges"][number]): Edge {
   };
 }
 
+function toGraphEdge(edge: Edge): AutomationGraph["edges"][number] {
+  return {
+    id: edge.id,
+    label: typeof edge.label === "string" ? edge.label : undefined,
+    sourceHandle: edge.sourceHandle ?? undefined,
+    source: edge.source,
+    targetHandle: edge.targetHandle ?? undefined,
+    target: edge.target,
+  };
+}
+
+function toGraphSnapshot(
+  nodes: AutomationFlowNode[],
+  edges: Edge[],
+): AutomationGraph {
+  return {
+    edges: edges.map(toGraphEdge),
+    nodes: nodes.map(toGraphNode),
+    version: 1,
+  };
+}
+
 function calculateNewPosition(count: number) {
   return {
     x: 140 + (count % 4) * 300,
     y: 120 + Math.floor(count / 4) * 170,
   };
+}
+
+function createFlowNode(
+  type: AutomationNodeType,
+  position: { x: number; y: number },
+): AutomationFlowNode {
+  const data = createDefaultNodeData(type);
+
+  return {
+    data: {
+      ...data,
+      label: data.label || getAutomationNodeLabel(type),
+      nodeType: type,
+    },
+    id: createId(`node_${type.toLowerCase()}`),
+    position,
+    selected: true,
+    type: "automationNode",
+  };
+}
+
+function nodeCanReceiveInput(type: AutomationNodeType) {
+  const previewNode: AutomationNode = {
+    data: createDefaultNodeData(type),
+    id: "preview",
+    position: { x: 0, y: 0 },
+    type,
+  };
+
+  return getNodeInputHandles(previewNode).length > 0;
+}
+
+function avoidNodeOverlap(
+  position: { x: number; y: number },
+  existingNodes: AutomationFlowNode[],
+) {
+  const next = {
+    x: Math.round(position.x),
+    y: Math.round(position.y),
+  };
+  const originY = next.y;
+
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    const hasOverlap = existingNodes.some(
+      (node) =>
+        Math.abs(node.position.x - next.x) < 280 &&
+        Math.abs(node.position.y - next.y) < 145,
+    );
+
+    if (!hasOverlap) return next;
+
+    next.y += 170;
+
+    if ((attempt + 1) % 4 === 0) {
+      next.x += 320;
+      next.y = originY;
+    }
+  }
+
+  return next;
+}
+
+function calculateConnectedPosition({
+  existingNodes,
+  sourceHandle,
+  sourceNode,
+}: {
+  existingNodes: AutomationFlowNode[];
+  sourceHandle: string;
+  sourceNode: AutomationFlowNode;
+}) {
+  const sourceGraphNode = toGraphNode(sourceNode);
+  const outputHandles = getNodeOutputHandles(sourceGraphNode);
+  const handleIndex = Math.max(
+    0,
+    outputHandles.findIndex((handle) => handle.id === sourceHandle),
+  );
+  const branchOffset =
+    outputHandles.length > 1
+      ? (handleIndex - (outputHandles.length - 1) / 2) * 170
+      : 0;
+
+  return avoidNodeOverlap(
+    {
+      x: sourceNode.position.x + 360,
+      y: sourceNode.position.y + branchOffset,
+    },
+    existingNodes,
+  );
 }
 
 async function readAutomationJson<T>(response: Response) {
@@ -209,6 +365,7 @@ export default function AutomationBuilder({
   flowId,
   initialFlow,
   initialGraph,
+  layout = "dashboard",
   userRole = "MEMBER",
   approvalRequired = false,
   permissions: permissionOverrides,
@@ -280,6 +437,7 @@ export default function AutomationBuilder({
     () => graph.edges.map(toFlowEdge),
     [graph.edges],
   );
+  const dragStartGraphRef = useRef<AutomationGraph | null>(null);
   const [nodes, setNodes, onNodesChange] =
     useNodesState<AutomationFlowNode>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -290,6 +448,19 @@ export default function AutomationBuilder({
   }, [nodes, planLimits]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [historyState, setHistoryState] = useState<GraphHistoryState>({
+    future: [],
+    past: [],
+  });
+  const [lastSavedGraphKey, setLastSavedGraphKey] = useState(() =>
+    graphFingerprint(toGraphSnapshot(initialNodes, initialEdges)),
+  );
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(
+    initialFlow?.updatedAt ?? null,
+  );
+  const [nodeAddPicker, setNodeAddPicker] =
+    useState<NodeAddPickerState>(null);
+  const [nodeAddSearch, setNodeAddSearch] = useState("");
   const [isTestPanelOpen, setIsTestPanelOpen] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
@@ -387,20 +558,67 @@ export default function AutomationBuilder({
   );
 
   const graphSnapshot = useMemo(
-    (): AutomationGraph => ({
-      edges: edges.map((edge) => ({
-        id: edge.id,
-        label: typeof edge.label === "string" ? edge.label : undefined,
-        sourceHandle: edge.sourceHandle ?? undefined,
-        source: edge.source,
-        targetHandle: edge.targetHandle ?? undefined,
-        target: edge.target,
-      })),
-      nodes: nodes.map(toGraphNode),
-      version: 1,
-    }),
+    () => toGraphSnapshot(nodes, edges),
     [edges, nodes],
   );
+  const connectedSourceHandlesByNode = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+
+    graphSnapshot.edges.forEach((edge) => {
+      const sourceNode = graphSnapshot.nodes.find(
+        (node) => node.id === edge.source,
+      );
+      if (!sourceNode) return;
+
+      const sourceHandle = resolveSourceHandleId(
+        sourceNode,
+        edge.sourceHandle,
+      );
+      if (!sourceHandle) return;
+
+      const handles = map.get(edge.source) ?? new Set<string>();
+      handles.add(sourceHandle);
+      map.set(edge.source, handles);
+    });
+
+    return map;
+  }, [graphSnapshot]);
+  const connectableNodeTypes = useMemo(
+    () => automationNodeTypes.filter((type) => nodeCanReceiveInput(type)),
+    [],
+  );
+  const filteredNodeAddTypes = useMemo(() => {
+    const query = nodeAddSearch.trim().toLowerCase();
+
+    if (!query) return connectableNodeTypes;
+
+    return connectableNodeTypes.filter((type) => {
+      const haystack = `${getAutomationNodeLabel(type)} ${getAutomationNodeDescription(
+        type,
+      )}`.toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [connectableNodeTypes, nodeAddSearch]);
+  const nodeAddContext = useMemo(() => {
+    if (!nodeAddPicker) return null;
+
+    const sourceNode = nodes.find(
+      (node) => node.id === nodeAddPicker.sourceNodeId,
+    );
+    if (!sourceNode) return null;
+
+    const sourceGraphNode = toGraphNode(sourceNode);
+    const outputHandle = getNodeOutputHandles(sourceGraphNode).find(
+      (handle) => handle.id === nodeAddPicker.sourceHandle,
+    );
+
+    return {
+      sourceLabel: String(sourceNode.data.label),
+      sourceNode,
+      sourcePathLabel: outputHandle?.label ?? nodeAddPicker.sourceHandle,
+    };
+  }, [nodeAddPicker, nodes]);
 
   const validation = useMemo(
     () => validateAutomationGraph(graphSnapshot),
@@ -410,10 +628,55 @@ export default function AutomationBuilder({
     () => JSON.stringify(graphSnapshot),
     [graphSnapshot],
   );
+  const hasUnsavedDraftChanges = graphKey !== lastSavedGraphKey;
   const hasUnpublishedChanges = useMemo(
     () => detectUnpublishedChanges(graphSnapshot, publishedGraph),
     [graphSnapshot, publishedGraph],
   );
+  const saveStateLabel = isSavingDraft
+    ? "Saving"
+    : hasUnsavedDraftChanges
+      ? "Unsaved"
+      : "Saved";
+  const commitHistory = useCallback(
+    (snapshot: AutomationGraph = graphSnapshot) => {
+      const historyEntry = cloneGraph(snapshot);
+
+      setHistoryState((current) => {
+        const previous = current.past.at(-1);
+
+        if (
+          previous &&
+          graphFingerprint(previous) === graphFingerprint(historyEntry)
+        ) {
+          return current;
+        }
+
+        return {
+          future: [],
+          past: [...current.past, historyEntry].slice(-MAX_GRAPH_HISTORY),
+        };
+      });
+    },
+    [graphSnapshot],
+  );
+  const canUndo = historyState.past.length > 0;
+  const canRedo = historyState.future.length > 0;
+
+  useEffect(() => {
+    if (!hasUnsavedDraftChanges) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasUnsavedDraftChanges]);
   const statusBadgeLabel =
     flowState.status === "DRAFT" && !flowState.publishedVersionId
       ? "Draft only"
@@ -512,9 +775,71 @@ export default function AutomationBuilder({
     },
     [],
   );
+  const openNodeAddPicker = useCallback(
+    ({
+      sourceHandle,
+      sourceNodeId,
+    }: {
+      sourceHandle: string;
+      sourceNodeId: string;
+    }) => {
+      const sourceNode = graphSnapshot.nodes.find(
+        (node) => node.id === sourceNodeId,
+      );
+      if (!sourceNode) return;
+
+      const resolvedSourceHandle = resolveSourceHandleId(
+        sourceNode,
+        sourceHandle,
+      );
+      if (!resolvedSourceHandle) {
+        setStatus("Choose a source path first");
+        return;
+      }
+
+      const alreadyConnected = graphSnapshot.edges.some((edge) => {
+        if (edge.source !== sourceNodeId) return false;
+
+        return (
+          resolveSourceHandleId(sourceNode, edge.sourceHandle) ===
+          resolvedSourceHandle
+        );
+      });
+
+      if (alreadyConnected) {
+        setStatus("This path is already connected");
+        return;
+      }
+
+      setNodeAddPicker({
+        sourceHandle: resolvedSourceHandle,
+        sourceNodeId,
+      });
+      setNodeAddSearch("");
+      setStatus("Choose the next node");
+    },
+    [graphSnapshot],
+  );
+  const builderNodeTypes = useMemo(
+    () => ({
+      automationNode: (props: NodeProps<AutomationFlowNode>) => (
+        <NodeRenderer
+          {...props}
+          connectedSourceHandles={connectedSourceHandlesByNode.get(props.id)}
+          onAddFromHandle={canEdit ? openNodeAddPicker : undefined}
+        />
+      ),
+    }),
+    [canEdit, connectedSourceHandlesByNode, openNodeAddPicker],
+  );
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      if (!canEdit) {
+        setStatus("Read-only mode: editing is not available");
+        return;
+      }
+
       if (!connection.source || !connection.target) return;
 
       const check = canCreateConnection({
@@ -546,10 +871,11 @@ export default function AutomationBuilder({
         targetHandle: check.targetHandle,
       };
 
+      commitHistory();
       setEdges((currentEdges) => addEdge(edge, currentEdges));
       setStatus("Connection added");
     },
-    [graphSnapshot, setEdges],
+    [canEdit, commitHistory, graphSnapshot, setEdges],
   );
 
   function selectNode(nodeId: string) {
@@ -590,6 +916,47 @@ export default function AutomationBuilder({
     setEdges(normalizedGraph.edges.map(toFlowEdge));
     setSelectedNodeId(null);
     setIsDrawerOpen(false);
+    setNodeAddPicker(null);
+    setNodeAddSearch("");
+  }
+
+  function undoGraph() {
+    if (!canUndo) {
+      setStatus("Nothing to undo");
+      return;
+    }
+
+    const previousGraph = historyState.past.at(-1);
+    if (!previousGraph) return;
+
+    setHistoryState((current) => ({
+      future: [cloneGraph(graphSnapshot), ...current.future].slice(
+        0,
+        MAX_GRAPH_HISTORY,
+      ),
+      past: current.past.slice(0, -1),
+    }));
+    applyGraphToCanvas(previousGraph);
+    setStatus("Undo");
+  }
+
+  function redoGraph() {
+    if (!canRedo) {
+      setStatus("Nothing to redo");
+      return;
+    }
+
+    const nextGraph = historyState.future[0];
+    if (!nextGraph) return;
+
+    setHistoryState((current) => ({
+      future: current.future.slice(1),
+      past: [...current.past, cloneGraph(graphSnapshot)].slice(
+        -MAX_GRAPH_HISTORY,
+      ),
+    }));
+    applyGraphToCanvas(nextGraph);
+    setStatus("Redo");
   }
 
   async function saveDraftToServer(showStatus = true) {
@@ -626,6 +993,8 @@ export default function AutomationBuilder({
         status: data.flow.status,
         updatedAt: data.flow.updatedAt,
       }));
+      setLastSavedGraphKey(graphKey);
+      setLastSavedAt(data.flow.updatedAt);
 
       if (showStatus) {
         setStatus(
@@ -647,6 +1016,11 @@ export default function AutomationBuilder({
   }
 
   function saveDraft() {
+    if (!canEdit) {
+      setStatus("Read-only mode: editing is not available");
+      return;
+    }
+
     void saveDraftToServer();
   }
 
@@ -745,8 +1119,15 @@ export default function AutomationBuilder({
   function handleRollback(result: AutomationRollbackResult) {
     const normalizedGraph = normalizeAutomationGraph(result.graph);
 
+    commitHistory();
     applyGraphToCanvas(normalizedGraph);
     setPublishedGraph(normalizedGraph);
+    setHistoryState({
+      future: [],
+      past: [],
+    });
+    setLastSavedGraphKey(graphFingerprint(normalizedGraph));
+    setLastSavedAt(new Date().toISOString());
     setFlowState((current) => ({
       ...current,
       currentVersionNumber: result.version.versionNumber,
@@ -760,20 +1141,14 @@ export default function AutomationBuilder({
   }
 
   function addNode(type: AutomationNodeType) {
-    const id = createId(`node_${type.toLowerCase()}`);
-    const data = createDefaultNodeData(type);
-    const node: AutomationFlowNode = {
-      data: {
-        ...data,
-        label: data.label || getAutomationNodeLabel(type),
-        nodeType: type,
-      },
-      id,
-      position: calculateNewPosition(nodes.length + 1),
-      selected: true,
-      type: "automationNode",
-    };
+    if (!canEdit) {
+      setStatus("Read-only mode: editing is not available");
+      return;
+    }
 
+    const node = createFlowNode(type, calculateNewPosition(nodes.length + 1));
+
+    commitHistory();
     setNodes((currentNodes) => [
       ...currentNodes.map((currentNode) => ({
         ...currentNode,
@@ -781,12 +1156,108 @@ export default function AutomationBuilder({
       })),
       node,
     ]);
-    setSelectedNodeId(id);
+    setSelectedNodeId(node.id);
     setIsDrawerOpen(true);
     setStatus(`${getAutomationNodeLabel(type)} added`);
   }
 
+  function addConnectedNode(type: AutomationNodeType) {
+    if (!nodeAddPicker) return;
+
+    if (!canEdit) {
+      setStatus("Read-only mode: editing is not available");
+      return;
+    }
+
+    if (!isAutomationNodeTypeEnabled(type)) {
+      setStatus(`${getAutomationNodeLabel(type)} is not enabled`);
+      return;
+    }
+
+    if (planLimits?.allowedNodes && !planLimits.allowedNodes.includes(type)) {
+      setLockedModalNodeType(type);
+      return;
+    }
+
+    const sourceNode = nodes.find(
+      (node) => node.id === nodeAddPicker.sourceNodeId,
+    );
+    if (!sourceNode) {
+      setStatus("Source node was removed");
+      setNodeAddPicker(null);
+      return;
+    }
+
+    const newNode = createFlowNode(
+      type,
+      calculateConnectedPosition({
+        existingNodes: nodes,
+        sourceHandle: nodeAddPicker.sourceHandle,
+        sourceNode,
+      }),
+    );
+    const prospectiveGraph: AutomationGraph = {
+      ...graphSnapshot,
+      nodes: [...graphSnapshot.nodes, toGraphNode(newNode)],
+    };
+    const check = canCreateConnection({
+      graph: prospectiveGraph,
+      source: sourceNode.id,
+      sourceHandle: nodeAddPicker.sourceHandle,
+      target: newNode.id,
+      targetHandle: "input",
+    });
+
+    if (!check.allowed) {
+      setStatus(check.reason);
+      return;
+    }
+
+    const edge: Edge = {
+      id: createId("edge"),
+      label: check.label,
+      markerEnd: {
+        color: "#128C7E",
+        type: MarkerType.ArrowClosed,
+      },
+      source: sourceNode.id,
+      sourceHandle: check.sourceHandle,
+      style: {
+        stroke: "#128C7E",
+        strokeWidth: 2,
+      },
+      target: newNode.id,
+      targetHandle: check.targetHandle,
+    };
+
+    commitHistory();
+    setNodes((currentNodes) => [
+      ...currentNodes.map((node) => ({
+        ...node,
+        selected: false,
+      })),
+      newNode,
+    ]);
+    setEdges((currentEdges) => addEdge(edge, currentEdges));
+    setSelectedNodeId(newNode.id);
+    setIsDrawerOpen(true);
+    setNodeAddPicker(null);
+    setNodeAddSearch("");
+    setStatus(
+      `${getAutomationNodeLabel(type)} added on ${check.label ?? "next"} path`,
+    );
+    flowInstance?.setCenter(newNode.position.x + 124, newNode.position.y + 80, {
+      duration: 420,
+      zoom: 1,
+    });
+  }
+
   function saveNode(nodeId: string, data: AutomationNodeData) {
+    if (!canEdit) {
+      setStatus("Read-only mode: editing is not available");
+      return;
+    }
+
     const currentNode = nodes.find((node) => node.id === nodeId);
     const updatedNode = currentNode
       ? {
@@ -800,6 +1271,7 @@ export default function AutomationBuilder({
       : null;
     const updatedGraphNode = updatedNode ? toGraphNode(updatedNode) : null;
 
+    commitHistory();
     setNodes((currentNodes) =>
       currentNodes.map((node) =>
         node.id === nodeId
@@ -857,6 +1329,12 @@ export default function AutomationBuilder({
   }
 
   function deleteNode(nodeId: string) {
+    if (!canEdit) {
+      setStatus("Read-only mode: editing is not available");
+      return;
+    }
+
+    commitHistory();
     setNodes((currentNodes) =>
       currentNodes.filter((node) => node.id !== nodeId),
     );
@@ -871,6 +1349,11 @@ export default function AutomationBuilder({
   }
 
   function duplicateNode(nodeId: string) {
+    if (!canEdit) {
+      setStatus("Read-only mode: editing is not available");
+      return;
+    }
+
     const sourceNode = nodes.find((node) => node.id === nodeId);
     if (!sourceNode) return;
 
@@ -889,6 +1372,7 @@ export default function AutomationBuilder({
       selected: true,
     };
 
+    commitHistory();
     setNodes((currentNodes) => [
       ...currentNodes.map((node) => ({
         ...node,
@@ -901,18 +1385,150 @@ export default function AutomationBuilder({
     setStatus("Node duplicated");
   }
 
+  function requestDeleteSelectedNode() {
+    if (!canEdit) {
+      setStatus("Read-only mode: editing is not available");
+      return;
+    }
+
+    if (!selectedNode) {
+      setStatus("Select a node first");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${selectedNode.data.label}" from this automation graph?`,
+    );
+
+    if (confirmed) {
+      deleteNode(selectedNode.id);
+    }
+  }
+
+  function duplicateSelectedNode() {
+    if (!canEdit) {
+      setStatus("Read-only mode: editing is not available");
+      return;
+    }
+
+    if (!selectedNode) {
+      setStatus("Select a node first");
+      return;
+    }
+
+    duplicateNode(selectedNode.id);
+  }
+
+  const onNodeDragStart = useCallback(() => {
+    if (!canEdit) return;
+
+    dragStartGraphRef.current = cloneGraph(graphSnapshot);
+  }, [canEdit, graphSnapshot]);
+
+  const onNodeDragStop = useCallback(() => {
+    const startGraph = dragStartGraphRef.current;
+    dragStartGraphRef.current = null;
+
+    if (!canEdit || !startGraph) return;
+
+    if (graphFingerprint(startGraph) !== graphFingerprint(graphSnapshot)) {
+      commitHistory(startGraph);
+      setStatus("Node moved");
+    }
+  }, [canEdit, commitHistory, graphSnapshot]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isModifier = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+      const editingText = isTextEditingTarget(event.target);
+
+      if (event.key === "Escape") {
+        setNodeAddPicker(null);
+        setIsDrawerOpen(false);
+        return;
+      }
+
+      if (isModifier && key === "s") {
+        event.preventDefault();
+        saveDraft();
+        return;
+      }
+
+      if (isModifier && key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) {
+          redoGraph();
+        } else {
+          undoGraph();
+        }
+        return;
+      }
+
+      if (isModifier && key === "y") {
+        event.preventDefault();
+        redoGraph();
+        return;
+      }
+
+      if (editingText) return;
+
+      if (isModifier && key === "d") {
+        event.preventDefault();
+        duplicateSelectedNode();
+        return;
+      }
+
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        requestDeleteSelectedNode();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  });
+
+  const isFullscreen = layout === "fullscreen";
+  const shouldShowDrawer = isDrawerOpen && Boolean(selectedNode);
+  const builderShellClass = isFullscreen
+    ? [
+        "grid h-full min-h-0 grid-cols-1 gap-3 overflow-y-auto p-3 xl:overflow-hidden",
+        shouldShowDrawer
+          ? "xl:grid-cols-[220px_minmax(0,1fr)_400px]"
+          : "xl:grid-cols-[220px_minmax(0,1fr)]",
+      ].join(" ")
+    : [
+        "grid gap-5",
+        shouldShowDrawer
+          ? "xl:grid-cols-[260px_minmax(0,1fr)_430px]"
+          : "xl:grid-cols-[260px_minmax(0,1fr)]",
+      ].join(" ");
+  const paletteColumnClass = isFullscreen
+    ? "max-h-72 min-h-0 overflow-hidden xl:h-full xl:max-h-none"
+    : "w-80 shrink-0";
+  const canvasFrameClass = isFullscreen
+    ? "flex min-h-[680px] flex-col overflow-hidden rounded-2xl border border-[#BFE9D0] bg-[#F7FBFF] shadow-[0_18px_44px_rgba(8,27,58,0.08)] xl:h-full xl:min-h-0"
+    : "min-w-0 overflow-hidden rounded-2xl border border-[#BFE9D0] bg-[#F7FBFF] shadow-[0_18px_44px_rgba(8,27,58,0.08)]";
+  const canvasViewportClass = isFullscreen ? "min-h-0 flex-1" : "h-[720px]";
+
   return (
     <ReactFlowProvider>
-      <section className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_430px]">
-        <div className="w-80 shrink-0">
+      <section className={builderShellClass}>
+        <div className={paletteColumnClass}>
           <NodePalette
             onAddNode={addNode}
             allowedNodes={planLimits?.allowedNodes}
+            disabled={!canEdit}
             onLockedNodeClick={(nodeType) => setLockedModalNodeType(nodeType)}
+            variant={isFullscreen ? "compact" : "default"}
           />
         </div>
 
-        <div className="min-w-0 overflow-hidden rounded-2xl border border-[#BFE9D0] bg-[#F7FBFF] shadow-[0_18px_44px_rgba(8,27,58,0.08)]">
+        <div className={canvasFrameClass}>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#BFE9D0] bg-white px-5 py-4">
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#E7F8EF] text-[#128C7E]">
@@ -978,6 +1594,28 @@ export default function AutomationBuilder({
                   ? "Valid flow"
                   : `${validation.errors.length} errors, ${validation.warnings.length} warnings`}
               </span>
+              {!canEdit ? (
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                  <Lock className="mr-1.5 h-3.5 w-3.5" />
+                  Read-only
+                </span>
+              ) : null}
+              <span
+                className={[
+                  "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                  hasUnsavedDraftChanges
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-[#E7F8EF] text-[#128C7E]",
+                ].join(" ")}
+                title={lastSavedAt ? `Last saved ${lastSavedAt}` : undefined}
+              >
+                {hasUnsavedDraftChanges ? (
+                  <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
+                ) : (
+                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {saveStateLabel}
+              </span>
               {usageSummary ? (
                 <>
                   <span className="inline-flex items-center rounded-full bg-[#E7F8EF] px-3 py-1 text-xs font-semibold text-[#128C7E]">
@@ -996,10 +1634,53 @@ export default function AutomationBuilder({
                   </span>
                 </>
               ) : null}
+              <div className="flex items-center rounded-xl border border-[#BFE9D0] bg-white p-1">
+                <button
+                  className="grid h-8 w-8 place-items-center rounded-lg text-[#128C7E] transition hover:bg-[#E7F8EF] disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={!canUndo}
+                  onClick={undoGraph}
+                  title="Undo (Ctrl+Z)"
+                  type="button"
+                >
+                  <Undo2 className="h-4 w-4" />
+                </button>
+                <button
+                  className="grid h-8 w-8 place-items-center rounded-lg text-[#128C7E] transition hover:bg-[#E7F8EF] disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={!canRedo}
+                  onClick={redoGraph}
+                  title="Redo (Ctrl+Y)"
+                  type="button"
+                >
+                  <Redo2 className="h-4 w-4" />
+                </button>
+              </div>
+              {selectedNode ? (
+                <div className="flex items-center rounded-xl border border-[#BFE9D0] bg-white p-1">
+                  <button
+                    className="grid h-8 w-8 place-items-center rounded-lg text-[#128C7E] transition hover:bg-[#E7F8EF] disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={!canEdit}
+                    onClick={duplicateSelectedNode}
+                    title="Duplicate selected node (Ctrl+D)"
+                    type="button"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                  <button
+                    className="grid h-8 w-8 place-items-center rounded-lg text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={!canEdit}
+                    onClick={requestDeleteSelectedNode}
+                    title="Delete selected node (Delete)"
+                    type="button"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
               <button
                 className="inline-flex items-center rounded-xl border border-[#BFE9D0] bg-white px-3 py-2 text-xs font-semibold text-[#128C7E] transition hover:bg-[#E7F8EF] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isSavingDraft}
+                disabled={!canEdit || isSavingDraft || !hasUnsavedDraftChanges}
                 onClick={saveDraft}
+                title="Save draft (Ctrl+S)"
                 type="button"
               >
                 <Save className="mr-1.5 h-3.5 w-3.5" />
@@ -1123,7 +1804,7 @@ export default function AutomationBuilder({
             </div>
           )}
 
-          <div className="h-[720px]">
+          <div className={canvasViewportClass}>
             <ReactFlow
               colorMode="light"
               defaultEdgeOptions={{
@@ -1144,7 +1825,7 @@ export default function AutomationBuilder({
                 padding: 0.24,
               }}
               minZoom={0.35}
-              nodeTypes={nodeTypes}
+              nodeTypes={builderNodeTypes}
               nodes={nodesWithValidation}
               nodesDraggable={canEdit}
               nodesConnectable={canEdit}
@@ -1152,6 +1833,8 @@ export default function AutomationBuilder({
               onInit={setFlowInstance}
               onConnect={onConnect}
               onEdgesChange={onEdgesChange}
+              onNodeDragStart={onNodeDragStart}
+              onNodeDragStop={onNodeDragStop}
               onNodeClick={onNodeClick}
               onNodesChange={onNodesChange}
               proOptions={{
@@ -1182,19 +1865,105 @@ export default function AutomationBuilder({
                   {status}
                 </div>
               </ReactFlowPanel>
+              {nodeAddPicker ? (
+                <ReactFlowPanel position="top-right">
+                  <div className="w-[min(360px,calc(100vw-2rem))] rounded-2xl border border-[#BFE9D0] bg-white p-3 shadow-[0_22px_60px_rgba(8,27,58,0.18)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold uppercase tracking-normal text-[#128C7E]">
+                          Add next node
+                        </p>
+                        <p className="mt-1 truncate text-sm font-bold text-[#081B3A]">
+                          {nodeAddContext?.sourceLabel ?? "Selected path"}
+                        </p>
+                        <p className="mt-0.5 text-xs text-[#526173]">
+                          Path: {nodeAddContext?.sourcePathLabel ?? "Next"}
+                        </p>
+                      </div>
+                      <button
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-[#BFE9D0] text-[#128C7E] transition hover:bg-[#E7F8EF]"
+                        onClick={() => setNodeAddPicker(null)}
+                        type="button"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <label className="mt-3 flex items-center gap-2 rounded-xl border border-[#BFE9D0] bg-[#F8FCFA] px-3 py-2 text-sm text-[#081B3A]">
+                      <Search className="h-4 w-4 shrink-0 text-[#526173]" />
+                      <input
+                        autoFocus
+                        className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#8A94A6]"
+                        onChange={(event) => setNodeAddSearch(event.target.value)}
+                        placeholder="Search nodes"
+                        value={nodeAddSearch}
+                      />
+                    </label>
+
+                    <div className="mt-3 max-h-[420px] space-y-1 overflow-y-auto pr-1">
+                      {filteredNodeAddTypes.length > 0 ? (
+                        filteredNodeAddTypes.map((type) => {
+                          const isFeatureEnabled =
+                            isAutomationNodeTypeEnabled(type);
+                          const isPlanAllowed = planLimits?.allowedNodes
+                            ? planLimits.allowedNodes.includes(type)
+                            : true;
+                          const isAvailable = isFeatureEnabled && isPlanAllowed;
+
+                          return (
+                            <button
+                              className={[
+                                "flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition",
+                                isAvailable
+                                  ? "border-transparent hover:border-[#BFE9D0] hover:bg-[#E7F8EF]"
+                                  : "border-slate-100 bg-slate-50 text-slate-400",
+                              ].join(" ")}
+                              key={type}
+                              onClick={() => addConnectedNode(type)}
+                              type="button"
+                            >
+                              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#E7F8EF] text-[#128C7E]">
+                                <PlusCircle className="h-4 w-4" />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-bold text-[#081B3A]">
+                                  {getAutomationNodeLabel(type)}
+                                </span>
+                                <span className="mt-0.5 block truncate text-xs text-[#526173]">
+                                  {isFeatureEnabled
+                                    ? getAutomationNodeDescription(type)
+                                    : "This node is not enabled"}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-[#BFE9D0] p-4 text-sm text-[#526173]">
+                          No matching nodes found.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </ReactFlowPanel>
+              ) : null}
             </ReactFlow>
           </div>
         </div>
 
-        <NodeEditingDrawer
-          isOpen={isDrawerOpen}
-          node={selectedNode}
-          nodes={nodes}
-          onClose={() => setIsDrawerOpen(false)}
-          onDelete={deleteNode}
-          onDuplicate={duplicateNode}
-          onSave={saveNode}
-        />
+        {shouldShowDrawer ? (
+          <NodeEditingDrawer
+            isOpen={isDrawerOpen}
+            layout={layout}
+            node={selectedNode}
+            nodes={nodes}
+            onClose={() => setIsDrawerOpen(false)}
+            onDelete={deleteNode}
+            onDuplicate={duplicateNode}
+            onSave={saveNode}
+            readOnly={!canEdit}
+          />
+        ) : null}
       </section>
 
       <AutomationTestPanel
@@ -1334,6 +2103,7 @@ export default function AutomationBuilder({
         </div>
       ) : null}
 
+      {!isFullscreen ? (
       <div className="mt-5 rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_14px_34px_rgba(8,27,58,0.07)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -1375,6 +2145,7 @@ export default function AutomationBuilder({
           {JSON.stringify(graphSnapshot, null, 2)}
         </pre>
       </div>
+      ) : null}
       <RequestPublishModal
         isOpen={isRequestModalOpen}
         onClose={() => setIsRequestModalOpen(false)}

@@ -122,7 +122,7 @@ export default async function AutomationAlertDetailPage({
                 Flow:{" "}
                 <Link
                   className="font-semibold text-[#128C7E]"
-                  href={`/dashboard/automation/builder/${alert.flow.id}`}
+                  href={`/automation/builder/${alert.flow.id}`}
                 >
                   {alert.flow.name}
                 </Link>

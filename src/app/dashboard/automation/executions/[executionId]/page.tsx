@@ -120,7 +120,7 @@ export default async function AutomationExecutionDetailPage({
               All executions
             </Link>
             <Link
-              href={`/dashboard/automation/builder/${detail.execution.flowId}`}
+              href={`/automation/builder/${detail.execution.flowId}`}
               className={actionButtonClass("secondary")}
             >
               Open builder

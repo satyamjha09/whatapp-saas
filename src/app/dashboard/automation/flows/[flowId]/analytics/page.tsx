@@ -114,7 +114,7 @@ export default async function FlowAnalyticsPage({
         actions={
           <>
             <Link
-              href={`/dashboard/automation/builder/${flowId}`}
+              href={`/automation/builder/${flowId}`}
               className={actionButtonClass("secondary")}
             >
               View Builder

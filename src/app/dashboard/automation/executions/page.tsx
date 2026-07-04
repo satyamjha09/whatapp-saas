@@ -122,7 +122,7 @@ export default async function AutomationExecutionsPage({
         actions={
           <>
             <Link
-              href="/dashboard/automation/builder"
+              href="/automation/builder"
               className={actionButtonClass("secondary")}
             >
               Open Builder

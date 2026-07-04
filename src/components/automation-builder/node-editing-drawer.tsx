@@ -41,12 +41,14 @@ import {
 
 type NodeEditingDrawerProps = {
   isOpen: boolean;
+  layout?: "dashboard" | "fullscreen";
   node: AutomationFlowNode | null;
   nodes: AutomationFlowNode[];
   onClose: () => void;
   onDelete: (nodeId: string) => void;
   onDuplicate: (nodeId: string) => void;
   onSave: (nodeId: string, data: AutomationNodeData) => void;
+  readOnly?: boolean;
 };
 
 type NodeEditingDrawerContentProps = Omit<
@@ -389,16 +391,26 @@ function stringifyArray(value: unknown) {
 
 export default function NodeEditingDrawer({
   isOpen,
+  layout = "dashboard",
   node,
   nodes,
   onClose,
   onDelete,
   onDuplicate,
   onSave,
+  readOnly = false,
 }: NodeEditingDrawerProps) {
+  const isFullscreen = layout === "fullscreen";
+
   if (!isOpen || !node) {
     return (
-      <aside className="w-full rounded-2xl border border-dashed border-[#BFE9D0] bg-white/80 p-5 text-sm leading-6 text-[#526173] shadow-[0_14px_34px_rgba(8,27,58,0.06)] xl:w-[420px] xl:shrink-0">
+      <aside
+        className={
+          isFullscreen
+            ? "h-full min-h-0 w-full rounded-2xl border border-dashed border-[#BFE9D0] bg-white/80 p-5 text-sm leading-6 text-[#526173] shadow-[0_14px_34px_rgba(8,27,58,0.06)]"
+            : "w-full rounded-2xl border border-dashed border-[#BFE9D0] bg-white/80 p-5 text-sm leading-6 text-[#526173] shadow-[0_14px_34px_rgba(8,27,58,0.06)] xl:w-[420px] xl:shrink-0"
+        }
+      >
         Click a node on the canvas to edit its label and configuration.
       </aside>
     );
@@ -407,28 +419,33 @@ export default function NodeEditingDrawer({
   return (
     <NodeEditingDrawerContent
       key={node.id}
+      layout={layout}
       node={node}
       nodes={nodes}
       onClose={onClose}
       onDelete={onDelete}
       onDuplicate={onDuplicate}
       onSave={onSave}
+      readOnly={readOnly}
     />
   );
 }
 
 function NodeEditingDrawerContent({
+  layout = "dashboard",
   node,
   nodes,
   onClose,
   onDelete,
   onDuplicate,
   onSave,
+  readOnly = false,
 }: NodeEditingDrawerContentProps) {
   const [draft, setDraft] = useState<AutomationEditableNodeData>(() =>
     createDraft(node),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const isFullscreen = layout === "fullscreen";
 
   const drawerTitle = useMemo(
     () => `${getAutomationNodeLabel(node.data.nodeType)} settings`,
@@ -436,6 +453,10 @@ function NodeEditingDrawerContent({
   );
 
   function saveNode() {
+    if (readOnly) {
+      return;
+    }
+
     const nextErrors = validateNode(node.data.nodeType, draft);
     setErrors(nextErrors);
 
@@ -457,6 +478,10 @@ function NodeEditingDrawerContent({
   }
 
   function deleteNode() {
+    if (readOnly) {
+      return;
+    }
+
     const confirmed = window.confirm(
       `Delete "${node.data.label}" from this automation graph?`,
     );
@@ -467,7 +492,13 @@ function NodeEditingDrawerContent({
   }
 
   return (
-    <aside className="flex max-h-[720px] w-full flex-col overflow-hidden rounded-2xl border border-[#BFE9D0] bg-white shadow-[0_18px_44px_rgba(8,27,58,0.10)] xl:w-[430px] xl:shrink-0">
+    <aside
+      className={
+        isFullscreen
+          ? "flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-[#BFE9D0] bg-white shadow-[0_18px_44px_rgba(8,27,58,0.10)]"
+          : "flex max-h-[720px] w-full flex-col overflow-hidden rounded-2xl border border-[#BFE9D0] bg-white shadow-[0_18px_44px_rgba(8,27,58,0.10)] xl:w-[430px] xl:shrink-0"
+      }
+    >
       <div className="flex items-start justify-between gap-4 border-b border-[#BFE9D0] p-5">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-normal text-[#128C7E]">
@@ -487,7 +518,10 @@ function NodeEditingDrawerContent({
         </button>
       </div>
 
-      <div className="flex-1 space-y-5 overflow-y-auto p-5">
+      <fieldset
+        className="flex-1 space-y-5 overflow-y-auto p-5 disabled:opacity-75"
+        disabled={readOnly}
+      >
         <label className="block">
           <span className={labelClass}>Node label</span>
           <input
@@ -823,12 +857,18 @@ function NodeEditingDrawerContent({
             />
           </label>
         ) : null}
-      </div>
+      </fieldset>
 
       <div className="border-t border-[#BFE9D0] bg-[#F8FCFA] p-5">
+        {readOnly ? (
+          <p className="mb-3 rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] px-3 py-2 text-xs font-semibold text-[#128C7E]">
+            Read-only mode. You can inspect this node, but editing is disabled.
+          </p>
+        ) : null}
         <div className="grid gap-2 sm:grid-cols-2">
           <button
             className={actionButtonClass()}
+            disabled={readOnly}
             onClick={saveNode}
             type="button"
           >
@@ -837,6 +877,7 @@ function NodeEditingDrawerContent({
           </button>
           <button
             className={actionButtonClass("secondary")}
+            disabled={readOnly}
             onClick={() => onDuplicate(node.id)}
             type="button"
           >
@@ -846,6 +887,7 @@ function NodeEditingDrawerContent({
         </div>
         <button
           className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+          disabled={readOnly}
           onClick={deleteNode}
           type="button"
         >
