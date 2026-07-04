@@ -3,6 +3,7 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import {
   getOrCreateWallet,
   getWalletTransactions,
+  isManualWalletTopUpEnabled,
   topUpWallet,
 } from "@/server/services/wallet.service";
 import { topUpWalletSchema } from "@/server/validators/wallet.validator";
@@ -64,6 +65,16 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         { message: "You do not have permission to top up wallet" },
+        { status: 403 },
+      );
+    }
+
+    if (!isManualWalletTopUpEnabled()) {
+      return NextResponse.json(
+        {
+          message:
+            "Manual wallet top-up is disabled in production. Use verified billing checkout or a platform-approved adjustment.",
+        },
         { status: 403 },
       );
     }

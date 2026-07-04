@@ -13,6 +13,7 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import {
   getOrCreateWallet,
   getWalletTransactions,
+  isManualWalletTopUpEnabled,
 } from "@/server/services/wallet.service";
 import WalletTopupForm from "./wallet-topup-form";
 
@@ -40,6 +41,7 @@ export default async function WalletPage() {
     getOrCreateWallet(companyId),
     getWalletTransactions(companyId),
   ]);
+  const manualTopUpEnabled = isManualWalletTopUpEnabled();
 
   const credits = transactions
     .filter((transaction) => transaction.type === "CREDIT")
@@ -78,7 +80,21 @@ export default async function WalletPage() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-        <WalletTopupForm />
+        {manualTopUpEnabled ? (
+          <WalletTopupForm />
+        ) : (
+          <Panel>
+            <PanelTitle
+              title="Wallet recharge"
+              description="Manual test top-ups are disabled in production."
+            />
+
+            <p className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-slate-600">
+              Use verified billing checkout or a platform-approved adjustment
+              before sending chargeable WhatsApp messages.
+            </p>
+          </Panel>
+        )}
 
         <Panel>
           <PanelTitle

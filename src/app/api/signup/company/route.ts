@@ -73,6 +73,17 @@ export async function POST(request: Request) {
         },
       });
 
+      await prisma.wallet.upsert({
+        where: {
+          companyId: existingOwnerCompany.companyId,
+        },
+        create: {
+          companyId: existingOwnerCompany.companyId,
+          balancePaise: 0,
+        },
+        update: {},
+      });
+
       return NextResponse.json({
         ok: true,
         company: existingOwnerCompany.company,
@@ -109,6 +120,13 @@ export async function POST(request: Request) {
           companyId: company.id,
           userId: user.id,
           role: "OWNER",
+        },
+      });
+
+      await tx.wallet.create({
+        data: {
+          companyId: company.id,
+          balancePaise: 0,
         },
       });
 

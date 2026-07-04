@@ -34,6 +34,13 @@ export async function getWalletTransactions(companyId: string) {
   });
 }
 
+export function isManualWalletTopUpEnabled() {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.WALLET_MANUAL_TOPUP_ENABLED === "true"
+  );
+}
+
 export async function topUpWallet(companyId: string, input: TopUpWalletInput) {
   const result = await prisma.$transaction(async (tx) => {
     const wallet = await tx.wallet.upsert({
