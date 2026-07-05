@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { createAuditLog } from "@/server/services/audit.service";
 import {
+  CompanyOnboardingStateError,
+  completeCompanyOnboardingIfReady,
+} from "@/server/services/company-onboarding-state.service";
+import {
   getWhatsAppSettingsByCompany,
   updateWhatsAppSettings,
 } from "@/server/services/whatsapp-settings.service";
@@ -107,9 +111,26 @@ export async function PATCH(request: Request) {
       },
     });
 
+    let onboardingCompleted = false;
+
+    if (context.membership.company.status === "PENDING_ONBOARDING") {
+      try {
+        await completeCompanyOnboardingIfReady({
+          actorUserId: context.user.id,
+          companyId: context.membership.companyId,
+        });
+        onboardingCompleted = true;
+      } catch (error) {
+        if (!(error instanceof CompanyOnboardingStateError)) {
+          throw error;
+        }
+      }
+    }
+
     return NextResponse.json({
       message: "WhatsApp settings saved successfully",
       settings,
+      onboardingCompleted,
     });
   } catch (error) {
     console.error("UPDATE_WHATSAPP_SETTINGS_ERROR:", error);

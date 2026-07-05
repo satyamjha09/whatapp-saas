@@ -1,5 +1,7 @@
 import axios from "axios";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { companyOnboardingStateCacheTag } from "@/server/cache-tags";
 import {
   decryptSecret,
   encryptSecret,
@@ -200,6 +202,8 @@ export async function updateWhatsAppSettings(
       });
     }
   });
+
+  revalidateTag(companyOnboardingStateCacheTag(companyId), "max");
 
   return getWhatsAppSettingsByCompany(companyId);
 }

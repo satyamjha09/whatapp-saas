@@ -186,7 +186,6 @@ export async function subscribeAppToWabaWebhooks(
 
 export async function exchangeEmbeddedSignupCodeForToken(
   code: string,
-  redirectUri?: string | null,
 ) {
   const appId = process.env.NEXT_PUBLIC_META_APP_ID;
   const appSecret = process.env.META_APP_SECRET;
@@ -204,9 +203,6 @@ export async function exchangeEmbeddedSignupCodeForToken(
   url.searchParams.set("client_id", appId);
   url.searchParams.set("client_secret", appSecret);
   url.searchParams.set("code", code);
-  if (redirectUri) {
-    url.searchParams.set("redirect_uri", redirectUri);
-  }
 
   const response = await fetch(url, {
     method: "GET",
@@ -584,18 +580,13 @@ export async function completeWhatsAppEmbeddedSignup(
         wabaId: input.wabaId,
         phoneNumberId: input.phoneNumberId,
         payload: {
-          tokenExchangeStrategy: input.redirectUri
-            ? "embedded_signup_js_sdk_exact_dialog_redirect_uri"
-            : "embedded_signup_js_sdk_without_redirect_uri",
+          tokenExchangeStrategy: "embedded_signup_js_sdk_without_redirect_uri",
           deprecatedRedirectUriReceived: Boolean(input.redirectUri),
         },
       },
     });
 
-    const accessToken = await exchangeEmbeddedSignupCodeForToken(
-      input.code,
-      input.redirectUri,
-    );
+    const accessToken = await exchangeEmbeddedSignupCodeForToken(input.code);
     let resolvedWabaId = input.wabaId;
     let resolvedPhoneNumberId = input.phoneNumberId;
     let phoneDetails: MetaPhoneNumberDetails[];

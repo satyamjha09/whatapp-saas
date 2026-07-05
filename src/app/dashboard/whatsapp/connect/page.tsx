@@ -1,7 +1,9 @@
 import {
+  AlertTriangle,
   ArrowLeft,
   Building2,
   ClipboardCheck,
+  KeyRound,
   LockKeyhole,
   PhoneCall,
   ShieldCheck,
@@ -14,6 +16,8 @@ import {
   Panel,
 } from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { getWhatsAppSettingsByCompany } from "@/server/services/whatsapp-settings.service";
+import WhatsAppSettingsForm from "../whatsapp-settings-form";
 import MetaEmbeddedSignupButton from "./meta-embedded-signup-button";
 
 const embeddedSignupPreview = [
@@ -49,6 +53,9 @@ export default async function WhatsAppConnectPage() {
     context.membership.role === "OWNER" ||
     context.membership.role === "ADMIN";
   const graphVersion = process.env.WHATSAPP_API_VERSION ?? "v25.0";
+  const settings = await getWhatsAppSettingsByCompany(
+    context.membership.companyId,
+  );
 
   return (
     <div>
@@ -128,6 +135,39 @@ export default async function WhatsAppConnectPage() {
           )}
         </div>
       </Panel>
+
+      {canManage ? (
+        <Panel>
+          <div className="grid gap-6 xl:grid-cols-[0.9fr_1.4fr] xl:items-start">
+            <div>
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#FFF7ED] text-[#C2410C]">
+                <KeyRound className="h-6 w-6" />
+              </div>
+              <h2 className="mt-4 text-lg font-bold text-[#081B3A]">
+                Manual Cloud API setup
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#526173]">
+                Use this fallback when Meta blocks Embedded Signup with a BSP or
+                Tech Provider message. Save the customer&apos;s numeric WABA ID,
+                phone number ID, display number, and a valid Cloud API access
+                token.
+              </p>
+              <div className="mt-5 rounded-xl border border-[#FED7AA] bg-[#FFF7ED] p-4 text-sm leading-6 text-[#9A3412]">
+                <div className="flex gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p>
+                    This does not remove Meta&apos;s partner gate for the
+                    official popup. It lets verified businesses connect manually
+                    while your metawhat app completes Meta Tech Provider access.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <WhatsAppSettingsForm settings={settings} canManage={canManage} />
+          </div>
+        </Panel>
+      ) : null}
     </div>
   );
 }
