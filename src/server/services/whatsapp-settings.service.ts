@@ -8,8 +8,87 @@ import {
   getActiveEncryptionKeyId,
 } from "@/server/security/secret-encryption";
 import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
-import { subscribeAppToWabaWebhooks } from "@/server/services/whatsapp-embedded-signup.service";
+import {
+  getMetaPhoneNumberDetails,
+  getMetaPhoneNumberStatus,
+  subscribeAppToWabaWebhooks,
+} from "@/server/services/whatsapp-embedded-signup.service";
 import { UpdateWhatsAppSettingsInput } from "@/server/validators/whatsapp-settings.validator";
+
+type MetaPhoneNumberStatus = Awaited<
+  ReturnType<typeof getMetaPhoneNumberStatus>
+>;
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function trimErrorMessage(message: string) {
+  return message.length > 220 ? `${message.slice(0, 217)}...` : message;
+}
+
+async function validateManualCloudApiConnection({
+  accessToken,
+  displayPhoneNumber,
+  phoneNumberId,
+  wabaId,
+}: {
+  accessToken: string;
+  displayPhoneNumber?: string;
+  phoneNumberId: string;
+  wabaId: string;
+}): Promise<MetaPhoneNumberStatus> {
+  try {
+    const wabaScopedPhone = await getMetaPhoneNumberDetails(
+      accessToken,
+      wabaId,
+      phoneNumberId,
+    );
+    let status: MetaPhoneNumberStatus = wabaScopedPhone;
+
+    try {
+      status = await getMetaPhoneNumberStatus(accessToken, phoneNumberId);
+    } catch {
+      status = wabaScopedPhone;
+    }
+
+    const resolvedDisplayPhoneNumber =
+      status.displayPhoneNumber ||
+      wabaScopedPhone.displayPhoneNumber ||
+      displayPhoneNumber?.trim() ||
+      "";
+
+    if (!resolvedDisplayPhoneNumber) {
+      throw new Error("Meta did not return a display phone number");
+    }
+
+    return {
+      ...wabaScopedPhone,
+      ...status,
+      displayPhoneNumber: resolvedDisplayPhoneNumber,
+      verifiedName: status.verifiedName ?? wabaScopedPhone.verifiedName,
+      qualityRating: status.qualityRating ?? wabaScopedPhone.qualityRating,
+      messagingLimitTier:
+        status.messagingLimitTier ?? wabaScopedPhone.messagingLimitTier,
+      numberType: status.numberType ?? wabaScopedPhone.numberType,
+      codeVerificationStatus:
+        status.codeVerificationStatus ??
+        wabaScopedPhone.codeVerificationStatus,
+      nameStatus: status.nameStatus ?? wabaScopedPhone.nameStatus,
+      platformType: status.platformType ?? wabaScopedPhone.platformType,
+      throughput: status.throughput ?? wabaScopedPhone.throughput,
+      healthStatus: status.healthStatus ?? wabaScopedPhone.healthStatus,
+      canSendMessage: status.canSendMessage ?? wabaScopedPhone.canSendMessage,
+    };
+  } catch (error) {
+    throw new Error(
+      `Meta validation failed: ${getErrorMessage(
+        error,
+        "Unable to validate WhatsApp credentials with Meta",
+      )}`,
+    );
+  }
+}
 
 export async function getWhatsAppSettingsByCompany(companyId: string) {
   const account = await prisma.whatsAppAccount.findFirst({
@@ -107,6 +186,19 @@ export async function updateWhatsAppSettings(
     throw new Error("Access token is required for first setup");
   }
 
+  const effectiveAccessToken = input.accessToken
+    ? input.accessToken
+    : existingAccount?.accessToken
+      ? decryptSecret({
+          encrypted: existingAccount.accessToken,
+          purpose: "whatsapp_access_token",
+        })
+      : "";
+
+  if (!effectiveAccessToken) {
+    throw new Error("Access token is required for first setup");
+  }
+
   const conflictingWaba = await prisma.whatsAppAccount.findFirst({
     where: {
       wabaId: input.wabaId,
@@ -140,6 +232,13 @@ export async function updateWhatsAppSettings(
       "Phone Number ID is already connected to another workspace",
     );
   }
+
+  const phoneStatus = await validateManualCloudApiConnection({
+    accessToken: effectiveAccessToken,
+    displayPhoneNumber: input.displayPhoneNumber,
+    phoneNumberId: input.phoneNumberId,
+    wabaId: input.wabaId,
+  });
 
   const encryptedToken = input.accessToken
     ? encryptSecret({
@@ -188,7 +287,19 @@ export async function updateWhatsAppSettings(
         },
         data: {
           phoneNumberId: input.phoneNumberId,
-          displayPhoneNumber: input.displayPhoneNumber,
+          displayPhoneNumber: phoneStatus.displayPhoneNumber,
+          verifiedName: phoneStatus.verifiedName,
+          qualityRating: phoneStatus.qualityRating,
+          messagingLimitTier: phoneStatus.messagingLimitTier,
+          numberType: phoneStatus.numberType,
+          codeVerificationStatus: phoneStatus.codeVerificationStatus,
+          nameStatus: phoneStatus.nameStatus,
+          platformType: phoneStatus.platformType,
+          throughput: phoneStatus.throughput,
+          healthStatus: phoneStatus.healthStatus,
+          canSendMessage: phoneStatus.canSendMessage,
+          lastStatusCheckAt: new Date(),
+          lastStatusError: null,
         },
       });
     } else {
@@ -197,11 +308,40 @@ export async function updateWhatsAppSettings(
           companyId,
           whatsAppAccountId: account.id,
           phoneNumberId: input.phoneNumberId,
-          displayPhoneNumber: input.displayPhoneNumber,
+          displayPhoneNumber: phoneStatus.displayPhoneNumber,
+          verifiedName: phoneStatus.verifiedName,
+          qualityRating: phoneStatus.qualityRating,
+          messagingLimitTier: phoneStatus.messagingLimitTier,
+          numberType: phoneStatus.numberType,
+          codeVerificationStatus: phoneStatus.codeVerificationStatus,
+          nameStatus: phoneStatus.nameStatus,
+          platformType: phoneStatus.platformType,
+          throughput: phoneStatus.throughput,
+          healthStatus: phoneStatus.healthStatus,
+          canSendMessage: phoneStatus.canSendMessage,
+          lastStatusCheckAt: new Date(),
+          lastStatusError: null,
         },
       });
     }
   });
+
+  try {
+    await subscribeAppToWabaWebhooks(effectiveAccessToken, input.wabaId);
+  } catch (error) {
+    await prisma.whatsAppPhoneNumber.updateMany({
+      where: {
+        companyId,
+        phoneNumberId: input.phoneNumberId,
+      },
+      data: {
+        lastStatusCheckAt: new Date(),
+        lastStatusError: `Webhook subscription failed: ${trimErrorMessage(
+          getErrorMessage(error, "Unable to subscribe app to WABA webhooks"),
+        )}`,
+      },
+    });
+  }
 
   revalidateTag(companyOnboardingStateCacheTag(companyId), "max");
 

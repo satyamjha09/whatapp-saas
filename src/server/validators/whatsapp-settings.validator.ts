@@ -16,10 +16,7 @@ export const updateWhatsAppSettingsSchema = z.object({
     .trim()
     .min(1, "Phone Number ID is required")
     .regex(META_NUMERIC_ID_PATTERN, NUMERIC_PHONE_NUMBER_ID_MESSAGE),
-  displayPhoneNumber: z
-    .string()
-    .trim()
-    .min(1, "Display phone number is required"),
+  displayPhoneNumber: z.string().trim().optional().default(""),
   accessToken: z.string().trim().min(1, "Access token cannot be empty").optional(),
 });
 

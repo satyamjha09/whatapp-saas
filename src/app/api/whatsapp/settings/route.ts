@@ -127,8 +127,14 @@ export async function PATCH(request: Request) {
       }
     }
 
+    const webhookNeedsAttention = settings.lastStatusError.startsWith(
+      "Webhook subscription failed:",
+    );
+
     return NextResponse.json({
-      message: "WhatsApp settings saved successfully",
+      message: webhookNeedsAttention
+        ? "WhatsApp settings saved, but webhook subscription needs attention. Check Meta permissions or use Subscribe Webhooks after fixing it."
+        : "WhatsApp settings saved successfully",
       settings,
       onboardingCompleted,
     });
@@ -141,7 +147,13 @@ export async function PATCH(request: Request) {
       "Phone Number ID is already connected to another workspace",
     ];
 
-    if (error instanceof Error && knownErrors.includes(error.message)) {
+    const knownErrorPrefixes = ["Meta validation failed:"];
+
+    if (
+      error instanceof Error &&
+      (knownErrors.includes(error.message) ||
+        knownErrorPrefixes.some((prefix) => error.message.startsWith(prefix)))
+    ) {
       return NextResponse.json({ message: error.message }, { status: 409 });
     }
 

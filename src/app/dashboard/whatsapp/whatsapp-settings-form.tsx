@@ -21,6 +21,7 @@ type WhatsAppSettingsFormProps = {
 
 type SettingsResponse = {
   message: string;
+  settings?: WhatsAppSettings;
   errors?: {
     wabaId?: string[];
     phoneNumberId?: string[];
@@ -94,7 +95,12 @@ export default function WhatsAppSettingsForm({
       }
 
       setAccessToken("");
-      setSuccess("WhatsApp settings saved securely.");
+      if (data.settings) {
+        setWabaId(data.settings.wabaId);
+        setPhoneNumberId(data.settings.phoneNumberId);
+        setDisplayPhoneNumber(data.settings.displayPhoneNumber);
+      }
+      setSuccess(data.message ?? "WhatsApp settings saved securely.");
       router.refresh();
     } catch {
       setError("Unable to save WhatsApp settings. Please try again.");
@@ -181,16 +187,20 @@ export default function WhatsAppSettingsForm({
 
         <div>
           <label htmlFor="displayPhoneNumber" className="mb-2 block text-sm font-medium text-[#102040]">
-            Display Phone Number
+            Display Phone Number <span className="text-[#526173]">(optional)</span>
           </label>
           <input
             id="displayPhoneNumber"
             value={displayPhoneNumber}
             onChange={(event) => setDisplayPhoneNumber(event.target.value)}
             disabled={!canManage}
-            required
+            placeholder="Meta fills this after validation"
             className={fieldClass}
           />
+          <p className="mt-2 text-xs text-[#526173]">
+            Leave blank if you are unsure. The server validates the phone number
+            with Meta and saves the official display value.
+          </p>
         </div>
 
         <div>
