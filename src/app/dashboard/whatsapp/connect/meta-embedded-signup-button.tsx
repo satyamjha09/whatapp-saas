@@ -297,7 +297,7 @@ function getNoAuthorizationCodeMessage(status: string | undefined) {
   }
 
   if (status === "connected") {
-    return "Facebook login completed, but Meta did not return the Embedded Signup authorization code. Please retry in a fresh browser session or incognito window, then complete the full WhatsApp Embedded Signup flow.";
+    return "Facebook login completed, but Meta blocked Embedded Signup before returning the authorization code. This usually means this Meta app is not yet approved as a BSP/Tech Provider for Embedded Signup. Use Manual Cloud API setup below for now, then retry the official flow after Meta approval.";
   }
 
   return "Meta signup did not return an authorization code. Please restart the flow and complete every step in the Meta popup.";

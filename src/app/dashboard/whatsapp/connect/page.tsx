@@ -138,7 +138,10 @@ export default async function WhatsAppConnectPage() {
 
       {canManage ? (
         <Panel>
-          <div className="grid gap-6 xl:grid-cols-[0.9fr_1.4fr] xl:items-start">
+          <div
+            id="manual-cloud-api-setup"
+            className="grid gap-6 xl:grid-cols-[0.9fr_1.4fr] xl:items-start"
+          >
             <div>
               <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#FFF7ED] text-[#C2410C]">
                 <KeyRound className="h-6 w-6" />
