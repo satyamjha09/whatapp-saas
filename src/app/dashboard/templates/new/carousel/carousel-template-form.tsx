@@ -3,8 +3,10 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
+  CheckCircle2,
   CopyPlus,
   Image as ImageIcon,
   Plus,
@@ -30,6 +32,11 @@ import {
 
 type HeaderType = "IMAGE" | "VIDEO";
 type CardButtonType = "QUICK_REPLY" | "URL" | "PHONE_NUMBER";
+
+type CarouselTemplateFormProps = {
+  initialLanguage?: string;
+  initialName?: string;
+};
 
 type TemplateMediaAsset = {
   id: string;
@@ -62,7 +69,11 @@ const languages = [
   { label: "English (US)", value: "en_US" },
   { label: "English", value: "en" },
   { label: "Hindi", value: "hi" },
-];
+] as const;
+
+const supportedLanguages = new Set<string>(
+  languages.map((language) => language.value),
+);
 
 function cleanTemplateName(value: string) {
   return value
@@ -70,6 +81,11 @@ function cleanTemplateName(value: string) {
     .replace(/[^a-z0-9_]/g, "_")
     .replace(/_+/g, "_")
     .replace(/^_+|_+$/g, "");
+}
+
+function normalizeInitialLanguage(value?: string) {
+  const normalized = value?.trim() ?? "";
+  return supportedLanguages.has(normalized) ? normalized : "en_US";
 }
 
 function newButton(): CarouselButton {
@@ -97,8 +113,14 @@ function newCard(index: number): CarouselCard {
 }
 
 function formatBytes(value: number) {
-  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
-  if (value >= 1024) return `${Math.round(value / 1024)} KB`;
+  if (value >= 1024 * 1024) {
+    return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  if (value >= 1024) {
+    return `${Math.round(value / 1024)} KB`;
+  }
+
   return `${value} B`;
 }
 
@@ -106,6 +128,19 @@ function variableKey(variable: TemplateVariable) {
   return variable.component === "BUTTON"
     ? `BUTTON_${variable.buttonIndex ?? 0}_${variable.key}`
     : `${variable.component}_${variable.key}`;
+}
+
+function isValidHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function isValidPhoneNumber(value: string) {
+  return /^\+[1-9]\d{7,14}$/.test(value.trim());
 }
 
 function buildCarouselComponents(cards: CarouselCard[], body: string) {
@@ -116,6 +151,7 @@ function buildCarouselComponents(cards: CarouselCard[], body: string) {
         buttons: card.buttons,
         sampleValues: card.sampleValues,
       });
+
       const bodyExample = buildMetaExamples(
         metadata.variables,
         card.sampleValues,
@@ -125,8 +161,10 @@ function buildCarouselComponents(cards: CarouselCard[], body: string) {
       return {
         body: card.body.trim(),
         buttons: card.buttons.map((button) => ({
-          ...(button.phoneNumber ? { phoneNumber: button.phoneNumber } : {}),
-          ...(button.url ? { url: button.url } : {}),
+          ...(button.phoneNumber
+            ? { phoneNumber: button.phoneNumber.trim() }
+            : {}),
+          ...(button.url ? { url: button.url.trim() } : {}),
           text: button.text.trim(),
           type: button.type,
         })),
@@ -134,7 +172,11 @@ function buildCarouselComponents(cards: CarouselCard[], body: string) {
         components: [
           {
             ...(card.mediaAsset?.metaHandle
-              ? { example: { header_handle: [card.mediaAsset.metaHandle] } }
+              ? {
+                  example: {
+                    header_handle: [card.mediaAsset.metaHandle],
+                  },
+                }
               : {}),
             fileName: card.mediaAsset?.fileName,
             format: card.headerType,
@@ -153,8 +195,10 @@ function buildCarouselComponents(cards: CarouselCard[], body: string) {
           },
           {
             buttons: card.buttons.map((button) => ({
-              ...(button.phoneNumber ? { phoneNumber: button.phoneNumber } : {}),
-              ...(button.url ? { url: button.url } : {}),
+              ...(button.phoneNumber
+                ? { phoneNumber: button.phoneNumber.trim() }
+                : {}),
+              ...(button.url ? { url: button.url.trim() } : {}),
               text: button.text.trim(),
               type: button.type,
             })),
@@ -175,7 +219,11 @@ function buildCarouselComponents(cards: CarouselCard[], body: string) {
           components: [
             {
               ...(card.mediaAsset?.metaHandle
-                ? { example: { header_handle: [card.mediaAsset.metaHandle] } }
+                ? {
+                    example: {
+                      header_handle: [card.mediaAsset.metaHandle],
+                    },
+                  }
                 : {}),
               format: card.headerType,
               type: "HEADER",
@@ -186,8 +234,10 @@ function buildCarouselComponents(cards: CarouselCard[], body: string) {
             },
             {
               buttons: card.buttons.map((button) => ({
-                ...(button.phoneNumber ? { phoneNumber: button.phoneNumber } : {}),
-                ...(button.url ? { url: button.url } : {}),
+                ...(button.phoneNumber
+                  ? { phoneNumber: button.phoneNumber.trim() }
+                  : {}),
+                ...(button.url ? { url: button.url.trim() } : {}),
                 text: button.text.trim(),
                 type: button.type,
               })),
@@ -202,35 +252,103 @@ function buildCarouselComponents(cards: CarouselCard[], body: string) {
   };
 }
 
-export default function CarouselTemplateForm() {
+export default function CarouselTemplateForm({
+  initialLanguage,
+  initialName,
+}: CarouselTemplateFormProps) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [language, setLanguage] = useState("en_US");
+
+  const [name, setName] = useState(() =>
+    cleanTemplateName(initialName ?? "").slice(0, 80),
+  );
+  const [language, setLanguage] = useState(() =>
+    normalizeInitialLanguage(initialLanguage),
+  );
   const [body, setBody] = useState("Explore our latest offers below.");
-  const [cards, setCards] = useState<CarouselCard[]>([newCard(0), newCard(1)]);
+  const [cards, setCards] = useState<CarouselCard[]>([
+    newCard(0),
+    newCard(1),
+  ]);
   const [activeCardId, setActiveCardId] = useState(cards[0]?.id ?? "");
   const [uploadingCardId, setUploadingCardId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const activeCard = cards.find((card) => card.id === activeCardId) ?? cards[0];
-  const cardButtonPattern = cards[0]?.buttons.map((button) => button.type).join("|") ?? "";
+  const activeCard =
+    cards.find((card) => card.id === activeCardId) ?? cards[0];
+
+  const cardButtonPattern =
+    cards[0]?.buttons.map((button) => button.type).join("|") ?? "";
 
   const validationError = useMemo(() => {
-    if (cards.length < 2) return "Carousel needs at least 2 cards.";
-    if (cards.length > 10) return "Carousel cannot have more than 10 cards.";
+    if (cards.length < 2) {
+      return "Carousel needs at least 2 cards.";
+    }
 
-    for (const card of cards) {
-      if (!card.mediaAsset) return "Each carousel card needs an image or video sample.";
-      if (!card.mediaAsset.metaHandle) {
-        return "Each carousel media sample must have a Meta review handle.";
+    if (cards.length > 10) {
+      return "Carousel cannot have more than 10 cards.";
+    }
+
+    for (let cardIndex = 0; cardIndex < cards.length; cardIndex += 1) {
+      const card = cards[cardIndex];
+      if (!card) continue;
+
+      const cardNumber = cardIndex + 1;
+
+      if (!card.mediaAsset) {
+        return `Card ${cardNumber} needs an image or video sample.`;
       }
-      if (!card.body.trim()) return "Each carousel card needs body text.";
-      if (card.buttons.length > 2) return "Each carousel card can have at most 2 buttons.";
-      if (card.buttons.length === 0) return "Each carousel card needs at least 1 button.";
-      if (card.buttons.map((button) => button.type).join("|") !== cardButtonPattern) {
+
+      if (!card.mediaAsset.metaHandle) {
+        return `Card ${cardNumber} media must have a Meta review handle.`;
+      }
+
+      if (!card.body.trim()) {
+        return `Card ${cardNumber} needs body text.`;
+      }
+
+      if (card.body.length > 160) {
+        return `Card ${cardNumber} body cannot exceed 160 characters.`;
+      }
+
+      if (card.buttons.length === 0) {
+        return `Card ${cardNumber} needs at least 1 button.`;
+      }
+
+      if (card.buttons.length > 2) {
+        return `Card ${cardNumber} can have at most 2 buttons.`;
+      }
+
+      if (
+        card.buttons.map((button) => button.type).join("|") !==
+        cardButtonPattern
+      ) {
         return "All carousel cards must use the same button pattern.";
+      }
+
+      for (
+        let buttonIndex = 0;
+        buttonIndex < card.buttons.length;
+        buttonIndex += 1
+      ) {
+        const button = card.buttons[buttonIndex];
+        if (!button) continue;
+
+        if (!button.text.trim()) {
+          return `Card ${cardNumber}, button ${buttonIndex + 1} needs text.`;
+        }
+
+        if (button.type === "URL" && !isValidHttpUrl(button.url)) {
+          return `Card ${cardNumber}, button ${buttonIndex + 1} needs a valid HTTP or HTTPS URL.`;
+        }
+
+        if (
+          button.type === "PHONE_NUMBER" &&
+          !isValidPhoneNumber(button.phoneNumber)
+        ) {
+          return `Card ${cardNumber}, button ${buttonIndex + 1} needs a valid international phone number such as +918810386013.`;
+        }
       }
 
       const metadata = buildVariableMetadata({
@@ -238,12 +356,17 @@ export default function CarouselTemplateForm() {
         buttons: card.buttons,
         sampleValues: card.sampleValues,
       });
+
       const variableIssues = [
         ...validateVariableSequence(metadata.variables),
         ...validateSampleValues(metadata.variables, card.sampleValues),
       ];
+
       if (variableIssues.length > 0) {
-        return variableIssues[0]?.message ?? "Carousel variable samples are invalid.";
+        return (
+          variableIssues[0]?.message ??
+          `Card ${cardNumber} variable samples are invalid.`
+        );
       }
     }
 
@@ -252,54 +375,69 @@ export default function CarouselTemplateForm() {
 
   function updateCard(cardId: string, patch: Partial<CarouselCard>) {
     setCards((current) =>
-      current.map((card) => (card.id === cardId ? { ...card, ...patch } : card)),
+      current.map((card) =>
+        card.id === cardId ? { ...card, ...patch } : card,
+      ),
     );
   }
 
   function addCard() {
     if (cards.length >= 10) return;
+
     const card = newCard(cards.length);
     const firstButtons = cards[0]?.buttons ?? [newButton()];
+
     card.buttons = firstButtons.map((button) => ({
       ...button,
       id: crypto.randomUUID(),
     }));
+
     setCards((current) => [...current, card]);
     setActiveCardId(card.id);
   }
 
   function duplicateCard(cardId: string) {
     if (cards.length >= 10) return;
+
     const source = cards.find((card) => card.id === cardId);
     if (!source) return;
-    const duplicate = {
+
+    const duplicate: CarouselCard = {
       ...source,
       buttons: source.buttons.map((button) => ({
         ...button,
         id: crypto.randomUUID(),
       })),
       id: crypto.randomUUID(),
+      sampleValues: { ...source.sampleValues },
     };
+
     setCards((current) => [...current, duplicate]);
     setActiveCardId(duplicate.id);
   }
 
   function removeCard(cardId: string) {
     if (cards.length <= 2) return;
-    setCards((current) => current.filter((card) => card.id !== cardId));
+
+    const nextCards = cards.filter((card) => card.id !== cardId);
+    setCards(nextCards);
+
     if (activeCardId === cardId) {
-      setActiveCardId(cards.find((card) => card.id !== cardId)?.id ?? "");
+      setActiveCardId(nextCards[0]?.id ?? "");
     }
   }
 
   function moveCard(cardId: string, direction: "UP" | "DOWN") {
     const index = cards.findIndex((card) => card.id === cardId);
     const target = direction === "UP" ? index - 1 : index + 1;
+
     if (index < 0 || target < 0 || target >= cards.length) return;
 
     const next = [...cards];
     const [card] = next.splice(index, 1);
+
     if (!card) return;
+
     next.splice(target, 0, card);
     setCards(next);
   }
@@ -315,7 +453,9 @@ export default function CarouselTemplateForm() {
           ? {
               ...card,
               buttons: card.buttons.map((button) =>
-                button.id === buttonId ? { ...button, ...patch } : button,
+                button.id === buttonId
+                  ? { ...button, ...patch }
+                  : button,
               ),
             }
           : card,
@@ -327,7 +467,10 @@ export default function CarouselTemplateForm() {
     setCards((current) =>
       current.map((card) =>
         card.id === cardId && card.buttons.length < 2
-          ? { ...card, buttons: [...card.buttons, newButton()] }
+          ? {
+              ...card,
+              buttons: [...card.buttons, newButton()],
+            }
           : card,
       ),
     );
@@ -339,15 +482,22 @@ export default function CarouselTemplateForm() {
         card.id === cardId && card.buttons.length > 1
           ? {
               ...card,
-              buttons: card.buttons.filter((button) => button.id !== buttonId),
+              buttons: card.buttons.filter(
+                (button) => button.id !== buttonId,
+              ),
             }
           : card,
       ),
     );
   }
 
-  function updateSample(cardId: string, variable: TemplateVariable, value: string) {
+  function updateSample(
+    cardId: string,
+    variable: TemplateVariable,
+    value: string,
+  ) {
     const key = variableKey(variable);
+
     setCards((current) =>
       current.map((card) =>
         card.id === cardId
@@ -375,31 +525,45 @@ export default function CarouselTemplateForm() {
 
     const request = new XMLHttpRequest();
     request.open("POST", "/api/templates/media-assets");
+
     request.upload.onprogress = (event) => {
       if (!event.lengthComputable) return;
-      setUploadProgress(Math.round((event.loaded / event.total) * 100));
+
+      setUploadProgress(
+        Math.round((event.loaded / event.total) * 100),
+      );
     };
+
     request.onload = () => {
       setUploadingCardId(null);
+
       try {
         const data = JSON.parse(request.responseText) as {
           asset?: TemplateMediaAsset;
           message?: string;
         };
-        if (request.status < 200 || request.status >= 300 || !data.asset) {
+
+        if (
+          request.status < 200 ||
+          request.status >= 300 ||
+          !data.asset
+        ) {
           setError(data.message ?? "Unable to upload card media.");
           return;
         }
+
         updateCard(card.id, { mediaAsset: data.asset });
         setUploadProgress(100);
       } catch {
         setError("Unable to read media upload response.");
       }
     };
+
     request.onerror = () => {
       setUploadingCardId(null);
       setError("Media upload failed. Please try again.");
     };
+
     request.send(formData);
   }
 
@@ -407,13 +571,20 @@ export default function CarouselTemplateForm() {
     event.preventDefault();
     setError("");
 
-    if (!name.trim()) {
+    const cleanedName = cleanTemplateName(name).slice(0, 80);
+
+    if (!cleanedName) {
       setError("Template name is required.");
       return;
     }
 
     if (!body.trim()) {
       setError("Carousel message body is required.");
+      return;
+    }
+
+    if (body.length > 1024) {
+      setError("Carousel message body cannot exceed 1024 characters.");
       return;
     }
 
@@ -427,16 +598,19 @@ export default function CarouselTemplateForm() {
     try {
       const response = await fetch("/api/templates", {
         body: JSON.stringify({
-          body,
+          body: body.trim(),
           category: "MARKETING",
           components: buildCarouselComponents(cards, body),
           language,
-          name,
+          name: cleanedName,
           templateType: "CAROUSEL",
         }),
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         method: "POST",
       });
+
       const data = (await response.json()) as {
         errors?: Record<string, string[]>;
         message?: string;
@@ -445,6 +619,7 @@ export default function CarouselTemplateForm() {
       if (!response.ok) {
         setError(
           data.errors?.name?.[0] ??
+            data.errors?.language?.[0] ??
             data.errors?.components?.[0] ??
             data.message ??
             "Unable to create carousel template.",
@@ -455,7 +630,9 @@ export default function CarouselTemplateForm() {
       router.push("/dashboard/templates");
       router.refresh();
     } catch {
-      setError("Unable to create carousel template. Please try again.");
+      setError(
+        "Unable to create carousel template. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -484,6 +661,7 @@ export default function CarouselTemplateForm() {
               Template configuration
             </h2>
           </div>
+
           <div className="grid gap-4 p-5 md:grid-cols-3">
             <label className="block">
               <span className={labelClass}>Name</span>
@@ -491,13 +669,19 @@ export default function CarouselTemplateForm() {
                 className={fieldClass}
                 maxLength={80}
                 onChange={(event) =>
-                  setName(cleanTemplateName(event.target.value).slice(0, 80))
+                  setName(
+                    cleanTemplateName(event.target.value).slice(0, 80),
+                  )
                 }
                 placeholder="summer_carousel"
                 required
                 value={name}
               />
+              <p className={helperTextClass}>
+                Lowercase letters, numbers, and underscores only.
+              </p>
             </label>
+
             <label className="block">
               <span className={labelClass}>Language</span>
               <select
@@ -512,19 +696,32 @@ export default function CarouselTemplateForm() {
                 ))}
               </select>
             </label>
+
             <label className="block">
               <span className={labelClass}>Category</span>
-              <input className={`${fieldClass} bg-[#F8FCFA]`} readOnly value="Marketing" />
+              <input
+                className={`${fieldClass} bg-[#F8FCFA]`}
+                readOnly
+                value="Marketing"
+              />
+              <p className={helperTextClass}>
+                Auto-selected for Carousel templates.
+              </p>
             </label>
           </div>
+
           <div className="px-5 pb-5">
             <label className="block">
               <span className={labelClass}>Carousel message</span>
               <textarea
                 className={`${fieldClass} min-h-28 resize-y leading-6`}
+                maxLength={1024}
                 onChange={(event) => setBody(event.target.value)}
                 value={body}
               />
+              <p className={helperTextClass}>
+                {body.length} / 1024
+              </p>
             </label>
           </div>
         </section>
@@ -539,8 +736,9 @@ export default function CarouselTemplateForm() {
                 {cards.length} of 10 cards
               </h2>
             </div>
+
             <button
-              className="inline-flex items-center rounded-lg border border-[#BFE9D0] bg-white px-3 py-2 text-sm font-bold text-[#128C7E] hover:bg-[#E7F8EF] disabled:opacity-50"
+              className="inline-flex items-center rounded-lg border border-[#BFE9D0] bg-white px-3 py-2 text-sm font-bold text-[#128C7E] hover:bg-[#E7F8EF] disabled:cursor-not-allowed disabled:opacity-50"
               disabled={cards.length >= 10}
               onClick={addCard}
               type="button"
@@ -564,16 +762,19 @@ export default function CarouselTemplateForm() {
                   onClick={() => setActiveCardId(card.id)}
                   type="button"
                 >
-                  <span>
-                    <span className="block font-bold">Card {index + 1}</span>
+                  <span className="min-w-0">
+                    <span className="block font-bold">
+                      Card {index + 1}
+                    </span>
                     <span className="mt-1 block truncate text-xs">
                       {card.mediaAsset?.fileName ?? "Media required"}
                     </span>
                   </span>
+
                   {card.headerType === "VIDEO" ? (
-                    <Video className="h-4 w-4" />
+                    <Video className="h-4 w-4 shrink-0" />
                   ) : (
-                    <ImageIcon className="h-4 w-4" />
+                    <ImageIcon className="h-4 w-4 shrink-0" />
                   )}
                 </button>
               ))}
@@ -583,32 +784,55 @@ export default function CarouselTemplateForm() {
               <div className="space-y-5 rounded-xl border border-[#BFE9D0] bg-[#F8FCFA] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-base font-bold text-[#081B3A]">
-                    Edit card {cards.findIndex((card) => card.id === activeCard.id) + 1}
+                    Edit card{" "}
+                    {cards.findIndex(
+                      (card) => card.id === activeCard.id,
+                    ) + 1}
                   </h3>
+
                   <div className="flex gap-1">
                     <button
-                      className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#526173]"
+                      aria-label="Move card up"
+                      className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#526173] disabled:opacity-40"
+                      disabled={
+                        cards.findIndex(
+                          (card) => card.id === activeCard.id,
+                        ) <= 0
+                      }
                       onClick={() => moveCard(activeCard.id, "UP")}
                       type="button"
                     >
                       <ArrowUp className="h-4 w-4" />
                     </button>
+
                     <button
-                      className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#526173]"
+                      aria-label="Move card down"
+                      className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#526173] disabled:opacity-40"
+                      disabled={
+                        cards.findIndex(
+                          (card) => card.id === activeCard.id,
+                        ) >=
+                        cards.length - 1
+                      }
                       onClick={() => moveCard(activeCard.id, "DOWN")}
                       type="button"
                     >
                       <ArrowDown className="h-4 w-4" />
                     </button>
+
                     <button
-                      className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#128C7E]"
+                      aria-label="Duplicate card"
+                      className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#128C7E] disabled:opacity-40"
+                      disabled={cards.length >= 10}
                       onClick={() => duplicateCard(activeCard.id)}
                       type="button"
                     >
                       <CopyPlus className="h-4 w-4" />
                     </button>
+
                     <button
-                      className="grid h-8 w-8 place-items-center rounded-lg bg-white text-rose-600 disabled:opacity-50"
+                      aria-label="Delete card"
+                      className="grid h-8 w-8 place-items-center rounded-lg bg-white text-rose-600 disabled:opacity-40"
                       disabled={cards.length <= 2}
                       onClick={() => removeCard(activeCard.id)}
                       type="button"
@@ -620,12 +844,15 @@ export default function CarouselTemplateForm() {
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="block">
-                    <span className={labelClass}>Header media type</span>
+                    <span className={labelClass}>
+                      Header media type
+                    </span>
                     <select
                       className={fieldClass}
                       onChange={(event) =>
                         updateCard(activeCard.id, {
-                          headerType: event.target.value as HeaderType,
+                          headerType: event.target
+                            .value as HeaderType,
                           mediaAsset: null,
                         })
                       }
@@ -635,11 +862,15 @@ export default function CarouselTemplateForm() {
                       <option value="VIDEO">Video</option>
                     </select>
                   </label>
+
                   <label className="block">
                     <span className={labelClass}>Upload media</span>
                     <span className="inline-flex w-full cursor-pointer items-center justify-center rounded-xl border border-[#BFE9D0] bg-white px-4 py-3 text-sm font-bold text-[#128C7E] hover:bg-[#E7F8EF]">
                       <UploadCloud className="mr-2 h-4 w-4" />
-                      {uploadingCardId === activeCard.id ? "Uploading..." : "Choose file"}
+                      {uploadingCardId === activeCard.id
+                        ? "Uploading..."
+                        : "Choose file"}
+
                       <input
                         accept={
                           activeCard.headerType === "IMAGE"
@@ -651,7 +882,10 @@ export default function CarouselTemplateForm() {
                         onChange={(event) => {
                           const file = event.target.files?.[0];
                           event.target.value = "";
-                          if (file) uploadCardMedia(activeCard, file);
+
+                          if (file) {
+                            uploadCardMedia(activeCard, file);
+                          }
                         }}
                         type="file"
                       />
@@ -667,19 +901,45 @@ export default function CarouselTemplateForm() {
                         style={{ width: `${uploadProgress}%` }}
                       />
                     </div>
-                    <p className={helperTextClass}>{uploadProgress}% uploaded</p>
+                    <p className={helperTextClass}>
+                      {uploadProgress}% uploaded
+                    </p>
                   </div>
                 ) : null}
 
                 {activeCard.mediaAsset ? (
                   <div className="rounded-xl border border-[#BFE9D0] bg-white p-3">
-                    <p className="truncate text-sm font-bold text-[#081B3A]">
-                      {activeCard.mediaAsset.fileName}
-                    </p>
-                    <p className="mt-1 text-xs text-[#526173]">
-                      {activeCard.mediaAsset.mimeType} ·{" "}
-                      {formatBytes(activeCard.mediaAsset.sizeBytes)}
-                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-[#081B3A]">
+                          {activeCard.mediaAsset.fileName}
+                        </p>
+                        <p className="mt-1 text-xs text-[#526173]">
+                          {activeCard.mediaAsset.mimeType} ·{" "}
+                          {formatBytes(
+                            activeCard.mediaAsset.sizeBytes,
+                          )}
+                        </p>
+                      </div>
+
+                      <span
+                        className={[
+                          "inline-flex items-center rounded-full px-3 py-1 text-xs font-bold",
+                          activeCard.mediaAsset.metaHandle
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-amber-50 text-amber-700",
+                        ].join(" ")}
+                      >
+                        {activeCard.mediaAsset.metaHandle ? (
+                          <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                        ) : (
+                          <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
+                        )}
+                        {activeCard.mediaAsset.metaHandle
+                          ? "Meta sample ready"
+                          : "Meta handle missing"}
+                      </span>
+                    </div>
                   </div>
                 ) : null}
 
@@ -687,11 +947,17 @@ export default function CarouselTemplateForm() {
                   <span className={labelClass}>Card body</span>
                   <textarea
                     className={`${fieldClass} min-h-32 resize-y leading-6`}
+                    maxLength={160}
                     onChange={(event) =>
-                      updateCard(activeCard.id, { body: event.target.value })
+                      updateCard(activeCard.id, {
+                        body: event.target.value,
+                      })
                     }
                     value={activeCard.body}
                   />
+                  <p className={helperTextClass}>
+                    {activeCard.body.length} / 160
+                  </p>
                 </label>
 
                 <div>
@@ -707,64 +973,100 @@ export default function CarouselTemplateForm() {
                       Add
                     </button>
                   </div>
-                  <div className="space-y-3">
+
+                  <div className="mt-3 space-y-3">
                     {activeCard.buttons.map((button) => (
                       <div
                         className="rounded-xl border border-[#BFE9D0] bg-white p-3"
                         key={button.id}
                       >
-                        <div className="grid gap-3 md:grid-cols-[140px_minmax(0,1fr)_32px]">
+                        <div className="grid gap-3 md:grid-cols-[140px_minmax(0,1fr)_40px]">
                           <select
                             className={fieldClass}
                             onChange={(event) =>
-                              updateButton(activeCard.id, button.id, {
-                                type: event.target.value as CardButtonType,
-                              })
+                              updateButton(
+                                activeCard.id,
+                                button.id,
+                                {
+                                  type: event.target
+                                    .value as CardButtonType,
+                                },
+                              )
                             }
                             value={button.type}
                           >
-                            <option value="QUICK_REPLY">Quick reply</option>
+                            <option value="QUICK_REPLY">
+                              Quick reply
+                            </option>
                             <option value="URL">Website URL</option>
-                            <option value="PHONE_NUMBER">Phone</option>
+                            <option value="PHONE_NUMBER">
+                              Phone
+                            </option>
                           </select>
+
                           <input
                             className={fieldClass}
                             maxLength={25}
                             onChange={(event) =>
-                              updateButton(activeCard.id, button.id, {
-                                text: event.target.value,
-                              })
+                              updateButton(
+                                activeCard.id,
+                                button.id,
+                                {
+                                  text: event.target.value,
+                                },
+                              )
                             }
+                            placeholder="Button text"
                             value={button.text}
                           />
+
                           <button
+                            aria-label="Remove button"
                             className="grid h-10 w-10 place-items-center rounded-lg bg-rose-50 text-rose-600 disabled:opacity-50"
-                            disabled={activeCard.buttons.length <= 1}
-                            onClick={() => removeButton(activeCard.id, button.id)}
+                            disabled={
+                              activeCard.buttons.length <= 1
+                            }
+                            onClick={() =>
+                              removeButton(
+                                activeCard.id,
+                                button.id,
+                              )
+                            }
                             type="button"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
+
                         {button.type === "URL" ? (
                           <input
                             className={`${fieldClass} mt-3`}
                             onChange={(event) =>
-                              updateButton(activeCard.id, button.id, {
-                                url: event.target.value,
-                              })
+                              updateButton(
+                                activeCard.id,
+                                button.id,
+                                {
+                                  url: event.target.value,
+                                },
+                              )
                             }
                             placeholder="https://metawhat.in/product"
                             value={button.url}
                           />
                         ) : null}
+
                         {button.type === "PHONE_NUMBER" ? (
                           <input
                             className={`${fieldClass} mt-3`}
                             onChange={(event) =>
-                              updateButton(activeCard.id, button.id, {
-                                phoneNumber: event.target.value,
-                              })
+                              updateButton(
+                                activeCard.id,
+                                button.id,
+                                {
+                                  phoneNumber:
+                                    event.target.value,
+                                },
+                              )
                             }
                             placeholder="+918810386013"
                             value={button.phoneNumber}
@@ -778,7 +1080,8 @@ export default function CarouselTemplateForm() {
                 {activeVariables.length > 0 ? (
                   <div>
                     <span className={labelClass}>Sample values</span>
-                    <div className="space-y-3">
+
+                    <div className="mt-3 space-y-3">
                       {activeVariables.map((variable) => (
                         <label
                           className="grid gap-2 rounded-xl border border-[#BFE9D0] bg-white p-3 md:grid-cols-[120px_minmax(0,1fr)] md:items-center"
@@ -787,14 +1090,23 @@ export default function CarouselTemplateForm() {
                           <span className="text-sm font-bold text-[#081B3A]">
                             {variable.token}
                           </span>
+
                           <input
                             className={fieldClass}
                             onChange={(event) =>
-                              updateSample(activeCard.id, variable, event.target.value)
+                              updateSample(
+                                activeCard.id,
+                                variable,
+                                event.target.value,
+                              )
                             }
                             value={
-                              activeCard.sampleValues[variableKey(variable)] ??
-                              activeCard.sampleValues[variable.key] ??
+                              activeCard.sampleValues[
+                                variableKey(variable)
+                              ] ??
+                              activeCard.sampleValues[
+                                variable.key
+                              ] ??
                               ""
                             }
                           />
@@ -808,8 +1120,11 @@ export default function CarouselTemplateForm() {
           </div>
         </section>
 
-        {(error || validationError) ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+        {error || validationError ? (
+          <div
+            className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700"
+            role="alert"
+          >
             {error || validationError}
           </div>
         ) : null}
@@ -827,27 +1142,36 @@ export default function CarouselTemplateForm() {
       <aside className="xl:sticky xl:top-24 xl:self-start">
         <section className="overflow-hidden rounded-xl border border-[#BFE9D0] bg-white">
           <div className="border-b border-[#BFE9D0] px-5 py-4">
-            <p className="text-sm font-bold text-[#081B3A]">Mobile swipe preview</p>
+            <p className="text-sm font-bold text-[#081B3A]">
+              Mobile swipe preview
+            </p>
           </div>
+
           <div className="bg-[#eee7dd] bg-[radial-gradient(circle_at_12px_12px,rgba(120,110,100,0.13)_1px,transparent_1.5px),radial-gradient(circle_at_34px_28px,rgba(120,110,100,0.09)_1px,transparent_1.5px)] bg-[length:44px_44px] p-4">
             <div className="rounded-lg bg-white p-4 text-sm text-[#081B3A] shadow-sm">
-              <p className="mb-3 whitespace-pre-wrap leading-6">{body}</p>
+              <p className="mb-3 whitespace-pre-wrap leading-6">
+                {body}
+              </p>
+
               <div className="flex snap-x gap-3 overflow-x-auto pb-2">
                 {cards.map((card, index) => (
                   <div
                     className="w-[220px] shrink-0 snap-center overflow-hidden rounded-lg border border-[#DCEFE4] bg-white"
                     key={card.id}
                   >
-                    {card.headerType === "IMAGE" && card.mediaAsset?.publicUrl ? (
+                    {card.headerType === "IMAGE" &&
+                    card.mediaAsset?.publicUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         alt={card.mediaAsset.fileName}
                         className="aspect-[1.3/1] w-full object-cover"
                         src={card.mediaAsset.publicUrl}
                       />
-                    ) : card.headerType === "VIDEO" && card.mediaAsset?.publicUrl ? (
+                    ) : card.headerType === "VIDEO" &&
+                      card.mediaAsset?.publicUrl ? (
                       <video
                         className="aspect-[1.3/1] w-full bg-black object-cover"
+                        controls
                         src={card.mediaAsset.publicUrl}
                       />
                     ) : (
@@ -859,10 +1183,15 @@ export default function CarouselTemplateForm() {
                         )}
                       </div>
                     )}
+
                     <div className="p-3">
                       <p className="whitespace-pre-wrap text-xs leading-5">
-                        {renderPreview(card.body, card.sampleValues)}
+                        {renderPreview(
+                          card.body,
+                          card.sampleValues,
+                        )}
                       </p>
+
                       <div className="mt-3 divide-y divide-[#E7F8EF] border-t border-[#E7F8EF]">
                         {card.buttons.map((button) => (
                           <p
@@ -873,6 +1202,7 @@ export default function CarouselTemplateForm() {
                           </p>
                         ))}
                       </div>
+
                       <p className="mt-2 text-right text-[10px] text-[#526173]">
                         Card {index + 1}
                       </p>

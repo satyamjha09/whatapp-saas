@@ -95,51 +95,81 @@ const categories: Array<{ label: string; value: TemplateCategory }> = [
   { label: "Utility", value: "UTILITY" },
 ];
 
-const templateTypeOptions: Array<{
+type TemplateTypeOption = {
+  autoCategoryLabel?: string;
+  autoCategoryValue?: TemplateCategory;
+  categoryMode: "SELECT" | "AUTO";
   description: string;
+  enabled: boolean;
   label: string;
   route?: string;
   value: Exclude<TemplateBuilderType, "">;
-}> = [
+};
+
+const templateTypeOptions: TemplateTypeOption[] = [
   {
+    categoryMode: "SELECT",
     description: "Normal marketing and utility messages with header, body, footer and buttons.",
+    enabled: true,
     label: "Default",
     value: "STANDARD",
   },
   {
+    autoCategoryLabel: "Marketing",
+    autoCategoryValue: "MARKETING",
+    categoryMode: "AUTO",
     description: "Nested card template with swipeable media cards.",
+    enabled: true,
     label: "Carousel",
     route: "/dashboard/templates/new/carousel",
     value: "CAROUSEL",
   },
   {
+    autoCategoryLabel: "Configured in the payment builder",
+    categoryMode: "AUTO",
     description: "Payment and order detail templates need a dedicated payment setup.",
+    enabled: false,
     label: "Order details (Payment)",
     value: "PAYMENT",
   },
   {
+    autoCategoryLabel: "Configured in the catalog builder",
+    categoryMode: "AUTO",
     description: "Catalog templates will use product/catalog configuration.",
+    enabled: false,
     label: "Catalog",
     value: "CATALOG",
   },
   {
+    autoCategoryLabel: "Authentication",
+    categoryMode: "AUTO",
     description: "OTP templates with copy code, one-tap, and zero-tap setup.",
+    enabled: true,
     label: "Authentication",
     route: "/dashboard/templates/new/authentication",
     value: "AUTHENTICATION",
   },
   {
+    autoCategoryLabel: "Configured in the Flow builder",
+    categoryMode: "AUTO",
     description: "WhatsApp Flow templates will connect to published WhatsApp Flows.",
+    enabled: false,
     label: "Flows",
     value: "FLOWS",
   },
   {
+    autoCategoryLabel: "Configured in the order-status builder",
+    categoryMode: "AUTO",
     description: "Order status templates need commerce/order data mapping.",
+    enabled: false,
     label: "Order Status",
     value: "ORDER_STATUS",
   },
   {
+    autoCategoryLabel: "Configured in the call-permission builder",
+    categoryMode: "AUTO",
     description: "Call permission request templates need call-permission business rules.",
+    enabled: false,
     label: "Call Permission Request",
     value: "CALL_PERMISSION",
   },
@@ -414,8 +444,22 @@ export default function TemplateForm() {
     (option) => option.value === templateType,
   );
   const isDefaultTemplate = templateType === "STANDARD";
+  const canEditCommonConfiguration = Boolean(selectedTemplateType?.enabled);
+  const hasValidCategory = Boolean(
+    selectedTemplateType &&
+      (selectedTemplateType.categoryMode === "AUTO" || category),
+  );
+  const hasValidCommonConfiguration = Boolean(
+    selectedTemplateType?.enabled &&
+      hasValidCategory &&
+      name.trim() &&
+      language,
+  );
   const canConfigureDefaultTemplate = Boolean(
     isDefaultTemplate && category && name.trim() && language,
+  );
+  const canContinueToDedicatedBuilder = Boolean(
+    selectedTemplateType?.route && hasValidCommonConfiguration,
   );
 
   function sampleInputKey(variable: TemplateVariable) {
@@ -497,6 +541,37 @@ export default function TemplateForm() {
       setUploadError("Media upload failed. Please try again.");
     };
     request.send(formData);
+  }
+
+  function handleTemplateTypeChange(nextType: TemplateBuilderType) {
+    const nextConfig = templateTypeOptions.find(
+      (option) => option.value === nextType,
+    );
+
+    setTemplateType(nextType);
+    setCategory(nextConfig?.autoCategoryValue ?? "");
+    setError("");
+  }
+
+  function openDedicatedBuilder() {
+    if (
+      !selectedTemplateType?.enabled ||
+      !selectedTemplateType.route ||
+      !canContinueToDedicatedBuilder
+    ) {
+      return;
+    }
+
+    const params = new URLSearchParams({
+      language,
+      name: cleanTemplateName(name).slice(0, 80),
+    });
+
+    if (selectedTemplateType.autoCategoryLabel) {
+      params.set("category", selectedTemplateType.autoCategoryLabel);
+    }
+
+    router.push(`${selectedTemplateType.route}?${params.toString()}`);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -632,7 +707,9 @@ export default function TemplateForm() {
               Template Configuration
             </p>
             <h2 className="mt-1 text-lg font-bold text-[#081B3A]">
-              Default template
+              {selectedTemplateType?.label
+                ? `${selectedTemplateType.label} template`
+                : "Choose template type"}
             </h2>
           </div>
 
@@ -641,12 +718,11 @@ export default function TemplateForm() {
               <span className={labelClass}>Template Type</span>
               <select
                 className={fieldClass}
-                onChange={(event) => {
-                  setTemplateType(event.target.value as TemplateBuilderType);
-                  setCategory("");
-                  setName("");
-                  setError("");
-                }}
+                onChange={(event) =>
+                  handleTemplateTypeChange(
+                    event.target.value as TemplateBuilderType,
+                  )
+                }
                 required
                 value={templateType}
               >
@@ -654,6 +730,7 @@ export default function TemplateForm() {
                 {templateTypeOptions.map((item) => (
                   <option key={item.value} value={item.value}>
                     {item.label}
+                    {item.enabled ? "" : " — Coming soon"}
                   </option>
                 ))}
               </select>
@@ -661,43 +738,68 @@ export default function TemplateForm() {
 
             <label className="block">
               <span className={labelClass}>Template Category</span>
-              <select
-                className={fieldClass}
-                disabled={!isDefaultTemplate}
-                onChange={(event) =>
-                  setCategory(event.target.value as TemplateCategory | "")
-                }
-                required={isDefaultTemplate}
-                value={category}
-              >
-                <option value="">
-                  {isDefaultTemplate ? "Select category" : "Choose type first"}
-                </option>
-                {categories.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+
+              {!selectedTemplateType ? (
+                <select className={fieldClass} disabled value="">
+                  <option value="">Choose type first</option>
+                </select>
+              ) : selectedTemplateType.categoryMode === "SELECT" ? (
+                <select
+                  className={fieldClass}
+                  onChange={(event) =>
+                    setCategory(event.target.value as TemplateCategory | "")
+                  }
+                  required
+                  value={category}
+                >
+                  <option value="">Select category</option>
+                  {categories.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className={`${fieldClass} bg-[#F8FCFA]`}
+                  readOnly
+                  value={
+                    selectedTemplateType.enabled
+                      ? selectedTemplateType.autoCategoryLabel ?? "Auto-selected"
+                      : "Coming soon"
+                  }
+                />
+              )}
+
+              {selectedTemplateType?.categoryMode === "AUTO" &&
+              selectedTemplateType.enabled ? (
+                <p className={helperTextClass}>
+                  Auto-selected for {selectedTemplateType.label} templates.
+                </p>
+              ) : null}
             </label>
 
             <label className="block">
               <span className={labelClass}>Name</span>
               <input
                 className={fieldClass}
-                disabled={!isDefaultTemplate || !category}
+                disabled={!canEditCommonConfiguration || !hasValidCategory}
                 maxLength={80}
                 onChange={(event) =>
                   setName(cleanTemplateName(event.target.value).slice(0, 80))
                 }
                 placeholder="payment_reminder"
-                required
+                required={canEditCommonConfiguration}
                 value={name}
               />
               <p className={helperTextClass}>
-                {category
-                  ? "Lowercase letters, numbers, and underscores only."
-                  : "Select a template type and category first."}
+                {!selectedTemplateType
+                  ? "Select a template type first."
+                  : !selectedTemplateType.enabled
+                    ? "This template type is not enabled yet."
+                    : !hasValidCategory
+                      ? "Select a template category first."
+                      : "Lowercase letters, numbers, and underscores only."}
               </p>
             </label>
 
@@ -705,7 +807,7 @@ export default function TemplateForm() {
               <span className={labelClass}>Language</span>
               <select
                 className={fieldClass}
-                disabled={!isDefaultTemplate}
+                disabled={!canEditCommonConfiguration}
                 onChange={(event) => setLanguage(event.target.value)}
                 value={language}
               >
@@ -721,23 +823,42 @@ export default function TemplateForm() {
           {selectedTemplateType && !isDefaultTemplate ? (
             <div className="border-t border-[#BFE9D0] bg-[#F8FCFA] p-5">
               <div className="rounded-xl border border-[#BFE9D0] bg-white p-4">
-                <p className="text-sm font-bold text-[#081B3A]">
-                  {selectedTemplateType.label} uses a dedicated builder
-                </p>
-                <p className="mt-1 text-sm leading-6 text-[#526173]">
-                  {selectedTemplateType.description}
-                </p>
-                {selectedTemplateType.route ? (
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-[#081B3A]">
+                      {selectedTemplateType.enabled
+                        ? `${selectedTemplateType.label} uses a dedicated builder`
+                        : `${selectedTemplateType.label} is coming soon`}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-[#526173]">
+                      {selectedTemplateType.description}
+                    </p>
+                  </div>
+
+                  {!selectedTemplateType.enabled ? (
+                    <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">
+                      Coming soon
+                    </span>
+                  ) : null}
+                </div>
+
+                {selectedTemplateType.enabled && selectedTemplateType.route ? (
                   <button
                     className={`${actionButtonClass()} mt-4`}
-                    onClick={() => router.push(selectedTemplateType.route!)}
+                    disabled={!canContinueToDedicatedBuilder}
+                    onClick={openDedicatedBuilder}
                     type="button"
                   >
-                    Open {selectedTemplateType.label} Builder
+                    Continue to {selectedTemplateType.label} Builder
                   </button>
+                ) : selectedTemplateType.enabled ? (
+                  <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                    This template type is enabled but its dedicated builder route
+                    is not configured yet.
+                  </p>
                 ) : (
                   <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
-                    This template type is planned, but not enabled yet. Use Default,
+                    This template type is not enabled yet. Use Default,
                     Authentication, or Carousel for now.
                   </p>
                 )}

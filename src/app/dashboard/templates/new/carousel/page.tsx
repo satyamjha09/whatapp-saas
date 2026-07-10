@@ -4,11 +4,27 @@ import { actionButtonClass } from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import CarouselTemplateForm from "./carousel-template-form";
 
-export default async function NewCarouselTemplatePage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+type NewCarouselTemplatePageProps = {
+  searchParams: Promise<SearchParams>;
+};
+
+function firstQueryValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+export default async function NewCarouselTemplatePage({
+  searchParams,
+}: NewCarouselTemplatePageProps) {
   const context = await getCurrentWorkspaceContext();
 
   if (!context) redirect("/sign-in");
   if (!context.membership) redirect("/onboarding");
+
+  const params = await searchParams;
+  const initialName = firstQueryValue(params.name);
+  const initialLanguage = firstQueryValue(params.language);
 
   return (
     <div>
@@ -25,12 +41,19 @@ export default async function NewCarouselTemplatePage() {
             pattern, card media, variables, and swipe preview.
           </p>
         </div>
-        <Link href="/dashboard/templates/new" className={actionButtonClass("secondary")}>
+
+        <Link
+          href="/dashboard/templates/new"
+          className={actionButtonClass("secondary")}
+        >
           Change Type
         </Link>
       </div>
 
-      <CarouselTemplateForm />
+      <CarouselTemplateForm
+        initialLanguage={initialLanguage}
+        initialName={initialName}
+      />
     </div>
   );
 }
