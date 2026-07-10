@@ -6,6 +6,7 @@ import {
 } from "@/lib/queue";
 import { getRedisConnection } from "@/lib/redis";
 import { runAutomationForInboundMessage } from "@/server/services/automation-runtime.service";
+import { processWhatsAppFlowResponseMappingJob } from "@/server/services/whatsapp-flow-response-mapping.service";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -16,6 +17,11 @@ const worker = new Worker<AutomationRuntimeJobData>(
   "automation-runtime-queue",
   async (job) => {
     console.log("Automation runtime job started:", job.id);
+    if (job.data.kind === "FLOW_RESPONSE") {
+      await processWhatsAppFlowResponseMappingJob(job.data);
+      return;
+    }
+
     await runAutomationForInboundMessage(job.data);
   },
   {

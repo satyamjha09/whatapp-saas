@@ -168,8 +168,18 @@ export type LeadScoreJobData = {
   contactId: string;
 };
 
-export type AutomationRuntimeJobData = {
+export type AutomationInboundRuntimeJobData = {
+  kind?: "INBOUND_MESSAGE";
   companyId: string;
   contactId: string;
   inboundMessageId: string;
 };
+
+export type AutomationFlowResponseJobData = {
+  kind: "FLOW_RESPONSE";
+  flowResponseId: string;
+};
+
+export type AutomationRuntimeJobData =
+  | AutomationInboundRuntimeJobData
+  | AutomationFlowResponseJobData;

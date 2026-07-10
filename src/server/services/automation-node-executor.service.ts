@@ -12,7 +12,9 @@ import type {
 import { assertContactCanReceiveTemplate } from "@/server/services/contact-consent.service";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
 import { createQueuedAutomationOutboundMessage } from "@/server/services/automation-outbound-message.service";
+import { createQueuedTemplateMessage } from "@/server/services/message.service";
 import { executeAdvancedAutomationNode } from "@/server/services/automation-advanced-node-executor.service";
+import { readFlowTemplateRuntimeConfig } from "@/server/services/whatsapp-flow.service";
 import {
   asRecord,
   getAutomationContextValue,
@@ -36,6 +38,7 @@ export type AutomationNodeExecutionInput = {
   contact: AutomationRuntimeContact;
   context: AutomationContext;
   executionId: string;
+  executionStepId?: string;
   inboundMessage: AutomationRuntimeMessage;
   node: AutomationNode;
   sessionId: string;
@@ -357,6 +360,98 @@ export async function executeQuickReplyNode(
 export async function executeSendTemplateNode(
   input: AutomationNodeExecutionInput,
 ): Promise<AutomationNodeExecutionResult> {
+  const data = getNodeData(input.node);
+  const templateId = stringValue(data.templateId);
+  const template = await prisma.template.findFirst({
+    where: {
+      companyId: input.companyId,
+      id: templateId,
+      status: "APPROVED",
+    },
+  });
+
+  if (!template) {
+    throw new Error("Approved template not found");
+  }
+
+  const flowConfig = readFlowTemplateRuntimeConfig(template.components);
+
+  if (flowConfig) {
+    const allMappings = [
+      ...(Array.isArray(data.headerVariableMappings)
+        ? (data.headerVariableMappings as TemplateVariableMapping[])
+        : []),
+      ...(Array.isArray(data.bodyVariableMappings)
+        ? (data.bodyVariableMappings as TemplateVariableMapping[])
+        : []),
+      ...(Array.isArray(data.buttonVariableMappings)
+        ? (data.buttonVariableMappings as TemplateVariableMapping[])
+        : []),
+    ];
+    const resolvedMappings = resolveTemplateMappings({
+      contact: input.contact,
+      context: input.context,
+      mappings: allMappings,
+    });
+    const valuesByKey = new Map<string, string>();
+
+    resolvedMappings.forEach((mapping) => {
+      valuesByKey.set(normalizeMappingKey(mapping.variableName), mapping.value);
+      valuesByKey.set(
+        normalizeMappingKey(`${mapping.component}_${mapping.index}`),
+        mapping.value,
+      );
+    });
+
+    const templateKeys = (template.variables as string[]) || [];
+    const variables = resolveAutomationVariables(templateKeys, valuesByKey);
+
+    if (variables.length !== templateKeys.length) {
+      throw new Error(`This template requires ${templateKeys.length} variable value(s)`);
+    }
+
+    if (variables.some((value) => !value.trim())) {
+      throw new Error("Template variable mappings are incomplete");
+    }
+
+    const outbound = await createQueuedTemplateMessage(input.companyId, {
+      automationContext: {
+        executionId: input.executionId,
+        nodeId: input.node.id,
+        sessionId: input.sessionId,
+        stepId: input.executionStepId ?? null,
+      },
+      contactId: input.contact.id,
+      idempotencyKey: `automation:${input.executionId}:${input.node.id}:flow`,
+      templateId: template.id,
+      variables,
+    });
+
+    await setAutomationSessionLastOutboundMessage({
+      messageId: outbound.id,
+      sessionId: input.sessionId,
+    });
+
+    await markAutomationSessionWaiting({
+      context: input.context,
+      currentNodeId: input.node.id,
+      sessionId: input.sessionId,
+      waitingNodeId: input.node.id,
+    });
+
+    return {
+      context: input.context,
+      output: {
+        flowInteractionId:
+          asRecord(outbound.metadata).flowInteractionId ?? null,
+        outboundMessageId: outbound.id,
+        waitsFor: "WHATSAPP_FLOW_RESPONSE",
+      },
+      status: "WAITING",
+      stop: true,
+    };
+  }
+
   const outbound = await createQueuedAutomationTemplateMessage(input);
 
   await setAutomationSessionLastOutboundMessage({

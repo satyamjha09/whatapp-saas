@@ -1,7 +1,10 @@
 import { Prisma } from "@/generated/prisma/client";
 import type { AutomationTriggerType } from "@/generated/prisma/enums";
 import { getAutomationRuntimeQueue } from "@/lib/queue";
-import type { AutomationRuntimeJobData } from "@/lib/queue";
+import type {
+  AutomationInboundRuntimeJobData,
+  AutomationRuntimeJobData,
+} from "@/lib/queue";
 import type { AutomationGraph, AutomationNode } from "@/lib/automation-builder/types";
 import { resolveSourceHandleId } from "@/lib/automation-builder/connection-handles";
 import { validateAutomationGraph } from "@/lib/automation-builder/graph-validation";
@@ -75,7 +78,7 @@ async function loadInboundMessage({
   companyId,
   contactId,
   inboundMessageId,
-}: AutomationRuntimeJobData): Promise<LoadedInboundMessage | null> {
+}: AutomationInboundRuntimeJobData): Promise<LoadedInboundMessage | null> {
   const message = await prisma.message.findFirst({
     where: {
       companyId,
@@ -654,6 +657,7 @@ export async function executeAutomationGraph({
         contact,
         context: currentContext,
         executionId,
+        executionStepId: step.id,
         inboundMessage,
         node,
         sessionId,
@@ -788,6 +792,14 @@ function getReplyContinuation({
     return itemId
       ? resolveNextNodeId(graph, waitingNode.id, `item:${itemId}`)
       : null;
+  }
+
+  if (waitingNode.type === "SEND_TEMPLATE") {
+    return (
+      resolveNextNodeId(graph, waitingNode.id, "submitted") ??
+      resolveNextNodeId(graph, waitingNode.id, "sent") ??
+      resolveNextNodeId(graph, waitingNode.id, "next")
+    );
   }
 
   return waitingNode.id;
@@ -985,7 +997,7 @@ export async function findOrCreateAutomationSession(input: {
 }
 
 export async function runAutomationForInboundMessage(
-  input: AutomationRuntimeJobData,
+  input: AutomationInboundRuntimeJobData,
 ) {
   const inboundMessage = await loadInboundMessage(input);
 
@@ -1038,6 +1050,12 @@ export async function runAutomationForInboundMessage(
 }
 
 export async function queueAutomationRuntimeJob(input: AutomationRuntimeJobData) {
+  if (input.kind === "FLOW_RESPONSE") {
+    return getAutomationRuntimeQueue().add("process-flow-response", input, {
+      jobId: `automation-flow-response:${input.flowResponseId}`,
+    });
+  }
+
   return getAutomationRuntimeQueue().add("run-automation", input, {
     jobId: `automation-runtime:${input.companyId}:${input.inboundMessageId}`,
   });

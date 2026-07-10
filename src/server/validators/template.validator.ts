@@ -8,6 +8,10 @@ import {
   validateCarouselCardButtons,
   validateTemplateButtons,
 } from "@/lib/whatsapp-template/template-button-rules";
+import {
+  readFlowResponseMappingsFromComponents,
+  validateFlowResponseMappings,
+} from "@/lib/whatsapp-flow-response-mapping";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -15,6 +19,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function getComponentsRecord(value: unknown) {
   return isRecord(value) ? value : {};
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 export const createTemplateSchema = z.object({
@@ -286,6 +294,80 @@ export const createTemplateSchema = z.object({
     });
   }
 
+  if (value.templateType === "FLOWS") {
+    if (!["MARKETING", "UTILITY"].includes(value.category)) {
+      context.addIssue({
+        code: "custom",
+        message: "Flow templates must use Marketing or Utility category",
+        path: ["category"],
+      });
+    }
+
+    const flow = isRecord(components.flow) ? components.flow : {};
+    const localFlowId = stringValue(flow.localFlowId);
+    const metaFlowId = stringValue(flow.metaFlowId);
+    const buttonText = stringValue(flow.buttonText);
+    const action = stringValue(flow.action).toUpperCase();
+    const navigateScreen = stringValue(flow.navigateScreen);
+
+    if (!localFlowId) {
+      context.addIssue({
+        code: "custom",
+        message: "Select a published WhatsApp Flow",
+        path: ["components", "flow", "localFlowId"],
+      });
+    }
+
+    if (!metaFlowId) {
+      context.addIssue({
+        code: "custom",
+        message: "Selected Flow is missing a Meta Flow ID",
+        path: ["components", "flow", "metaFlowId"],
+      });
+    }
+
+    if (!buttonText) {
+      context.addIssue({
+        code: "custom",
+        message: "Flow button text is required",
+        path: ["components", "flow", "buttonText"],
+      });
+    }
+
+    if (!["NAVIGATE", "DATA_EXCHANGE"].includes(action)) {
+      context.addIssue({
+        code: "custom",
+        message: "Flow action is not supported",
+        path: ["components", "flow", "action"],
+      });
+    }
+
+    if (navigateScreen && !/^[A-Za-z0-9_:-]{1,120}$/.test(navigateScreen)) {
+      context.addIssue({
+        code: "custom",
+        message: "Navigate screen can only contain letters, numbers, _, -, or :",
+        path: ["components", "flow", "navigateScreen"],
+      });
+    }
+
+    if ("flow_token" in flow || "flowToken" in flow) {
+      context.addIssue({
+        code: "custom",
+        message: "Flow templates must not store runtime flow_token values",
+        path: ["components", "flow"],
+      });
+    }
+
+    const responseMappings = readFlowResponseMappingsFromComponents(components);
+    validateFlowResponseMappings(responseMappings).forEach((issue) => {
+      context.addIssue({
+        code: "custom",
+        message: issue.message,
+        path: ["components", "responseMappings", issue.index],
+      });
+    });
+  }
+
   if (value.templateType !== "CAROUSEL" && Array.isArray(components.cards)) {
     context.addIssue({
       code: "custom",
@@ -308,6 +390,18 @@ export const createTemplateSchema = z.object({
     isRecord(buttonsComponent) &&
     Array.isArray(buttonsComponent.buttons)
   ) {
+    buttonsComponent.buttons.forEach((button, index) => {
+      if (!isRecord(button)) return;
+
+      if ("flow_token" in button || "flowToken" in button) {
+        context.addIssue({
+          code: "custom",
+          message: "Flow button must not store a runtime flow_token value",
+          path: ["components", "components", "buttons", index],
+        });
+      }
+    });
+
     validateTemplateButtons({
       buttons: buttonsComponent.buttons,
       templateCategory: value.category,

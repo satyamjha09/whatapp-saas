@@ -121,8 +121,8 @@ export default async function WhatsAppFlowDetailPage({
               <thead className="bg-[#E7F8EF] text-xs uppercase text-[#526173]">
                 <tr>
                   <th className="px-5 py-3">Contact</th>
-                  <th className="px-5 py-3">Flow token</th>
-                  <th className="px-5 py-3">Submitted</th>
+                  <th className="px-5 py-3">Provider message</th>
+                  <th className="px-5 py-3">Captured</th>
                   <th className="px-5 py-3">Payload</th>
                 </tr>
               </thead>
@@ -135,14 +135,18 @@ export default async function WhatsAppFlowDetailPage({
                         : "Unknown contact"}
                     </td>
                     <td className="px-5 py-4 font-mono text-xs text-[#526173]">
-                      {response.flowToken}
+                      {response.providerMessageId ?? response.message?.id ?? "--"}
                     </td>
                     <td className="px-5 py-4 text-[#526173]">
-                      {response.submittedAt.toLocaleString()}
+                      {(response.receivedAt ?? response.submittedAt).toLocaleString()}
                     </td>
                     <td className="max-w-md px-5 py-4">
                       <pre className="max-h-36 overflow-auto rounded-lg bg-[#E7F8EF] p-3 text-xs text-[#081B3A]">
-                        {JSON.stringify(response.responsePayload, null, 2)}
+                        {JSON.stringify(
+                          response.responseData ?? response.responsePayload,
+                          null,
+                          2,
+                        )}
                       </pre>
                     </td>
                   </tr>

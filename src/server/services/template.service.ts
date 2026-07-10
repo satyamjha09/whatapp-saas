@@ -10,6 +10,7 @@ import {
 } from "@/server/services/usage-quota.service";
 import { recordTemplateLifecycleEvent } from "@/server/services/template-lifecycle.service";
 import { getTemplateMediaAssetForCompany } from "@/server/services/template-media-asset.service";
+import { isFlowUsableForTemplate } from "@/server/services/whatsapp-flow.service";
 import { CreateTemplateInput } from "@/server/validators/template.validator";
 
 export class TemplateDraftError extends Error {
@@ -94,6 +95,116 @@ async function hydrateTemplateMediaComponents({
   };
 }
 
+async function hydrateFlowTemplateComponents({
+  companyId,
+  components,
+}: {
+  companyId: string;
+  components: unknown;
+}) {
+  if (!isRecord(components) || components.templateType !== "FLOWS") {
+    return components;
+  }
+
+  const flowConfig = isRecord(components.flow) ? components.flow : {};
+  const localFlowId =
+    typeof flowConfig.localFlowId === "string" ? flowConfig.localFlowId.trim() : "";
+
+  if (!localFlowId) {
+    throw new TemplateDraftError("Select a published WhatsApp Flow.");
+  }
+
+  const flow = await prisma.whatsAppFlow.findFirst({
+    where: {
+      companyId,
+      id: localFlowId,
+    },
+    select: {
+      defaultScreen: true,
+      id: true,
+      isUsableForTemplates: true,
+      metaFlowId: true,
+      name: true,
+      remoteMissingAt: true,
+      remoteStatus: true,
+      status: true,
+    },
+  });
+
+  if (!flow || !isFlowUsableForTemplate(flow)) {
+    throw new TemplateDraftError("Selected Flow was not found or is not published.");
+  }
+
+  if (!flow.metaFlowId) {
+    throw new TemplateDraftError("Selected Flow is missing its Meta Flow ID.");
+  }
+
+  const action =
+    String(flowConfig.action ?? "").toUpperCase() === "DATA_EXCHANGE"
+      ? "DATA_EXCHANGE"
+      : "NAVIGATE";
+  const buttonText =
+    typeof flowConfig.buttonText === "string" && flowConfig.buttonText.trim()
+      ? flowConfig.buttonText.trim()
+      : "Complete form";
+  const navigateScreen =
+    typeof flowConfig.navigateScreen === "string" && flowConfig.navigateScreen.trim()
+      ? flowConfig.navigateScreen.trim()
+      : flow.defaultScreen;
+
+  const hydratedComponents = Array.isArray(components.components)
+    ? components.components.map((component) => {
+        if (
+          !isRecord(component) ||
+          String(component.type ?? "").toUpperCase() !== "BUTTONS" ||
+          !Array.isArray(component.buttons)
+        ) {
+          return component;
+        }
+
+        return {
+          ...component,
+          buttons: component.buttons.map((button) => {
+            if (
+              !isRecord(button) ||
+              String(button.type ?? "").toUpperCase() !== "FLOW"
+            ) {
+              return button;
+            }
+
+            const { flowToken, flow_token: flowTokenSnake, ...safeButton } = button;
+            void flowToken;
+            void flowTokenSnake;
+
+            return {
+              ...safeButton,
+              flowAction: action,
+              flowId: flow.metaFlowId,
+              navigateScreen: navigateScreen || undefined,
+              text: buttonText,
+              type: "FLOW",
+            };
+          }),
+        };
+      })
+    : components.components;
+
+  return {
+    ...components,
+    components: hydratedComponents,
+    flow: {
+      action,
+      buttonText,
+      localFlowId: flow.id,
+      metaFlowId: flow.metaFlowId,
+      name: flow.name,
+      navigateScreen: navigateScreen || null,
+      status: flow.status,
+    },
+    templateType: "FLOWS",
+  };
+}
+
 export async function getTemplatesByCompany(companyId: string) {
   return prisma.template.findMany({
     where: {
@@ -119,9 +230,13 @@ export async function createTemplateForCompany(
     companyId,
     components: input.components,
   });
+  const hydratedFlowComponents = await hydrateFlowTemplateComponents({
+    companyId,
+    components: hydratedInputComponents,
+  });
   const storedComponents = buildStoredTemplateComponents({
     body: input.body,
-    components: hydratedInputComponents,
+    components: hydratedFlowComponents,
     templateType: input.templateType,
   });
   const variables = buildTemplateVariableKeys({

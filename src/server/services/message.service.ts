@@ -1,6 +1,8 @@
+import crypto from "node:crypto";
 import { getMessageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { assertContactCanReceiveTemplate } from "@/server/services/contact-consent.service";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
@@ -12,6 +14,21 @@ import {
 import { SendTemplateMessageInput } from "@/server/validators/message.validator";
 import { PublicSendTemplateMessageInput } from "@/server/validators/public-message.validator";
 import { CreateInboxReplyInput } from "@/server/validators/inbox-reply.validator";
+import {
+  createWhatsAppFlowToken,
+  encryptWhatsAppFlowToken,
+  hashWhatsAppFlowToken,
+  isFlowUsableForTemplate,
+  readFlowTemplateRuntimeConfig,
+} from "@/server/services/whatsapp-flow.service";
+import { readFlowResponseMappingsFromComponents } from "@/lib/whatsapp-flow-response-mapping";
+
+type AutomationFlowTemplateContext = {
+  executionId: string;
+  nodeId: string;
+  sessionId: string;
+  stepId?: string | null;
+};
 
 function renderTemplateBody(body: string, variables: string[]) {
   return body.replace(/{{(\d+)}}/g, (_, index: string) => {
@@ -38,7 +55,9 @@ export async function getMessagesByCompany(companyId: string) {
 
 export async function createQueuedTemplateMessage(
   companyId: string,
-  input: SendTemplateMessageInput,
+  input: SendTemplateMessageInput & {
+    automationContext?: AutomationFlowTemplateContext;
+  },
 ) {
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId);
@@ -87,6 +106,255 @@ export async function createQueuedTemplateMessage(
 
   const toPhoneNumber = `${contact.countryCode}${contact.phoneNumber}`;
   const body = renderTemplateBody(template.body, input.variables);
+  const flowConfig = readFlowTemplateRuntimeConfig(template.components);
+
+  if (flowConfig) {
+    const idempotencyKey = `flow-template:${
+      input.idempotencyKey ?? crypto.randomUUID()
+    }`;
+
+    const existingInteraction =
+      await prisma.whatsAppFlowInteraction.findUnique({
+        where: {
+          companyId_idempotencyKey: {
+            companyId,
+            idempotencyKey,
+          },
+        },
+        include: {
+          message: {
+            include: {
+              contact: true,
+              events: true,
+              template: true,
+            },
+          },
+        },
+      });
+
+    if (existingInteraction?.message) {
+      if (
+        ["QUEUED", "RETRY_PENDING"].includes(
+          existingInteraction.message.status,
+        )
+      ) {
+        await enqueueTemplateMessage(existingInteraction.message.id, companyId);
+      }
+
+      return existingInteraction.message;
+    }
+
+    const flowAsset = await prisma.whatsAppFlow.findFirst({
+      where: {
+        companyId,
+        id: flowConfig.localFlowId,
+      },
+      select: {
+        id: true,
+        isUsableForTemplates: true,
+        metaFlowId: true,
+        remoteMissingAt: true,
+        remoteStatus: true,
+        status: true,
+      },
+    });
+
+    if (!flowAsset || !isFlowUsableForTemplate(flowAsset)) {
+      throw new Error("Flow not found or not published");
+    }
+
+    const flowToken = createWhatsAppFlowToken();
+    const flowTokenEncrypted = encryptWhatsAppFlowToken(flowToken);
+    const flowTokenHash = hashWhatsAppFlowToken(flowToken);
+    const responseMappingSnapshot =
+      readFlowResponseMappingsFromComponents(template.components);
+
+    const message = await prisma
+      .$transaction(async (tx) => {
+        const interaction = await tx.whatsAppFlowInteraction.create({
+          data: {
+            automationExecutionId: input.automationContext?.executionId ?? null,
+            automationNodeId: input.automationContext?.nodeId ?? null,
+            automationStepId: input.automationContext?.stepId ?? null,
+            companyId,
+            contactId: contact.id,
+            flowAssetId: flowAsset.id,
+            flowTokenEncrypted,
+            flowTokenHash,
+            idempotencyKey,
+            metaFlowId: flowConfig.metaFlowId || flowAsset.metaFlowId,
+            responseMappingSnapshot:
+              responseMappingSnapshot.length > 0
+                ? (responseMappingSnapshot as Prisma.InputJsonValue)
+                : undefined,
+            status: "PENDING",
+            templateId: template.id,
+          },
+        });
+
+        await tx.wallet.upsert({
+          where: {
+            companyId,
+          },
+          update: {},
+          create: {
+            companyId,
+            balancePaise: 0,
+          },
+        });
+
+        const debitResult = await tx.wallet.updateMany({
+          where: {
+            companyId,
+            balancePaise: {
+              gte: MESSAGE_PRICE_PAISE,
+            },
+          },
+          data: {
+            balancePaise: {
+              decrement: MESSAGE_PRICE_PAISE,
+            },
+          },
+        });
+
+        if (debitResult.count !== 1) {
+          throw new Error("Insufficient wallet balance");
+        }
+
+        const createdMessage = await tx.message.create({
+          data: {
+            body,
+            companyId,
+            contactId: contact.id,
+            direction: "OUTBOUND",
+            events: {
+              create: {
+                companyId,
+                raw: {
+                  automationExecutionId: input.automationContext?.executionId,
+                  automationNodeId: input.automationContext?.nodeId,
+                  automationSessionId: input.automationContext?.sessionId,
+                  flowInteractionId: interaction.id,
+                  localFlowId: flowAsset.id,
+                  metaFlowId: flowConfig.metaFlowId || flowAsset.metaFlowId,
+                  reason: "Flow template message queued",
+                  source: input.automationContext
+                    ? "automation_runtime"
+                    : "api",
+                },
+                status: "QUEUED",
+              },
+            },
+            idempotencyKey,
+            metadata: {
+              ...(input.automationContext
+                ? {
+                    automationExecutionId:
+                      input.automationContext.executionId,
+                    automationNodeId: input.automationContext.nodeId,
+                    automationSessionId: input.automationContext.sessionId,
+                    source: "automation_runtime",
+                  }
+                : {}),
+              flowAction: flowConfig.action,
+              flowInteractionId: interaction.id,
+              flowScreen: flowConfig.navigateScreen,
+              internalFlowId: flowAsset.id,
+              messageType: "FLOW_TEMPLATE",
+              metaFlowId: flowConfig.metaFlowId || flowAsset.metaFlowId,
+              primaryButton: flowConfig.buttonText,
+            },
+            status: "QUEUED",
+            templateId: template.id,
+            toPhoneNumber,
+            variables: input.variables,
+          },
+          include: {
+            contact: true,
+            events: true,
+            template: true,
+          },
+        });
+
+        const walletTransaction = await tx.walletTransaction.create({
+          data: {
+            amountPaise: MESSAGE_PRICE_PAISE,
+            companyId,
+            description: "Flow template message queued",
+            referenceId: createdMessage.id,
+            referenceType: "MESSAGE_USAGE",
+            status: "SUCCESS",
+            type: "DEBIT",
+          },
+        });
+
+        await tx.messageUsageLedger.create({
+          data: {
+            amountPaise: MESSAGE_PRICE_PAISE,
+            companyId,
+            messageId: createdMessage.id,
+            status: "CHARGED",
+            walletTransactionId: walletTransaction.id,
+          },
+        });
+
+        await tx.whatsAppFlowInteraction.update({
+          where: {
+            id: interaction.id,
+          },
+          data: {
+            messageId: createdMessage.id,
+            status: "QUEUED",
+          },
+        });
+
+        return createdMessage;
+      })
+      .catch(async (error) => {
+        if (!isUniqueConstraintError(error)) {
+          throw error;
+        }
+
+        const interaction = await prisma.whatsAppFlowInteraction.findUnique({
+          where: {
+            companyId_idempotencyKey: {
+              companyId,
+              idempotencyKey,
+            },
+          },
+          include: {
+            message: {
+              include: {
+                contact: true,
+                events: true,
+                template: true,
+              },
+            },
+          },
+        });
+
+        if (interaction?.message) return interaction.message;
+
+        throw error;
+      });
+
+    try {
+      await enqueueTemplateMessage(message.id, companyId);
+    } catch (error) {
+      const reason =
+        error instanceof Error ? error.message : "Unable to queue message";
+
+      await markFlowTemplateQueueFailure({
+        companyId,
+        messageId: message.id,
+        reason,
+      });
+
+      throw error;
+    }
+
+    return message;
+  }
 
   const message = await prisma.$transaction(async (tx) => {
     await tx.wallet.upsert({
@@ -171,12 +439,7 @@ export async function createQueuedTemplateMessage(
     return createdMessage;
   });
 
-  await getMessageQueue().add("send-template-message", {
-    messageId: message.id,
-    companyId,
-  }, {
-    jobId: message.id,
-  });
+  await enqueueTemplateMessage(message.id, companyId);
 
   return message;
 }
@@ -197,6 +460,71 @@ export async function getMessageByCompany(messageId: string, companyId: string) 
       },
     },
   });
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  );
+}
+
+async function enqueueTemplateMessage(messageId: string, companyId: string) {
+  await getMessageQueue().add(
+    "send-template-message",
+    {
+      messageId,
+      companyId,
+    },
+    {
+      jobId: messageId,
+    },
+  );
+}
+
+async function markFlowTemplateQueueFailure({
+  companyId,
+  messageId,
+  reason,
+}: {
+  companyId: string;
+  messageId: string;
+  reason: string;
+}) {
+  await prisma.$transaction([
+    prisma.message.updateMany({
+      where: {
+        companyId,
+        id: messageId,
+        status: "QUEUED",
+      },
+      data: {
+        errorMessage: reason,
+        status: "RETRY_PENDING",
+      },
+    }),
+    prisma.messageEvent.create({
+      data: {
+        companyId,
+        messageId,
+        raw: {
+          reason,
+          source: "flow_template_queue",
+        },
+        status: "RETRY_PENDING",
+      },
+    }),
+    prisma.whatsAppFlowInteraction.updateMany({
+      where: {
+        companyId,
+        messageId,
+      },
+      data: {
+        lastError: reason,
+        status: "QUEUED",
+      },
+    }),
+  ]);
 }
 
 export async function createQueuedInboxReply(

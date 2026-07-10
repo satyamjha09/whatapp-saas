@@ -30,6 +30,12 @@ import {
 import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
 import { readTemplateComponents } from "@/lib/whatsapp-template/template-variable-parser";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
+import {
+  getFlowInteractionRuntimeForMessage,
+  markFlowInteractionFailed,
+  markFlowInteractionSent,
+  readFlowTemplateRuntimeConfig,
+} from "@/server/services/whatsapp-flow.service";
 
 const heartbeat = createWorkerHeartbeat({
   workerName: process.env.WORKER_HEARTBEAT_NAME ?? "message-worker",
@@ -147,9 +153,14 @@ type MetaComponentType = {
   buttons?: Array<Record<string, unknown>>;
 };
 
+type FlowTemplateRuntime = {
+  flowToken: string;
+};
+
 function buildMetaComponentsPayload(
   components: MetaComponentType[],
   variableMap: Map<string, string>,
+  flowRuntime?: FlowTemplateRuntime | null,
 ): WhatsAppTemplateComponent[] {
   const result: WhatsAppTemplateComponent[] = [];
 
@@ -232,6 +243,22 @@ function buildMetaComponentsPayload(
               }),
             });
           }
+        }
+
+        if (button.type === "FLOW" && flowRuntime) {
+          result.push({
+            type: "button",
+            sub_type: "flow",
+            index: String(btnIdx),
+            parameters: [
+              {
+                action: {
+                  flow_token: flowRuntime.flowToken,
+                },
+                type: "action",
+              },
+            ],
+          });
         }
       });
     }
@@ -633,6 +660,12 @@ async function markMessageAsFailed(
         },
       },
     },
+  });
+
+  await markFlowInteractionFailed({
+    companyId,
+    messageId: message.id,
+    reason,
   });
 
   await prisma.campaignSequenceExecution.updateMany({
@@ -1085,6 +1118,12 @@ const worker = new Worker<SendMessageJobData>(
           },
         });
 
+        await markFlowInteractionSent({
+          companyId,
+          messageId: message.id,
+          metaMessageId: fakeMetaMessageId,
+        });
+
         await updateBulkMessageRecipientTracking(message.id, "SENT");
         await enqueueDeveloperMessageStatusWebhook(companyId, message.id);
 
@@ -1103,6 +1142,15 @@ const worker = new Worker<SendMessageJobData>(
       const result = template
         ? await (async () => {
             const templateComponents = readTemplateComponents(template) as MetaComponentType[];
+            const flowTemplateConfig = readFlowTemplateRuntimeConfig(
+              template.components,
+            );
+            const flowRuntime = flowTemplateConfig
+              ? await getFlowInteractionRuntimeForMessage({
+                  companyId,
+                  messageId: message.id,
+                })
+              : null;
             const variableMap = new Map<string, string>();
             const templateKeys = (template.variables as string[]) || [];
             templateKeys.forEach((key, idx) => {
@@ -1111,8 +1159,16 @@ const worker = new Worker<SendMessageJobData>(
 
             const hasNamespace = templateKeys.some((k) => k.startsWith("BODY_") || k.startsWith("HEADER_") || k.startsWith("BUTTON_"));
 
-            const components = hasNamespace
-              ? buildMetaComponentsPayload(templateComponents, variableMap)
+            const components = hasNamespace || flowTemplateConfig
+              ? buildMetaComponentsPayload(
+                  templateComponents,
+                  variableMap,
+                  flowTemplateConfig && flowRuntime
+                    ? {
+                        flowToken: flowRuntime.flowToken,
+                      }
+                    : null,
+                )
               : undefined;
 
             return sendWhatsAppTemplateMessage({
@@ -1180,6 +1236,12 @@ const worker = new Worker<SendMessageJobData>(
             },
           },
         },
+      });
+
+      await markFlowInteractionSent({
+        companyId,
+        messageId: message.id,
+        metaMessageId: result.metaMessageId,
       });
 
       await updateBulkMessageRecipientTracking(message.id, "SENT");

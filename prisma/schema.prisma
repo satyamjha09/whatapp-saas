@@ -148,6 +148,22 @@ enum WhatsAppFlowStatus {
   DISABLED
 }
 
+enum WhatsAppFlowInteractionStatus {
+  PENDING
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+  COMPLETED
+}
+
+enum WhatsAppFlowResponseStatus {
+  CAPTURED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
 enum WhatsAppFlowUseCase {
   LEAD_CAPTURE
   APPOINTMENT_BOOKING
@@ -1340,6 +1356,7 @@ model Company {
   whatsAppPhoneNumbers              WhatsAppPhoneNumber[]
   whatsAppEmbeddedSignupEvents      WhatsAppEmbeddedSignupEvent[]
   whatsAppFlows                     WhatsAppFlow[]
+  whatsAppFlowInteractions          WhatsAppFlowInteraction[]
   whatsAppFlowResponses             WhatsAppFlowResponse[]
   chatbots                          Chatbot[]
   chatbotVersions                   ChatbotVersion[]
@@ -1581,6 +1598,7 @@ model WhatsAppAccount {
   company              Company                       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   phoneNumbers         WhatsAppPhoneNumber[]
   embeddedSignupEvents WhatsAppEmbeddedSignupEvent[]
+  flows                WhatsAppFlow[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1652,33 +1670,102 @@ model WhatsAppEmbeddedSignupEvent {
 }
 
 model WhatsAppFlow {
-  id        String @id @default(cuid())
-  companyId String
+  id                String  @id @default(cuid())
+  companyId         String
+  whatsAppAccountId String?
 
   name        String
   description String?
   useCase     WhatsAppFlowUseCase @default(CUSTOM)
 
-  metaFlowId String
-  status     WhatsAppFlowStatus @default(DRAFT)
+  metaFlowId   String
+  status       WhatsAppFlowStatus @default(DRAFT)
+  remoteStatus String?
 
   defaultCta      String  @default("Open form")
   defaultScreen   String?
   dataApiEndpoint String?
 
-  schema   Json?
-  metadata Json?
+  categories           Json?
+  validationErrors     Json?
+  schema               Json?
+  metadata             Json?
+  metaRaw              Json?
+  isUsableForTemplates Boolean   @default(false)
+  lastSyncedAt         DateTime?
+  remoteMissingAt      DateTime?
 
-  company   Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  responses WhatsAppFlowResponse[]
+  company         Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  whatsAppAccount WhatsAppAccount?          @relation(fields: [whatsAppAccountId], references: [id], onDelete: SetNull)
+  interactions    WhatsAppFlowInteraction[]
+  responses       WhatsAppFlowResponse[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, metaFlowId])
   @@index([companyId])
+  @@index([whatsAppAccountId])
   @@index([status])
   @@index([useCase])
+  @@index([isUsableForTemplates])
+  @@index([lastSyncedAt])
+  @@index([remoteMissingAt])
+}
+
+model WhatsAppFlowInteraction {
+  id        String @id @default(cuid())
+  companyId String
+
+  contactId   String
+  flowAssetId String
+  messageId   String? @unique
+  templateId  String
+
+  metaFlowId String
+
+  flowTokenHash      String @unique
+  flowTokenEncrypted String
+
+  status         WhatsAppFlowInteractionStatus @default(PENDING)
+  idempotencyKey String
+  metaMessageId  String?
+  lastError      String?
+
+  responseMappingSnapshot  Json?
+  automationExecutionId    String?
+  automationStepId         String?
+  automationNodeId         String?
+  automationResumeQueuedAt DateTime?
+
+  sentAt      DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+
+  company             Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact             Contact                  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  flowAsset           WhatsAppFlow             @relation(fields: [flowAssetId], references: [id], onDelete: Restrict)
+  message             Message?                 @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  template            Template                 @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  response            WhatsAppFlowResponse?
+  automationExecution AutomationExecution?     @relation(fields: [automationExecutionId], references: [id], onDelete: SetNull)
+  automationStep      AutomationExecutionStep? @relation(fields: [automationStepId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([flowAssetId])
+  @@index([messageId])
+  @@index([templateId])
+  @@index([metaMessageId])
+  @@index([status])
+  @@index([automationExecutionId])
+  @@index([automationStepId])
+  @@index([automationNodeId])
+  @@index([createdAt])
 }
 
 model WhatsAppFlowResponse {
@@ -1690,23 +1777,40 @@ model WhatsAppFlowResponse {
   messageId  String?
   campaignId String?
 
-  flowToken       String @unique
-  responsePayload Json
-  rawWebhook      Json?
+  flowInteractionId   String?                    @unique
+  providerMessageId   String?
+  flowTokenHash       String?                    @unique
+  flowToken           String?                    @unique
+  responseData        Json?
+  responsePayload     Json
+  rawWebhook          Json?
+  screenId            String?
+  status              WhatsAppFlowResponseStatus @default(CAPTURED)
+  receivedAt          DateTime                   @default(now())
+  processingStartedAt DateTime?
+  processedAt         DateTime?
+  processingError     String?
+  processingResult    Json?
 
   submittedAt DateTime @default(now())
 
-  flow     WhatsAppFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
-  company  Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contact  Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  message  Message?     @relation(fields: [messageId], references: [id], onDelete: SetNull)
-  campaign Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  flow            WhatsAppFlow             @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  company         Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact         Contact?                 @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  message         Message?                 @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  campaign        Campaign?                @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  flowInteraction WhatsAppFlowInteraction? @relation(fields: [flowInteractionId], references: [id], onDelete: SetNull)
 
+  @@unique([companyId, providerMessageId])
   @@index([companyId])
   @@index([flowId])
   @@index([contactId])
   @@index([messageId])
   @@index([campaignId])
+  @@index([flowInteractionId])
+  @@index([providerMessageId])
+  @@index([receivedAt])
+  @@index([status])
   @@index([submittedAt])
 }
 
@@ -2084,8 +2188,9 @@ model AutomationExecution {
   flowVersion AutomationFlowVersion @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
   session     AutomationSession?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
-  steps  AutomationExecutionStep[]
-  alerts AutomationAlert[]
+  steps                    AutomationExecutionStep[]
+  alerts                   AutomationAlert[]
+  whatsAppFlowInteractions WhatsAppFlowInteraction[]
 
   @@unique([companyId, triggerMessageId, flowId])
   @@index([companyId])
@@ -2122,7 +2227,8 @@ model AutomationExecutionStep {
   startedAt   DateTime  @default(now())
   completedAt DateTime?
 
-  execution AutomationExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  execution                AutomationExecution       @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  whatsAppFlowInteractions WhatsAppFlowInteraction[]
 
   @@index([companyId])
   @@index([companyId, executionId])
@@ -2328,22 +2434,23 @@ model Template {
   variables  String[]
   components Json?
 
-  metaTemplateId String?
-  rejectionReason String?
-  qualityScore    String?
-  submittedPayload Json?
-  lastSubmitError  String?
-  lastSubmittedAt  DateTime?
-  approvedAt       DateTime?
+  metaTemplateId    String?
+  rejectionReason   String?
+  qualityScore      String?
+  submittedPayload  Json?
+  lastSubmitError   String?
+  lastSubmittedAt   DateTime?
+  approvedAt        DateTime?
   submittedByUserId String?
   lastSyncedAt      DateTime?
 
-  company               Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  messages              Message[]
-  campaigns             Campaign[]
-  bulkMessageBatches    BulkMessageBatch[]
-  campaignSequenceSteps CampaignSequenceStep[]
-  lifecycleEvents       TemplateLifecycleEvent[]
+  company                  Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages                 Message[]
+  campaigns                Campaign[]
+  bulkMessageBatches       BulkMessageBatch[]
+  campaignSequenceSteps    CampaignSequenceStep[]
+  lifecycleEvents          TemplateLifecycleEvent[]
+  whatsAppFlowInteractions WhatsAppFlowInteraction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2393,7 +2500,7 @@ model TemplateMediaAsset {
   mimeType  String
   sizeBytes Int
 
-  storageKey String @unique
+  storageKey String  @unique
   publicUrl  String
   sha256     String?
 
@@ -2472,6 +2579,7 @@ model Contact {
   campaignConversionEvents   CampaignConversionEvent[]
   campaignFollowUpTasks      CampaignFollowUpTask[]
   campaignSequenceExecutions CampaignSequenceExecution[]
+  whatsAppFlowInteractions   WhatsAppFlowInteraction[]
   whatsAppFlowResponses      WhatsAppFlowResponse[]
   chatbotSessions            ChatbotSession[]
   contactGroupMembers        ContactGroupMember[]
@@ -3648,10 +3756,10 @@ model Message {
   body          String
   variables     String[]
 
-  metaMessageId String?
-  errorCode     String?
-  errorMessage  String?
-  metadata      Json?
+  metaMessageId  String?
+  errorCode      String?
+  errorMessage   String?
+  metadata       Json?
   idempotencyKey String?
 
   inboxReadAt DateTime?
@@ -3672,12 +3780,14 @@ model Message {
   campaignConversionEvents          CampaignConversionEvent[]
   campaignSequenceExecutions        CampaignSequenceExecution[] @relation("CampaignSequenceMessage")
   nextCampaignSequenceExecutions    CampaignSequenceExecution[] @relation("CampaignSequencePreviousMessage")
+  whatsAppFlowInteraction           WhatsAppFlowInteraction?
   whatsAppFlowResponses             WhatsAppFlowResponse[]
   chatbotSessionEvents              ChatbotSessionEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([companyId, idempotencyKey])
   @@index([companyId])
   @@index([contactId])
   @@index([templateId])
@@ -3685,7 +3795,6 @@ model Message {
   @@index([errorCode])
   @@index([campaignId])
   @@index([campaignContactId])
-  @@unique([companyId, idempotencyKey])
   @@index([companyId, direction, inboxReadAt])
   @@index([companyId, scheduledAt])
 }
@@ -3890,6 +3999,7 @@ model CampaignLaunchRecipient {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([launchRunId, contactId])
   @@index([companyId])
   @@index([launchRunId])
   @@index([campaignId])
@@ -3897,7 +4007,6 @@ model CampaignLaunchRecipient {
   @@index([messageId])
   @@index([status])
   @@index([createdAt])
-  @@unique([launchRunId, contactId])
 }
 
 model CampaignWalletReservation {

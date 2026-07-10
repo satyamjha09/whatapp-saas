@@ -150,11 +150,11 @@ const templateTypeOptions: TemplateTypeOption[] = [
     value: "AUTHENTICATION",
   },
   {
-    autoCategoryLabel: "Configured in the Flow builder",
-    categoryMode: "AUTO",
+    categoryMode: "SELECT",
     description: "WhatsApp Flow templates will connect to published WhatsApp Flows.",
-    enabled: false,
+    enabled: true,
     label: "Flows",
+    route: "/dashboard/templates/new/flow",
     value: "FLOWS",
   },
   {
@@ -563,13 +563,10 @@ export default function TemplateForm() {
     }
 
     const params = new URLSearchParams({
+      category,
       language,
       name: cleanTemplateName(name).slice(0, 80),
     });
-
-    if (selectedTemplateType.autoCategoryLabel) {
-      params.set("category", selectedTemplateType.autoCategoryLabel);
-    }
 
     router.push(`${selectedTemplateType.route}?${params.toString()}`);
   }

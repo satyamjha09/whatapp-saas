@@ -7,6 +7,7 @@ const SECRET_VERSION = "v2";
 export type SecretPurpose =
   | "whatsapp_access_token"
   | "developer_webhook_signing_secret"
+  | "whatsapp_flow_token"
   | "generic_secret";
 
 type Keyring = Record<string, Buffer>;

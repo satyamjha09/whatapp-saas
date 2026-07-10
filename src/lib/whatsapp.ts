@@ -26,11 +26,18 @@ export type WhatsAppTemplateParameter =
         id?: string;
         link?: string;
       };
+    }
+  | {
+      type: "action";
+      action: {
+        flow_token: string;
+        flow_action_data?: Record<string, unknown>;
+      };
     };
 
 export type WhatsAppTemplateComponent = {
   type: "header" | "body" | "button";
-  sub_type?: "url" | "quick_reply";
+  sub_type?: "url" | "quick_reply" | "flow";
   index?: string;
   parameters: WhatsAppTemplateParameter[];
 };

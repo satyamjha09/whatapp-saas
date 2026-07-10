@@ -17,7 +17,13 @@ import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
 import { queueLeadScoreRecalculation } from "@/server/services/lead-scoring.service";
 import { publishInboxRealtimeEvent } from "@/server/realtime/inbox-events";
 import { createUnmappedWebhookEvent } from "@/server/services/webhook.service";
-import { recordWhatsAppFlowResponse } from "@/server/services/whatsapp-flow.service";
+import {
+  isWhatsAppFlowResponseMessage,
+  parseWhatsAppFlowResponse,
+  recordWhatsAppFlowResponse,
+  sanitizeWhatsAppFlowPayloadForStorage,
+  WhatsAppFlowResponseCaptureError,
+} from "@/server/services/whatsapp-flow.service";
 import { processChatbotInboundMessage } from "@/server/services/chatbot-runtime.service";
 import { queueAutomationRuntimeJob } from "@/server/services/automation-runtime.service";
 import type { Prisma } from "@/generated/prisma/client";
@@ -149,33 +155,6 @@ function getStringValue(record: JsonRecord | null, key: string) {
   return typeof value === "string" ? value : null;
 }
 
-function safeJsonParse(value: string) {
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    return value;
-  }
-}
-
-function getFlowResponseFromInteractive(interactive: unknown) {
-  const record = asRecord(interactive);
-  const nfmReply = asRecord(record?.nfm_reply);
-
-  if (!nfmReply) return null;
-
-  const flowToken = getStringValue(nfmReply, "flow_token");
-  const responseJson = nfmReply.response_json;
-
-  return {
-    flowToken,
-    raw: record,
-    responsePayload:
-      typeof responseJson === "string"
-        ? safeJsonParse(responseJson)
-        : responseJson ?? {},
-  };
-}
-
 function getNumberValue(record: JsonRecord | null, key: string) {
   const value = record?.[key];
 
@@ -286,7 +265,7 @@ function getInboundMessageMetadata(
     return attachInboundContext(message, {
       messageType: "INTERACTIVE",
       direction: "INBOUND",
-      interactive: message.interactive as Prisma.InputJsonValue,
+      interactive: sanitizeWhatsAppFlowPayloadForStorage(message.interactive),
     });
   }
 
@@ -327,7 +306,7 @@ function getInboundMessageBody(message: JsonRecord) {
   }
 
   if (message.type === "interactive") {
-    return JSON.stringify(message.interactive ?? {});
+    return JSON.stringify(sanitizeWhatsAppFlowPayloadForStorage(message.interactive));
   }
 
   const mediaType = getInboundMediaType(message.type);
@@ -502,6 +481,7 @@ const worker = new Worker<ProcessWebhookJobData>(
       );
       const body = getInboundMessageBody(incomingMessage);
       const metadata = getInboundMessageMetadata(incomingMessage);
+      const isFlowResponse = isWhatsAppFlowResponseMessage(incomingMessage);
 
       const contact = await prisma.contact.upsert({
         where: {
@@ -549,25 +529,29 @@ const worker = new Worker<ProcessWebhookJobData>(
         },
       });
 
-      if (incomingMessage.type === "interactive") {
-        const flowResponse = getFlowResponseFromInteractive(
-          incomingMessage.interactive,
-        );
+      if (isFlowResponse) {
+        try {
+          const flowResponse = parseWhatsAppFlowResponse(incomingMessage);
 
-        if (flowResponse?.flowToken) {
           await recordWhatsAppFlowResponse({
             companyId,
             contactId: contact.id,
             flowToken: flowResponse.flowToken,
             inboundMessageId: message.id,
+            providerMessageId: flowResponse.providerMessageId ?? metaMessageId,
             rawWebhook: incomingMessage,
-            responsePayload: flowResponse.responsePayload,
-          }).catch((error) => {
-            console.error("WHATSAPP_FLOW_RESPONSE_RECORD_ERROR:", {
-              error: error instanceof Error ? error.message : error,
-              flowToken: flowResponse.flowToken,
-              messageId: message.id,
-            });
+            responsePayload: flowResponse.responseData,
+            screenId: flowResponse.screenId,
+          });
+        } catch (error) {
+          console.error("WHATSAPP_FLOW_RESPONSE_RECORD_ERROR:", {
+            code:
+              error instanceof WhatsAppFlowResponseCaptureError
+                ? error.code
+                : "WHATSAPP_FLOW_RESPONSE_CAPTURE_FAILED",
+            companyId,
+            messageId: message.id,
+            providerMessageId: metaMessageId,
           });
         }
       }
@@ -650,31 +634,33 @@ const worker = new Worker<ProcessWebhookJobData>(
         });
       }
 
-      await processChatbotInboundMessage({
-        companyId,
-        contactId: contact.id,
-        inboundMessageId: message.id,
-      }).catch((error) => {
-        console.error("CHATBOT_RUNTIME_PROCESSING_ERROR:", {
+      if (!isFlowResponse) {
+        await processChatbotInboundMessage({
           companyId,
           contactId: contact.id,
-          error: error instanceof Error ? error.message : error,
-          messageId: message.id,
+          inboundMessageId: message.id,
+        }).catch((error) => {
+          console.error("CHATBOT_RUNTIME_PROCESSING_ERROR:", {
+            companyId,
+            contactId: contact.id,
+            error: error instanceof Error ? error.message : error,
+            messageId: message.id,
+          });
         });
-      });
 
-      await queueAutomationRuntimeJob({
-        companyId,
-        contactId: contact.id,
-        inboundMessageId: message.id,
-      }).catch((error) => {
-        console.error("AUTOMATION_RUNTIME_QUEUE_ERROR:", {
+        await queueAutomationRuntimeJob({
           companyId,
           contactId: contact.id,
-          error: error instanceof Error ? error.message : error,
-          messageId: message.id,
+          inboundMessageId: message.id,
+        }).catch((error) => {
+          console.error("AUTOMATION_RUNTIME_QUEUE_ERROR:", {
+            companyId,
+            contactId: contact.id,
+            error: error instanceof Error ? error.message : error,
+            messageId: message.id,
+          });
         });
-      });
+      }
 
       await recordContactActivity({
         companyId,

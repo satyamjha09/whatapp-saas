@@ -3,10 +3,11 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import {
   createWhatsAppFlow,
   getWhatsAppFlowsByCompany,
+  getUsableWhatsAppFlowsForCompany,
 } from "@/server/services/whatsapp-flow.service";
 import { createWhatsAppFlowSchema } from "@/server/validators/whatsapp-flow.validator";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const context = await getCurrentWorkspaceContext();
 
@@ -21,11 +22,27 @@ export async function GET() {
       );
     }
 
-    const flows = await getWhatsAppFlowsByCompany(
-      context.membership.companyId,
-    );
+    const { searchParams } = new URL(request.url);
+    const usableOnly = searchParams.get("usableOnly") === "true";
+    const search = searchParams.get("search")?.trim().toLowerCase() ?? "";
+    const status = searchParams.get("status")?.trim().toUpperCase() ?? "";
+    const flows = usableOnly
+      ? await getUsableWhatsAppFlowsForCompany(context.membership.companyId)
+      : await getWhatsAppFlowsByCompany(context.membership.companyId);
+    const filteredFlows = flows.filter((flow) => {
+      const matchesSearch =
+        !search ||
+        flow.name.toLowerCase().includes(search) ||
+        flow.metaFlowId.toLowerCase().includes(search);
 
-    return NextResponse.json({ flows });
+      if (!matchesSearch) return false;
+      if (!status || status === "ALL") return true;
+      if (status === "UNAVAILABLE") return Boolean(flow.remoteMissingAt);
+
+      return flow.status === status;
+    });
+
+    return NextResponse.json({ flows: filteredFlows });
   } catch (error) {
     console.error("GET_WHATSAPP_FLOWS_ERROR:", error);
 

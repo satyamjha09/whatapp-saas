@@ -39,10 +39,24 @@ export async function POST(request: Request) {
       validation.data,
     );
 
+    const metadata =
+      message.metadata &&
+      typeof message.metadata === "object" &&
+      !Array.isArray(message.metadata)
+        ? (message.metadata as Record<string, unknown>)
+        : null;
+    const flowInteractionId =
+      typeof metadata?.flowInteractionId === "string"
+        ? metadata.flowInteractionId
+        : null;
+
     return NextResponse.json(
       {
         message: "Template message queued successfully",
-        data: message,
+        data: {
+          ...message,
+          ...(flowInteractionId ? { flowInteractionId } : {}),
+        },
       },
       { status: 201 },
     );
@@ -63,6 +77,13 @@ export async function POST(request: Request) {
     if (
       error instanceof Error &&
       error.message.includes("This template requires")
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 400 });
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "Flow not found or not published"
     ) {
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
