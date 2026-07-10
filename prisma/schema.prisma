@@ -1737,6 +1737,10 @@ model WhatsAppFlowInteraction {
   automationStepId         String?
   automationNodeId         String?
   automationResumeQueuedAt DateTime?
+  conversionGoalNodeId     String?
+  conversionSource         String?
+  conversionKey            String?
+  convertedAt              DateTime?
 
   sentAt      DateTime?
   completedAt DateTime?
@@ -1765,6 +1769,11 @@ model WhatsAppFlowInteraction {
   @@index([automationExecutionId])
   @@index([automationStepId])
   @@index([automationNodeId])
+  @@index([conversionGoalNodeId])
+  @@index([convertedAt])
+  @@index([companyId, sentAt])
+  @@index([companyId, completedAt])
+  @@index([companyId, convertedAt])
   @@index([createdAt])
 }
 

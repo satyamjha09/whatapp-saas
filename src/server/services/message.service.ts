@@ -24,6 +24,7 @@ import {
 import { readFlowResponseMappingsFromComponents } from "@/lib/whatsapp-flow-response-mapping";
 
 type AutomationFlowTemplateContext = {
+  conversionGoalNodeId?: string | null;
   executionId: string;
   nodeId: string;
   sessionId: string;
@@ -176,6 +177,8 @@ export async function createQueuedTemplateMessage(
             automationExecutionId: input.automationContext?.executionId ?? null,
             automationNodeId: input.automationContext?.nodeId ?? null,
             automationStepId: input.automationContext?.stepId ?? null,
+            conversionGoalNodeId:
+              input.automationContext?.conversionGoalNodeId ?? null,
             companyId,
             contactId: contact.id,
             flowAssetId: flowAsset.id,

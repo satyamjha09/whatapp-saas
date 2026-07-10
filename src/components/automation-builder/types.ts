@@ -45,6 +45,7 @@ export type AutomationEditableNodeData = {
   columnMappings?: unknown;
   confidenceThreshold?: number;
   connectedGoogleAccountId?: string;
+  conversionGoalNodeId?: string;
   currency?: string;
   customerEmailSource?: unknown;
   customerIdentifierSource?: unknown;

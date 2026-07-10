@@ -11,6 +11,7 @@ import TemplateSelectorModal, {
   type AutomationTemplateOption,
 } from "@/components/automation-builder/template-selector-modal";
 import TemplateVariableMappingEditor from "@/components/automation-builder/template-variable-mapping-editor";
+import type { AutomationFlowNode } from "@/components/automation-builder/node-renderer";
 import type {
   NodeFormProps,
   TemplateVariableMapping,
@@ -99,10 +100,15 @@ function allMappings(draft: NodeFormProps["draft"]) {
 }
 
 export default function SendTemplateNodeForm({
+  currentNodeId,
   draft,
   errors,
+  nodes = [],
   setDraft,
-}: NodeFormProps) {
+}: NodeFormProps & {
+  currentNodeId?: string;
+  nodes?: AutomationFlowNode[];
+}) {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [template, setTemplate] = useState<AutomationTemplateOption | null>(null);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
@@ -184,6 +190,16 @@ export default function SendTemplateNodeForm({
 
   const headerType = draft.headerType ?? template?.variableMetadata.headerType ?? "NONE";
   const needsMediaUrl = ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType);
+  const conversionGoalOptions = nodes
+    .filter((node) => node.id !== currentNodeId && node.data.nodeType !== "START")
+    .map((node) => ({
+      id: node.id,
+      label:
+        typeof node.data.label === "string" && node.data.label.trim()
+          ? node.data.label
+          : node.data.nodeType,
+      type: node.data.nodeType,
+    }));
 
   return (
     <div className="space-y-4">
@@ -295,6 +311,31 @@ export default function SendTemplateNodeForm({
           value={draft.fallbackMessage ?? ""}
         />
         <FieldError message={errors.fallbackMessage} />
+      </label>
+
+      <label className="block">
+        <span className={labelClass}>Business conversion goal</span>
+        <select
+          className={fieldClass}
+          onChange={(event) =>
+            setDraft((current) => ({
+              ...current,
+              conversionGoalNodeId: event.target.value || undefined,
+            }))
+          }
+          value={draft.conversionGoalNodeId ?? ""}
+        >
+          <option value="">No explicit conversion goal</option>
+          {conversionGoalOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label} ({option.type})
+            </option>
+          ))}
+        </select>
+        <p className="mt-2 text-xs leading-5 text-[#526173]">
+          Count business conversion only when this automation execution reaches
+          the selected node.
+        </p>
       </label>
 
       <TemplateSelectorModal

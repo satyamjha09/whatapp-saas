@@ -2028,6 +2028,25 @@ export function validateAutomationGraph(
 
   nodes.forEach((node) => validateNodeFields(node, errors));
 
+  nodes.forEach((node) => {
+    if (node.type !== "SEND_TEMPLATE") return;
+
+    const conversionGoalNodeId = stringValue(
+      dataRecord(node).conversionGoalNodeId,
+    );
+
+    if (conversionGoalNodeId && !nodeIdSet.has(conversionGoalNodeId)) {
+      errors.push(
+        issue(
+          "ERROR",
+          "SEND_TEMPLATE_CONVERSION_GOAL_MISSING",
+          "Business conversion goal node does not exist.",
+          { nodeId: node.id },
+        ),
+      );
+    }
+  });
+
   edges.forEach((edge) => {
     if (isBlank(edge.id)) {
       errors.push(

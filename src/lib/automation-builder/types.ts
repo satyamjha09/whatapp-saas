@@ -159,6 +159,7 @@ export type SendTemplateNodeData = {
   buttonVariableMappings: TemplateVariableMapping[];
   mediaUrl?: string;
   fallbackMessage?: string;
+  conversionGoalNodeId?: string;
 };
 
 export type WaitForReplyNodeData = {

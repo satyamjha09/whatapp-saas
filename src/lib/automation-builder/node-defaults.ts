@@ -469,6 +469,7 @@ export function createDefaultNodeData(
     return {
       bodyVariableMappings: [],
       buttonVariableMappings: [],
+      conversionGoalNodeId: "",
       fallbackMessage: "",
       headerType: "NONE",
       headerVariableMappings: [],
@@ -815,6 +816,7 @@ export function normalizeAutomationNodeData(
         "BUTTON",
       ),
       category: readString(data.category) || undefined,
+      conversionGoalNodeId: readString(data.conversionGoalNodeId) || undefined,
       fallbackMessage: readString(data.fallbackMessage) || undefined,
       headerType: normalizeHeaderType(data.headerType),
       headerVariableMappings: normalizeTemplateMappings(

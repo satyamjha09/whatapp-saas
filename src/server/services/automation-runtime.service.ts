@@ -23,6 +23,7 @@ import {
   type AutomationRuntimeMessage,
 } from "@/server/services/automation-context.service";
 import { executeAutomationNode } from "@/server/services/automation-node-executor.service";
+import { markFlowInteractionConvertedForAutomationNode } from "@/server/services/whatsapp-flow-analytics.service";
 import {
   completeAutomationSession,
   expireAutomationSession,
@@ -681,6 +682,14 @@ export async function executeAutomationGraph({
         stepId: step.id,
         targetNodeId,
       });
+
+      if (result.status === "SUCCESS") {
+        await markFlowInteractionConvertedForAutomationNode({
+          automationExecutionId: executionId,
+          companyId,
+          reachedNodeId: node.id,
+        });
+      }
 
       await updateAutomationSessionContext({
         context: currentContext,

@@ -416,6 +416,7 @@ export async function executeSendTemplateNode(
 
     const outbound = await createQueuedTemplateMessage(input.companyId, {
       automationContext: {
+        conversionGoalNodeId: stringValue(data.conversionGoalNodeId) || null,
         executionId: input.executionId,
         nodeId: input.node.id,
         sessionId: input.sessionId,

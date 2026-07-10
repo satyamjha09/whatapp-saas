@@ -654,7 +654,13 @@ function NodeEditingDrawerContent({
         ) : null}
 
         {node.data.nodeType === "SEND_TEMPLATE" ? (
-          <TemplateNodeForm draft={draft} errors={errors} setDraft={setDraft} />
+          <TemplateNodeForm
+            currentNodeId={node.id}
+            draft={draft}
+            errors={errors}
+            nodes={nodes}
+            setDraft={setDraft}
+          />
         ) : null}
 
         {node.data.nodeType === "WAIT_FOR_REPLY" ? (

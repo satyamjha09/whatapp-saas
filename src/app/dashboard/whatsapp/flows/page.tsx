@@ -35,9 +35,17 @@ export default async function WhatsAppFlowsPage() {
     <div>
       <PageHeader
         actions={
-          <Link href="/dashboard/templates/new/flow" className={actionButtonClass()}>
-            Create Flow Template
-          </Link>
+          <>
+            <Link
+              href="/dashboard/whatsapp/flows/analytics"
+              className={actionButtonClass("secondary")}
+            >
+              View Analytics
+            </Link>
+            <Link href="/dashboard/templates/new/flow" className={actionButtonClass()}>
+              Create Flow Template
+            </Link>
+          </>
         }
         description="Sync and manage Flow assets connected to your WhatsApp Business Account."
         eyebrow={context.membership.company.name}
