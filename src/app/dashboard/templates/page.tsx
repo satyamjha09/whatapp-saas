@@ -169,10 +169,6 @@ export default async function TemplatesPage() {
         </div>
         <div className="flex flex-wrap gap-3">
           <SyncWhatsAppTemplatesButton canManage={canManage} />
-          <Link href="/dashboard/templates/new" className={actionButtonClass("secondary")}>
-            <CopyPlus className="mr-2 h-4 w-4" />
-            Create Bulk Template
-          </Link>
           <Link href="/dashboard/templates/new" className={actionButtonClass()}>
             <CopyPlus className="mr-2 h-4 w-4" />
             Create Template
