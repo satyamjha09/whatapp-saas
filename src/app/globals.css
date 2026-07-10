@@ -17,6 +17,14 @@
   --brand-yellow: #f8c830;
   --brand-success: #22c55e;
   --brand-shadow: 0 16px 40px rgba(8, 27, 58, 0.08);
+  --font-primary: var(--font-plus-jakarta-sans), Arial, Helvetica, sans-serif;
+  --font-weight-body: 400;
+  --font-weight-label: 500;
+  --font-weight-button: 600;
+  --font-weight-subheading: 700;
+  --font-weight-heading: 800;
+  --line-height-body: 1.65;
+  --line-height-heading: 1.12;
 }
 
 @theme inline {
@@ -29,7 +37,34 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-plus-jakarta-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+  text-rendering: optimizeLegibility;
+}
+
+:where(h1, h2) {
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-heading);
+  line-height: var(--line-height-heading);
+}
+
+:where(h3, h4, h5, h6) {
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-subheading);
+  line-height: 1.2;
+}
+
+:where(label, small) {
+  font-weight: var(--font-weight-label);
+}
+
+:where(button, [role="button"], input, textarea, select) {
+  font: inherit;
+}
+
+:where(button, [role="button"]) {
+  font-weight: var(--font-weight-button);
 }
 
 @keyframes fadeIn {
@@ -55,10 +90,10 @@ body {
 }
 
 * {
-  scrollbar-color: rgba(18, 140, 126, 0.48) rgba(191, 233, 208, 0.85);
+  scrollbar-color: rgba(0, 168, 132, 0.48) rgba(228, 234, 231, 0.85);
 }
 
 ::selection {
-  background: rgba(248, 200, 48, 0.42);
-  color: var(--brand-navy);
+  background: rgba(37, 211, 102, 0.35);
+  color: #0f172a;
 }

@@ -1,6 +1,10 @@
 import { getMessageQueue } from "@/lib/queue";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import {
+  extractVariables,
+  renderPreview,
+} from "@/lib/whatsapp-template/template-variable-engine";
 import { getBillingPlanConfig } from "@/server/config/billing-plans";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
@@ -125,11 +129,17 @@ export async function createCampaignForCompany(
 }
 
 function renderTemplateBody(body: string, variables: string[]) {
-  return body.replace(/{{(\d+)}}/g, (_, index: string) => {
-    const value = variables[Number(index) - 1];
+  const values = extractVariables(body).reduce<Record<string, string>>(
+    (accumulator, variable, index) => {
+      const value = variables[index] ?? "";
+      accumulator[variable.key] = value;
+      accumulator[`BODY_${variable.key}`] = value;
+      return accumulator;
+    },
+    {},
+  );
 
-    return value ?? `{{${index}}}`;
-  });
+  return renderPreview(body, values);
 }
 
 export async function startCampaignForCompany(

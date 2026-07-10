@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import {
+  assertNoUnresolvedVariables,
+  renderPreview,
+  resolveAutomationVariables,
+} from "@/lib/whatsapp-template/template-variable-engine";
 import type {
   AutomationNode,
   AutomationNodeType,
@@ -54,12 +59,7 @@ function renderTemplateBody(
     variableMap.set(key, variables[index] ?? "");
   });
 
-  return body.replace(/{{(\d+)}}/g, (_, index: string) => {
-    const namespaced = variableMap.get(`BODY_${index}`);
-    if (namespaced !== undefined) return namespaced;
-
-    return variables[Number(index) - 1] ?? `{{${index}}}`;
-  });
+  return renderPreview(body, Object.fromEntries(variableMap));
 }
 
 function normalizeMappingKey(value: string) {
@@ -187,14 +187,7 @@ async function createQueuedAutomationTemplateMessage({
   }
 
   const templateKeys = (template.variables as string[]) || [];
-  const variables = templateKeys.map((key, index) => {
-    const value =
-      valuesByKey.get(normalizeMappingKey(key)) ??
-      valuesByKey.get(String(index + 1)) ??
-      "";
-
-    return value;
-  });
+  const variables = resolveAutomationVariables(templateKeys, valuesByKey);
 
   if (variables.length !== templateKeys.length) {
     throw new Error(`This template requires ${templateKeys.length} variable value(s)`);
@@ -204,8 +197,15 @@ async function createQueuedAutomationTemplateMessage({
     throw new Error("Template variable mappings are incomplete");
   }
 
+  const renderedBody = renderTemplateBody(template.body, templateKeys, variables);
+  const unresolvedVariables = assertNoUnresolvedVariables(renderedBody);
+
+  if (unresolvedVariables.length > 0) {
+    throw new Error("Template preview contains unresolved variables");
+  }
+
   return createQueuedAutomationOutboundMessage({
-    body: renderTemplateBody(template.body, templateKeys, variables),
+    body: renderedBody,
     companyId,
     contactId: contact.id,
     description: "Automation template message queued",

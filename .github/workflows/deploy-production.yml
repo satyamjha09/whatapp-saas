@@ -1,0 +1,75 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to deploy, usually main"
+        required: true
+        default: "main"
+      run_migrations:
+        description: "Run Prisma migrations before restart"
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy metawhat.in
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || '22' }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+
+            PROJECT_PATH="${{ secrets.VPS_PROJECT_PATH }}"
+            DEPLOY_REF="${{ inputs.ref }}"
+            RUN_MIGRATIONS="${{ inputs.run_migrations }}"
+            HEALTHCHECK_URL="${{ secrets.PRODUCTION_HEALTHCHECK_URL }}"
+
+            if [ -z "$PROJECT_PATH" ]; then
+              echo "Missing VPS_PROJECT_PATH secret."
+              exit 1
+            fi
+
+            if [ -z "$HEALTHCHECK_URL" ]; then
+              HEALTHCHECK_URL="http://127.0.0.1:3000/api/health"
+            fi
+
+            cd "$PROJECT_PATH"
+
+            echo "Deploying ref: $DEPLOY_REF"
+            git fetch origin "$DEPLOY_REF"
+            git checkout "$DEPLOY_REF"
+            git pull --ff-only origin "$DEPLOY_REF"
+
+            npm ci
+            npx prisma generate
+
+            if [ "$RUN_MIGRATIONS" = "true" ]; then
+              npx prisma migrate deploy
+            else
+              echo "Skipping Prisma migrations by workflow input."
+            fi
+
+            npm run build
+            npm run pm2:restart
+            npm run pm2:save
+
+            echo "Checking health: $HEALTHCHECK_URL"
+            curl --fail --silent --show-error "$HEALTHCHECK_URL"
+
+            echo "Production deploy completed."

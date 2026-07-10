@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import {
+  assertNoUnresolvedVariables,
+  renderPreview as renderTemplatePreview,
+} from "@/lib/whatsapp-template/template-variable-engine";
 import type {
   AutomationColumnMapping,
   AutomationNode,
@@ -208,13 +212,7 @@ function resolveAiUserMessage(
 }
 
 function renderPreview(templateBody: string, resolvedVariables: Record<string, string>) {
-  return templateBody.replace(/{{(\d+)}}/g, (_, index: string) => {
-    return (
-      resolvedVariables[`BODY_${index}`] ??
-      resolvedVariables[index] ??
-      `{{${index}}}`
-    );
-  });
+  return renderTemplatePreview(templateBody, resolvedVariables);
 }
 
 export async function executeAutomationTestNode({
@@ -348,13 +346,20 @@ export async function executeAutomationTestNode({
       );
     }
 
+    const preview = renderPreview(template.body, previewVariables);
+    const unresolvedVariables = assertNoUnresolvedVariables(preview);
+
+    if (unresolvedVariables.length > 0) {
+      throw new Error("Template preview contains unresolved variables.");
+    }
+
     return {
       context,
       nextHandle: "sent",
       output: {
         languageCode: stringValue(data.languageCode, template.language),
         messageType: "template",
-        preview: renderPreview(template.body, previewVariables),
+        preview,
         resolvedVariables: previewVariables,
         simulated: true,
         templateId,

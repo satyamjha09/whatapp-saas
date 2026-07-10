@@ -1,4 +1,13 @@
 import { z } from "zod";
+import {
+  TEMPLATE_CATEGORIES,
+  TEMPLATE_TYPES,
+} from "@/lib/whatsapp-template/template-definition";
+import { validatePublicMediaUrl } from "@/lib/whatsapp-template/media-url-policy";
+import {
+  validateCarouselCardButtons,
+  validateTemplateButtons,
+} from "@/lib/whatsapp-template/template-button-rules";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -25,11 +34,9 @@ export const createTemplateSchema = z.object({
     .min(2, "Language is required")
     .max(20, "Language must be less than 20 characters"),
 
-  category: z.enum(["MARKETING", "UTILITY", "AUTHENTICATION"]),
+  category: z.enum(TEMPLATE_CATEGORIES),
 
-  templateType: z
-    .enum(["STANDARD", "CAROUSEL", "MEDIA", "CATALOG"])
-    .default("STANDARD"),
+  templateType: z.enum(TEMPLATE_TYPES).default("STANDARD"),
 
   body: z
     .string()
@@ -97,6 +104,14 @@ export const createTemplateSchema = z.object({
         });
       }
     });
+
+    validateCarouselCardButtons(cards).forEach((issue) => {
+      context.addIssue({
+        code: "custom",
+        message: issue.message,
+        path: ["components", "cards", issue.index ?? 0, "buttons"],
+      });
+    });
   }
 
   if (value.templateType !== "CAROUSEL" && Array.isArray(components.cards)) {
@@ -106,6 +121,90 @@ export const createTemplateSchema = z.object({
       path: ["components", "cards"],
     });
   }
+
+  const componentList = Array.isArray(components.components)
+    ? components.components
+    : [];
+  const buttonsComponent = componentList.find(
+    (component) =>
+      isRecord(component) &&
+      String(component.type ?? "").toUpperCase() === "BUTTONS",
+  );
+
+  if (isRecord(buttonsComponent) && Array.isArray(buttonsComponent.buttons)) {
+    validateTemplateButtons({
+      buttons: buttonsComponent.buttons,
+      templateCategory: value.category,
+      templateType: value.templateType,
+    }).forEach((issue) => {
+      context.addIssue({
+        code: "custom",
+        message: issue.message,
+        path: ["components", "components", "buttons", issue.index ?? 0],
+      });
+    });
+  }
+
+  componentList.forEach((component, index) => {
+    if (!isRecord(component)) return;
+
+    if (String(component.type ?? "").toUpperCase() !== "HEADER") return;
+
+    const format = String(component.format ?? "NONE").toUpperCase();
+
+    if (
+      !["TEXT", "IMAGE", "VIDEO", "DOCUMENT", "LOCATION", "NONE"].includes(
+        format,
+      )
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Header format is not supported",
+        path: ["components", "components", index, "format"],
+      });
+    }
+
+    if (format === "TEXT") {
+      const text = typeof component.text === "string" ? component.text.trim() : "";
+
+      if (!text) {
+        context.addIssue({
+          code: "custom",
+          message: "Text header requires header text",
+          path: ["components", "components", index, "text"],
+        });
+      }
+    }
+
+    if (["IMAGE", "VIDEO", "DOCUMENT"].includes(format)) {
+      if (typeof component.mediaAssetId !== "string" || !component.mediaAssetId.trim()) {
+        context.addIssue({
+          code: "custom",
+          message: "Media header requires an uploaded media asset",
+          path: ["components", "components", index, "mediaAssetId"],
+        });
+      }
+
+      const mediaUrl =
+        typeof component.publicUrl === "string"
+          ? component.publicUrl
+          : typeof component.mediaUrl === "string"
+            ? component.mediaUrl
+            : "";
+
+      if (mediaUrl) {
+        const result = validatePublicMediaUrl(mediaUrl);
+
+        if (!result.ok) {
+          context.addIssue({
+            code: "custom",
+            message: result.reason ?? "Header media URL is not allowed",
+            path: ["components", "components", index, "mediaUrl"],
+          });
+        }
+      }
+    }
+  });
 });
 
 export type CreateTemplateInput = z.infer<typeof createTemplateSchema>;

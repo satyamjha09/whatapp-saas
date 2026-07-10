@@ -28,6 +28,7 @@ import {
   SystemMaintenanceModeError,
 } from "@/server/services/system-maintenance-mode.service";
 import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
+import { readTemplateComponents } from "@/lib/whatsapp-template/template-variable-parser";
 import { createWorkerHeartbeat } from "@/server/services/worker-heartbeat.service";
 
 const heartbeat = createWorkerHeartbeat({
@@ -1101,7 +1102,7 @@ const worker = new Worker<SendMessageJobData>(
       const template = message.template;
       const result = template
         ? await (async () => {
-            const templateComponents = (template.components as MetaComponentType[]) || [];
+            const templateComponents = readTemplateComponents(template) as MetaComponentType[];
             const variableMap = new Map<string, string>();
             const templateKeys = (template.variables as string[]) || [];
             templateKeys.forEach((key, idx) => {

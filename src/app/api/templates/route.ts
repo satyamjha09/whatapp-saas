@@ -3,6 +3,7 @@ import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import {
   createTemplateForCompany,
   getTemplatesByCompany,
+  TemplateDraftError,
 } from "@/server/services/template.service";
 import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
 import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
@@ -96,6 +97,13 @@ export async function POST(request: Request) {
 
     if (error instanceof UsageQuotaExceededError) {
       return createUsageQuotaErrorResponse(error);
+    }
+
+    if (error instanceof TemplateDraftError) {
+      return NextResponse.json(
+        { message: error.message },
+        { status: 400 },
+      );
     }
 
     return NextResponse.json(

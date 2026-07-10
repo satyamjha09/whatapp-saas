@@ -6,21 +6,23 @@ import type {
 import { prisma } from "@/lib/prisma";
 import { buildTemplatePreview } from "@/lib/automation-builder/template-preview";
 import { extractTemplateVariables } from "@/lib/automation-builder/template-variables";
+import { canonicalizeTemplateDraft } from "@/lib/whatsapp-template/template-definition";
 import type { AutomationTemplateQuery } from "@/server/validators/automation-template.validator";
 
 function toAutomationTemplateDto(template: Template) {
+  const canonical = canonicalizeTemplateDraft(template);
   const variableMetadata = extractTemplateVariables(template);
   const preview = buildTemplatePreview(template);
 
   return {
-    body: template.body,
-    category: template.category,
+    body: canonical.body,
+    category: canonical.templateCategory,
     components: template.components,
     id: template.id,
-    languageCode: template.language,
-    name: template.name,
+    languageCode: canonical.languageCode,
+    name: canonical.templateName,
     preview,
-    status: template.status,
+    status: canonical.status,
     variableMetadata,
   };
 }

@@ -1,9 +1,11 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
-  readTemplateComponents,
-  serializeTemplateVariables,
-} from "@/lib/whatsapp-template/template-variable-parser";
+  buildStoredTemplateComponents,
+  buildTemplateVariableKeys,
+  type TemplateType,
+} from "@/lib/whatsapp-template/template-definition";
+import { readTemplateComponents } from "@/lib/whatsapp-template/template-variable-parser";
 import {
   assertUsageQuotaAvailable,
   incrementUsageQuota,
@@ -143,10 +145,34 @@ function normalizeTemplateCategory(category: string): TemplateCategory | null {
   return null;
 }
 
-function serializeComponents(
+function serializeComponents(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function inferTemplateTypeFromMetaComponents(
   components: MetaTemplateComponent[],
-): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(components)) as Prisma.InputJsonValue;
+): TemplateType {
+  const hasCarousel = components.some((component) => {
+    const type = component.type.toUpperCase();
+    return type === "CAROUSEL" || type === "CARDS";
+  });
+
+  if (hasCarousel) return "CAROUSEL";
+
+  const header = components.find(
+    (component) => component.type.toUpperCase() === "HEADER",
+  );
+  const headerFormat = header?.format?.toUpperCase();
+
+  if (
+    headerFormat === "IMAGE" ||
+    headerFormat === "VIDEO" ||
+    headerFormat === "DOCUMENT"
+  ) {
+    return "MEDIA";
+  }
+
+  return "STANDARD";
 }
 
 function getMetaTemplatesFetchErrorMessage(
@@ -323,11 +349,25 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
     );
     const components = template.components ?? [];
     const body = extractTemplateBody(components);
-    const variables = serializeTemplateVariables({ body, components });
+    const templateType = inferTemplateTypeFromMetaComponents(components);
+    const storedComponents = buildStoredTemplateComponents({
+      body,
+      components: {
+        components,
+        templateType,
+      },
+      templateType,
+    });
+    const variables = buildTemplateVariableKeys({
+      body,
+      components: storedComponents,
+    });
     const qualityScore = normalizeQualityScore(template.quality_score);
     const rejectionReason = normalizeRejectionReason(
       template.rejected_reason ?? template.rejection_reason,
     );
+    const now = new Date();
+    const approvedAt = status === "APPROVED" ? now : null;
 
     const syncedTemplate = await prisma.template.upsert({
       where: {
@@ -343,10 +383,11 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
         status,
         body,
         variables,
-        components: serializeComponents(components),
-        lastSyncedAt: new Date(),
+        components: serializeComponents(storedComponents),
+        lastSyncedAt: now,
         qualityScore,
         rejectionReason,
+        ...(approvedAt ? { approvedAt } : {}),
       },
       create: {
         companyId,
@@ -357,10 +398,11 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
         status,
         body,
         variables,
-        components: serializeComponents(components),
-        lastSyncedAt: new Date(),
+        components: serializeComponents(storedComponents),
+        lastSyncedAt: now,
         qualityScore,
         rejectionReason,
+        approvedAt,
       },
     });
 

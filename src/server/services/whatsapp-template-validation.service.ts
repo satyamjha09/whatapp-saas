@@ -1,9 +1,14 @@
 import type { Template } from "@/generated/prisma/client";
+import { canonicalizeTemplateDraft } from "@/lib/whatsapp-template/template-definition";
+import { validatePublicMediaUrl } from "@/lib/whatsapp-template/media-url-policy";
+import {
+  validateCarouselCardButtons,
+  validateTemplateButtons,
+} from "@/lib/whatsapp-template/template-button-rules";
+import { buildVariableMetadata } from "@/lib/whatsapp-template/template-variable-engine";
 import {
   extractTemplateVariableMetadata,
   findTemplateUrls,
-  hasLocalhostUrl,
-  readTemplateComponents,
 } from "@/lib/whatsapp-template/template-variable-parser";
 
 export type TemplateValidationIssue = {
@@ -40,18 +45,6 @@ function componentType(value: unknown) {
     : "";
 }
 
-function hasMetaComponentArray(value: unknown) {
-  if (Array.isArray(value)) {
-    return value.some((component) => Boolean(componentType(component)));
-  }
-
-  if (isRecord(value) && Array.isArray(value.components)) {
-    return value.components.some((component) => Boolean(componentType(component)));
-  }
-
-  return false;
-}
-
 function storedTemplateType(value: unknown) {
   return isRecord(value) && typeof value.templateType === "string"
     ? value.templateType.toUpperCase()
@@ -79,31 +72,15 @@ function validatePublicUrls(
   issues: TemplateValidationIssue[],
 ) {
   for (const url of urls) {
-    try {
-      const parsed = new URL(url);
+    const result = validatePublicMediaUrl(url);
 
-      if (parsed.protocol !== "https:") {
-        issues.push(
-          issue(
-            "ERROR",
-            "PUBLIC_URL_HTTPS_REQUIRED",
-            `Template URL must use HTTPS: ${url}`,
-          ),
-        );
-      }
-
-      if (hasLocalhostUrl(url)) {
-        issues.push(
-          issue(
-            "ERROR",
-            "PUBLIC_URL_LOCALHOST",
-            `Template URL cannot point to localhost: ${url}`,
-          ),
-        );
-      }
-    } catch {
+    if (!result.ok) {
       issues.push(
-        issue("ERROR", "PUBLIC_URL_INVALID", `Template URL is invalid: ${url}`),
+        issue(
+          "ERROR",
+          "PUBLIC_URL_BLOCKED",
+          `${result.reason ?? "Template URL is not allowed"} (${url})`,
+        ),
       );
     }
   }
@@ -121,14 +98,27 @@ export function validateTemplateForMetaSubmission(
   >,
 ): TemplateValidationResult {
   const issues: TemplateValidationIssue[] = [];
-  const components = readTemplateComponents(template);
+  const canonical = canonicalizeTemplateDraft(template);
+  const components = canonical.components;
   const body = components.find((component) => componentType(component) === "BODY");
+  const header = components.find((component) => componentType(component) === "HEADER");
   const metadata = extractTemplateVariableMetadata(template);
+  const variableEngineMetadata = buildVariableMetadata({
+    body: canonical.body,
+    buttons: canonical.buttons,
+    headerText: canonical.header?.format === "TEXT" ? canonical.header.text : "",
+  });
   const urls = findTemplateUrls(template.components);
-  const templateType = storedTemplateType(template.components);
-  const hasMetaPayload = hasMetaComponentArray(template.components);
+  const templateType = canonical.templateType || storedTemplateType(template.components);
+  const hasMetaPayload =
+    components.length > 0 &&
+    !(
+      components.length === 1 &&
+      componentType(components[0]) === "BODY" &&
+      templateType !== "STANDARD"
+    );
 
-  if (!/^[a-z0-9_]{2,80}$/.test(template.name)) {
+  if (!/^[a-z0-9_]{2,80}$/.test(canonical.templateName)) {
     issues.push(
       issue(
         "ERROR",
@@ -138,19 +128,25 @@ export function validateTemplateForMetaSubmission(
     );
   }
 
-  if (!["MARKETING", "UTILITY", "AUTHENTICATION"].includes(template.category)) {
+  if (!["MARKETING", "UTILITY", "AUTHENTICATION"].includes(canonical.templateCategory)) {
     issues.push(
       issue("ERROR", "CATEGORY_INVALID", "Template category is not supported."),
     );
   }
 
-  if (!template.language.trim()) {
+  if (!canonical.languageCode.trim()) {
     issues.push(issue("ERROR", "LANGUAGE_MISSING", "Language is required."));
   }
 
-  if (!template.body.trim() && !(isRecord(body) && typeof body.text === "string")) {
+  if (!canonical.body.trim() && !(isRecord(body) && typeof body.text === "string")) {
     issues.push(issue("ERROR", "BODY_MISSING", "Template body is required."));
   }
+
+  variableEngineMetadata.issues
+    .filter((item) => item.code === "VARIABLE_SEQUENCE_GAP" || item.code === "VARIABLE_SEQUENCE_START")
+    .forEach((item) => {
+      issues.push(issue("ERROR", item.code, item.message));
+    });
 
   if (templateType !== "STANDARD" && !hasMetaPayload) {
     issues.push(
@@ -160,6 +156,25 @@ export function validateTemplateForMetaSubmission(
         "Carousel, media, and catalog drafts need a real Meta component payload before submission.",
       ),
     );
+  }
+
+  validateTemplateButtons({
+    buttons: canonical.buttons,
+    templateCategory: canonical.templateCategory,
+    templateType,
+  }).forEach((item) => {
+    issues.push(issue(item.severity, item.code, item.message));
+  });
+
+  if (templateType === "CAROUSEL") {
+    const cards =
+      isRecord(template.components) && Array.isArray(template.components.cards)
+        ? template.components.cards
+        : [];
+
+    validateCarouselCardButtons(cards).forEach((item) => {
+      issues.push(issue(item.severity, item.code, item.message));
+    });
   }
 
   if (metadata.variables.length > 0) {
@@ -176,7 +191,7 @@ export function validateTemplateForMetaSubmission(
       return /{{\s*[a-zA-Z0-9_]+\s*}}/.test(text) && !hasExample(component);
     });
 
-    const hasBodyVariables = /{{\s*[a-zA-Z0-9_]+\s*}}/.test(template.body);
+    const hasBodyVariables = /{{\s*[a-zA-Z0-9_]+\s*}}/.test(canonical.body);
     const bodyFallbackNeedsExamples =
       components.length === 0 && hasBodyVariables;
 
@@ -193,12 +208,72 @@ export function validateTemplateForMetaSubmission(
 
   validatePublicUrls(urls, issues);
 
-  if (!isProductionLike() && urls.some(hasLocalhostUrl)) {
+  if (isRecord(header)) {
+    const format =
+      typeof header.format === "string" ? header.format.toUpperCase() : "";
+
+    if (["IMAGE", "VIDEO", "DOCUMENT"].includes(format)) {
+      const mediaAssetId =
+        typeof header.mediaAssetId === "string" ? header.mediaAssetId.trim() : "";
+      const mediaUrl =
+        typeof header.publicUrl === "string"
+          ? header.publicUrl
+          : typeof header.mediaUrl === "string"
+            ? header.mediaUrl
+            : "";
+      const metaHandle =
+        typeof header.metaHandle === "string" ? header.metaHandle.trim() : "";
+
+      if (!mediaAssetId) {
+        issues.push(
+          issue(
+            "ERROR",
+            "HEADER_MEDIA_ASSET_REQUIRED",
+            "Media headers must use an uploaded reusable media asset.",
+          ),
+        );
+      }
+
+      if (!mediaUrl) {
+        issues.push(
+          issue(
+            "ERROR",
+            "HEADER_MEDIA_URL_REQUIRED",
+            "Media headers need a public media URL.",
+          ),
+        );
+      } else {
+        const mediaUrlPolicy = validatePublicMediaUrl(mediaUrl);
+
+        if (!mediaUrlPolicy.ok) {
+          issues.push(
+            issue(
+              "ERROR",
+              "HEADER_MEDIA_URL_BLOCKED",
+              mediaUrlPolicy.reason ?? "Header media URL is not allowed.",
+            ),
+          );
+        }
+      }
+
+      if (!metaHandle) {
+        issues.push(
+          issue(
+            "ERROR",
+            "HEADER_MEDIA_META_HANDLE_REQUIRED",
+            "Media headers need a Meta-compatible uploaded sample before submission.",
+          ),
+        );
+      }
+    }
+  }
+
+  if (!isProductionLike() && urls.length > 0) {
     issues.push(
       issue(
         "WARNING",
         "DEV_LOCAL_URL",
-        "Local URLs are useful for testing, but Meta approval needs public HTTPS URLs.",
+        "Meta approval needs stable public HTTPS URLs.",
       ),
     );
   }

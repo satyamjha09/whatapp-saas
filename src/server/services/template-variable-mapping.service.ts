@@ -1,6 +1,10 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { extractVariablesFromText } from "@/lib/whatsapp-template/template-variable-parser";
+import {
+  extractVariables,
+  renderPreview,
+  resolveCampaignVariables,
+} from "@/lib/whatsapp-template/template-variable-engine";
 import { createAuditLog } from "@/server/services/audit.service";
 import { getSegmentContactsForCampaign } from "@/server/services/contact-segment-builder.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
@@ -43,7 +47,7 @@ function safeJson(value: unknown): Prisma.InputJsonValue {
 }
 
 export function parseTemplateVariables(body: string) {
-  return extractVariablesFromText(body).map((variable) => variable.variableName);
+  return extractVariables(body).map((variable) => variable.key);
 }
 
 function getContactValue(contact: SegmentContact, field?: string | null) {
@@ -80,11 +84,11 @@ function resolveMappingValue(contact: SegmentContact, mapping: MappingInput) {
 }
 
 function renderTemplate(body: string, values: Record<string, string>) {
-  return body.replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (token, key: string) => values[key] ?? token);
+  return renderPreview(body, values);
 }
 
 function toOrderedBodyParameters(templateVariables: string[], values: Record<string, string>) {
-  return templateVariables.map((variable) => values[variable] ?? "");
+  return resolveCampaignVariables(templateVariables, values);
 }
 
 async function loadSavedMappings(input: {

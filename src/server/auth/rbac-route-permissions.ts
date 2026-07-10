@@ -53,6 +53,7 @@ export const RBAC_ROUTE_PERMISSION_RULES: RbacRoutePermissionRule[] = [
   { id: "whatsapp-flows-view", method: "GET", pattern: /^\/api\/whatsapp-flows(?:\/[^/]+)?$/, permission: "WHATSAPP_SETTINGS_VIEW", description: "View WhatsApp Flows" },
   { id: "whatsapp-flows-manage", method: "*", pattern: /^\/api\/whatsapp-flows(?:\/[^/]+(?:\/send-test)?)?$/, permission: "WHATSAPP_SETTINGS_MANAGE", description: "Create, update, and test WhatsApp Flows" },
   { id: "whatsapp-template-sync", method: "POST", pattern: /^\/api\/whatsapp\/templates\/sync$/, permission: "TEMPLATE_SYNC", description: "Sync WhatsApp templates" },
+  { id: "template-media-assets", method: "*", pattern: /^\/api\/templates\/media-assets$/, permission: "TEMPLATE_SYNC", description: "Upload WhatsApp template media samples" },
   { id: "template-submit", method: "POST", pattern: /^\/api\/templates\/[^/]+\/submit$/, permission: "TEMPLATE_SYNC", description: "Submit WhatsApp templates to Meta" },
   { id: "automation-executions-view", method: "GET", pattern: /^\/api\/automation\/executions(?:\/[^/]+)?$/, permission: "AUTOMATION_EXECUTION_VIEW", description: "View automation execution logs" },
   { id: "automation-monitoring-view", method: "GET", pattern: /^\/api\/automation\/monitoring\/overview$/, permission: "AUTOMATION_MONITORING_VIEW", description: "View automation monitoring overview" },

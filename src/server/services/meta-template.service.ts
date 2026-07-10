@@ -1,9 +1,6 @@
 import type { Prisma, TemplateStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import {
-  readTemplateComponents,
-  type WhatsAppTemplateComponent,
-} from "@/lib/whatsapp-template/template-variable-parser";
+import { buildMetaTemplateComponents } from "@/lib/whatsapp-template/template-definition";
 import { createAuditLog } from "@/server/services/audit.service";
 import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
 import { validateTemplateForMetaSubmission } from "@/server/services/whatsapp-template-validation.service";
@@ -56,61 +53,6 @@ function normalizeTemplateStatus(status?: string | null): TemplateStatus {
   }
 }
 
-function isMetaComponent(value: unknown): value is WhatsAppTemplateComponent {
-  return (
-    Boolean(value) &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    typeof (value as Record<string, unknown>).type === "string"
-  );
-}
-
-function getStoredMetaComponents(components: unknown) {
-  if (Array.isArray(components) && components.every(isMetaComponent)) {
-    return components;
-  }
-
-  if (
-    components &&
-    typeof components === "object" &&
-    !Array.isArray(components)
-  ) {
-    const record = components as Record<string, unknown>;
-
-    if (
-      Array.isArray(record.components) &&
-      record.components.every(isMetaComponent)
-    ) {
-      return record.components;
-    }
-  }
-
-  return null;
-}
-
-function buildMetaComponents({
-  body,
-  components,
-}: {
-  body: string;
-  components: unknown;
-}) {
-  const parsedComponents = readTemplateComponents({
-    body,
-    components,
-  });
-
-  return (
-    getStoredMetaComponents(components) ??
-    (parsedComponents.length > 0 ? parsedComponents : null) ?? [
-      {
-        type: "BODY",
-        text: body,
-      },
-    ]
-  );
-}
-
 function getMetaTemplateSubmitErrorMessage(
   data: MetaTemplateSubmitResponse,
   wabaId: string,
@@ -153,7 +95,7 @@ async function submitTemplateToMeta({
     name,
     language,
     category,
-    components: buildMetaComponents({ body, components }),
+    components: buildMetaTemplateComponents({ body, components }),
   };
 
   const response = await fetch(
@@ -268,6 +210,7 @@ export async function submitTemplateForMetaApproval({
 
   const responseData = result.data;
   const status = normalizeTemplateStatus(responseData.status);
+  const submittedAt = new Date();
 
   const updatedTemplate = await prisma.template.update({
     where: {
@@ -277,7 +220,8 @@ export async function submitTemplateForMetaApproval({
       metaTemplateId: responseData.id ?? template.metaTemplateId,
       status,
       lastSubmitError: null,
-      lastSubmittedAt: new Date(),
+      lastSubmittedAt: submittedAt,
+      ...(status === "APPROVED" ? { approvedAt: submittedAt } : {}),
       submittedByUserId: actorUserId,
       submittedPayload: JSON.parse(
         JSON.stringify(result.payload),

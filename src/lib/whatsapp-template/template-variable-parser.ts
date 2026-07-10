@@ -3,7 +3,8 @@ export type WhatsAppTemplateHeaderType =
   | "TEXT"
   | "IMAGE"
   | "VIDEO"
-  | "DOCUMENT";
+  | "DOCUMENT"
+  | "LOCATION";
 
 export type WhatsAppTemplateVariable = {
   component: "HEADER" | "BODY" | "BUTTON";
@@ -18,6 +19,12 @@ export type WhatsAppTemplateComponent = {
   format?: string;
   text?: string;
   example?: unknown;
+  fileName?: string;
+  mediaAssetId?: string;
+  mediaFileName?: string;
+  mediaUrl?: string;
+  metaHandle?: string;
+  publicUrl?: string;
   buttons?: unknown[];
   cards?: unknown[];
 };
@@ -36,8 +43,13 @@ export type WhatsAppTemplatePreview = {
     text: string;
     type: string;
     url?: string;
+    phoneNumber?: string;
+    copyCode?: string;
+    flowId?: string;
   }>;
   mediaType?: Exclude<WhatsAppTemplateHeaderType, "NONE" | "TEXT">;
+  mediaUrl?: string;
+  mediaFileName?: string;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -139,7 +151,7 @@ export function getTemplateHeaderType(
   const header = components.find((component) => componentType(component) === "HEADER");
   const format = stringValue(header?.format).toUpperCase();
 
-  if (["TEXT", "IMAGE", "VIDEO", "DOCUMENT"].includes(format)) {
+  if (["TEXT", "IMAGE", "VIDEO", "DOCUMENT", "LOCATION"].includes(format)) {
     return format as WhatsAppTemplateHeaderType;
   }
 
@@ -243,8 +255,22 @@ export function buildTemplatePreview(
     ? buttonsComponent.buttons
         .filter(isRecord)
         .map((button, buttonIndex) => ({
+          copyCode:
+            typeof button.example === "string" ? button.example : undefined,
+          flowId:
+            typeof button.flow_id === "string" ? button.flow_id : undefined,
+          phoneNumber:
+            typeof button.phone_number === "string"
+              ? button.phone_number
+              : undefined,
           text: replaceVariables(
-            stringValue(button.text || button.title || button.url || "Button"),
+            stringValue(
+              button.text ||
+                button.title ||
+                button.url ||
+                button.example ||
+                "Button",
+            ),
             "BUTTON",
             buttonIndex,
           ),
@@ -270,9 +296,18 @@ export function buildTemplatePreview(
     mediaType:
       headerType === "IMAGE" ||
       headerType === "VIDEO" ||
-      headerType === "DOCUMENT"
+      headerType === "DOCUMENT" ||
+      headerType === "LOCATION"
         ? headerType
         : undefined,
+    mediaFileName:
+      typeof header?.fileName === "string" ? header.fileName : undefined,
+    mediaUrl:
+      typeof header?.publicUrl === "string"
+        ? header.publicUrl
+        : typeof header?.mediaUrl === "string"
+          ? header.mediaUrl
+          : undefined,
   };
 }
 

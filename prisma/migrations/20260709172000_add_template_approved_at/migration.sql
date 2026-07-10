@@ -1,0 +1,1 @@
+ALTER TABLE "Template" ADD COLUMN "approvedAt" TIMESTAMP(3);
