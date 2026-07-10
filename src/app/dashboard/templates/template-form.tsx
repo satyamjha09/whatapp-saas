@@ -44,6 +44,16 @@ import {
   type TemplateVariable,
 } from "@/lib/whatsapp-template/template-variable-engine";
 
+type TemplateBuilderType =
+  | ""
+  | "STANDARD"
+  | "CAROUSEL"
+  | "PAYMENT"
+  | "CATALOG"
+  | "AUTHENTICATION"
+  | "FLOWS"
+  | "ORDER_STATUS"
+  | "CALL_PERMISSION";
 type TemplateCategory = "MARKETING" | "UTILITY";
 type HeaderType = "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "LOCATION";
 
@@ -83,6 +93,56 @@ type CreateTemplateResponse = {
 const categories: Array<{ label: string; value: TemplateCategory }> = [
   { label: "Marketing", value: "MARKETING" },
   { label: "Utility", value: "UTILITY" },
+];
+
+const templateTypeOptions: Array<{
+  description: string;
+  label: string;
+  route?: string;
+  value: Exclude<TemplateBuilderType, "">;
+}> = [
+  {
+    description: "Normal marketing and utility messages with header, body, footer and buttons.",
+    label: "Default",
+    value: "STANDARD",
+  },
+  {
+    description: "Nested card template with swipeable media cards.",
+    label: "Carousel",
+    route: "/dashboard/templates/new/carousel",
+    value: "CAROUSEL",
+  },
+  {
+    description: "Payment and order detail templates need a dedicated payment setup.",
+    label: "Order details (Payment)",
+    value: "PAYMENT",
+  },
+  {
+    description: "Catalog templates will use product/catalog configuration.",
+    label: "Catalog",
+    value: "CATALOG",
+  },
+  {
+    description: "OTP templates with copy code, one-tap, and zero-tap setup.",
+    label: "Authentication",
+    route: "/dashboard/templates/new/authentication",
+    value: "AUTHENTICATION",
+  },
+  {
+    description: "WhatsApp Flow templates will connect to published WhatsApp Flows.",
+    label: "Flows",
+    value: "FLOWS",
+  },
+  {
+    description: "Order status templates need commerce/order data mapping.",
+    label: "Order Status",
+    value: "ORDER_STATUS",
+  },
+  {
+    description: "Call permission request templates need call-permission business rules.",
+    label: "Call Permission Request",
+    value: "CALL_PERMISSION",
+  },
 ];
 
 const languages = [
@@ -318,7 +378,8 @@ function ButtonPreview({ button }: { button: TemplateButtonDraft }) {
 
 export default function TemplateForm() {
   const router = useRouter();
-  const [category, setCategory] = useState<TemplateCategory>("UTILITY");
+  const [templateType, setTemplateType] = useState<TemplateBuilderType>("");
+  const [category, setCategory] = useState<TemplateCategory | "">("");
   const [name, setName] = useState("");
   const [language, setLanguage] = useState("en_US");
   const [headerType, setHeaderType] = useState<HeaderType>("NONE");
@@ -348,6 +409,13 @@ export default function TemplateForm() {
   const buttonPreview = useMemo(
     () => splitButtonsForWhatsAppPreview(buttons),
     [buttons],
+  );
+  const selectedTemplateType = templateTypeOptions.find(
+    (option) => option.value === templateType,
+  );
+  const isDefaultTemplate = templateType === "STANDARD";
+  const canConfigureDefaultTemplate = Boolean(
+    isDefaultTemplate && category && name.trim() && language,
   );
 
   function sampleInputKey(variable: TemplateVariable) {
@@ -434,6 +502,16 @@ export default function TemplateForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+
+    if (!isDefaultTemplate) {
+      setError("Select Default template type to use this builder.");
+      return;
+    }
+
+    if (!category) {
+      setError("Template category is required.");
+      return;
+    }
 
     if (!name.trim()) {
       setError("Template name is required.");
@@ -540,7 +618,11 @@ export default function TemplateForm() {
 
   return (
     <form
-      className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]"
+      className={
+        canConfigureDefaultTemplate
+          ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]"
+          : "grid gap-6"
+      }
       onSubmit={handleSubmit}
     >
       <div className="space-y-6">
@@ -556,23 +638,41 @@ export default function TemplateForm() {
 
           <div className="grid gap-4 p-5 md:grid-cols-2">
             <label className="block">
-              <span className={labelClass}>Type</span>
-              <input
-                className={`${fieldClass} bg-[#F8FCFA] font-semibold`}
-                readOnly
-                value="Default"
-              />
+              <span className={labelClass}>Template Type</span>
+              <select
+                className={fieldClass}
+                onChange={(event) => {
+                  setTemplateType(event.target.value as TemplateBuilderType);
+                  setCategory("");
+                  setName("");
+                  setError("");
+                }}
+                required
+                value={templateType}
+              >
+                <option value="">Select template type</option>
+                {templateTypeOptions.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="block">
-              <span className={labelClass}>Category</span>
+              <span className={labelClass}>Template Category</span>
               <select
                 className={fieldClass}
+                disabled={!isDefaultTemplate}
                 onChange={(event) =>
-                  setCategory(event.target.value as TemplateCategory)
+                  setCategory(event.target.value as TemplateCategory | "")
                 }
+                required={isDefaultTemplate}
                 value={category}
               >
+                <option value="">
+                  {isDefaultTemplate ? "Select category" : "Choose type first"}
+                </option>
                 {categories.map((item) => (
                   <option key={item.value} value={item.value}>
                     {item.label}
@@ -585,6 +685,7 @@ export default function TemplateForm() {
               <span className={labelClass}>Name</span>
               <input
                 className={fieldClass}
+                disabled={!isDefaultTemplate || !category}
                 maxLength={80}
                 onChange={(event) =>
                   setName(cleanTemplateName(event.target.value).slice(0, 80))
@@ -594,7 +695,9 @@ export default function TemplateForm() {
                 value={name}
               />
               <p className={helperTextClass}>
-                Lowercase letters, numbers, and underscores only.
+                {category
+                  ? "Lowercase letters, numbers, and underscores only."
+                  : "Select a template type and category first."}
               </p>
             </label>
 
@@ -602,6 +705,7 @@ export default function TemplateForm() {
               <span className={labelClass}>Language</span>
               <select
                 className={fieldClass}
+                disabled={!isDefaultTemplate}
                 onChange={(event) => setLanguage(event.target.value)}
                 value={language}
               >
@@ -613,8 +717,46 @@ export default function TemplateForm() {
               </select>
             </label>
           </div>
+
+          {selectedTemplateType && !isDefaultTemplate ? (
+            <div className="border-t border-[#BFE9D0] bg-[#F8FCFA] p-5">
+              <div className="rounded-xl border border-[#BFE9D0] bg-white p-4">
+                <p className="text-sm font-bold text-[#081B3A]">
+                  {selectedTemplateType.label} uses a dedicated builder
+                </p>
+                <p className="mt-1 text-sm leading-6 text-[#526173]">
+                  {selectedTemplateType.description}
+                </p>
+                {selectedTemplateType.route ? (
+                  <button
+                    className={`${actionButtonClass()} mt-4`}
+                    onClick={() => router.push(selectedTemplateType.route!)}
+                    type="button"
+                  >
+                    Open {selectedTemplateType.label} Builder
+                  </button>
+                ) : (
+                  <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                    This template type is planned, but not enabled yet. Use Default,
+                    Authentication, or Carousel for now.
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {isDefaultTemplate && !canConfigureDefaultTemplate ? (
+            <div className="border-t border-[#BFE9D0] bg-[#F8FCFA] p-5">
+              <div className="rounded-xl border border-dashed border-[#BFE9D0] bg-white p-5 text-sm text-[#526173]">
+                Choose a category and enter the template name. After that, the
+                header, body, variables, buttons, preview, and save options will
+                open below.
+              </div>
+            </div>
+          ) : null}
         </section>
 
+        {canConfigureDefaultTemplate ? (
         <section className="overflow-hidden rounded-xl border border-[#BFE9D0] bg-white">
           <div className="border-b border-[#BFE9D0] px-5 py-4">
             <p className="text-xs font-bold uppercase tracking-normal text-[#128C7E]">
@@ -1065,8 +1207,10 @@ export default function TemplateForm() {
             ) : null}
           </div>
         </section>
+        ) : null}
       </div>
 
+      {canConfigureDefaultTemplate ? (
       <aside className="xl:sticky xl:top-6 xl:self-start">
         <section className="overflow-hidden rounded-xl border border-[#BFE9D0] bg-white shadow-[0_18px_48px_rgba(8,27,58,0.08)]">
           <div className="border-b border-[#BFE9D0] px-5 py-4">
@@ -1150,6 +1294,7 @@ export default function TemplateForm() {
           {isSubmitting ? "Saving draft..." : "Save Draft"}
         </button>
       </aside>
+      ) : null}
     </form>
   );
 }
