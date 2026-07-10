@@ -48,6 +48,117 @@ export const createTemplateSchema = z.object({
 }).superRefine((value, context) => {
   const components = getComponentsRecord(value.components);
 
+  if (value.category === "AUTHENTICATION" && value.templateType !== "AUTHENTICATION") {
+    context.addIssue({
+      code: "custom",
+      message: "Authentication templates must use the dedicated authentication builder",
+      path: ["templateType"],
+    });
+  }
+
+  if (value.templateType === "AUTHENTICATION") {
+    const auth = isRecord(components.authentication)
+      ? components.authentication
+      : {};
+    const mode = String(auth.mode ?? "").toUpperCase();
+
+    if (value.category !== "AUTHENTICATION") {
+      context.addIssue({
+        code: "custom",
+        message: "Authentication templates must use the Authentication category",
+        path: ["category"],
+      });
+    }
+
+    if (!["COPY_CODE", "ONE_TAP", "ZERO_TAP"].includes(mode)) {
+      context.addIssue({
+        code: "custom",
+        message: "Authentication template mode must be Copy Code, One-Tap, or Zero-Tap",
+        path: ["components", "authentication", "mode"],
+      });
+    }
+
+    if (mode !== "COPY_CODE") {
+      if (
+        typeof auth.androidPackageName !== "string" ||
+        !auth.androidPackageName.trim()
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "One-Tap and Zero-Tap templates require Android package details",
+          path: ["components", "authentication", "androidPackageName"],
+        });
+      }
+
+      if (
+        typeof auth.androidSignatureHash !== "string" ||
+        !auth.androidSignatureHash.trim()
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "One-Tap and Zero-Tap templates require an app signing hash",
+          path: ["components", "authentication", "androidSignatureHash"],
+        });
+      }
+    }
+
+    const componentList = Array.isArray(components.components)
+      ? components.components
+      : [];
+    const buttonsComponent = componentList.find(
+      (component) =>
+        isRecord(component) &&
+        String(component.type ?? "").toUpperCase() === "BUTTONS",
+    );
+    const authButtons =
+      isRecord(buttonsComponent) && Array.isArray(buttonsComponent.buttons)
+        ? buttonsComponent.buttons.filter(isRecord)
+        : [];
+
+    if (authButtons.length !== 1) {
+      context.addIssue({
+        code: "custom",
+        message: "Authentication templates require exactly one OTP button",
+        path: ["components", "components", "buttons"],
+      });
+    }
+
+    const buttonType = String(authButtons[0]?.type ?? "").toUpperCase();
+    if (mode === "COPY_CODE") {
+      if (buttonType !== "COPY_CODE") {
+        context.addIssue({
+          code: "custom",
+          message: "Copy Code authentication templates require a Copy Code button",
+          path: ["components", "components", "buttons"],
+        });
+      }
+
+      if (typeof authButtons[0]?.example !== "string" || !authButtons[0]?.example.trim()) {
+        context.addIssue({
+          code: "custom",
+          message: "Copy Code authentication templates require a sample OTP code",
+          path: ["components", "components", "buttons"],
+        });
+      }
+    }
+
+    if (mode === "ONE_TAP" && buttonType !== "ONE_TAP") {
+      context.addIssue({
+        code: "custom",
+        message: "One-Tap authentication templates require a One-Tap button",
+        path: ["components", "components", "buttons"],
+      });
+    }
+
+    if (mode === "ZERO_TAP" && buttonType !== "ZERO_TAP") {
+      context.addIssue({
+        code: "custom",
+        message: "Zero-Tap authentication templates require a Zero-Tap button",
+        path: ["components", "components", "buttons"],
+      });
+    }
+  }
+
   if (
     components.templateType &&
     components.templateType !== value.templateType
@@ -103,6 +214,67 @@ export const createTemplateSchema = z.object({
           path: ["components", "cards", index, "body"],
         });
       }
+
+      if (
+        typeof card.mediaAssetId !== "string" ||
+        !card.mediaAssetId.trim()
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "Each carousel card needs an uploaded image or video asset",
+          path: ["components", "cards", index, "mediaAssetId"],
+        });
+      }
+
+      const cardComponents = Array.isArray(card.components)
+        ? card.components
+        : [];
+      const headerComponent = cardComponents.find(
+        (component) =>
+          isRecord(component) &&
+          String(component.type ?? "").toUpperCase() === "HEADER",
+      );
+
+      if (
+        isRecord(headerComponent) &&
+        !isRecord(headerComponent.example) &&
+        typeof headerComponent.metaHandle !== "string"
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "Each carousel media asset must include a Meta review sample",
+          path: ["components", "cards", index, "mediaAssetId"],
+        });
+      }
+    });
+
+    const firstPattern = cards
+      .slice(0, 1)
+      .map((card) =>
+        isRecord(card) && Array.isArray(card.buttons)
+          ? card.buttons
+              .filter(isRecord)
+              .map((button) => String(button.type ?? "").toUpperCase())
+              .join("|")
+          : "",
+      )[0];
+
+    cards.forEach((card, index) => {
+      const pattern =
+        isRecord(card) && Array.isArray(card.buttons)
+          ? card.buttons
+              .filter(isRecord)
+              .map((button) => String(button.type ?? "").toUpperCase())
+              .join("|")
+          : "";
+
+      if (pattern !== firstPattern) {
+        context.addIssue({
+          code: "custom",
+          message: "All carousel cards must use the same button pattern",
+          path: ["components", "cards", index, "buttons"],
+        });
+      }
     });
 
     validateCarouselCardButtons(cards).forEach((issue) => {
@@ -131,7 +303,11 @@ export const createTemplateSchema = z.object({
       String(component.type ?? "").toUpperCase() === "BUTTONS",
   );
 
-  if (isRecord(buttonsComponent) && Array.isArray(buttonsComponent.buttons)) {
+  if (
+    value.templateType !== "AUTHENTICATION" &&
+    isRecord(buttonsComponent) &&
+    Array.isArray(buttonsComponent.buttons)
+  ) {
     validateTemplateButtons({
       buttons: buttonsComponent.buttons,
       templateCategory: value.category,

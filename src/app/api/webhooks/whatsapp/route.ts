@@ -30,6 +30,10 @@ import {
   getMetaWebhookEventType,
   startProviderWebhookEvent,
 } from "@/server/services/provider-webhook-event.service";
+import {
+  getMetaTemplateStatusWebhookValue,
+  processMetaTemplateStatusWebhook,
+} from "@/server/services/template-webhook.service";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -49,6 +53,10 @@ function getWebhookValue(payload: unknown) {
 }
 
 function getWebhookEventType(payload: unknown) {
+  if (getMetaTemplateStatusWebhookValue(payload)) {
+    return "message_template_status_update";
+  }
+
   const value = getWebhookValue(payload);
 
   if (Array.isArray(value?.messages) && value.messages.length > 0) {
@@ -199,6 +207,24 @@ export async function POST(request: Request) {
     try {
       const dedupeKey = createPayloadDedupeKey(payload);
       const eventType = getWebhookEventType(payload);
+
+      if (eventType === "message_template_status_update") {
+        const templateWebhookResult =
+          await processMetaTemplateStatusWebhook(payload);
+
+        await completeProviderWebhookEvent({
+          eventId: providerWebhookEvent.event.id,
+        });
+
+        return NextResponse.json(
+          {
+            received: true,
+            templateWebhook: templateWebhookResult,
+          },
+          { status: 200 },
+        );
+      }
+
       const phoneNumberId = getPhoneNumberIdFromPayload(payload);
 
       const companyId = phoneNumberId

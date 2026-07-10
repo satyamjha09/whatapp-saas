@@ -8,6 +8,7 @@ import {
   assertUsageQuotaAvailable,
   incrementUsageQuota,
 } from "@/server/services/usage-quota.service";
+import { recordTemplateLifecycleEvent } from "@/server/services/template-lifecycle.service";
 import { getTemplateMediaAssetForCompany } from "@/server/services/template-media-asset.service";
 import { CreateTemplateInput } from "@/server/validators/template.validator";
 
@@ -153,4 +154,170 @@ export async function createTemplateForCompany(
   });
 
   return template;
+}
+
+async function buildDuplicateTemplateName(companyId: string, sourceName: string) {
+  const baseName = `${sourceName}_copy`
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .slice(0, 480);
+
+  for (let index = 1; index <= 50; index += 1) {
+    const candidate = index === 1 ? baseName : `${baseName}_${index}`;
+    const existing = await prisma.template.findFirst({
+      where: {
+        companyId,
+        name: candidate,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existing) return candidate;
+  }
+
+  return `${baseName}_${Date.now()}`;
+}
+
+export async function duplicateTemplateForCompany({
+  actorUserId,
+  companyId,
+  templateId,
+}: {
+  actorUserId: string;
+  companyId: string;
+  templateId: string;
+}) {
+  const sourceTemplate = await prisma.template.findFirst({
+    where: {
+      companyId,
+      id: templateId,
+    },
+  });
+
+  if (!sourceTemplate) {
+    throw new Error("Template not found");
+  }
+
+  await assertUsageQuotaAvailable({
+    companyId,
+    featureKey: "TEMPLATES",
+    amount: 1,
+  });
+
+  const duplicate = await prisma.template.create({
+    data: {
+      companyId,
+      name: await buildDuplicateTemplateName(companyId, sourceTemplate.name),
+      language: sourceTemplate.language,
+      category: sourceTemplate.category,
+      body: sourceTemplate.body,
+      variables: sourceTemplate.variables,
+      components: sourceTemplate.components ?? undefined,
+      status: "DRAFT",
+    },
+  });
+
+  await incrementUsageQuota({
+    companyId,
+    featureKey: "TEMPLATES",
+    amount: 1,
+    idempotencyKey: `template-created:${duplicate.id}`,
+    reason: "template-duplicated",
+    metadata: {
+      sourceTemplateId: sourceTemplate.id,
+      templateId: duplicate.id,
+    },
+  });
+
+  await recordTemplateLifecycleEvent({
+    actorUserId,
+    companyId,
+    eventType: "DUPLICATED",
+    newStatus: "DRAFT",
+    payload: {
+      sourceTemplateId: sourceTemplate.id,
+    },
+    source: "APP",
+    templateId: duplicate.id,
+  });
+
+  return duplicate;
+}
+
+export async function archiveTemplateForCompany({
+  actorUserId,
+  companyId,
+  templateId,
+}: {
+  actorUserId: string;
+  companyId: string;
+  templateId: string;
+}) {
+  const template = await prisma.template.findFirst({
+    where: {
+      companyId,
+      id: templateId,
+    },
+  });
+
+  if (!template) {
+    throw new Error("Template not found");
+  }
+
+  if (template.status === "APPROVED") {
+    throw new Error("Approved templates must be paused or disabled in Meta before local archive");
+  }
+
+  const archivedTemplate = await prisma.template.update({
+    where: {
+      id: template.id,
+    },
+    data: {
+      status: "DISABLED",
+    },
+  });
+
+  await recordTemplateLifecycleEvent({
+    actorUserId,
+    companyId,
+    eventType: "ARCHIVED_LOCALLY",
+    newStatus: archivedTemplate.status,
+    previousStatus: template.status,
+    source: "APP",
+    templateId: template.id,
+  });
+
+  return archivedTemplate;
+}
+
+export async function deleteDraftTemplateForCompany({
+  companyId,
+  templateId,
+}: {
+  companyId: string;
+  templateId: string;
+}) {
+  const template = await prisma.template.findFirst({
+    where: {
+      companyId,
+      id: templateId,
+    },
+  });
+
+  if (!template) {
+    throw new Error("Template not found");
+  }
+
+  if (!["DRAFT", "REJECTED", "DISABLED"].includes(template.status)) {
+    throw new Error("Only draft, rejected, or locally archived templates can be deleted");
+  }
+
+  await prisma.template.delete({
+    where: {
+      id: template.id,
+    },
+  });
 }

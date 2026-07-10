@@ -1,8 +1,14 @@
-import type { Prisma, TemplateStatus } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildMetaTemplateComponents } from "@/lib/whatsapp-template/template-definition";
 import { createAuditLog } from "@/server/services/audit.service";
 import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
+import {
+  applyTemplateLifecycleUpdate,
+  normalizeMetaTemplateCategory,
+  normalizeMetaTemplateStatus,
+  recordTemplateLifecycleEvent,
+} from "@/server/services/template-lifecycle.service";
 import { validateTemplateForMetaSubmission } from "@/server/services/whatsapp-template-validation.service";
 import { syncWhatsAppTemplatesFromMeta } from "@/server/services/whatsapp-template-sync.service";
 import {
@@ -25,32 +31,6 @@ function getMetaGraphBaseUrl() {
   const version = process.env.WHATSAPP_API_VERSION ?? "v25.0";
 
   return `https://graph.facebook.com/${version}`;
-}
-
-function normalizeTemplateStatus(status?: string | null): TemplateStatus {
-  switch (status?.toUpperCase()) {
-    case "APPROVED":
-      return "APPROVED";
-    case "PENDING":
-    case "PENDING_APPROVAL":
-      return "PENDING_APPROVAL";
-    case "REJECTED":
-      return "REJECTED";
-    case "PAUSED":
-      return "PAUSED";
-    case "IN_APPEAL":
-      return "IN_APPEAL";
-    case "PENDING_DELETION":
-      return "PENDING_DELETION";
-    case "DELETED":
-      return "DELETED";
-    case "DISABLED":
-      return "DISABLED";
-    case "LIMIT_EXCEEDED":
-      return "LIMIT_EXCEEDED";
-    default:
-      return "PENDING_APPROVAL";
-  }
 }
 
 function getMetaTemplateSubmitErrorMessage(
@@ -179,6 +159,26 @@ export async function submitTemplateForMetaApproval({
     throw new Error(message);
   }
 
+  await prisma.template.update({
+    where: {
+      id: template.id,
+    },
+    data: {
+      status: "SUBMITTING",
+      lastSubmitError: null,
+    },
+  });
+
+  await recordTemplateLifecycleEvent({
+    actorUserId,
+    companyId,
+    eventType: "SUBMITTING",
+    newStatus: "SUBMITTING",
+    previousStatus: template.status,
+    source: "APP",
+    templateId: template.id,
+  });
+
   const accessToken = await getWhatsAppAccessToken({ companyId });
   let result: Awaited<ReturnType<typeof submitTemplateToMeta>>;
 
@@ -201,15 +201,29 @@ export async function submitTemplateForMetaApproval({
         id: template.id,
       },
       data: {
+        status: template.status,
         lastSubmitError: message,
       },
+    });
+
+    await recordTemplateLifecycleEvent({
+      actorUserId,
+      companyId,
+      eventType: "SUBMISSION_FAILED",
+      newStatus: template.status,
+      previousStatus: "SUBMITTING",
+      reason: message,
+      source: "META_SUBMIT",
+      templateId: template.id,
     });
 
     throw error;
   }
 
   const responseData = result.data;
-  const status = normalizeTemplateStatus(responseData.status);
+  const status = normalizeMetaTemplateStatus(responseData.status);
+  const category =
+    normalizeMetaTemplateCategory(responseData.category) ?? template.category;
   const submittedAt = new Date();
 
   const updatedTemplate = await prisma.template.update({
@@ -217,6 +231,7 @@ export async function submitTemplateForMetaApproval({
       id: template.id,
     },
     data: {
+      category,
       metaTemplateId: responseData.id ?? template.metaTemplateId,
       status,
       lastSubmitError: null,
@@ -226,6 +241,21 @@ export async function submitTemplateForMetaApproval({
       submittedPayload: JSON.parse(
         JSON.stringify(result.payload),
       ) as Prisma.InputJsonValue,
+    },
+  });
+
+  await applyTemplateLifecycleUpdate({
+    actorUserId,
+    category,
+    eventType: "SUBMITTED_TO_META",
+    metaTemplateId: updatedTemplate.metaTemplateId,
+    payload: responseData,
+    source: "META_SUBMIT",
+    status,
+    template: {
+      ...template,
+      status: "SUBMITTING",
+      lastSubmitError: null,
     },
   });
 
@@ -248,7 +278,7 @@ export async function syncPendingTemplateStatusesFromMeta() {
   const companyRows = await prisma.template.findMany({
     where: {
       status: {
-        in: ["PENDING_APPROVAL", "IN_APPEAL", "PAUSED"],
+        in: ["SUBMITTING", "PENDING", "PENDING_APPROVAL", "IN_APPEAL", "PAUSED", "DISABLED", "REINSTATED"],
       },
     },
     distinct: ["companyId"],

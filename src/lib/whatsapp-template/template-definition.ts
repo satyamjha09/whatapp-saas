@@ -14,6 +14,7 @@ import {
 
 export const TEMPLATE_TYPES = [
   "STANDARD",
+  "AUTHENTICATION",
   "MEDIA",
   "CAROUSEL",
   "CATALOG",
@@ -29,6 +30,8 @@ export const TEMPLATE_CATEGORIES = [
 
 export const TEMPLATE_STATUSES = [
   "DRAFT",
+  "SUBMITTING",
+  "PENDING",
   "PENDING_APPROVAL",
   "APPROVED",
   "REJECTED",
@@ -38,6 +41,7 @@ export const TEMPLATE_STATUSES = [
   "DELETED",
   "DISABLED",
   "LIMIT_EXCEEDED",
+  "REINSTATED",
 ] as const;
 
 export type TemplateType = (typeof TEMPLATE_TYPES)[number];
@@ -146,7 +150,16 @@ function cleanMetaComponent(component: WhatsAppTemplateComponent) {
   if (component.example) cleaned.example = component.example;
   if (component.buttons) {
     cleaned.buttons = component.buttons
-      .map((button) => buildMetaTemplateButton(button))
+      .map((button) => {
+        if (
+          isRecord(button) &&
+          ["ONE_TAP", "ZERO_TAP"].includes(stringValue(button.type).toUpperCase())
+        ) {
+          return button;
+        }
+
+        return buildMetaTemplateButton(button);
+      })
       .filter(Boolean);
   }
   if (component.cards) cleaned.cards = component.cards;

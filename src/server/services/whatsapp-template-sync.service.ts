@@ -10,6 +10,13 @@ import {
   assertUsageQuotaAvailable,
   incrementUsageQuota,
 } from "@/server/services/usage-quota.service";
+import {
+  normalizeMetaQualityScore,
+  normalizeMetaRejectionReason,
+  normalizeMetaTemplateCategory,
+  normalizeMetaTemplateStatus,
+  recordTemplateLifecycleEvent,
+} from "@/server/services/template-lifecycle.service";
 import { getWhatsAppAccessToken } from "@/server/services/whatsapp-secret.service";
 import {
   isMetaNumericId,
@@ -49,19 +56,6 @@ type MetaTemplatesResponse = {
   };
 };
 
-type TemplateStatus =
-  | "APPROVED"
-  | "PENDING_APPROVAL"
-  | "REJECTED"
-  | "PAUSED"
-  | "IN_APPEAL"
-  | "PENDING_DELETION"
-  | "DELETED"
-  | "DISABLED"
-  | "LIMIT_EXCEEDED";
-
-type TemplateCategory = "MARKETING" | "UTILITY" | "AUTHENTICATION";
-
 function getMetaGraphBaseUrl() {
   const version = process.env.WHATSAPP_API_VERSION ?? "v25.0";
 
@@ -74,75 +68,6 @@ function extractTemplateBody(components: MetaTemplateComponent[] = []) {
       (component) => component.type?.toUpperCase() === "BODY",
     )?.text ?? ""
   );
-}
-
-function normalizeQualityScore(value: unknown) {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const score = (value as { score?: unknown }).score;
-    if (typeof score === "string" && score.trim().length > 0) {
-      return score.trim();
-    }
-  }
-
-  return null;
-}
-
-function normalizeRejectionReason(value: unknown) {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.toUpperCase() === "NONE") {
-    return null;
-  }
-
-  return trimmed;
-}
-
-function normalizeTemplateStatus(status: string): TemplateStatus | null {
-  switch (status.toUpperCase()) {
-    case "APPROVED":
-      return "APPROVED";
-    case "PENDING":
-    case "PENDING_APPROVAL":
-      return "PENDING_APPROVAL";
-    case "REJECTED":
-      return "REJECTED";
-    case "PAUSED":
-      return "PAUSED";
-    case "IN_APPEAL":
-      return "IN_APPEAL";
-    case "PENDING_DELETION":
-      return "PENDING_DELETION";
-    case "DELETED":
-      return "DELETED";
-    case "DISABLED":
-      return "DISABLED";
-    case "LIMIT_EXCEEDED":
-      return "LIMIT_EXCEEDED";
-    default:
-      return null;
-  }
-}
-
-function normalizeTemplateCategory(category: string): TemplateCategory | null {
-  const normalized = category.toUpperCase();
-
-  if (
-    normalized === "MARKETING" ||
-    normalized === "UTILITY" ||
-    normalized === "AUTHENTICATION"
-  ) {
-    return normalized;
-  }
-
-  return null;
 }
 
 function serializeComponents(value: unknown): Prisma.InputJsonValue {
@@ -292,10 +217,10 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
   const syncableTemplates = [];
 
   for (const template of templates) {
-    const status = normalizeTemplateStatus(template.status);
-    const category = normalizeTemplateCategory(template.category);
+    const status = normalizeMetaTemplateStatus(template.status);
+    const category = normalizeMetaTemplateCategory(template.category);
 
-    if (!status || !category) {
+    if (!category) {
       skippedCount += 1;
       continue;
     }
@@ -362,12 +287,21 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
       body,
       components: storedComponents,
     });
-    const qualityScore = normalizeQualityScore(template.quality_score);
-    const rejectionReason = normalizeRejectionReason(
+    const qualityScore = normalizeMetaQualityScore(template.quality_score);
+    const rejectionReason = normalizeMetaRejectionReason(
       template.rejected_reason ?? template.rejection_reason,
     );
     const now = new Date();
     const approvedAt = status === "APPROVED" ? now : null;
+    const existingTemplate = await prisma.template.findUnique({
+      where: {
+        companyId_name_language: {
+          companyId,
+          name: template.name,
+          language: template.language,
+        },
+      },
+    });
 
     const syncedTemplate = await prisma.template.upsert({
       where: {
@@ -404,6 +338,21 @@ export async function syncWhatsAppTemplatesFromMeta(companyId: string) {
         rejectionReason,
         approvedAt,
       },
+    });
+
+    await recordTemplateLifecycleEvent({
+      companyId,
+      eventType: existingTemplate ? "SYNCED_FROM_META" : "IMPORTED_FROM_META",
+      metaTemplateId: template.id,
+      newCategory: category,
+      newStatus: status,
+      payload: template,
+      previousCategory: existingTemplate?.category,
+      previousStatus: existingTemplate?.status,
+      qualityScore,
+      reason: rejectionReason,
+      source: "META_SYNC",
+      templateId: syncedTemplate.id,
     });
 
     if (isNewTemplate) {
