@@ -16,6 +16,7 @@ const isPublicRoute = createRouteMatcher([
   "/terms(.*)",
   "/data-deletion(.*)",
   "/invite(.*)",
+  "/oryzo(.*)",
   "/dev(.*)",
   "/api/dev(.*)",
   "/api/health(.*)",

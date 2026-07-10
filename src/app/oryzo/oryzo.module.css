@@ -1,0 +1,245 @@
+.stage {
+  --bg: #171310;
+  --ink: #f4ede3;
+  --ink-dim: rgba(244, 237, 227, 0.55);
+  --frame-w: clamp(300px, 30vw, 470px);
+  --frame-h: min(70vh, 660px);
+  --thumb-w: clamp(84px, 7.5vw, 132px);
+  --thumb-h: clamp(112px, 10.5vw, 184px);
+  --card-gap: clamp(14px, 1.8vw, 30px);
+
+  position: relative;
+  height: 100svh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-plus-jakarta-sans), 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ---------- Layer 1: fixed background ---------- */
+
+.glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 5% 70%,
+    rgba(150, 65, 30, 0.45),
+    transparent 45%
+  );
+}
+
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- Layer 2: fixed navigation ---------- */
+
+.header {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: clamp(20px, 3vw, 36px) clamp(24px, 3.5vw, 44px);
+}
+
+.wordmark {
+  font-size: clamp(18px, 1.6vw, 22px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.wordmark sup {
+  font-size: 0.45em;
+  font-weight: 600;
+  vertical-align: super;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  text-align: right;
+}
+
+.navLink {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+
+.navLink:hover {
+  color: var(--ink);
+}
+
+/* ---------- Layer 3: fixed title ---------- */
+
+.title {
+  position: absolute;
+  left: 3vw;
+  top: 30%;
+  z-index: 1;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  /* Phase 4 scales this from the left edge into the huge viewport-wide text */
+  transform-origin: left center;
+}
+
+.titleLine1 {
+  font-size: clamp(30px, 3.6vw, 56px);
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.titleLine2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(30px, 3.4vw, 52px);
+  line-height: 1.1;
+  color: #e8d9c4;
+}
+
+/* ---------- Layer 4: horizontal media track ---------- */
+
+.track {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--card-gap);
+  transform: translate3d(0, -50%, 0);
+  will-change: transform;
+}
+
+.card {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--thumb-w);
+  height: var(--thumb-h);
+  margin: 0;
+  overflow: hidden;
+  border-radius: 3px;
+  opacity: 0.55;
+  filter: brightness(0.75) saturate(0.9);
+  container-type: inline-size;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.35));
+}
+
+.cardActive {
+  width: calc(var(--frame-w) - 26px);
+  height: calc(var(--frame-h) - 26px);
+  opacity: 1;
+  filter: none;
+}
+
+.cardIndex {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  z-index: 1;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.cardLabel {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  z-index: 1;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.cardMagazine .cardIndex,
+.cardMagazine .cardLabel {
+  color: rgba(42, 33, 24, 0.75);
+}
+
+.magazineTitle {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 30cqi;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #2a2118;
+}
+
+/* ---------- Layer 5: fixed center focus frame ---------- */
+
+.frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: var(--frame-w);
+  height: var(--frame-h);
+  transform: translate(-50%, -50%);
+  border: 1px dashed rgba(244, 237, 227, 0.4);
+  pointer-events: none;
+}
+
+.frame::before {
+  content: '';
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: rgba(244, 237, 227, 0.8);
+}
+
+/* ---------- Scroll indicator ---------- */
+
+.scrollHint {
+  position: absolute;
+  left: 50%;
+  bottom: 4.5vh;
+  z-index: 4;
+  margin: 0;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  white-space: nowrap;
+  color: var(--ink-dim);
+}
