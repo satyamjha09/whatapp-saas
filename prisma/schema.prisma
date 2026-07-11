@@ -141,6 +141,12 @@ enum WhatsAppAccountStatus {
   ERROR
 }
 
+enum WhatsAppCatalogStatus {
+  CONNECTED
+  MISSING
+  ERROR
+}
+
 enum WhatsAppFlowStatus {
   DRAFT
   PUBLISHED
@@ -1353,6 +1359,8 @@ model Company {
   automationUsageCounters           AutomationUsageCounter[]
   featureOverrides                  CompanyFeatureOverride[]
   whatsAppAccounts                  WhatsAppAccount[]
+  whatsAppCatalogs                  WhatsAppCatalog[]
+  whatsAppCatalogProducts           WhatsAppCatalogProduct[]
   whatsAppPhoneNumbers              WhatsAppPhoneNumber[]
   whatsAppEmbeddedSignupEvents      WhatsAppEmbeddedSignupEvent[]
   whatsAppFlows                     WhatsAppFlow[]
@@ -1599,6 +1607,7 @@ model WhatsAppAccount {
   phoneNumbers         WhatsAppPhoneNumber[]
   embeddedSignupEvents WhatsAppEmbeddedSignupEvent[]
   flows                WhatsAppFlow[]
+  catalogs             WhatsAppCatalog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1667,6 +1676,81 @@ model WhatsAppEmbeddedSignupEvent {
   @@index([wabaId])
   @@index([phoneNumberId])
   @@index([createdAt])
+}
+
+model WhatsAppCatalog {
+  id                String @id @default(cuid())
+  companyId         String
+  whatsAppAccountId String
+
+  metaCatalogId   String
+  name            String
+  vertical        String?
+  productCount    Int                   @default(0)
+  status          WhatsAppCatalogStatus @default(CONNECTED)
+  isUsable        Boolean               @default(true)
+  lastSyncedAt    DateTime?
+  remoteMissingAt DateTime?
+  metaRaw         Json?
+
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  whatsAppAccount WhatsAppAccount @relation(fields: [whatsAppAccountId], references: [id], onDelete: Cascade)
+
+  products  WhatsAppCatalogProduct[]
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+
+  @@unique([companyId, metaCatalogId])
+  @@index([companyId])
+  @@index([whatsAppAccountId])
+  @@index([metaCatalogId])
+  @@index([status])
+  @@index([isUsable])
+  @@index([lastSyncedAt])
+}
+
+model WhatsAppCatalogProduct {
+  id        String @id @default(cuid())
+  companyId String
+  catalogId String
+
+  metaProductId String
+  retailerId    String?
+
+  name        String
+  description String?
+  brand       String?
+  category    String?
+  imageUrl    String?
+  productUrl  String?
+
+  priceAmount Decimal? @db.Decimal(20, 6)
+  currency    String?
+
+  availability String?
+  condition    String?
+
+  isActive        Boolean   @default(true)
+  isUsable        Boolean   @default(true)
+  lastSyncedAt    DateTime?
+  remoteMissingAt DateTime?
+  metaRaw         Json?
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  catalog WhatsAppCatalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([catalogId, metaProductId])
+  @@unique([catalogId, retailerId])
+  @@index([companyId])
+  @@index([catalogId])
+  @@index([metaProductId])
+  @@index([retailerId])
+  @@index([availability])
+  @@index([isUsable])
+  @@index([lastSyncedAt])
 }
 
 model WhatsAppFlow {
