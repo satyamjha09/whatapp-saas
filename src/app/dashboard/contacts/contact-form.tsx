@@ -7,7 +7,6 @@ import {
   fieldClass,
   helperTextClass,
   labelClass,
-  Panel,
   PanelTitle,
 } from "@/app/dashboard/dashboard-ui";
 
@@ -82,13 +81,13 @@ export default function ContactForm() {
   }
 
   return (
-    <Panel>
+    <div className="space-y-5">
       <PanelTitle
         title="Create contact"
         description="Add a customer contact for sending WhatsApp template messages."
       />
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+      <form onSubmit={handleSubmit} className="grid gap-5 lg:grid-cols-[1fr_120px_1fr_auto] lg:items-end">
         <div>
           <label htmlFor="name" className={labelClass}>
             Contact name
@@ -139,12 +138,6 @@ export default function ContactForm() {
           </p>
         </div>
 
-        {error && (
-          <p className="rounded-xl border border-rose-300/20 bg-rose-400/10 p-3 text-sm text-rose-300">
-            {error}
-          </p>
-        )}
-
         <button
           type="submit"
           disabled={isSubmitting}
@@ -153,6 +146,12 @@ export default function ContactForm() {
           {isSubmitting ? "Creating..." : "Create Contact"}
         </button>
       </form>
-    </Panel>
+
+      {error && (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

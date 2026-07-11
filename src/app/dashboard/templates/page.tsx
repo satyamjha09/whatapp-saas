@@ -5,7 +5,9 @@ import {
   ChevronRight,
   CopyPlus,
   Filter,
+  Search,
   Send,
+  X,
 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { StatusPill, actionButtonClass, statusTone } from "@/app/dashboard/dashboard-ui";
@@ -17,6 +19,68 @@ import { validateTemplateForMetaSubmission } from "@/server/services/whatsapp-te
 import SubmitTemplateButton from "./submit-template-button";
 import SyncWhatsAppTemplatesButton from "./sync-whatsapp-templates-button";
 import TemplateRowActions from "./template-row-actions";
+
+type TemplatesPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const STATUS_FILTER_OPTIONS = [
+  ["DRAFT", "Draft"],
+  ["SUBMITTING", "Submitting"],
+  ["PENDING_APPROVAL", "Pending approval"],
+  ["PENDING", "Pending"],
+  ["APPROVED", "Approved"],
+  ["REJECTED", "Rejected"],
+  ["PAUSED", "Paused"],
+  ["DISABLED", "Disabled"],
+  ["DELETED", "Deleted"],
+] as const;
+
+const CATEGORY_FILTER_OPTIONS = [
+  ["MARKETING", "Marketing"],
+  ["UTILITY", "Utility"],
+  ["AUTHENTICATION", "Authentication"],
+] as const;
+
+function firstQueryValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+function normalizeTemplateFilters(
+  params: Record<string, string | string[] | undefined> | undefined,
+) {
+  return {
+    category: firstQueryValue(params?.category).trim().toUpperCase(),
+    language: firstQueryValue(params?.language).trim(),
+    search: firstQueryValue(params?.search).trim(),
+    status: firstQueryValue(params?.status).trim().toUpperCase(),
+  };
+}
+
+function languageLabel(language: string) {
+  const labels: Record<string, string> = {
+    en: "English",
+    en_US: "English (US)",
+    hi: "Hindi",
+  };
+
+  return labels[language] ?? language;
+}
+
+function buildTemplateFilterHref(
+  filters: ReturnType<typeof normalizeTemplateFilters>,
+  removeKey?: keyof ReturnType<typeof normalizeTemplateFilters>,
+) {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (!value || key === removeKey) return;
+    params.set(key, value);
+  });
+
+  const query = params.toString();
+  return query ? `/dashboard/templates?${query}` : "/dashboard/templates";
+}
 
 function templateSnippet(body: string) {
   if (!body) return "No preview available";
@@ -110,14 +174,67 @@ function templateOperationalNote(
 const templateTableColumns =
   "grid-cols-[178px_82px_94px_126px_86px_74px_82px_106px_106px_308px]";
 
-export default async function TemplatesPage() {
+export default async function TemplatesPage({ searchParams }: TemplatesPageProps) {
   const context = await getCurrentWorkspaceContext();
 
   if (!context) redirect("/sign-in");
   if (!context.membership) redirect("/onboarding");
 
+  const filters = normalizeTemplateFilters(await searchParams);
   const templates = await getTemplatesByCompany(context.membership.companyId);
-  const templateIds = templates.map((template) => template.id);
+  const languageOptions = Array.from(
+    new Set(templates.map((template) => template.language).filter(Boolean)),
+  ).sort((a, b) => languageLabel(a).localeCompare(languageLabel(b)));
+  const filteredTemplates = templates.filter((template) => {
+    const search = filters.search.toLowerCase();
+    const searchable = [
+      template.name,
+      template.body,
+      template.metaTemplateId ?? "",
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return (
+      (!search || searchable.includes(search)) &&
+      (!filters.category || template.category === filters.category) &&
+      (!filters.language || template.language === filters.language) &&
+      (!filters.status || template.status === filters.status)
+    );
+  });
+  const templateIds = filteredTemplates.map((template) => template.id);
+  const activeFilters = [
+    filters.search
+      ? {
+          href: buildTemplateFilterHref(filters, "search"),
+          label: `Search: ${filters.search}`,
+        }
+      : null,
+    filters.category
+      ? {
+          href: buildTemplateFilterHref(filters, "category"),
+          label:
+            CATEGORY_FILTER_OPTIONS.find(([value]) => value === filters.category)?.[1] ??
+            filters.category,
+        }
+      : null,
+    filters.language
+      ? {
+          href: buildTemplateFilterHref(filters, "language"),
+          label: languageLabel(filters.language),
+        }
+      : null,
+    filters.status
+      ? {
+          href: buildTemplateFilterHref(filters, "status"),
+          label:
+            STATUS_FILTER_OPTIONS.find(([value]) => value === filters.status)?.[1] ??
+            templateStatusLabel(filters.status),
+        }
+      : null,
+  ].filter(
+    (filter): filter is { href: string; label: string } => filter !== null,
+  );
   const [sentGroups, readGroups] =
     templateIds.length > 0
       ? await Promise.all([
@@ -169,10 +286,6 @@ export default async function TemplatesPage() {
         </div>
         <div className="flex flex-wrap gap-3">
           <SyncWhatsAppTemplatesButton canManage={canManage} />
-          <Link href="/dashboard/templates/new" className={actionButtonClass()}>
-            <CopyPlus className="mr-2 h-4 w-4" />
-            Create Template
-          </Link>
         </div>
       </div>
 
@@ -187,6 +300,93 @@ export default async function TemplatesPage() {
           reason. Only approved templates can be used in campaigns or automation.
         </div>
       </details>
+
+      <section className="mb-6 rounded-2xl border border-[#BFE9D0] bg-white p-4 shadow-[0_16px_40px_rgba(8,27,58,0.06)]">
+        <form className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_170px_170px_180px_auto] lg:items-center">
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#526173]" />
+            <input
+              className="h-12 w-full rounded-xl border border-[#BFE9D0] bg-white py-3 pl-10 pr-4 text-sm text-[#081B3A] outline-none transition placeholder:text-[#526173]/60 focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10"
+              defaultValue={filters.search}
+              name="search"
+              placeholder="Search templates..."
+            />
+          </label>
+
+          <select
+            className="h-12 rounded-xl border border-[#BFE9D0] bg-white px-3 text-sm font-medium text-[#081B3A] outline-none transition focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10"
+            defaultValue={filters.category}
+            name="category"
+          >
+            <option value="">All categories</option>
+            {CATEGORY_FILTER_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="h-12 rounded-xl border border-[#BFE9D0] bg-white px-3 text-sm font-medium text-[#081B3A] outline-none transition focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10"
+            defaultValue={filters.language}
+            name="language"
+          >
+            <option value="">All languages</option>
+            {languageOptions.map((language) => (
+              <option key={language} value={language}>
+                {languageLabel(language)}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="h-12 rounded-xl border border-[#BFE9D0] bg-white px-3 text-sm font-medium text-[#081B3A] outline-none transition focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10"
+            defaultValue={filters.status}
+            name="status"
+          >
+            <option value="">All statuses</option>
+            {STATUS_FILTER_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+
+          <div className="flex gap-2">
+            <button className={actionButtonClass("secondary")} type="submit">
+              Apply
+            </button>
+            <Link href="/dashboard/templates/create" className={actionButtonClass()}>
+              <CopyPlus className="mr-2 h-4 w-4" />
+              Create Template
+            </Link>
+          </div>
+        </form>
+
+        {activeFilters.length > 0 ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {activeFilters.map((filter) => (
+              <Link
+                className="inline-flex items-center gap-1 rounded-full bg-[#E7F8EF] px-3 py-1.5 text-xs font-semibold text-[#128C7E] ring-1 ring-[#BFE9D0]"
+                href={filter.href}
+                key={filter.label}
+              >
+                {filter.label}
+                <X className="h-3 w-3" />
+              </Link>
+            ))}
+            <Link
+              className="text-xs font-semibold text-[#526173] transition hover:text-[#128C7E]"
+              href="/dashboard/templates"
+            >
+              Clear all
+            </Link>
+            <span className="ml-auto text-xs text-[#526173]">
+              Showing {filteredTemplates.length} of {templates.length}
+            </span>
+          </div>
+        ) : null}
+      </section>
 
       <section className="overflow-hidden rounded-md bg-white shadow-[0_16px_40px_rgba(8,27,58,0.06)]">
         <div className="overflow-x-auto">
@@ -221,13 +421,15 @@ export default async function TemplatesPage() {
               ))}
             </div>
 
-            {templates.length === 0 ? (
+            {filteredTemplates.length === 0 ? (
               <div className="px-5 py-12 text-center text-sm text-[#526173]">
-                No templates created yet.
+                {templates.length === 0
+                  ? "No templates created yet."
+                  : "No templates match the selected filters."}
               </div>
             ) : (
               <div className="divide-y divide-[#EDEDED]">
-                {templates.map((template) => {
+                {filteredTemplates.map((template) => {
                   const draft = canonicalizeTemplateDraft(template);
                   const sent = sentCounts.get(template.id) ?? 0;
                   const read = readCounts.get(template.id) ?? 0;

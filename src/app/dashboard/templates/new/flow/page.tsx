@@ -57,10 +57,10 @@ export default async function NewFlowTemplatePage({
         </div>
 
         <Link
-          href="/dashboard/templates/new"
+          href="/dashboard/templates"
           className={actionButtonClass("secondary")}
         >
-          Change Type
+          Back to Templates
         </Link>
       </div>
 

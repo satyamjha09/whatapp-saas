@@ -70,7 +70,7 @@ export default async function TemplateEditPage({
           >
             Back to Template
           </Link>
-          <Link href="/dashboard/templates/new" className={actionButtonClass()}>
+          <Link href="/dashboard/templates/create" className={actionButtonClass()}>
             <CopyPlus className="mr-2 h-4 w-4" />
             New Template
           </Link>

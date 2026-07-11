@@ -1,4 +1,4 @@
-import { Calendar, Phone, Users } from "lucide-react";
+import { Calendar, Columns3, Phone, Plus, Upload, Users } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -54,9 +54,21 @@ export default async function ContactsPage() {
       <PageHeader
         eyebrow={context.membership.company.name}
         title="Contacts"
-        description="Maintain the real customer phonebook used for inbox threads, campaigns, and template message delivery."
+        description={`Manage customers, leads, attributes, labels, and WhatsApp activity. ${totalContacts.toLocaleString("en-IN")} contacts in this workspace.`}
         actions={
           <>
+            <button
+              type="button"
+              className={actionButtonClass("secondary")}
+              title="Column controls are coming next"
+            >
+              <Columns3 className="mr-2 h-4 w-4" />
+              Columns
+            </button>
+            <a href="#create-contact" className={actionButtonClass("secondary")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Contact
+            </a>
             <Link
               href="/dashboard/contacts/lists"
               className={actionButtonClass("secondary")}
@@ -73,11 +85,27 @@ export default async function ContactsPage() {
               href="/dashboard/contacts/import"
               className={actionButtonClass("primary")}
             >
-              Import contacts
+              <Upload className="mr-2 h-4 w-4" />
+              Import Contacts
             </Link>
           </>
         }
       />
+
+      <details className="group mb-6 rounded-2xl border border-[#BFE9D0] bg-white">
+        <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 text-sm font-semibold text-[#081B3A]">
+          <span className="transition group-open:rotate-90">›</span>
+          How to use Contacts
+        </summary>
+        <div className="border-t border-[#E7F8EF] px-5 py-4 text-sm leading-6 text-[#526173]">
+          <ul className="list-inside list-disc space-y-1">
+            <li>Create contacts manually or import them using CSV.</li>
+            <li>Add labels to organise contacts.</li>
+            <li>Use attributes for custom customer information.</li>
+            <li>Click a contact to view its full profile without leaving the table.</li>
+          </ul>
+        </div>
+      </details>
 
       <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <MetricCard
@@ -100,20 +128,29 @@ export default async function ContactsPage() {
         />
       </section>
 
-      <div className="grid gap-6 2xl:grid-cols-[340px_minmax(0,1fr)]">
-        <ContactForm />
+      <details
+        id="create-contact"
+        className="group mb-6 rounded-2xl border border-[#BFE9D0] bg-white"
+      >
+        <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 text-sm font-semibold text-[#081B3A]">
+          <span className="transition group-open:rotate-90">›</span>
+          Create contact
+        </summary>
+        <div className="border-t border-[#E7F8EF] p-5">
+          <ContactForm />
+        </div>
+      </details>
 
-        <Panel>
-          <PanelTitle
-            title="All contacts"
-            description="Filter by list, segment, tag, or opt-out status. Select contacts to apply bulk actions."
-          />
+      <Panel>
+        <PanelTitle
+          title="All contacts"
+          description="Filter by list, segment, label, source, status, or consent. Click any contact row to view the profile drawer."
+        />
 
-          <div className="mt-5">
-            <ContactsExplorer lists={lists} segments={segments} />
-          </div>
-        </Panel>
-      </div>
+        <div className="mt-5">
+          <ContactsExplorer lists={lists} segments={segments} />
+        </div>
+      </Panel>
     </div>
   );
 }

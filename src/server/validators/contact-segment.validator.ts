@@ -78,6 +78,19 @@ export const ContactsListQuerySchema = z.object({
   listId: z.string().optional(),
   segmentId: z.string().optional(),
   tag: z.string().max(60).optional(),
+  source: z.string().max(80).optional(),
+  status: z.enum(["active", "blocked"]).optional(),
+  consent: z
+    .enum([
+      "marketing_granted",
+      "marketing_unknown",
+      "marketing_revoked",
+      "utility_granted",
+      "utility_unknown",
+      "utility_revoked",
+      "opted_out",
+    ])
+    .optional(),
   optedOut: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),

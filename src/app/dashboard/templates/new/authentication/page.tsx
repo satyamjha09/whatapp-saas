@@ -25,8 +25,8 @@ export default async function NewAuthenticationTemplatePage() {
             and Zero-Tap authentication templates.
           </p>
         </div>
-        <Link href="/dashboard/templates/new" className={actionButtonClass("secondary")}>
-          Change Type
+        <Link href="/dashboard/templates" className={actionButtonClass("secondary")}>
+          Back to Templates
         </Link>
       </div>
 
