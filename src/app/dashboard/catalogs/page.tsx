@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/app/dashboard/dashboard-ui";
+import Link from "next/link";
+import { actionButtonClass, PageHeader } from "@/app/dashboard/dashboard-ui";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { getWhatsAppCatalogsByCompany } from "@/server/services/whatsapp-catalog.service";
 import WhatsAppCatalogManagementClient from "./whatsapp-catalog-management-client";
@@ -57,6 +58,14 @@ export default async function CatalogsPage({
   return (
     <div>
       <PageHeader
+        actions={
+          <Link
+            className={actionButtonClass("secondary")}
+            href="/dashboard/whatsapp/catalogs/analytics"
+          >
+            Catalog Analytics
+          </Link>
+        }
         description="Sync Commerce Catalog metadata connected to your WhatsApp Business Account. Product sync and product sending come in later Catalog phases."
         eyebrow={context.membership.company.name}
         title="WhatsApp Catalogs"

@@ -205,6 +205,97 @@ async function hydrateFlowTemplateComponents({
   };
 }
 
+async function hydrateCatalogTemplateComponents({
+  companyId,
+  components,
+}: {
+  companyId: string;
+  components: unknown;
+}) {
+  if (!isRecord(components) || components.templateType !== "CATALOG") {
+    return components;
+  }
+
+  const catalogConfig = isRecord(components.catalog) ? components.catalog : {};
+  const localCatalogId =
+    typeof catalogConfig.localCatalogId === "string"
+      ? catalogConfig.localCatalogId.trim()
+      : "";
+
+  if (!localCatalogId) {
+    throw new TemplateDraftError("Select a synced WhatsApp Catalog.");
+  }
+
+  const catalog = await prisma.whatsAppCatalog.findFirst({
+    where: {
+      companyId,
+      id: localCatalogId,
+    },
+    select: {
+      id: true,
+      isUsable: true,
+      metaCatalogId: true,
+      name: true,
+      productCount: true,
+      remoteMissingAt: true,
+      status: true,
+    },
+  });
+
+  if (!catalog) {
+    throw new TemplateDraftError("Selected Catalog was not found for this workspace.");
+  }
+
+  if (!catalog.isUsable || catalog.remoteMissingAt || !catalog.metaCatalogId) {
+    throw new TemplateDraftError("Selected Catalog is not currently usable. Sync Catalogs from Meta first.");
+  }
+
+  const hydratedComponents = Array.isArray(components.components)
+    ? components.components.map((component) => {
+        if (
+          !isRecord(component) ||
+          String(component.type ?? "").toUpperCase() !== "BUTTONS" ||
+          !Array.isArray(component.buttons)
+        ) {
+          return component;
+        }
+
+        return {
+          ...component,
+          buttons: component.buttons.map((button) => {
+            if (
+              !isRecord(button) ||
+              !["CATALOG", "SPM"].includes(String(button.type ?? "").toUpperCase())
+            ) {
+              return button;
+            }
+
+            return {
+              text:
+                typeof button.text === "string" && button.text.trim()
+                  ? button.text.trim()
+                  : "View catalog",
+              type: "CATALOG",
+            };
+          }),
+        };
+      })
+    : components.components;
+
+  return {
+    ...components,
+    catalog: {
+      localCatalogId: catalog.id,
+      metaCatalogId: catalog.metaCatalogId,
+      name: catalog.name,
+      productCount: catalog.productCount,
+      status: catalog.status,
+    },
+    components: hydratedComponents,
+    templateType: "CATALOG",
+  };
+}
+
 export async function getTemplatesByCompany(companyId: string) {
   return prisma.template.findMany({
     where: {
@@ -234,9 +325,13 @@ export async function createTemplateForCompany(
     companyId,
     components: hydratedInputComponents,
   });
+  const hydratedCatalogComponents = await hydrateCatalogTemplateComponents({
+    companyId,
+    components: hydratedFlowComponents,
+  });
   const storedComponents = buildStoredTemplateComponents({
     body: input.body,
-    components: hydratedFlowComponents,
+    components: hydratedCatalogComponents,
     templateType: input.templateType,
   });
   const variables = buildTemplateVariableKeys({

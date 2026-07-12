@@ -596,14 +596,27 @@ export async function getWhatsAppCatalogsByCompany({
   companyId,
   page = 1,
   pageSize = 20,
+  usableOnly = false,
 }: {
   companyId: string;
   page?: number;
   pageSize?: number;
+  usableOnly?: boolean;
 }) {
   const safePage = Math.max(1, Math.floor(page));
   const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
-  const where = { companyId };
+  const where: Prisma.WhatsAppCatalogWhereInput = {
+    companyId,
+    ...(usableOnly
+      ? {
+          isUsable: true,
+          metaCatalogId: {
+            not: "",
+          },
+          remoteMissingAt: null,
+        }
+      : {}),
+  };
 
   const [catalogs, total, connectedAccount] = await Promise.all([
     prisma.whatsAppCatalog.findMany({

@@ -18,6 +18,7 @@ import {
   safeJson,
   setAutomationContextValue,
   setNodeOutput,
+  stringValue,
   type AutomationContext,
   type AutomationRuntimeContact,
   type AutomationRuntimeMessage,
@@ -47,6 +48,69 @@ type LoadedInboundMessage = AutomationRuntimeMessage & {
 };
 
 type RuntimeSession = Awaited<ReturnType<typeof findActiveAutomationSession>>;
+
+async function findExactCatalogAutomationSession({
+  companyId,
+  contactId,
+  inboundMessage,
+}: {
+  companyId: string;
+  contactId: string;
+  inboundMessage: AutomationRuntimeMessage;
+}) {
+  const catalogInteraction = asRecord(asRecord(inboundMessage.metadata).catalogInteraction);
+  const outboundMessageId = stringValue(catalogInteraction.outboundMessageId);
+
+  if (!outboundMessageId) return null;
+
+  const outboundMessage = await prisma.message.findFirst({
+    where: {
+      companyId,
+      contactId,
+      direction: "OUTBOUND",
+      id: outboundMessageId,
+    },
+    select: {
+      id: true,
+      metadata: true,
+    },
+  });
+  const outboundMetadata = asRecord(outboundMessage?.metadata);
+  const sessionId = stringValue(outboundMetadata.automationSessionId);
+  const executionId = stringValue(outboundMetadata.automationExecutionId);
+
+  if (!outboundMessage || !sessionId) return null;
+
+  if (executionId) {
+    const waitingExecution = await prisma.automationExecution.findFirst({
+      where: {
+        companyId,
+        id: executionId,
+        sessionId,
+        status: "WAITING",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!waitingExecution) return null;
+  }
+
+  return prisma.automationSession.findFirst({
+    where: {
+      companyId,
+      contactId,
+      id: sessionId,
+      lastOutboundMessageId: outboundMessage.id,
+      status: "WAITING",
+    },
+    include: {
+      flow: true,
+      flowVersion: true,
+    },
+  });
+}
 
 function asErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unknown automation error";
@@ -1013,6 +1077,32 @@ export async function runAutomationForInboundMessage(
   if (!inboundMessage) return;
 
   const contact = inboundMessage.contact;
+  const exactCatalogSession = await findExactCatalogAutomationSession({
+    companyId: input.companyId,
+    contactId: input.contactId,
+    inboundMessage,
+  });
+
+  if (exactCatalogSession) {
+    const { checkCanRunAutomationExecution } = await import("./automation-plan-limit.service");
+    try {
+      await checkCanRunAutomationExecution(
+        input.companyId,
+        exactCatalogSession.flowId,
+      );
+    } catch (err) {
+      console.warn(`[AUTOMATION_PLAN_LIMIT_EXCEEDED] Skipping exact catalog runtime continuation for company ${input.companyId}:`, (err as Error).message);
+      return;
+    }
+
+    await continueAutomationSession({
+      contact,
+      inboundMessage,
+      session: exactCatalogSession,
+    });
+    return;
+  }
+
   const activeSession = await findActiveAutomationSession({
     companyId: input.companyId,
     contactId: input.contactId,

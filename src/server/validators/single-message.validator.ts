@@ -36,10 +36,28 @@ export const sendSingleTemplateMessageSchema = z
         "Country code must contain 1 to 4 digits",
       ),
     name: z.string().trim().max(100, "Name is too long").optional(),
+    contactId: z.string().trim().min(1).optional(),
+    idempotencyKey: z.string().trim().min(1).max(160).optional(),
     templateId: z.string().trim().optional(),
     bodyParameters: z
       .array(z.string().trim().min(1, "Parameter value cannot be empty"))
       .default([]),
+    catalog: z
+      .object({
+        selectedProductIds: z
+          .array(z.string().trim().min(1).max(160))
+          .max(30, "Catalog product selection is too large")
+          .optional(),
+        localProductIds: z
+          .array(z.string().trim().min(1).max(160))
+          .max(30, "Catalog product selection is too large")
+          .optional(),
+        productIds: z
+          .array(z.string().trim().min(1).max(160))
+          .max(30, "Catalog product selection is too large")
+          .optional(),
+      })
+      .optional(),
     scheduledAt: z.string().datetime().optional().nullable(),
     text: z
       .object({

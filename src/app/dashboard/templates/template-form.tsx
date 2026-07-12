@@ -133,11 +133,13 @@ const templateTypeOptions: TemplateTypeOption[] = [
     value: "PAYMENT",
   },
   {
-    autoCategoryLabel: "Configured in the catalog builder",
+    autoCategoryLabel: "Marketing",
+    autoCategoryValue: "MARKETING",
     categoryMode: "AUTO",
-    description: "Catalog templates will use product/catalog configuration.",
-    enabled: false,
+    description: "Catalog templates use a selected WhatsApp product catalog and a View catalog button.",
+    enabled: true,
     label: "Catalog",
+    route: "/dashboard/templates/new/catalog",
     value: "CATALOG",
   },
   {
@@ -727,7 +729,7 @@ export default function TemplateForm() {
                 {templateTypeOptions.map((item) => (
                   <option key={item.value} value={item.value}>
                     {item.label}
-                    {item.enabled ? "" : " — Coming soon"}
+                    {item.enabled ? "" : " - Coming soon"}
                   </option>
                 ))}
               </select>
@@ -989,7 +991,7 @@ export default function TemplateForm() {
                             {headerMediaAsset.fileName}
                           </p>
                           <p className="mt-1 text-xs font-medium text-[#526173]">
-                            {headerMediaAsset.mimeType} ·{" "}
+                            {headerMediaAsset.mimeType} |{" "}
                             {formatBytes(headerMediaAsset.sizeBytes)}
                           </p>
                         </div>

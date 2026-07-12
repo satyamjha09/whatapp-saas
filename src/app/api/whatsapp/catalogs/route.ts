@@ -34,11 +34,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = parsePositiveInt(searchParams.get("page"), 1);
     const pageSize = parsePositiveInt(searchParams.get("pageSize"), 20);
+    const usableOnly = searchParams.get("usableOnly") === "true";
 
     const result = await getWhatsAppCatalogsByCompany({
       companyId: context.membership.companyId,
       page,
       pageSize,
+      usableOnly,
     });
 
     return NextResponse.json(result);

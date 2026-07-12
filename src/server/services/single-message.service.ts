@@ -13,6 +13,7 @@ import {
   incrementUsageQuota,
 } from "@/server/services/usage-quota.service";
 import type { SendSingleTemplateMessageInput } from "@/server/validators/single-message.validator";
+import { buildCatalogTemplateSendMetadata } from "@/server/services/whatsapp-catalog-runtime.service";
 
 function normalizePhoneNumber(value: string) {
   return value.replace(/\D/g, "");
@@ -22,6 +23,23 @@ function renderTemplateBody(body: string, parameters: string[]) {
   return body.replace(/{{(\d+)}}/g, (_, index: string) => {
     return parameters[Number(index) - 1] ?? `{{${index}}}`;
   });
+}
+
+function readCatalogProductIds(input: SendSingleTemplateMessageInput) {
+  const productIds =
+    input.catalog?.selectedProductIds ??
+    input.catalog?.localProductIds ??
+    input.catalog?.productIds ??
+    [];
+
+  return Array.from(new Set(productIds.map((value) => value.trim()).filter(Boolean)));
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  );
 }
 
 export async function uploadSingleMessageMedia(
@@ -105,6 +123,31 @@ export async function sendSingleTemplateMessage(
     throw new Error("Schedule time must be in the future");
   }
 
+  const idempotencyKey = input.idempotencyKey?.trim() || null;
+
+  if (idempotencyKey) {
+    const existingMessage = await prisma.message.findUnique({
+      where: {
+        companyId_idempotencyKey: {
+          companyId,
+          idempotencyKey,
+        },
+      },
+      include: {
+        contact: true,
+        template: true,
+      },
+    });
+
+    if (existingMessage) {
+      return {
+        contact: existingMessage.contact,
+        message: existingMessage,
+        template: existingMessage.template,
+      };
+    }
+  }
+
   const [template, whatsAppAccount] = await Promise.all([
     input.messageType === "Template"
       ? prisma.template.findFirst({
@@ -144,21 +187,39 @@ export async function sendSingleTemplateMessage(
     );
   }
 
-  const contact = await prisma.contact.upsert({
-    where: {
-      companyId_phoneNumber: { companyId, phoneNumber },
-    },
-    update: {
-      countryCode,
-      ...(input.name ? { name: input.name } : {}),
-    },
-    create: {
-      companyId,
-      name: input.name || null,
-      countryCode,
-      phoneNumber,
-    },
-  });
+  const contact = input.contactId
+    ? await prisma.contact.findFirst({
+        where: {
+          companyId,
+          id: input.contactId,
+        },
+      })
+    : await prisma.contact.upsert({
+        where: {
+          companyId_phoneNumber: { companyId, phoneNumber },
+        },
+        update: {
+          countryCode,
+          ...(input.name ? { name: input.name } : {}),
+        },
+        create: {
+          companyId,
+          name: input.name || null,
+          countryCode,
+          phoneNumber,
+        },
+      });
+
+  if (!contact) {
+    throw new Error("Contact not found");
+  }
+
+  if (
+    input.contactId &&
+    (contact.phoneNumber !== phoneNumber || contact.countryCode !== countryCode)
+  ) {
+    throw new Error("Contact does not match recipient phone number");
+  }
 
   if (input.messageType === "Template" && template) {
     await assertContactCanReceiveTemplate({
@@ -185,7 +246,14 @@ export async function sendSingleTemplateMessage(
             `[interactive] ${input.interactive.type}`.trim()
         : "";
 
-  let metadata: Prisma.InputJsonObject | undefined;
+  let metadata: Prisma.InputJsonObject | undefined =
+    input.messageType === "Template" && template
+      ? await buildCatalogTemplateSendMetadata({
+          companyId,
+          selectedLocalProductIds: readCatalogProductIds(input),
+          template,
+        })
+      : undefined;
 
   if (input.messageType === "Media" && input.media) {
     metadata = {
@@ -292,6 +360,7 @@ export async function sendSingleTemplateMessage(
         variables:
           input.messageType === "Template" ? input.bodyParameters : [],
         metadata,
+        idempotencyKey,
         scheduledAt: isScheduled ? scheduledAt : null,
         events: {
           create: {
@@ -348,10 +417,42 @@ export async function sendSingleTemplateMessage(
       },
     });
 
-    return { contact, message };
+    return { alreadyQueued: false, contact, message };
+  }).catch(async (error) => {
+    if (!idempotencyKey || !isUniqueConstraintError(error)) {
+      throw error;
+    }
+
+    const existingMessage = await prisma.message.findUnique({
+      where: {
+        companyId_idempotencyKey: {
+          companyId,
+          idempotencyKey,
+        },
+      },
+      include: {
+        contact: true,
+      },
+    });
+
+    if (!existingMessage) throw error;
+
+    return {
+      alreadyQueued: true,
+      contact: existingMessage.contact,
+      message: existingMessage,
+    };
   });
 
   try {
+    if (result.alreadyQueued) {
+      return {
+        message: result.message,
+        contact: result.contact,
+        template,
+      };
+    }
+
     await getMessageQueue().add(
       "send-template-message",
       {

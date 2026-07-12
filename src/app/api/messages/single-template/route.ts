@@ -76,11 +76,18 @@ async function readSingleMessageRequest(
       countryCode: stringValue(formData.get("countryCode")),
       phoneNumber: stringValue(formData.get("phoneNumber")),
       name: stringValue(formData.get("name")),
+      contactId: stringValue(formData.get("contactId")),
+      idempotencyKey: stringValue(formData.get("idempotencyKey")),
       scheduledAt: stringValue(formData.get("scheduledAt")),
       templateId: stringValue(formData.get("templateId")),
       bodyParameters: formData.getAll("bodyParameters").map((value) =>
         value.toString(),
       ),
+      catalog: {
+        selectedProductIds: formData
+          .getAll("catalogProductIds")
+          .map((value) => value.toString()),
+      },
       media:
         formData.get("messageType")?.toString() === "Media"
           ? {
@@ -213,6 +220,13 @@ export async function POST(request: Request) {
       error instanceof Error &&
       [
         "Approved template not found",
+        "Catalog is not available for sending",
+        "Catalog template is connected to a missing catalog",
+        "Catalog template is missing its connected catalog",
+        "Contact does not match recipient phone number",
+        "Contact not found",
+        "One or more selected catalog products are not available",
+        "One or more selected catalog products were not found",
         "WhatsApp account is not connected",
         "Schedule time must be in the future",
       ].includes(error.message)

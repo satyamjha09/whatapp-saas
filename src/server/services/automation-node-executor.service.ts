@@ -15,6 +15,7 @@ import { createQueuedAutomationOutboundMessage } from "@/server/services/automat
 import { createQueuedTemplateMessage } from "@/server/services/message.service";
 import { executeAdvancedAutomationNode } from "@/server/services/automation-advanced-node-executor.service";
 import { readFlowTemplateRuntimeConfig } from "@/server/services/whatsapp-flow.service";
+import { buildCatalogTemplateSendMetadata } from "@/server/services/whatsapp-catalog-runtime.service";
 import {
   asRecord,
   getAutomationContextValue,
@@ -207,6 +208,11 @@ async function createQueuedAutomationTemplateMessage({
     throw new Error("Template preview contains unresolved variables");
   }
 
+  const catalogMetadata = await buildCatalogTemplateSendMetadata({
+    companyId,
+    template,
+  });
+
   return createQueuedAutomationOutboundMessage({
     body: renderedBody,
     companyId,
@@ -215,6 +221,7 @@ async function createQueuedAutomationTemplateMessage({
     executionId,
     metadata: {
       messageType: "TEMPLATE",
+      ...(catalogMetadata ?? {}),
     },
     nodeId: node.id,
     sessionId,

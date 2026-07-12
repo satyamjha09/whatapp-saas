@@ -110,6 +110,7 @@ export function validateTemplateForMetaSubmission(
   });
   const urls = findTemplateUrls(template.components);
   const templateType = canonical.templateType || storedTemplateType(template.components);
+  const storedComponents = isRecord(template.components) ? template.components : {};
   const hasMetaPayload =
     components.length > 0 &&
     !(
@@ -156,6 +157,60 @@ export function validateTemplateForMetaSubmission(
         "Carousel, media, and catalog drafts need a real Meta component payload before submission.",
       ),
     );
+  }
+
+  if (templateType === "CATALOG") {
+    if (canonical.templateCategory !== "MARKETING") {
+      issues.push(
+        issue(
+          "ERROR",
+          "CATALOG_CATEGORY_INVALID",
+          "Catalog templates must use Marketing category.",
+        ),
+      );
+    }
+
+    const catalog = isRecord(storedComponents.catalog)
+      ? storedComponents.catalog
+      : {};
+    const localCatalogId =
+      typeof catalog.localCatalogId === "string" ? catalog.localCatalogId.trim() : "";
+    const metaCatalogId =
+      typeof catalog.metaCatalogId === "string" ? catalog.metaCatalogId.trim() : "";
+
+    if (!localCatalogId) {
+      issues.push(
+        issue(
+          "ERROR",
+          "CATALOG_LOCAL_ID_MISSING",
+          "Catalog templates must reference a synced workspace Catalog.",
+        ),
+      );
+    }
+
+    if (!metaCatalogId) {
+      issues.push(
+        issue(
+          "ERROR",
+          "CATALOG_META_ID_MISSING",
+          "Catalog templates need a Meta Catalog ID before submission.",
+        ),
+      );
+    }
+
+    const catalogButtons = canonical.buttons.filter(
+      (button) => button.type === "CATALOG",
+    );
+
+    if (catalogButtons.length !== 1) {
+      issues.push(
+        issue(
+          "ERROR",
+          "CATALOG_BUTTON_REQUIRED",
+          "Catalog templates require exactly one View catalog button.",
+        ),
+      );
+    }
   }
 
   validateTemplateButtons({

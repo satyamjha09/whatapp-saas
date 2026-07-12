@@ -24,6 +24,7 @@ import {
   sanitizeWhatsAppFlowPayloadForStorage,
   WhatsAppFlowResponseCaptureError,
 } from "@/server/services/whatsapp-flow.service";
+import { recordWhatsAppCatalogInteraction } from "@/server/services/whatsapp-catalog-interaction.service";
 import { processChatbotInboundMessage } from "@/server/services/chatbot-runtime.service";
 import { queueAutomationRuntimeJob } from "@/server/services/automation-runtime.service";
 import type { Prisma } from "@/generated/prisma/client";
@@ -479,7 +480,7 @@ const worker = new Worker<ProcessWebhookJobData>(
         webhookEvent.payload,
         fromPhoneNumber,
       );
-      const body = getInboundMessageBody(incomingMessage);
+      let body = getInboundMessageBody(incomingMessage);
       const metadata = getInboundMessageMetadata(incomingMessage);
       const isFlowResponse = isWhatsAppFlowResponseMessage(incomingMessage);
 
@@ -550,6 +551,30 @@ const worker = new Worker<ProcessWebhookJobData>(
                 ? error.code
                 : "WHATSAPP_FLOW_RESPONSE_CAPTURE_FAILED",
             companyId,
+            messageId: message.id,
+            providerMessageId: metaMessageId,
+          });
+        }
+      }
+
+      if (!isFlowResponse) {
+        try {
+          const catalogInteraction = await recordWhatsAppCatalogInteraction({
+            companyId,
+            contactId: contact.id,
+            inboundMessageId: message.id,
+            providerMessageId: metaMessageId,
+            rawMessage: incomingMessage,
+          });
+
+          if (catalogInteraction?.body) {
+            body = catalogInteraction.body;
+          }
+        } catch (error) {
+          console.error("WHATSAPP_CATALOG_INTERACTION_RECORD_ERROR:", {
+            companyId,
+            contactId: contact.id,
+            error: error instanceof Error ? error.message : error,
             messageId: message.id,
             providerMessageId: metaMessageId,
           });

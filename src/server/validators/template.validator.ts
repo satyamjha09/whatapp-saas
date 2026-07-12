@@ -55,6 +55,9 @@ export const createTemplateSchema = z.object({
   components: z.unknown().optional(),
 }).superRefine((value, context) => {
   const components = getComponentsRecord(value.components);
+  const componentList = Array.isArray(components.components)
+    ? components.components
+    : [];
 
   if (value.category === "AUTHENTICATION" && value.templateType !== "AUTHENTICATION") {
     context.addIssue({
@@ -368,6 +371,55 @@ export const createTemplateSchema = z.object({
     });
   }
 
+  if (value.templateType === "CATALOG") {
+    if (value.category !== "MARKETING") {
+      context.addIssue({
+        code: "custom",
+        message: "Catalog templates must use Marketing category",
+        path: ["category"],
+      });
+    }
+
+    const catalog = isRecord(components.catalog) ? components.catalog : {};
+    const localCatalogId = stringValue(catalog.localCatalogId);
+
+    if (!localCatalogId) {
+      context.addIssue({
+        code: "custom",
+        message: "Select a synced WhatsApp Catalog",
+        path: ["components", "catalog", "localCatalogId"],
+      });
+    }
+
+    const catalogButtonsComponent = componentList.find(
+      (component) =>
+        isRecord(component) &&
+        String(component.type ?? "").toUpperCase() === "BUTTONS",
+    );
+    const catalogButtons =
+      isRecord(catalogButtonsComponent) && Array.isArray(catalogButtonsComponent.buttons)
+        ? catalogButtonsComponent.buttons.filter(isRecord)
+        : [];
+
+    if (catalogButtons.length !== 1) {
+      context.addIssue({
+        code: "custom",
+        message: "Catalog templates require exactly one Catalog button",
+        path: ["components", "components", "buttons"],
+      });
+    }
+
+    const catalogButtonType = String(catalogButtons[0]?.type ?? "").toUpperCase();
+
+    if (!["CATALOG", "SPM"].includes(catalogButtonType)) {
+      context.addIssue({
+        code: "custom",
+        message: "Catalog templates require a View catalog button",
+        path: ["components", "components", "buttons"],
+      });
+    }
+  }
+
   if (value.templateType !== "CAROUSEL" && Array.isArray(components.cards)) {
     context.addIssue({
       code: "custom",
@@ -376,9 +428,6 @@ export const createTemplateSchema = z.object({
     });
   }
 
-  const componentList = Array.isArray(components.components)
-    ? components.components
-    : [];
   const buttonsComponent = componentList.find(
     (component) =>
       isRecord(component) &&

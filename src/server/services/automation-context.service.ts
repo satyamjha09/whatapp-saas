@@ -36,6 +36,17 @@ export type AutomationTriggerSnapshot = {
 };
 
 export type AutomationContext = {
+  catalog?: {
+    interaction?: {
+      type: string | null;
+    };
+    messageId?: string | null;
+    product?: {
+      localProductId: string | null;
+      name: string | null;
+      retailerId: string | null;
+    };
+  };
   trigger: AutomationTriggerSnapshot;
   contact: {
     id: string;
@@ -66,6 +77,43 @@ export function stringValue(value: unknown, fallback = "") {
 
 export function normalizedText(value: string | null | undefined) {
   return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function readCatalogContext(metadata: Prisma.JsonValue | null | undefined) {
+  const catalogInteraction = asRecord(asRecord(metadata).catalogInteraction);
+  if (!catalogInteraction.interactionType) return undefined;
+
+  const products = Array.isArray(catalogInteraction.products)
+    ? catalogInteraction.products
+    : [];
+  const firstProduct = asRecord(products[0]);
+  const localProductIds = Array.isArray(catalogInteraction.localProductIds)
+    ? catalogInteraction.localProductIds
+    : [];
+  const retailerIds = Array.isArray(catalogInteraction.retailerIds)
+    ? catalogInteraction.retailerIds
+    : [];
+
+  return {
+    interaction: {
+      type: stringValue(catalogInteraction.interactionType) || null,
+    },
+    messageId:
+      stringValue(catalogInteraction.outboundMessageId) ||
+      stringValue(catalogInteraction.contextMetaMessageId) ||
+      null,
+    product: {
+      localProductId:
+        stringValue(firstProduct.localProductId) ||
+        stringValue(localProductIds[0]) ||
+        null,
+      name: stringValue(firstProduct.name) || null,
+      retailerId:
+        stringValue(firstProduct.retailerId) ||
+        stringValue(retailerIds[0]) ||
+        null,
+    },
+  };
 }
 
 export function getAutomationContext(
@@ -99,6 +147,7 @@ export function getAutomationContext(
       phoneNumber: stringValue(contact.phoneNumber),
       countryCode: stringValue(contact.countryCode, "91"),
     },
+    catalog: asRecord(context.catalog) as AutomationContext["catalog"],
     replies: asRecord(context.replies),
     nodes: asRecord(context.nodes) as AutomationContext["nodes"],
     variables: asRecord(context.variables),
@@ -170,8 +219,11 @@ export function createAutomationContext({
   contact: AutomationRuntimeContact;
   message: AutomationRuntimeMessage;
 }): AutomationContext {
+  const catalog = readCatalogContext(message.metadata);
+
   return {
     trigger: extractInboundTrigger(message),
+    ...(catalog ? { catalog } : {}),
     contact: {
       countryCode: contact.countryCode,
       email: contact.email,

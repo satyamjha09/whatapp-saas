@@ -1,4 +1,4 @@
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma, Template } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildMetaTemplateComponents } from "@/lib/whatsapp-template/template-definition";
 import { createAuditLog } from "@/server/services/audit.service";
@@ -26,6 +26,14 @@ type MetaTemplateSubmitResponse = {
     type?: string;
   };
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
 
 function getMetaGraphBaseUrl() {
   const version = process.env.WHATSAPP_API_VERSION ?? "v25.0";
@@ -102,6 +110,106 @@ async function submitTemplateToMeta({
   };
 }
 
+async function hydrateCatalogTemplateForMetaSubmission({
+  companyId,
+  template,
+}: {
+  companyId: string;
+  template: Template;
+}) {
+  if (!isRecord(template.components) || template.components.templateType !== "CATALOG") {
+    return template;
+  }
+
+  if (template.category !== "MARKETING") {
+    throw new Error("Template Catalog submissions must use Marketing category.");
+  }
+
+  const catalogConfig = isRecord(template.components.catalog)
+    ? template.components.catalog
+    : {};
+  const localCatalogId = stringValue(catalogConfig.localCatalogId);
+
+  if (!localCatalogId) {
+    throw new Error("Template Catalog draft is missing its selected Catalog.");
+  }
+
+  const catalog = await prisma.whatsAppCatalog.findFirst({
+    where: {
+      companyId,
+      id: localCatalogId,
+    },
+    select: {
+      id: true,
+      isUsable: true,
+      metaCatalogId: true,
+      name: true,
+      productCount: true,
+      remoteMissingAt: true,
+      status: true,
+    },
+  });
+
+  if (!catalog) {
+    throw new Error("Template Catalog was not found for this workspace.");
+  }
+
+  if (!catalog.isUsable || catalog.remoteMissingAt) {
+    throw new Error("Template Catalog is not currently usable. Sync Catalogs from Meta first.");
+  }
+
+  if (!catalog.metaCatalogId) {
+    throw new Error("Template Catalog is missing its Meta Catalog ID.");
+  }
+
+  const components = Array.isArray(template.components.components)
+    ? template.components.components.map((component) => {
+        if (
+          !isRecord(component) ||
+          String(component.type ?? "").toUpperCase() !== "BUTTONS" ||
+          !Array.isArray(component.buttons)
+        ) {
+          return component;
+        }
+
+        return {
+          ...component,
+          buttons: component.buttons.map((button) => {
+            if (
+              !isRecord(button) ||
+              !["CATALOG", "SPM"].includes(String(button.type ?? "").toUpperCase())
+            ) {
+              return button;
+            }
+
+            return {
+              text: stringValue(button.text) || "View catalog",
+              type: "CATALOG",
+            };
+          }),
+        };
+      })
+    : template.components.components;
+
+  const hydratedComponents = {
+    ...template.components,
+    catalog: {
+      localCatalogId: catalog.id,
+      metaCatalogId: catalog.metaCatalogId,
+      name: catalog.name,
+      productCount: catalog.productCount,
+      status: catalog.status,
+    },
+    components,
+    templateType: "CATALOG",
+  };
+
+  return {
+    ...template,
+    components: hydratedComponents,
+  };
+}
+
 export async function submitTemplateForMetaApproval({
   actorUserId,
   companyId,
@@ -141,7 +249,32 @@ export async function submitTemplateForMetaApproval({
     throw new Error("WhatsApp account is not connected");
   }
 
-  const validation = validateTemplateForMetaSubmission(template);
+  let templateForSubmission: Template;
+
+  try {
+    templateForSubmission = await hydrateCatalogTemplateForMetaSubmission({
+      companyId,
+      template,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Template Catalog is not ready for Meta submission.";
+
+    await prisma.template.update({
+      where: {
+        id: template.id,
+      },
+      data: {
+        lastSubmitError: message,
+      },
+    });
+
+    throw error;
+  }
+
+  const validation = validateTemplateForMetaSubmission(templateForSubmission);
 
   if (!validation.canSubmit) {
     const message =
@@ -187,7 +320,7 @@ export async function submitTemplateForMetaApproval({
       accessToken,
       body: template.body,
       category: template.category,
-      components: template.components,
+      components: templateForSubmission.components,
       language: template.language,
       name: template.name,
       wabaId: account.wabaId,
@@ -232,6 +365,9 @@ export async function submitTemplateForMetaApproval({
     },
     data: {
       category,
+      components: JSON.parse(
+        JSON.stringify(templateForSubmission.components),
+      ) as Prisma.InputJsonValue,
       metaTemplateId: responseData.id ?? template.metaTemplateId,
       status,
       lastSubmitError: null,

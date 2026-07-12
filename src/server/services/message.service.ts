@@ -22,6 +22,7 @@ import {
   readFlowTemplateRuntimeConfig,
 } from "@/server/services/whatsapp-flow.service";
 import { readFlowResponseMappingsFromComponents } from "@/lib/whatsapp-flow-response-mapping";
+import { buildCatalogTemplateSendMetadata } from "@/server/services/whatsapp-catalog-runtime.service";
 
 type AutomationFlowTemplateContext = {
   conversionGoalNodeId?: string | null;
@@ -108,6 +109,10 @@ export async function createQueuedTemplateMessage(
   const toPhoneNumber = `${contact.countryCode}${contact.phoneNumber}`;
   const body = renderTemplateBody(template.body, input.variables);
   const flowConfig = readFlowTemplateRuntimeConfig(template.components);
+  const catalogMetadata = await buildCatalogTemplateSendMetadata({
+    companyId,
+    template,
+  });
 
   if (flowConfig) {
     const idempotencyKey = `flow-template:${
@@ -399,12 +404,28 @@ export async function createQueuedTemplateMessage(
         variables: input.variables,
         status: "QUEUED",
         direction: "OUTBOUND",
+        idempotencyKey: input.idempotencyKey,
+        metadata:
+          catalogMetadata || input.automationContext
+            ? {
+                ...(input.automationContext
+                  ? {
+                      automationExecutionId:
+                        input.automationContext.executionId,
+                      automationNodeId: input.automationContext.nodeId,
+                      automationSessionId: input.automationContext.sessionId,
+                      source: "automation_runtime",
+                    }
+                  : {}),
+                ...(catalogMetadata ?? {}),
+              }
+            : undefined,
         events: {
           create: {
             companyId,
             status: "QUEUED",
             raw: {
-              source: "api",
+              source: input.automationContext ? "automation_runtime" : "api",
               reason: "Template message queued",
             },
           },

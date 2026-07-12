@@ -89,6 +89,16 @@ type OutboundInteractiveMetadata = {
   }[];
 };
 
+type OutboundCatalogTemplateMetadata = {
+  messageType: "CATALOG_TEMPLATE";
+  catalog: {
+    localCatalogId: string;
+    metaCatalogId: string;
+  };
+  selectedLocalProductIds: string[];
+  retailerIds: string[];
+};
+
 function getOutboundMediaMetadata(
   metadata: unknown,
 ): OutboundMediaMetadata | null {
@@ -144,6 +154,108 @@ function getOutboundLocationMetadata(
     latitude: record.latitude,
     longitude: record.longitude,
   };
+}
+
+function getOutboundCatalogTemplateMetadata(
+  metadata: unknown,
+): OutboundCatalogTemplateMetadata | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const catalog =
+    record.catalog && typeof record.catalog === "object" && !Array.isArray(record.catalog)
+      ? (record.catalog as Record<string, unknown>)
+      : null;
+
+  if (
+    record.messageType !== "CATALOG_TEMPLATE" ||
+    typeof catalog?.localCatalogId !== "string" ||
+    typeof catalog.metaCatalogId !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    messageType: "CATALOG_TEMPLATE",
+    catalog: {
+      localCatalogId: catalog.localCatalogId,
+      metaCatalogId: catalog.metaCatalogId,
+    },
+    selectedLocalProductIds: Array.isArray(record.selectedLocalProductIds)
+      ? record.selectedLocalProductIds.filter(
+          (value): value is string => typeof value === "string",
+        )
+      : [],
+    retailerIds: Array.isArray(record.retailerIds)
+      ? record.retailerIds.filter((value): value is string => typeof value === "string")
+      : [],
+  };
+}
+
+async function assertCatalogTemplateRuntimeUsable({
+  companyId,
+  metadata,
+}: {
+  companyId: string;
+  metadata: OutboundCatalogTemplateMetadata;
+}) {
+  const catalog = await prisma.whatsAppCatalog.findFirst({
+    where: {
+      companyId,
+      id: metadata.catalog.localCatalogId,
+      metaCatalogId: metadata.catalog.metaCatalogId,
+    },
+    select: {
+      id: true,
+      isUsable: true,
+      metaCatalogId: true,
+      remoteMissingAt: true,
+    },
+  });
+
+  if (!catalog || !catalog.isUsable || catalog.remoteMissingAt) {
+    throw new UnrecoverableError("Catalog is not available for sending");
+  }
+
+  if (metadata.selectedLocalProductIds.length === 0) return;
+
+  const products = await prisma.whatsAppCatalogProduct.findMany({
+    where: {
+      catalogId: catalog.id,
+      companyId,
+      id: {
+        in: metadata.selectedLocalProductIds,
+      },
+    },
+    select: {
+      id: true,
+      isUsable: true,
+      remoteMissingAt: true,
+      retailerId: true,
+    },
+  });
+
+  if (products.length !== metadata.selectedLocalProductIds.length) {
+    throw new UnrecoverableError(
+      "One or more selected catalog products were not found",
+    );
+  }
+
+  const unusableProduct = products.find(
+    (product) =>
+      !product.isUsable ||
+      product.remoteMissingAt ||
+      !product.retailerId ||
+      !metadata.retailerIds.includes(product.retailerId),
+  );
+
+  if (unusableProduct) {
+    throw new UnrecoverableError(
+      "One or more selected catalog products are not available",
+    );
+  }
 }
 
 type MetaComponentType = {
@@ -1142,6 +1254,15 @@ const worker = new Worker<SendMessageJobData>(
       const result = template
         ? await (async () => {
             const templateComponents = readTemplateComponents(template) as MetaComponentType[];
+            const catalogRuntime = getOutboundCatalogTemplateMetadata(
+              message.metadata,
+            );
+            if (catalogRuntime) {
+              await assertCatalogTemplateRuntimeUsable({
+                companyId,
+                metadata: catalogRuntime,
+              });
+            }
             const flowTemplateConfig = readFlowTemplateRuntimeConfig(
               template.components,
             );
