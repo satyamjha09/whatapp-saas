@@ -1,4 +1,10 @@
 import type { Template } from "@/generated/prisma/client";
+import {
+  ORDER_STATUS_REQUIRED_FIELDS,
+  ORDER_STATUS_TEMPLATE_PURPOSES,
+  ORDER_STATUS_VARIABLE_SOURCES,
+  isAllowedOrderStatusTemplateField,
+} from "@/lib/whatsapp-template/order-status-template";
 import { canonicalizeTemplateDraft } from "@/lib/whatsapp-template/template-definition";
 import { validatePublicMediaUrl } from "@/lib/whatsapp-template/media-url-policy";
 import {
@@ -7,6 +13,7 @@ import {
 } from "@/lib/whatsapp-template/template-button-rules";
 import { buildVariableMetadata } from "@/lib/whatsapp-template/template-variable-engine";
 import {
+  extractVariablesFromText,
   extractTemplateVariableMetadata,
   findTemplateUrls,
 } from "@/lib/whatsapp-template/template-variable-parser";
@@ -51,6 +58,10 @@ function storedTemplateType(value: unknown) {
     : "STANDARD";
 }
 
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function hasExample(component: unknown) {
   if (!isRecord(component) || !isRecord(component.example)) return false;
 
@@ -65,6 +76,146 @@ function hasExample(component: unknown) {
 
 function isProductionLike() {
   return process.env.NODE_ENV === "production";
+}
+
+function validateOrderStatusTemplateForSubmission({
+  bodyText,
+  components,
+  templateCategory,
+}: {
+  bodyText: string;
+  components: Record<string, unknown>;
+  templateCategory: string;
+}) {
+  const issues: TemplateValidationIssue[] = [];
+
+  if (templateCategory !== "UTILITY") {
+    issues.push(
+      issue(
+        "ERROR",
+        "ORDER_STATUS_CATEGORY_INVALID",
+        "Order status templates must use Utility category.",
+      ),
+    );
+  }
+
+  const orderStatus = isRecord(components.orderStatus)
+    ? components.orderStatus
+    : {};
+  const purpose = stringValue(orderStatus.purpose).toUpperCase();
+  const validPurpose = ORDER_STATUS_TEMPLATE_PURPOSES.includes(
+    purpose as (typeof ORDER_STATUS_TEMPLATE_PURPOSES)[number],
+  );
+
+  if (!validPurpose) {
+    issues.push(
+      issue(
+        "ERROR",
+        "ORDER_STATUS_PURPOSE_INVALID",
+        "Select a supported order status purpose.",
+      ),
+    );
+  }
+
+  const variableMappings = Array.isArray(orderStatus.variableMappings)
+    ? orderStatus.variableMappings.filter(isRecord)
+    : [];
+  const bodyVariables = extractVariablesFromText(bodyText).map(
+    (variable) => variable.variableName,
+  );
+  const bodyVariableSet = new Set(bodyVariables);
+  const mappedVariables = new Set(
+    variableMappings.map((mapping) => stringValue(mapping.variable)),
+  );
+
+  bodyVariables.forEach((variable) => {
+    if (!mappedVariables.has(variable)) {
+      issues.push(
+        issue(
+          "ERROR",
+          "ORDER_STATUS_MAPPING_MISSING",
+          `Mapping is required for {{${variable}}}.`,
+        ),
+      );
+    }
+  });
+
+  variableMappings.forEach((mapping) => {
+    const variable = stringValue(mapping.variable);
+    const source = stringValue(mapping.source).toUpperCase();
+    const field = stringValue(mapping.field);
+    const sampleValue = stringValue(mapping.sampleValue);
+
+    if (!bodyVariableSet.has(variable)) {
+      issues.push(
+        issue(
+          "ERROR",
+          "ORDER_STATUS_MAPPING_UNUSED",
+          `Mapping {{${variable}}} does not exist in the body.`,
+        ),
+      );
+    }
+
+    if (
+      !ORDER_STATUS_VARIABLE_SOURCES.includes(
+        source as (typeof ORDER_STATUS_VARIABLE_SOURCES)[number],
+      )
+    ) {
+      issues.push(
+        issue(
+          "ERROR",
+          "ORDER_STATUS_MAPPING_SOURCE_INVALID",
+          "Variable mapping source is not supported.",
+        ),
+      );
+    }
+
+    if (!field || !isAllowedOrderStatusTemplateField(source, field)) {
+      issues.push(
+        issue(
+          "ERROR",
+          "ORDER_STATUS_MAPPING_FIELD_INVALID",
+          "Variable mapping field is not allowed.",
+        ),
+      );
+    }
+
+    if (!sampleValue) {
+      issues.push(
+        issue(
+          "ERROR",
+          "ORDER_STATUS_MAPPING_SAMPLE_MISSING",
+          `Sample value is required for {{${variable}}}.`,
+        ),
+      );
+    }
+  });
+
+  if (validPurpose) {
+    const mappedOrderFields = new Set(
+      variableMappings
+        .filter(
+          (mapping) => stringValue(mapping.source).toUpperCase() === "ORDER_FIELD",
+        )
+        .map((mapping) => stringValue(mapping.field)),
+    );
+
+    ORDER_STATUS_REQUIRED_FIELDS[
+      purpose as keyof typeof ORDER_STATUS_REQUIRED_FIELDS
+    ].forEach((field) => {
+      if (!mappedOrderFields.has(field)) {
+        issues.push(
+          issue(
+            "ERROR",
+            "ORDER_STATUS_REQUIRED_FIELD_MISSING",
+            `${field} mapping is required for ${purpose}.`,
+          ),
+        );
+      }
+    });
+  }
+
+  return issues;
 }
 
 function validatePublicUrls(
@@ -149,13 +300,23 @@ export function validateTemplateForMetaSubmission(
       issues.push(issue("ERROR", item.code, item.message));
     });
 
-  if (templateType !== "STANDARD" && !hasMetaPayload) {
+  if (!["STANDARD", "ORDER_STATUS"].includes(templateType) && !hasMetaPayload) {
     issues.push(
       issue(
         "ERROR",
         "META_COMPONENT_PAYLOAD_REQUIRED",
         "Carousel, media, and catalog drafts need a real Meta component payload before submission.",
       ),
+    );
+  }
+
+  if (templateType === "ORDER_STATUS") {
+    issues.push(
+      ...validateOrderStatusTemplateForSubmission({
+        bodyText: canonical.body,
+        components: storedComponents,
+        templateCategory: canonical.templateCategory,
+      }),
     );
   }
 

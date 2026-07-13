@@ -292,15 +292,23 @@ export async function submitTemplateForMetaApproval({
     throw new Error(message);
   }
 
-  await prisma.template.update({
+  const submitLock = await prisma.template.updateMany({
     where: {
       id: template.id,
+      companyId,
+      status: {
+        in: ["DRAFT", "REJECTED"],
+      },
     },
     data: {
       status: "SUBMITTING",
       lastSubmitError: null,
     },
   });
+
+  if (submitLock.count !== 1) {
+    throw new Error("Only draft or rejected templates can be submitted");
+  }
 
   await recordTemplateLifecycleEvent({
     actorUserId,

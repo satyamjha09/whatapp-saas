@@ -10,7 +10,7 @@ export type TemplateLifecycleSource =
 
 export function normalizeMetaTemplateStatus(
   status?: string | null,
-  fallback: TemplateStatus = "PENDING",
+  fallback: TemplateStatus = "PENDING_APPROVAL",
 ): TemplateStatus {
   switch (status?.toUpperCase()) {
     case "APPROVED":
@@ -18,7 +18,7 @@ export function normalizeMetaTemplateStatus(
     case "PENDING":
     case "PENDING_APPROVAL":
     case "IN_REVIEW":
-      return "PENDING";
+      return "PENDING_APPROVAL";
     case "REJECTED":
       return "REJECTED";
     case "PAUSED":

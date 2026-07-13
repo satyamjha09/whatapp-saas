@@ -160,11 +160,13 @@ const templateTypeOptions: TemplateTypeOption[] = [
     value: "FLOWS",
   },
   {
-    autoCategoryLabel: "Configured in the order-status builder",
+    autoCategoryLabel: "Utility",
+    autoCategoryValue: "UTILITY",
     categoryMode: "AUTO",
-    description: "Order status templates need commerce/order data mapping.",
-    enabled: false,
+    description: "Transactional order updates with safe order-field mapping.",
+    enabled: true,
     label: "Order Status",
+    route: "/dashboard/templates/new/order-status",
     value: "ORDER_STATUS",
   },
   {

@@ -181,6 +181,63 @@ enum WhatsAppFlowUseCase {
   CUSTOM
 }
 
+enum OrderStatus {
+  DRAFT
+  CONFIRMED
+  PROCESSING
+  PACKED
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum OrderSource {
+  MANUAL
+  TALLY
+  API
+  CATALOG
+  WHATSAPP
+  IMPORT
+}
+
+enum OrderStatusEventSource {
+  DASHBOARD
+  TALLY
+  API
+  AUTOMATION
+  SYSTEM
+  WEBHOOK
+}
+
+enum OrderSyncStatus {
+  LOCAL_ONLY
+  SYNCED
+  NEEDS_REVIEW
+  FAILED
+}
+
+enum TallyMappingMatchSource {
+  EXPLICIT
+  GSTIN
+  PHONE
+  EMAIL
+  LEDGER_NAME
+  SKU
+  RETAILER_ID
+  STOCK_ITEM_NAME
+  MANUAL_REVIEW
+}
+
+enum TallyOrderSyncRunStatus {
+  RUNNING
+  COMPLETED
+  PARTIAL_FAILED
+  FAILED
+}
+
 enum ChatbotStatus {
   DRAFT
   PUBLISHED
@@ -1297,6 +1354,9 @@ model User {
   updatedChatbots                     Chatbot[]                          @relation("ChatbotUpdater")
   createdChatbotVersions              ChatbotVersion[]                   @relation("ChatbotVersionCreator")
   uploadedTemplateMediaAssets         TemplateMediaAsset[]               @relation("TemplateMediaAssetUploader")
+  changedOrderStatusEvents            OrderStatusEvent[]                 @relation("OrderStatusChangedBy")
+  tallyCustomerMappings               TallyCustomerMapping[]             @relation("TallyCustomerMappingUpdatedBy")
+  tallyProductMappings                TallyProductMapping[]              @relation("TallyProductMappingUpdatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1361,6 +1421,12 @@ model Company {
   whatsAppAccounts                  WhatsAppAccount[]
   whatsAppCatalogs                  WhatsAppCatalog[]
   whatsAppCatalogProducts           WhatsAppCatalogProduct[]
+  orders                            Order[]
+  orderItems                        OrderItem[]
+  orderStatusEvents                 OrderStatusEvent[]
+  tallyCustomerMappings             TallyCustomerMapping[]
+  tallyProductMappings              TallyProductMapping[]
+  tallyOrderSyncRuns                TallyOrderSyncRun[]
   whatsAppPhoneNumbers              WhatsAppPhoneNumber[]
   whatsAppEmbeddedSignupEvents      WhatsAppEmbeddedSignupEvent[]
   whatsAppFlows                     WhatsAppFlow[]
@@ -1739,6 +1805,9 @@ model WhatsAppCatalogProduct {
   company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   catalog WhatsAppCatalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
 
+  orderItems           OrderItem[]
+  tallyProductMappings TallyProductMapping[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1753,6 +1822,191 @@ model WhatsAppCatalogProduct {
   @@index([lastSyncedAt])
 }
 
+model Order {
+  id        String @id @default(cuid())
+  companyId String
+  contactId String
+
+  orderNumber       String
+  externalOrderId   String?
+  externalCompanyId String?
+  source            OrderSource @default(MANUAL)
+  currency          String      @default("INR")
+
+  subtotalAmount Decimal @default(0) @db.Decimal(20, 6)
+  taxAmount      Decimal @default(0) @db.Decimal(20, 6)
+  discountAmount Decimal @default(0) @db.Decimal(20, 6)
+  shippingAmount Decimal @default(0) @db.Decimal(20, 6)
+  totalAmount    Decimal @default(0) @db.Decimal(20, 6)
+
+  currentStatus OrderStatus @default(DRAFT)
+  orderDate     DateTime    @default(now())
+  cancelledAt   DateTime?
+  cancelReason  String?
+  notes         String?
+  syncStatus    OrderSyncStatus @default(LOCAL_ONLY)
+  syncError     String?
+  lastSyncedAt  DateTime?
+  metadata      Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Restrict)
+
+  items        OrderItem[]
+  statusEvents OrderStatusEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, orderNumber])
+  @@unique([companyId, source, externalOrderId])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([companyId, currentStatus])
+  @@index([companyId, source])
+  @@index([companyId, externalCompanyId])
+  @@index([companyId, syncStatus])
+  @@index([companyId, lastSyncedAt])
+  @@index([companyId, orderDate])
+  @@index([externalOrderId])
+  @@index([updatedAt])
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  companyId String
+  orderId   String
+
+  localProductId      String?
+  retailerIdSnapshot  String?
+  productNameSnapshot String
+  quantity            Int     @default(1)
+  unitPriceAmount     Decimal @default(0) @db.Decimal(20, 6)
+  taxAmount           Decimal @default(0) @db.Decimal(20, 6)
+  discountAmount      Decimal @default(0) @db.Decimal(20, 6)
+  lineTotalAmount     Decimal @default(0) @db.Decimal(20, 6)
+  metadata            Json?
+
+  company      Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order        Order                   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  localProduct WhatsAppCatalogProduct? @relation(fields: [localProductId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([orderId])
+  @@index([localProductId])
+  @@index([retailerIdSnapshot])
+}
+
+model OrderStatusEvent {
+  id              String                 @id @default(cuid())
+  companyId       String
+  orderId         String
+  previousStatus  OrderStatus?
+  newStatus       OrderStatus
+  source          OrderStatusEventSource @default(DASHBOARD)
+  changedByUserId String?
+  reason          String?
+  note            String?
+  metadata        Json?
+
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedByUser User?   @relation("OrderStatusChangedBy", fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([orderId])
+  @@index([newStatus])
+  @@index([source])
+  @@index([changedByUserId])
+  @@index([createdAt])
+}
+
+
+model TallyCustomerMapping {
+  id             String @id @default(cuid())
+  companyId      String
+  tallyCompanyId String
+  tallyLedgerId  String
+  tallyLedgerName String
+  contactId      String?
+  matchSource    TallyMappingMatchSource @default(MANUAL_REVIEW)
+  confidence     Int @default(0)
+  lastSyncedAt   DateTime?
+  updatedByUserId String?
+  metadata       Json?
+
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact       Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  updatedByUser User? @relation("TallyCustomerMappingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, tallyCompanyId, tallyLedgerId])
+  @@index([companyId])
+  @@index([tallyCompanyId])
+  @@index([contactId])
+  @@index([matchSource])
+  @@index([lastSyncedAt])
+}
+
+model TallyProductMapping {
+  id                 String @id @default(cuid())
+  companyId          String
+  tallyCompanyId     String
+  tallyStockItemId   String
+  tallyStockItemName String
+  localProductId     String?
+  matchSource        TallyMappingMatchSource @default(MANUAL_REVIEW)
+  lastSyncedAt       DateTime?
+  updatedByUserId    String?
+  metadata           Json?
+
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  localProduct  WhatsAppCatalogProduct? @relation(fields: [localProductId], references: [id], onDelete: SetNull)
+  updatedByUser User? @relation("TallyProductMappingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, tallyCompanyId, tallyStockItemId])
+  @@index([companyId])
+  @@index([tallyCompanyId])
+  @@index([localProductId])
+  @@index([matchSource])
+  @@index([lastSyncedAt])
+}
+
+model TallyOrderSyncRun {
+  id             String @id @default(cuid())
+  companyId      String
+  tallyCompanyId String
+  status         TallyOrderSyncRunStatus @default(RUNNING)
+  startedAt      DateTime @default(now())
+  completedAt    DateTime?
+  ordersFound    Int @default(0)
+  createdCount   Int @default(0)
+  updatedCount   Int @default(0)
+  skippedCount   Int @default(0)
+  failedCount    Int @default(0)
+  unmappedCustomerCount Int @default(0)
+  unmappedProductCount  Int @default(0)
+  errorCode      String?
+  errorMessage   String?
+  summary        Json?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([tallyCompanyId])
+  @@index([status])
+  @@index([startedAt])
+}
 model WhatsAppFlow {
   id                String  @id @default(cuid())
   companyId         String
@@ -2675,6 +2929,8 @@ model Contact {
   whatsAppFlowInteractions   WhatsAppFlowInteraction[]
   whatsAppFlowResponses      WhatsAppFlowResponse[]
   chatbotSessions            ChatbotSession[]
+  orders                     Order[]
+  tallyCustomerMappings      TallyCustomerMapping[]
   contactGroupMembers        ContactGroupMember[]
   privacyRequests            PrivacyRequest[]
   consentEvents              ContactConsentEvent[]
@@ -6585,3 +6841,4 @@ model LeadScoringConfig {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+

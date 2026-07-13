@@ -3,6 +3,12 @@ import {
   TEMPLATE_CATEGORIES,
   TEMPLATE_TYPES,
 } from "@/lib/whatsapp-template/template-definition";
+import {
+  isAllowedOrderStatusTemplateField,
+  ORDER_STATUS_REQUIRED_FIELDS,
+  ORDER_STATUS_TEMPLATE_PURPOSES,
+  ORDER_STATUS_VARIABLE_SOURCES,
+} from "@/lib/whatsapp-template/order-status-template";
 import { validatePublicMediaUrl } from "@/lib/whatsapp-template/media-url-policy";
 import {
   validateCarouselCardButtons,
@@ -23,6 +29,12 @@ function getComponentsRecord(value: unknown) {
 
 function stringValue(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function extractVariablesFromText(text: string) {
+  return Array.from(text.matchAll(/{{\s*([a-zA-Z0-9_]+)\s*}}/g)).map(
+    (match) => stringValue(match[1]),
+  );
 }
 
 export const createTemplateSchema = z.object({
@@ -416,6 +428,124 @@ export const createTemplateSchema = z.object({
         code: "custom",
         message: "Catalog templates require a View catalog button",
         path: ["components", "components", "buttons"],
+      });
+    }
+  }
+
+  if (value.templateType === "ORDER_STATUS") {
+    if (value.category !== "UTILITY") {
+      context.addIssue({
+        code: "custom",
+        message: "Order status templates must use Utility category",
+        path: ["category"],
+      });
+    }
+
+    const orderStatus = isRecord(components.orderStatus)
+      ? components.orderStatus
+      : {};
+    const purpose = stringValue(orderStatus.purpose).toUpperCase();
+
+    if (
+      !ORDER_STATUS_TEMPLATE_PURPOSES.includes(
+        purpose as (typeof ORDER_STATUS_TEMPLATE_PURPOSES)[number],
+      )
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Select a supported order status purpose",
+        path: ["components", "orderStatus", "purpose"],
+      });
+    }
+
+    const variableMappings = Array.isArray(orderStatus.variableMappings)
+      ? orderStatus.variableMappings.filter(isRecord)
+      : [];
+    const bodyVariables = extractVariablesFromText(value.body);
+    const mappedVariables = new Set(
+      variableMappings.map((mapping) => stringValue(mapping.variable)),
+    );
+
+    bodyVariables.forEach((variable) => {
+      if (!mappedVariables.has(variable)) {
+        context.addIssue({
+          code: "custom",
+          message: `Mapping is required for {{${variable}}}`,
+          path: ["components", "orderStatus", "variableMappings"],
+        });
+      }
+    });
+
+    variableMappings.forEach((mapping, index) => {
+      const variable = stringValue(mapping.variable);
+      const source = stringValue(mapping.source).toUpperCase();
+      const field = stringValue(mapping.field);
+      const sampleValue = stringValue(mapping.sampleValue);
+
+      if (!bodyVariables.includes(variable)) {
+        context.addIssue({
+          code: "custom",
+          message: `Mapping {{${variable}}} does not exist in the body`,
+          path: ["components", "orderStatus", "variableMappings", index],
+        });
+      }
+
+      if (
+        !ORDER_STATUS_VARIABLE_SOURCES.includes(
+          source as (typeof ORDER_STATUS_VARIABLE_SOURCES)[number],
+        )
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "Variable mapping source is not supported",
+          path: ["components", "orderStatus", "variableMappings", index, "source"],
+        });
+      }
+
+      if (!field || !isAllowedOrderStatusTemplateField(source, field)) {
+        context.addIssue({
+          code: "custom",
+          message: "Variable mapping field is not allowed",
+          path: ["components", "orderStatus", "variableMappings", index, "field"],
+        });
+      }
+
+      if (!sampleValue) {
+        context.addIssue({
+          code: "custom",
+          message: `Sample value is required for {{${variable}}}`,
+          path: [
+            "components",
+            "orderStatus",
+            "variableMappings",
+            index,
+            "sampleValue",
+          ],
+        });
+      }
+    });
+
+    if (
+      ORDER_STATUS_TEMPLATE_PURPOSES.includes(
+        purpose as (typeof ORDER_STATUS_TEMPLATE_PURPOSES)[number],
+      )
+    ) {
+      const mappedFields = new Set(
+        variableMappings
+          .filter((mapping) => stringValue(mapping.source).toUpperCase() === "ORDER_FIELD")
+          .map((mapping) => stringValue(mapping.field)),
+      );
+
+      ORDER_STATUS_REQUIRED_FIELDS[
+        purpose as keyof typeof ORDER_STATUS_REQUIRED_FIELDS
+      ].forEach((field) => {
+        if (!mappedFields.has(field)) {
+          context.addIssue({
+            code: "custom",
+            message: `${field} mapping is required for ${purpose}`,
+            path: ["components", "orderStatus", "variableMappings"],
+          });
+        }
       });
     }
   }

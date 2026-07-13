@@ -60,6 +60,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
     ],
   },
   { label: "Inbox", href: "/dashboard/inbox" },
+  { label: "Orders", href: "/dashboard/orders" },
   {
     label: "Reports",
     items: [

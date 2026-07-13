@@ -20,6 +20,7 @@ export const TEMPLATE_TYPES = [
   "CATALOG",
   "FLOW",
   "FLOWS",
+  "ORDER_STATUS",
   "PAYMENT",
 ] as const;
 
