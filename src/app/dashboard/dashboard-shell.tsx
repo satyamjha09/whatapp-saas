@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  Bell,
+  BarChart3,
+  BellRing,
   CalendarClock,
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
   ContactRound,
-  Gauge,
   LayoutGrid,
   LayoutTemplate,
   Megaphone,
@@ -20,6 +20,7 @@ import {
   Send,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Wallet,
   Wrench,
@@ -53,15 +54,15 @@ const navigationIcons: Record<
   Dashboard: LayoutGrid,
   "Connected Accounts": ShieldCheck,
   Templates: LayoutTemplate,
-  Notifications: Bell,
-  "Notification Preferences": Bell,
+  Notifications: BellRing,
+  "Notification Preferences": SlidersHorizontal,
   Inbox: MessageCircle,
   "Send Message": Send,
   Broadcasts: Megaphone,
   Orders: ShoppingBag,
-  Reports: Gauge,
+  Reports: ClipboardCheck,
   "Scheduled Items": CalendarClock,
-  Analytics: Gauge,
+  Analytics: BarChart3,
   Automation: Sparkles,
   Money: Wallet,
   Contact: ContactRound,
@@ -114,12 +115,13 @@ function DirectNavLink({
       href={item.href}
       onClick={onNavigate}
       title={collapsed ? item.label : undefined}
+      aria-label={item.label}
       className={[
-        "group flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition duration-200",
+        "group relative flex h-11 items-center gap-3 overflow-hidden rounded-xl px-3 text-sm font-medium transition duration-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-1 before:rounded-r-full before:transition",
         collapsed ? "justify-center" : "",
         active
-          ? "bg-[#E7F8EF] text-[#128C7E] shadow-[inset_3px_0_0_#128C7E]"
-          : "text-[#526173] hover:bg-[#E7F8EF] hover:text-[#128C7E]",
+          ? "bg-[#E7F8EF] text-[#128C7E] shadow-[0_10px_24px_rgba(18,140,126,0.08)] before:bg-[#128C7E]"
+          : "text-[#526173] before:bg-transparent hover:bg-[#E7F8EF] hover:text-[#128C7E]",
       ].join(" ")}
     >
       <Icon
@@ -157,13 +159,14 @@ function CollapsibleNavGroup({
         type="button"
         onClick={onToggle}
         title={collapsed ? item.label : undefined}
+        aria-label={item.label}
         aria-expanded={open}
         className={[
-          "group flex h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium transition duration-200",
+          "group relative flex h-11 w-full items-center gap-3 overflow-hidden rounded-xl px-3 text-sm font-medium transition duration-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-1 before:rounded-r-full before:transition",
           collapsed ? "justify-center" : "",
           active
-            ? "bg-[#E7F8EF] text-[#128C7E]"
-            : "text-[#526173] hover:bg-[#E7F8EF] hover:text-[#128C7E]",
+            ? "bg-[#E7F8EF] text-[#128C7E] shadow-[0_10px_24px_rgba(18,140,126,0.08)] before:bg-[#128C7E]"
+            : "text-[#526173] before:bg-transparent hover:bg-[#E7F8EF] hover:text-[#128C7E]",
         ].join(" ")}
       >
         <Icon
@@ -236,8 +239,22 @@ function SidebarContent({
 }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-18 items-center justify-between px-4">
-        <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
+      <div
+        className={[
+          "flex items-center px-4",
+          collapsed
+            ? "h-24 flex-col justify-center gap-2"
+            : "h-18 justify-between gap-3",
+        ].join(" ")}
+      >
+        <Link
+          href="/dashboard"
+          className={[
+            "flex min-w-0 items-center gap-3",
+            collapsed ? "justify-center" : "",
+          ].join(" ")}
+          title={collapsed ? "metawhat dashboard" : undefined}
+        >
           <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-white shadow-[0_12px_26px_rgba(18,140,126,0.18)] ring-1 ring-[#BFE9D0]">
             <Image
               src="/brand/metawhat-mark.png"
@@ -262,7 +279,7 @@ function SidebarContent({
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="hidden h-9 w-9 place-items-center rounded-lg border border-[#BFE9D0] bg-white text-[#526173] transition hover:border-[#128C7E]/30 hover:bg-[#E7F8EF] hover:text-[#128C7E] xl:grid"
+            className="hidden h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#BFE9D0] bg-white text-[#526173] transition hover:border-[#128C7E]/30 hover:bg-[#E7F8EF] hover:text-[#128C7E] xl:grid"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
@@ -274,7 +291,7 @@ function SidebarContent({
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+      <div className="sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-4">
         {!collapsed && (
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-normal text-[#526173]/70">
             Workspace
@@ -424,12 +441,12 @@ export function DashboardShell({
             className="absolute inset-0 bg-[#081B3A]/45 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 w-[min(86vw,320px)] border-r border-[#BFE9D0] bg-white shadow-2xl">
+          <div className="absolute inset-y-0 left-0 w-[min(88vw,336px)] border-r border-[#BFE9D0] bg-white shadow-2xl">
             <div className="absolute right-3 top-3">
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
-                className="grid h-9 w-9 place-items-center rounded-lg border border-[#BFE9D0] text-[#526173]"
+                className="grid h-9 w-9 place-items-center rounded-xl border border-[#BFE9D0] bg-white text-[#526173] transition hover:bg-[#E7F8EF] hover:text-[#128C7E]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -454,35 +471,36 @@ export function DashboardShell({
           collapsed ? "md:pl-20" : "md:pl-20 xl:pl-64",
         ].join(" ")}
       >
-        <header className="sticky top-0 z-20 border-b border-[#BFE9D0] bg-white/85 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4">
+        <header className="sticky top-0 z-20 border-b border-[#BFE9D0] bg-white/88 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="grid h-10 w-10 place-items-center rounded-lg border border-[#BFE9D0] text-[#526173] transition hover:bg-[#E7F8EF] md:hidden"
+              aria-label="Open dashboard menu"
+              className="grid h-10 w-10 place-items-center rounded-xl border border-[#BFE9D0] bg-white text-[#526173] transition hover:bg-[#E7F8EF] hover:text-[#128C7E] md:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
 
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-xs text-[#526173]">
-                <span>{companyName}</span>
+              <div className="flex items-center gap-2 text-xs font-medium text-[#526173]">
+                <span className="truncate">{companyName}</span>
                 <ChevronRight className="h-3.5 w-3.5 text-[#128C7E]" />
-                <span>{pageTitle ?? "Dashboard"}</span>
+                <span className="truncate">{pageTitle ?? "Dashboard"}</span>
               </div>
-              <p className="mt-1 truncate text-sm font-medium text-[#102040]">
+              <p className="mt-1 truncate text-sm font-semibold text-[#102040]">
                 Welcome back, {userName}
               </p>
             </div>
 
-            <div className="hidden h-10 min-w-[280px] items-center gap-3 rounded-lg border border-[#BFE9D0] bg-white px-3 text-[#102040] transition focus-within:border-[#128C7E]/40 focus-within:ring-4 focus-within:ring-[#128C7E]/10 lg:flex">
+            <div className="hidden h-11 min-w-[280px] items-center gap-3 rounded-xl border border-[#BFE9D0] bg-white px-3 text-[#102040] shadow-[0_8px_20px_rgba(8,27,58,0.04)] transition focus-within:border-[#128C7E]/40 focus-within:ring-4 focus-within:ring-[#128C7E]/10 lg:flex xl:min-w-[360px]">
               <Search className="h-4 w-4 text-[#526173]/70" />
               <input
                 aria-label="Search"
                 placeholder="Search contacts, campaigns, messages..."
                 className="w-full bg-transparent text-sm outline-none placeholder:text-[#526173]/60"
               />
-              <kbd className="rounded-md border border-[#BFE9D0] px-1.5 py-0.5 text-[10px] text-[#526173]/70">
+              <kbd className="rounded-md bg-[#E7F8EF] px-1.5 py-0.5 text-[10px] font-semibold text-[#526173]/70">
                 /
               </kbd>
             </div>
@@ -491,7 +509,7 @@ export function DashboardShell({
 
             <Link
               href="/dashboard/settings/profile"
-              className="flex items-center gap-3 rounded-full border border-[#BFE9D0] bg-white py-1 pl-1 pr-3 transition hover:bg-[#E7F8EF]"
+              className="flex items-center gap-3 rounded-full border border-[#BFE9D0] bg-white py-1 pl-1 pr-3 shadow-[0_8px_20px_rgba(8,27,58,0.04)] transition hover:border-[#128C7E]/35 hover:bg-[#E7F8EF] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#128C7E]/15"
               title="Open profile settings"
             >
               <span className="grid h-9 w-9 place-items-center rounded-full bg-[#25D366] text-sm font-bold text-white">

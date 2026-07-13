@@ -3,11 +3,16 @@ import {
   AlertTriangle,
   BarChart3,
   CheckCircle2,
+  CheckCheck,
+  Eye,
   Megaphone,
+  MessageCircle,
   MessageSquareReply,
   RadioTower,
   Send,
   ShieldCheck,
+  Sparkles,
+  Tags,
   Users,
 } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -40,6 +45,201 @@ function formatDateTime(date: Date | null) {
 function percent(part: number, total: number) {
   if (total <= 0) return "0%";
   return `${Math.round((part / total) * 100)}%`;
+}
+
+function BroadcastHeroVisual({
+  delivered,
+  read,
+  replies,
+  sent,
+}: {
+  delivered: number;
+  read: number;
+  replies: number;
+  sent: number;
+}) {
+  const bars = [
+    { label: "Sent", value: sent, color: "bg-[#128C7E]" },
+    { label: "Delivered", value: delivered, color: "bg-[#2563EB]" },
+    { label: "Read", value: read, color: "bg-[#22C55E]" },
+    { label: "Replies", value: replies, color: "bg-[#075E54]" },
+  ];
+  const maxValue = Math.max(...bars.map((bar) => bar.value), 1);
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_18px_44px_rgba(8,27,58,0.08)]">
+      <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-[48px] bg-[#E7F8EF]" />
+      <div className="relative grid gap-5 lg:grid-cols-[0.8fr_1fr] lg:items-center">
+        <div className="rounded-2xl border border-[#BFE9D0] bg-[#F7FBFF] p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="grid h-9 w-9 place-items-center rounded-full bg-[#128C7E] text-white">
+                <MessageCircle className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-[#081B3A]">
+                  Campaign preview
+                </p>
+                <p className="text-xs text-[#526173]">Private WhatsApp send</p>
+              </div>
+            </div>
+            <StatusPill tone="green">Ready</StatusPill>
+          </div>
+
+          <div className="mt-5 rounded-2xl bg-white p-4 shadow-[0_12px_30px_rgba(8,27,58,0.07)]">
+            <p className="text-xs font-semibold text-[#128C7E]">To Satyam</p>
+            <p className="mt-2 text-sm leading-6 text-[#081B3A]">
+              Hi Satyam, your order update is ready. Tap below to view details
+              or reply if you need help.
+            </p>
+            <div className="mt-4 grid gap-2">
+              <div className="rounded-xl border border-[#BFE9D0] bg-[#E7F8EF] px-3 py-2 text-center text-xs font-semibold text-[#128C7E]">
+                View order
+              </div>
+              <div className="rounded-xl border border-[#B9D9FF] bg-[#EEF6FF] px-3 py-2 text-center text-xs font-semibold text-[#2563EB]">
+                Talk to support
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-4">
+            {[
+              { icon: Send, label: "Sent", value: sent },
+              { icon: CheckCheck, label: "Delivered", value: delivered },
+              { icon: Eye, label: "Read", value: read },
+              { icon: MessageSquareReply, label: "Replies", value: replies },
+            ].map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div
+                  key={item.label}
+                  className="rounded-2xl border border-[#BFE9D0] bg-[#F7FBFF] p-3"
+                >
+                  <Icon className="h-4 w-4 text-[#128C7E]" />
+                  <p className="mt-3 text-xl font-bold text-[#081B3A]">
+                    {formatNumber(item.value)}
+                  </p>
+                  <p className="text-xs text-[#526173]">{item.label}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="rounded-2xl border border-[#B9D9FF] bg-[#EEF6FF] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-[#081B3A]">
+                  Live broadcast performance
+                </p>
+                <p className="text-xs text-[#526173]">
+                  Delivery, read, and reply movement at a glance.
+                </p>
+              </div>
+              <BarChart3 className="h-5 w-5 text-[#2563EB]" />
+            </div>
+            <div className="mt-5 grid gap-3">
+              {bars.map((bar) => (
+                <div key={bar.label}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="font-medium text-[#526173]">{bar.label}</span>
+                    <span className="font-semibold text-[#081B3A]">
+                      {formatNumber(bar.value)}
+                    </span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-white">
+                    <div
+                      className={`h-full rounded-full ${bar.color}`}
+                      style={{
+                        width: `${Math.max(12, Math.round((bar.value / maxValue) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionVisual({ type }: { type: "audience" | "personalise" | "visibility" }) {
+  if (type === "audience") {
+    return (
+      <div className="mt-5 rounded-2xl border border-[#B9D9FF] bg-[#EEF6FF] p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold text-[#081B3A]">Segment builder</p>
+          <Tags className="h-5 w-5 text-[#2563EB]" />
+        </div>
+        <div className="mt-4 grid gap-2">
+          {["City: Mumbai", "Tag: repeat buyer", "Consent: opted in"].map(
+            (item) => (
+              <div
+                key={item}
+                className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#081B3A]"
+              >
+                {item}
+                <CheckCircle2 className="h-4 w-4 text-[#128C7E]" />
+              </div>
+            ),
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "visibility") {
+    return (
+      <div className="mt-5 rounded-2xl border border-[#BFE9D0] bg-[#E7F8EF]/60 p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold text-[#081B3A]">Recipient timeline</p>
+          <Eye className="h-5 w-5 text-[#128C7E]" />
+        </div>
+        <div className="mt-4 space-y-3">
+          {[
+            ["Sent", "09:10"],
+            ["Delivered", "09:11"],
+            ["Read", "09:18"],
+            ["Replied", "09:22"],
+          ].map(([label, time]) => (
+            <div key={label} className="flex items-center gap-3">
+              <div className="grid h-7 w-7 place-items-center rounded-full bg-white text-[#128C7E]">
+                <CheckCheck className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex min-w-0 flex-1 items-center justify-between rounded-xl bg-white px-3 py-2 text-xs">
+                <span className="font-semibold text-[#081B3A]">{label}</span>
+                <span className="text-[#526173]">{time}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 rounded-2xl border border-[#BFE9D0] bg-[#F7FBFF] p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-bold text-[#081B3A]">Dynamic variables</p>
+        <Sparkles className="h-5 w-5 text-[#128C7E]" />
+      </div>
+      <div className="mt-4 rounded-xl bg-white p-3 text-sm leading-6 text-[#081B3A]">
+        Hi{" "}
+        <span className="rounded-md bg-[#E7F8EF] px-2 py-1 text-xs font-bold text-[#128C7E]">
+          customer_name
+        </span>
+        , your payment of{" "}
+        <span className="rounded-md bg-[#EEF6FF] px-2 py-1 text-xs font-bold text-[#2563EB]">
+          amount_due
+        </span>{" "}
+        is due today.
+      </div>
+    </div>
+  );
 }
 
 export default async function BroadcastsPage() {
@@ -177,6 +377,41 @@ export default async function BroadcastsPage() {
         }
       />
 
+      <section className="mb-6 grid gap-5 xl:grid-cols-[0.78fr_1.22fr] xl:items-stretch">
+        <div className="rounded-2xl border border-[#BFE9D0] bg-white p-5 shadow-[0_18px_44px_rgba(8,27,58,0.08)] sm:p-6">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#E7F8EF] text-[#128C7E]">
+            <Megaphone className="h-5 w-5" />
+          </div>
+          <h2 className="mt-5 text-2xl font-bold text-[#081B3A]">
+            Broadcast privately, track everything.
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-[#526173]">
+            Use approved WhatsApp templates to send private one-to-one campaign
+            messages, measure every delivery event, and follow up with the
+            customers who engage.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {["Approved templates", "Opt-in audience", "Live reports"].map(
+              (item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-[#BFE9D0] bg-[#E7F8EF] px-3 py-1 text-xs font-semibold text-[#128C7E]"
+                >
+                  {item}
+                </span>
+              ),
+            )}
+          </div>
+        </div>
+
+        <BroadcastHeroVisual
+          delivered={totals.delivered}
+          read={totals.read}
+          replies={totals.replies}
+          sent={totals.sent}
+        />
+      </section>
+
       <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           icon={Megaphone}
@@ -269,6 +504,7 @@ export default async function BroadcastsPage() {
               Make every customer feel like the message was created specifically
               for them while still reaching a large audience quickly.
             </p>
+            <SectionVisual type="personalise" />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -323,6 +559,7 @@ export default async function BroadcastsPage() {
               campaign behaviour. Then send each segment a message designed
               around what matters most to them.
             </p>
+            <SectionVisual type="audience" />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -377,6 +614,7 @@ export default async function BroadcastsPage() {
               engaged, so your team can follow up with better context and
               confidence.
             </p>
+            <SectionVisual type="visibility" />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

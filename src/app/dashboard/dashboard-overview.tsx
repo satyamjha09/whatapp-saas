@@ -76,7 +76,7 @@ export type DashboardOverviewData = {
       href: string;
       id: string;
       optional?: boolean;
-      status: "complete" | "current" | "locked";
+      status: "complete" | "current" | "locked" | "later";
       title: string;
     }>;
     currentActionLabel: string;
@@ -392,14 +392,14 @@ function LaunchPath({
       : 0;
 
   return (
-    <section className="rounded-[1.75rem] border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <section className="rounded-[1.75rem] border border-[#9EDFC0] bg-white p-5 shadow-[0_20px_56px_rgba(8,27,58,0.10)] sm:p-7">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <div className="inline-flex items-center gap-2 rounded-full bg-[#E7F8EF] px-3 py-1 text-xs font-bold text-[#128C7E]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#BFE9D0] bg-[#E7F8EF] px-4 py-1.5 text-xs font-bold text-[#128C7E] shadow-sm">
             <ShieldCheck className="h-3.5 w-3.5" />
             Production launch path
           </div>
-          <h2 className="mt-3 text-2xl font-extrabold tracking-normal text-[#081B3A]">
+          <h2 className="mt-4 text-2xl font-extrabold tracking-normal text-[#081B3A]">
             Make the first company journey perfect
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#526173]">
@@ -411,7 +411,7 @@ function LaunchPath({
         {currentStep && (
           <Link
             href={currentStep.href}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#128C7E] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_32px_rgba(18,140,126,0.22)] transition hover:bg-[#075E54]"
+            className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-2xl bg-[#128C7E] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_32px_rgba(18,140,126,0.22)] transition hover:-translate-y-0.5 hover:bg-[#075E54] lg:self-center"
           >
             {launchPath.currentActionLabel}: {currentStep.title}
             <ArrowUpRight className="h-4 w-4" />
@@ -420,13 +420,15 @@ function LaunchPath({
       </div>
 
       <div className="mt-5">
-        <div className="flex items-center justify-between gap-3 text-xs font-semibold text-[#526173]">
+        <div className="flex items-end justify-between gap-3 text-xs font-semibold text-[#526173]">
           <span>
-            {launchPath.completed} of {launchPath.total} steps complete
+            {launchPath.completed} of {launchPath.total} required steps complete
           </span>
-          <span>{progress}%</span>
+          <span className="text-base font-extrabold text-[#128C7E]">
+            {progress}%
+          </span>
         </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#E7F8EF]">
+        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[#EEF4F1]">
           <div
             className="h-full rounded-full bg-[#128C7E] transition-all"
             style={{ width: `${progress}%` }}
@@ -440,29 +442,41 @@ function LaunchPath({
             launchIcons[step.id as keyof typeof launchIcons] ?? ShieldCheck;
           const isComplete = step.status === "complete";
           const isCurrent = step.status === "current";
+          const isLater = step.status === "later";
+          const actionLabel = isComplete
+            ? "View details"
+            : isCurrent
+              ? "Start now"
+              : isLater
+                ? "Explore later"
+                : "Set up";
 
           return (
             <Link
               key={step.id}
               href={step.href}
               className={[
-                "group min-w-0 rounded-2xl border p-4 transition",
+                "group flex min-w-0 flex-col rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(8,27,58,0.10)]",
                 isCurrent
-                  ? "border-[#128C7E] bg-[#E7F8EF] shadow-[0_14px_34px_rgba(18,140,126,0.13)]"
+                  ? "border-[#128C7E] bg-[#E7F8EF] shadow-[0_16px_38px_rgba(18,140,126,0.16)] ring-1 ring-[#128C7E]/15"
                   : isComplete
-                    ? "border-[#BFE9D0] bg-white"
-                    : "border-[#BFE9D0] bg-white/70",
+                    ? "border-[#BFE9D0] bg-[#F4FBF7]"
+                    : isLater
+                      ? "border-[#D9E7E2] bg-white/80"
+                      : "border-[#BFE9D0] bg-white/70",
               ].join(" ")}
             >
               <div className="flex items-start gap-3">
                 <div
                   className={[
-                    "grid h-10 w-10 shrink-0 place-items-center rounded-2xl",
+                    "grid h-10 w-10 shrink-0 place-items-center rounded-2xl ring-1",
                     isComplete
-                      ? "bg-[#128C7E] text-white"
+                      ? "bg-[#128C7E] text-white ring-[#128C7E]"
                       : isCurrent
-                        ? "bg-white text-[#128C7E]"
-                        : "bg-[#E7F8EF] text-[#526173]",
+                        ? "bg-white text-[#128C7E] ring-[#BFE9D0]"
+                        : isLater
+                          ? "bg-white text-[#60708A] ring-[#D9E7E2]"
+                          : "bg-[#E7F8EF] text-[#60708A] ring-[#BFE9D0]",
                   ].join(" ")}
                 >
                   {isComplete ? (
@@ -485,6 +499,32 @@ function LaunchPath({
                       : step.blockedReason ?? step.description}
                   </p>
                 </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#E1F3E9] pt-3">
+                <span
+                  className={[
+                    "rounded-full px-2.5 py-1 text-[11px] font-bold",
+                    isComplete
+                      ? "bg-emerald-100 text-emerald-700"
+                      : isCurrent
+                        ? "bg-white text-[#128C7E]"
+                        : isLater
+                          ? "bg-gray-100 text-[#60708A]"
+                          : "bg-[#E7F8EF] text-[#526173]",
+                  ].join(" ")}
+                >
+                  {isComplete
+                    ? "Done"
+                    : isCurrent
+                      ? "Current"
+                      : isLater
+                        ? "Later"
+                        : "Pending"}
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-[#128C7E] opacity-90 transition group-hover:text-[#075E54]">
+                  {actionLabel}
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </span>
               </div>
             </Link>
           );

@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   ChevronRight,
   CopyPlus,
+  FileText,
   Filter,
   Search,
   Send,
@@ -172,7 +173,16 @@ function templateOperationalNote(
 }
 
 const templateTableColumns =
-  "grid-cols-[178px_82px_94px_126px_86px_74px_82px_106px_106px_308px]";
+  "grid-cols-[220px_90px_116px_128px_144px_92px_70px_82px_134px_246px]";
+const filterableTableHeadings = new Set([
+  "Name",
+  "Type",
+  "Category",
+  "Language",
+  "Status",
+  "Quality",
+  "Last sync",
+]);
 
 export default async function TemplatesPage({ searchParams }: TemplatesPageProps) {
   const context = await getCurrentWorkspaceContext();
@@ -284,17 +294,19 @@ export default async function TemplatesPage({ searchParams }: TemplatesPageProps
             Build, submit, sync, and manage approved WhatsApp templates.
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <SyncWhatsAppTemplatesButton canManage={canManage} />
         </div>
       </div>
 
-      <details className="group mb-8 rounded-xl border border-[#BFE9D0] bg-white">
-        <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 text-base text-[#081B3A]">
-          <ChevronRight className="h-4 w-4 transition group-open:rotate-90" />
+      <details className="group mb-8 rounded-2xl border border-[#D5F0E2] bg-white/80">
+        <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 text-sm font-semibold text-[#081B3A]">
+          <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#E7F8EF] text-[#128C7E]">
+            <ChevronRight className="h-4 w-4 transition group-open:rotate-90" />
+          </span>
           What are WhatsApp Templates? How to use this page?
         </summary>
-        <div className="border-t border-[#BFE9D0] px-5 py-4 text-sm leading-6 text-[#526173]">
+        <div className="border-t border-[#E1F3E9] px-5 py-4 text-sm leading-6 text-[#526173]">
           Drafts are validated locally, submitted to Meta for review, then synced
           back with the final Meta category, status, quality, and rejection
           reason. Only approved templates can be used in campaigns or automation.
@@ -302,7 +314,7 @@ export default async function TemplatesPage({ searchParams }: TemplatesPageProps
       </details>
 
       <section className="mb-6 rounded-2xl border border-[#BFE9D0] bg-white p-4 shadow-[0_16px_40px_rgba(8,27,58,0.06)]">
-        <form className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_170px_170px_180px_auto] lg:items-center">
+        <form className="grid gap-3">
           <label className="relative block">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#526173]" />
             <input
@@ -313,53 +325,58 @@ export default async function TemplatesPage({ searchParams }: TemplatesPageProps
             />
           </label>
 
-          <select
-            className="h-12 rounded-xl border border-[#BFE9D0] bg-white px-3 text-sm font-medium text-[#081B3A] outline-none transition focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10"
-            defaultValue={filters.category}
-            name="category"
-          >
-            <option value="">All categories</option>
-            {CATEGORY_FILTER_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <div className="grid gap-3 lg:grid-cols-[170px_170px_180px_auto] lg:items-center">
+            <select
+              className="h-12 rounded-xl border border-[#BFE9D0] bg-white px-3 text-sm font-medium text-[#081B3A] outline-none transition focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10"
+              defaultValue={filters.category}
+              name="category"
+            >
+              <option value="">All categories</option>
+              {CATEGORY_FILTER_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
 
-          <select
-            className="h-12 rounded-xl border border-[#BFE9D0] bg-white px-3 text-sm font-medium text-[#081B3A] outline-none transition focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10"
-            defaultValue={filters.language}
-            name="language"
-          >
-            <option value="">All languages</option>
-            {languageOptions.map((language) => (
-              <option key={language} value={language}>
-                {languageLabel(language)}
-              </option>
-            ))}
-          </select>
+            <select
+              className="h-12 rounded-xl border border-[#BFE9D0] bg-white px-3 text-sm font-medium text-[#081B3A] outline-none transition focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10"
+              defaultValue={filters.language}
+              name="language"
+            >
+              <option value="">All languages</option>
+              {languageOptions.map((language) => (
+                <option key={language} value={language}>
+                  {languageLabel(language)}
+                </option>
+              ))}
+            </select>
 
-          <select
-            className="h-12 rounded-xl border border-[#BFE9D0] bg-white px-3 text-sm font-medium text-[#081B3A] outline-none transition focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10"
-            defaultValue={filters.status}
-            name="status"
-          >
-            <option value="">All statuses</option>
-            {STATUS_FILTER_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+            <select
+              className="h-12 rounded-xl border border-[#BFE9D0] bg-white px-3 text-sm font-medium text-[#081B3A] outline-none transition focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10"
+              defaultValue={filters.status}
+              name="status"
+            >
+              <option value="">All statuses</option>
+              {STATUS_FILTER_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
 
-          <div className="flex gap-2">
-            <button className={actionButtonClass("secondary")} type="submit">
-              Apply
-            </button>
-            <Link href="/dashboard/templates/create" className={actionButtonClass()}>
-              <CopyPlus className="mr-2 h-4 w-4" />
-              Create Template
-            </Link>
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+              <button className={actionButtonClass("secondary")} type="submit">
+                Apply filters
+              </button>
+              <Link
+                href="/dashboard/templates/create"
+                className={actionButtonClass()}
+              >
+                <CopyPlus className="mr-2 h-4 w-4" />
+                Create Template
+              </Link>
+            </div>
           </div>
         </form>
 
@@ -385,12 +402,16 @@ export default async function TemplatesPage({ searchParams }: TemplatesPageProps
               Showing {filteredTemplates.length} of {templates.length}
             </span>
           </div>
-        ) : null}
+        ) : (
+          <div className="mt-4 flex justify-end text-xs text-[#526173]">
+            Showing {filteredTemplates.length} of {templates.length}
+          </div>
+        )}
       </section>
 
-      <section className="overflow-hidden rounded-md bg-white shadow-[0_16px_40px_rgba(8,27,58,0.06)]">
-        <div className="overflow-x-auto">
-          <div className="min-w-[1272px]">
+      <section className="overflow-hidden rounded-2xl bg-white shadow-[0_16px_40px_rgba(8,27,58,0.06)]">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-track-[#EEF4F1] scrollbar-thumb-[#8BD8C9]">
+          <div className="min-w-[1322px]">
             <div
               className={[
                 "grid border-b border-[#EDEDED] bg-white text-left text-xs font-semibold text-black",
@@ -405,16 +426,17 @@ export default async function TemplatesPage({ searchParams }: TemplatesPageProps
                 "Status",
                 "Quality",
                 "Sent",
-                "Read/Open",
-                "Last synced",
+                "Read",
+                "Last sync",
                 "Actions",
               ].map((heading) => (
                 <div
                   key={heading}
+                  title={heading}
                   className="flex min-w-0 items-center justify-between gap-2 border-r border-[#F0F0F0] px-3 py-2.5 last:border-r-0"
                 >
                   <span className="truncate">{heading}</span>
-                  {heading !== "Actions" ? (
+                  {filterableTableHeadings.has(heading) ? (
                     <Filter className="h-3.5 w-3.5 shrink-0 fill-[#B9B9B9] text-[#B9B9B9]" />
                   ) : null}
                 </div>
@@ -422,10 +444,40 @@ export default async function TemplatesPage({ searchParams }: TemplatesPageProps
             </div>
 
             {filteredTemplates.length === 0 ? (
-              <div className="px-5 py-12 text-center text-sm text-[#526173]">
-                {templates.length === 0
-                  ? "No templates created yet."
-                  : "No templates match the selected filters."}
+              <div className="grid min-h-[260px] place-items-center px-5 py-12 text-center">
+                <div className="mx-auto max-w-md">
+                  <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#E7F8EF] text-[#128C7E] ring-1 ring-[#BFE9D0]">
+                    <FileText className="h-7 w-7" />
+                  </div>
+                  <h2 className="mt-5 text-lg font-extrabold text-[#081B3A]">
+                    {templates.length === 0
+                      ? "Create your first WhatsApp template"
+                      : "No templates match these filters"}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-[#526173]">
+                    {templates.length === 0
+                      ? "Start with a marketing or utility template, submit it to Meta, then use approved templates in broadcasts and automation."
+                      : "Try clearing one filter or search by template name, language, body text, or Meta template ID."}
+                  </p>
+                  <div className="mt-5 flex flex-wrap justify-center gap-2">
+                    {templates.length === 0 ? (
+                      <Link
+                        href="/dashboard/templates/create"
+                        className={actionButtonClass()}
+                      >
+                        <CopyPlus className="mr-2 h-4 w-4" />
+                        Create your first template
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/dashboard/templates"
+                        className={actionButtonClass("secondary")}
+                      >
+                        Clear filters
+                      </Link>
+                    )}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="divide-y divide-[#EDEDED]">

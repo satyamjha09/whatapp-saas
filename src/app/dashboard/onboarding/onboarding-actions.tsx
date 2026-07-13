@@ -29,6 +29,16 @@ function firstError(errors?: ApiResponse["errors"]) {
   return Object.values(errors ?? {}).flat().find(Boolean);
 }
 
+function fieldStateClass(value: string, isRequired = false) {
+  const isEmpty = value.trim().length === 0;
+
+  if (isRequired && isEmpty) {
+    return "border-rose-200 bg-rose-50/20 focus:border-rose-400 focus:ring-rose-500/10";
+  }
+
+  return "border-[#BFE9D0] bg-white focus:border-[#128C7E] focus:ring-[#128C7E]/10";
+}
+
 export function OnboardingActions({
   canManage,
   initialState,
@@ -120,15 +130,18 @@ export function OnboardingActions({
     businessCategory.trim().length > 0 &&
     city.trim().length > 0 &&
     pinCode.trim().length > 0;
+  const activateDisabledReason = state.requiredStepsComplete
+    ? ""
+    : "Complete company profile, WhatsApp connection, and billing setup before activating this workspace.";
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-      <section className="rounded-lg border border-[#BFE9D0] bg-white p-6 shadow-sm">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <section className="rounded-[22px] border border-[#9EDFC0] bg-white p-6 shadow-[0_18px_50px_rgba(8,27,58,0.08)] sm:p-8">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-normal text-[#526173]">
+          <p className="text-sm font-bold uppercase tracking-[0.08em] text-[#128C7E]">
             First setup
           </p>
-          <h1 className="mt-2 text-2xl font-bold text-[#081B3A]">
+          <h1 className="mt-4 text-2xl font-bold text-[#081B3A] md:text-3xl">
             Complete company onboarding
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-[#526173]">
@@ -140,25 +153,31 @@ export function OnboardingActions({
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <label className="block">
             <span className="text-sm font-medium text-[#102040]">
-              Business name
+              Business name <span className="text-rose-500">*</span>
             </span>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
               disabled={!canManage}
-              className="mt-1 w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm outline-none transition focus:border-[#128C7E] focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50"
+              className={[
+                "mt-2 w-full rounded-xl border px-4 py-3 text-sm font-medium text-[#102040] outline-none transition focus:ring-4 disabled:bg-gray-50 disabled:text-gray-500",
+                fieldStateClass(name, true),
+              ].join(" ")}
             />
           </label>
 
           <label className="block">
             <span className="text-sm font-medium text-[#102040]">
-              Business category
+              Business category <span className="text-rose-500">*</span>
             </span>
             <select
               value={businessCategory}
               onChange={(event) => setBusinessCategory(event.target.value)}
               disabled={!canManage}
-              className="mt-1 w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm outline-none transition focus:border-[#128C7E] focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50"
+              className={[
+                "mt-2 w-full rounded-xl border px-4 py-3 text-sm font-medium text-[#102040] outline-none transition focus:ring-4 disabled:bg-gray-50 disabled:text-gray-500",
+                fieldStateClass(businessCategory, true),
+              ].join(" ")}
             >
               <option value="">Select category</option>
               {businessCategories.map((category) => (
@@ -170,23 +189,33 @@ export function OnboardingActions({
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-[#102040]">City</span>
+            <span className="text-sm font-medium text-[#102040]">
+              City <span className="text-rose-500">*</span>
+            </span>
             <input
               value={city}
               onChange={(event) => setCity(event.target.value)}
               disabled={!canManage}
-              className="mt-1 w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm outline-none transition focus:border-[#128C7E] focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50"
+              className={[
+                "mt-2 w-full rounded-xl border px-4 py-3 text-sm font-medium text-[#102040] outline-none transition focus:ring-4 disabled:bg-gray-50 disabled:text-gray-500",
+                fieldStateClass(city, true),
+              ].join(" ")}
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-[#102040]">Pin code</span>
+            <span className="text-sm font-medium text-[#102040]">
+              Pin code <span className="text-rose-500">*</span>
+            </span>
             <input
               value={pinCode}
               onChange={(event) => setPinCode(event.target.value)}
               disabled={!canManage}
               inputMode="numeric"
-              className="mt-1 w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm outline-none transition focus:border-[#128C7E] focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50"
+              className={[
+                "mt-2 w-full rounded-xl border px-4 py-3 text-sm font-medium text-[#102040] outline-none transition focus:ring-4 disabled:bg-gray-50 disabled:text-gray-500",
+                fieldStateClass(pinCode, true),
+              ].join(" ")}
             />
           </label>
 
@@ -198,8 +227,15 @@ export function OnboardingActions({
               value={employeeCode}
               onChange={(event) => setEmployeeCode(event.target.value)}
               disabled={!canManage}
-              className="mt-1 w-full rounded-lg border border-[#BFE9D0] px-3 py-2 text-sm outline-none transition focus:border-[#128C7E] focus:ring-4 focus:ring-[#128C7E]/10 disabled:bg-gray-50"
+              className={[
+                "mt-2 w-full rounded-xl border px-4 py-3 text-sm font-medium text-[#102040] outline-none transition focus:ring-4 disabled:bg-gray-50 disabled:text-gray-500",
+                fieldStateClass(employeeCode),
+              ].join(" ")}
             />
+            <span className="mt-2 block text-xs text-[#60708A]">
+              Optional - use this for your internal team, branch, or employee
+              reference.
+            </span>
           </label>
         </div>
 
@@ -214,12 +250,12 @@ export function OnboardingActions({
           <p className="mt-4 text-sm text-emerald-700">{message}</p>
         ) : null}
 
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-6 flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={saveProfile}
             disabled={!canSaveProfile || isSaving}
-            className="rounded-lg bg-[#128C7E] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#075E54] disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-xl bg-[#075E54] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(7,94,84,0.22)] transition hover:-translate-y-0.5 hover:bg-[#064C44] disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-[#8BCAC0] disabled:shadow-none"
           >
             {isSaving ? "Saving..." : "Save profile"}
           </button>
@@ -227,27 +263,33 @@ export function OnboardingActions({
           <button
             type="button"
             onClick={completeOnboarding}
+            title={activateDisabledReason || "Activate workspace"}
             disabled={!canManage || !state.requiredStepsComplete || isCompleting}
-            className="rounded-lg border border-[#BFE9D0] bg-white px-4 py-2 text-sm font-semibold text-[#102040] transition hover:border-[#128C7E]/40 hover:bg-[#E7F8EF] disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-xl border border-[#BFE9D0] bg-white px-5 py-3 text-sm font-semibold text-[#102040] transition hover:border-[#128C7E]/40 hover:bg-[#E7F8EF] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-[#7C8798]"
           >
             {isCompleting ? "Activating..." : "Activate workspace"}
           </button>
         </div>
+        {activateDisabledReason && canManage ? (
+          <p className="mt-3 text-xs font-medium text-[#60708A]">
+            {activateDisabledReason}
+          </p>
+        ) : null}
       </section>
 
-      <aside className="rounded-lg border border-[#BFE9D0] bg-white p-5 shadow-sm">
-        <h2 className="text-base font-semibold text-[#081B3A]">
+      <aside className="rounded-[22px] border border-[#9EDFC0] bg-white p-5 shadow-[0_18px_50px_rgba(8,27,58,0.08)] sm:p-6">
+        <h2 className="text-xl font-bold text-[#081B3A]">
           Setup checklist
         </h2>
-        <div className="mt-4 space-y-3">
+        <div className="mt-5 divide-y divide-[#E1F3E9] overflow-hidden rounded-2xl border border-[#BFE9D0] bg-white">
           {state.steps.map((step) => (
             <div
               key={step.key}
-              className="rounded-lg border border-[#BFE9D0] p-4"
+              className="p-4 transition hover:bg-[#F4FBF7]"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-[#102040]">
+                  <p className="text-sm font-bold text-[#102040]">
                     {step.title}
                   </p>
                   <p className="mt-1 text-xs text-[#526173]">
@@ -256,12 +298,12 @@ export function OnboardingActions({
                 </div>
                 <span
                   className={[
-                    "shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold",
+                    "shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ring-1",
                     step.complete
-                      ? "bg-emerald-50 text-emerald-700"
+                      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
                       : step.required
-                        ? "bg-amber-50 text-amber-700"
-                        : "bg-gray-100 text-gray-600",
+                        ? "bg-orange-50 text-orange-700 ring-orange-200"
+                        : "bg-gray-100 text-gray-600 ring-gray-200",
                   ].join(" ")}
                 >
                   {step.complete
@@ -274,9 +316,9 @@ export function OnboardingActions({
               {step.href !== "/dashboard/onboarding" ? (
                 <Link
                   href={step.href}
-                  className="mt-3 inline-flex text-xs font-semibold text-[#128C7E] hover:text-[#075E54]"
+                  className="mt-3 inline-flex text-xs font-bold text-[#128C7E] hover:text-[#075E54]"
                 >
-                  Open setup
+                  {step.complete ? "View details" : "Open setup"}
                 </Link>
               ) : null}
             </div>

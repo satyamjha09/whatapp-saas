@@ -702,20 +702,24 @@ async function getDashboardOverviewData(
   const firstIncompleteIndex = launchStepInputs.findIndex(
     (step) => !step.complete && !step.optional,
   );
+  const requiredLaunchSteps = launchStepInputs.filter((step) => !step.optional);
   const launchPath = {
-    completed: launchStepInputs.filter((step) => step.complete).length,
+    completed: requiredLaunchSteps.filter((step) => step.complete).length,
     currentActionLabel:
       firstIncompleteIndex === -1 ? "Explore advanced tools" : "Start setup",
     steps: launchStepInputs.map((step, index) => ({
       ...step,
-      status: step.complete
-        ? ("complete" as const)
-        : index === firstIncompleteIndex ||
-            (firstIncompleteIndex === -1 && step.optional)
-          ? ("current" as const)
-          : ("locked" as const),
+      status:
+        step.optional && firstIncompleteIndex !== -1
+          ? ("later" as const)
+          : step.complete
+            ? ("complete" as const)
+            : index === firstIncompleteIndex ||
+                (firstIncompleteIndex === -1 && step.optional)
+              ? ("current" as const)
+              : ("locked" as const),
     })),
-    total: launchStepInputs.length,
+    total: requiredLaunchSteps.length,
   };
 
   return {
