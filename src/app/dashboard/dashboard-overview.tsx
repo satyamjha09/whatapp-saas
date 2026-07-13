@@ -14,18 +14,23 @@ import {
   YAxis,
 } from "recharts";
 import {
+  AlertTriangle,
   ArrowUpRight,
+  BarChart3,
   CheckCircle2,
   Clock3,
   CreditCard,
+  FileText,
   MessageCircle,
   MousePointer2,
   Plus,
   Send,
   ShieldCheck,
   TrendingUp,
+  Upload,
   Users,
   Wallet,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -61,6 +66,35 @@ export type DashboardOverviewData = {
     time: string;
     type: "message" | "campaign" | "wallet";
   }>;
+  launchPath: {
+    completed: number;
+    total: number;
+    steps: Array<{
+      blockedReason: string | null;
+      complete: boolean;
+      description: string;
+      href: string;
+      id: string;
+      optional?: boolean;
+      status: "complete" | "current" | "locked";
+      title: string;
+    }>;
+    currentActionLabel: string;
+  };
+  productionHealth: {
+    blocked: number;
+    items: Array<{
+      actionHref: string;
+      actionLabel: string;
+      detail: string;
+      id: string;
+      label: string;
+      status: "ready" | "attention" | "blocked";
+      value: string;
+    }>;
+    ready: number;
+    total: number;
+  };
   summary: {
     queuedMessages: number;
     unreadInbound: number;
@@ -87,6 +121,26 @@ const activityIcons = {
   campaign: TrendingUp,
   message: MessageCircle,
   wallet: CreditCard,
+};
+
+const launchIcons = {
+  advanced: Workflow,
+  "bulk-campaign": TrendingUp,
+  "connect-whatsapp": MessageCircle,
+  contacts: Upload,
+  reports: BarChart3,
+  templates: FileText,
+  "test-message": Send,
+  wallet: Wallet,
+  workspace: ShieldCheck,
+};
+
+const healthIcons = {
+  "meta-review": ShieldCheck,
+  queue: Clock3,
+  templates: FileText,
+  wallet: Wallet,
+  webhook: MessageCircle,
 };
 
 const quickActions = [
@@ -202,6 +256,244 @@ function EmptyChart({ message }: { message: string }) {
   );
 }
 
+function healthTone(status: "ready" | "attention" | "blocked") {
+  if (status === "ready") {
+    return {
+      badge: "bg-[#22C55E]/10 text-[#15803d] ring-[#22C55E]/25",
+      border: "border-[#BFE9D0] bg-white",
+      icon: "bg-[#E7F8EF] text-[#128C7E]",
+      label: "Ready",
+    };
+  }
+
+  if (status === "attention") {
+    return {
+      badge: "bg-[#FFF7ED] text-[#C2410C] ring-[#FED7AA]",
+      border: "border-[#FED7AA] bg-[#FFFBF5]",
+      icon: "bg-[#FFF7ED] text-[#C2410C]",
+      label: "Attention",
+    };
+  }
+
+  return {
+    badge: "bg-[#FFF1F2] text-[#E11D48] ring-[#FECDD3]",
+    border: "border-[#FECDD3] bg-[#FFF7F8]",
+    icon: "bg-[#FFF1F2] text-[#E11D48]",
+    label: "Blocked",
+  };
+}
+
+function ProductionHealth({
+  health,
+}: {
+  health: DashboardOverviewData["productionHealth"];
+}) {
+  const attentionCount = health.total - health.ready - health.blocked;
+  const headline =
+    health.blocked > 0
+      ? "Production setup needs attention"
+      : attentionCount > 0
+        ? "Production setup is almost ready"
+        : "Production setup looks healthy";
+  const detail =
+    health.blocked > 0
+      ? `${health.blocked} blocked item(s) must be fixed before sending reliably.`
+      : attentionCount > 0
+        ? `${attentionCount} item(s) need review before full production use.`
+        : "Core sending, templates, wallet, and queue checks look ready.";
+
+  return (
+    <section className="rounded-[1.75rem] border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#E7F8EF] px-3 py-1 text-xs font-bold text-[#128C7E]">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Production health
+          </div>
+          <h2 className="mt-3 text-2xl font-extrabold tracking-normal text-[#081B3A]">
+            {headline}
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#526173]">
+            {detail}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#BFE9D0] bg-[#F8FFFB] px-4 py-3 text-sm font-bold text-[#081B3A]">
+          {health.ready}/{health.total} healthy
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {health.items.map((item) => {
+          const tone = healthTone(item.status);
+          const Icon =
+            healthIcons[item.id as keyof typeof healthIcons] ?? ShieldCheck;
+
+          return (
+            <div
+              key={item.id}
+              className={[
+                "flex min-w-0 flex-col rounded-2xl border p-4",
+                tone.border,
+              ].join(" ")}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div
+                  className={[
+                    "grid h-10 w-10 place-items-center rounded-2xl",
+                    tone.icon,
+                  ].join(" ")}
+                >
+                  <Icon className="h-5 w-5" />
+                </div>
+                <span
+                  className={[
+                    "inline-flex shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1",
+                    tone.badge,
+                  ].join(" ")}
+                >
+                  {tone.label}
+                </span>
+              </div>
+              <p className="mt-4 text-xs font-semibold text-[#526173]">
+                {item.label}
+              </p>
+              <p className="mt-1 truncate text-base font-extrabold text-[#081B3A]">
+                {item.value}
+              </p>
+              <p className="mt-2 line-clamp-3 min-h-[3.75rem] text-xs leading-5 text-[#526173]">
+                {item.detail}
+              </p>
+              <Link
+                href={item.actionHref}
+                className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-[#128C7E] hover:text-[#075E54]"
+              >
+                {item.actionLabel}
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function LaunchPath({
+  launchPath,
+}: {
+  launchPath: DashboardOverviewData["launchPath"];
+}) {
+  const currentStep =
+    launchPath.steps.find((step) => step.status === "current") ??
+    launchPath.steps.at(-1);
+  const progress =
+    launchPath.total > 0
+      ? Math.round((launchPath.completed / launchPath.total) * 100)
+      : 0;
+
+  return (
+    <section className="rounded-[1.75rem] border border-[#BFE9D0] bg-white p-5 shadow-[0_16px_40px_rgba(8,27,58,0.08)] sm:p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#E7F8EF] px-3 py-1 text-xs font-bold text-[#128C7E]">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Production launch path
+          </div>
+          <h2 className="mt-3 text-2xl font-extrabold tracking-normal text-[#081B3A]">
+            Make the first company journey perfect
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#526173]">
+            Follow this order before adding advanced features: connect WhatsApp,
+            prepare templates and contacts, send, report, and keep wallet ready.
+          </p>
+        </div>
+
+        {currentStep && (
+          <Link
+            href={currentStep.href}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#128C7E] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_32px_rgba(18,140,126,0.22)] transition hover:bg-[#075E54]"
+          >
+            {launchPath.currentActionLabel}: {currentStep.title}
+            <ArrowUpRight className="h-4 w-4" />
+          </Link>
+        )}
+      </div>
+
+      <div className="mt-5">
+        <div className="flex items-center justify-between gap-3 text-xs font-semibold text-[#526173]">
+          <span>
+            {launchPath.completed} of {launchPath.total} steps complete
+          </span>
+          <span>{progress}%</span>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#E7F8EF]">
+          <div
+            className="h-full rounded-full bg-[#128C7E] transition-all"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {launchPath.steps.map((step, index) => {
+          const Icon =
+            launchIcons[step.id as keyof typeof launchIcons] ?? ShieldCheck;
+          const isComplete = step.status === "complete";
+          const isCurrent = step.status === "current";
+
+          return (
+            <Link
+              key={step.id}
+              href={step.href}
+              className={[
+                "group min-w-0 rounded-2xl border p-4 transition",
+                isCurrent
+                  ? "border-[#128C7E] bg-[#E7F8EF] shadow-[0_14px_34px_rgba(18,140,126,0.13)]"
+                  : isComplete
+                    ? "border-[#BFE9D0] bg-white"
+                    : "border-[#BFE9D0] bg-white/70",
+              ].join(" ")}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={[
+                    "grid h-10 w-10 shrink-0 place-items-center rounded-2xl",
+                    isComplete
+                      ? "bg-[#128C7E] text-white"
+                      : isCurrent
+                        ? "bg-white text-[#128C7E]"
+                        : "bg-[#E7F8EF] text-[#526173]",
+                  ].join(" ")}
+                >
+                  {isComplete ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : (
+                    <Icon className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-normal text-[#128C7E]">
+                    Step {index + 1}
+                    {step.optional ? " - later" : ""}
+                  </p>
+                  <h3 className="mt-1 text-sm font-extrabold text-[#081B3A]">
+                    {step.title}
+                  </h3>
+                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#526173]">
+                    {isComplete
+                      ? step.description
+                      : step.blockedReason ?? step.description}
+                  </p>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function DashboardOverview({
   companyName,
   data,
@@ -260,6 +552,10 @@ export function DashboardOverview({
           </div>
         </div>
       </section>
+
+      <ProductionHealth health={data.productionHealth} />
+
+      <LaunchPath launchPath={data.launchPath} />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
         {data.metrics.map((stat) => {

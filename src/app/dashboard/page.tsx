@@ -36,6 +36,10 @@ function formatMoneyPaise(value: number) {
   }).format(value / 100);
 }
 
+function formatHealthTime(date: Date | null) {
+  return date ? formatTimeAgo(date) : "No events yet";
+}
+
 function formatPeriodChange(current: number, previous: number) {
   if (previous === 0 && current === 0) {
     return "No change";
@@ -108,6 +112,16 @@ async function getDashboardOverviewData(
     recentMessages,
     recentCampaigns,
     recentTransactions,
+    connectedWhatsAppAccounts,
+    approvedTemplates,
+    totalTemplates,
+    outboundMessages,
+    totalCampaigns,
+    walletCredits,
+    automationFlows,
+    orders,
+    lastWebhookEvent,
+    failedMessages,
   ] = await Promise.all([
     prisma.message.count({
       where: {
@@ -312,6 +326,70 @@ async function getDashboardOverviewData(
       },
       take: 4,
     }),
+    prisma.whatsAppAccount.count({
+      where: {
+        companyId,
+        status: "CONNECTED",
+      },
+    }),
+    prisma.template.count({
+      where: {
+        companyId,
+        status: "APPROVED",
+      },
+    }),
+    prisma.template.count({
+      where: {
+        companyId,
+      },
+    }),
+    prisma.message.count({
+      where: {
+        companyId,
+        direction: "OUTBOUND",
+      },
+    }),
+    prisma.campaign.count({
+      where: {
+        companyId,
+      },
+    }),
+    prisma.walletTransaction.count({
+      where: {
+        companyId,
+        status: "SUCCESS",
+        type: "CREDIT",
+      },
+    }),
+    prisma.automationFlow.count({
+      where: {
+        companyId,
+      },
+    }),
+    prisma.order.count({
+      where: {
+        companyId,
+      },
+    }),
+    prisma.webhookEvent.findFirst({
+      where: {
+        companyId,
+        source: "whatsapp",
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        createdAt: true,
+        status: true,
+      },
+    }),
+    prisma.message.count({
+      where: {
+        companyId,
+        status: "FAILED",
+      },
+    }),
   ]);
 
   const deliveryRate =
@@ -452,13 +530,208 @@ async function getDashboardOverviewData(
       type: "wallet" as const,
     })),
   ].slice(0, 6);
+  const walletBalancePaise = wallet?.balancePaise ?? 0;
+  const embeddedSignupPublicReady =
+    process.env.META_EMBEDDED_SIGNUP_PUBLIC_READY === "true";
+  const webhookHealthy =
+    connectedWhatsAppAccounts > 0 &&
+    lastWebhookEvent?.status !== "FAILED" &&
+    Boolean(lastWebhookEvent);
+  const walletLowThresholdPaise = 50_000;
+  const productionHealthItems = [
+    {
+      actionHref: "/dashboard/whatsapp",
+      actionLabel: embeddedSignupPublicReady ? "Connect account" : "View setup",
+      detail: embeddedSignupPublicReady
+        ? "Official Facebook onboarding is ready for customer connections."
+        : "Official Facebook onboarding is waiting for Meta App Review approval.",
+      id: "meta-review",
+      label: "Meta review",
+      status: embeddedSignupPublicReady ? ("ready" as const) : ("attention" as const),
+      value: embeddedSignupPublicReady ? "Approved" : "Pending",
+    },
+    {
+      actionHref: "/dashboard/whatsapp",
+      actionLabel: webhookHealthy ? "View events" : "Fix webhooks",
+      detail:
+        connectedWhatsAppAccounts === 0
+          ? "Connect WhatsApp first so delivery and inbound events can arrive."
+          : webhookHealthy
+            ? `Last WhatsApp webhook received ${formatHealthTime(
+                lastWebhookEvent?.createdAt ?? null,
+              )}.`
+            : "No successful WhatsApp webhook event has been seen yet.",
+      id: "webhook",
+      label: "Webhook",
+      status: webhookHealthy ? ("ready" as const) : ("blocked" as const),
+      value: webhookHealthy ? "Connected" : "Not confirmed",
+    },
+    {
+      actionHref: "/dashboard/wallet",
+      actionLabel: "Recharge",
+      detail:
+        walletBalancePaise <= 0
+          ? "Wallet is empty, so paid sends can be blocked."
+          : walletBalancePaise < walletLowThresholdPaise
+            ? "Wallet is below the recommended production buffer."
+            : "Wallet has enough balance for initial sending.",
+      id: "wallet",
+      label: "Wallet",
+      status:
+        walletBalancePaise <= 0
+          ? ("blocked" as const)
+          : walletBalancePaise < walletLowThresholdPaise
+            ? ("attention" as const)
+            : ("ready" as const),
+      value: formatMoneyPaise(walletBalancePaise),
+    },
+    {
+      actionHref: "/dashboard/templates",
+      actionLabel: approvedTemplates > 0 ? "View templates" : "Create template",
+      detail:
+        approvedTemplates > 0
+          ? `${approvedTemplates} approved template(s) are ready for sending.`
+          : "At least one approved template is required for business-initiated sends.",
+      id: "templates",
+      label: "Templates",
+      status: approvedTemplates > 0 ? ("ready" as const) : ("blocked" as const),
+      value:
+        approvedTemplates > 0 ? `${approvedTemplates} approved` : "None approved",
+    },
+    {
+      actionHref: "/dashboard/reports/messages",
+      actionLabel: "View queue",
+      detail:
+        queuedMessages > 0
+          ? `${queuedMessages} queued message(s) are waiting for the worker.`
+          : failedMessages > 0
+            ? `${failedMessages} failed message(s) need review.`
+            : "No queued messages right now. Add a worker heartbeat later for stronger monitoring.",
+      id: "queue",
+      label: "Worker / queue",
+      status:
+        queuedMessages > 25
+          ? ("attention" as const)
+          : failedMessages > 0
+            ? ("attention" as const)
+            : ("ready" as const),
+      value: queuedMessages > 0 ? `${queuedMessages} queued` : "Clear",
+    },
+  ];
+  const launchStepInputs = [
+    {
+      complete: true,
+      description: "Your company workspace is ready.",
+      blockedReason: null,
+      href: "/dashboard/settings/company",
+      id: "workspace",
+      title: "Create workspace",
+    },
+    {
+      complete: connectedWhatsAppAccounts > 0,
+      description: "Connect a WhatsApp Business phone number.",
+      blockedReason: "No connected WhatsApp phone number yet.",
+      href: "/dashboard/whatsapp",
+      id: "connect-whatsapp",
+      title: "Connect WhatsApp",
+    },
+    {
+      complete: approvedTemplates > 0,
+      description:
+        totalTemplates > 0
+          ? `${approvedTemplates} approved of ${totalTemplates} template(s).`
+          : "Create or sync an approved WhatsApp template.",
+      blockedReason:
+        totalTemplates > 0
+          ? "Templates exist, but none are approved yet."
+          : "No approved WhatsApp template is available.",
+      href: "/dashboard/templates",
+      id: "templates",
+      title: "Sync or create templates",
+    },
+    {
+      complete: contacts > 0,
+      description: "Import or add contacts with consent.",
+      blockedReason: "No contacts imported yet.",
+      href: "/dashboard/contacts/import",
+      id: "contacts",
+      title: "Import contacts",
+    },
+    {
+      complete: outboundMessages > 0,
+      description: "Send one template message to confirm delivery.",
+      blockedReason: "No outbound test message has been sent yet.",
+      href: "/dashboard/messages/send",
+      id: "test-message",
+      title: "Send test message",
+    },
+    {
+      complete: totalCampaigns > 0,
+      description: "Launch your first official WhatsApp broadcast.",
+      blockedReason: "No broadcast campaign has been created yet.",
+      href: "/dashboard/broadcasts/new",
+      id: "bulk-campaign",
+      title: "Send broadcast campaign",
+    },
+    {
+      complete: completedOutbound > 0,
+      description: "Check message delivery and campaign reports.",
+      blockedReason: "No completed message delivery status is available yet.",
+      href: "/dashboard/reports/messages",
+      id: "reports",
+      title: "See delivery reports",
+    },
+    {
+      complete: walletBalancePaise > 0 || walletCredits > 0,
+      description: "Add credits so sending is not blocked.",
+      blockedReason: "Wallet has no confirmed balance or recharge history.",
+      href: "/dashboard/billing",
+      id: "wallet",
+      title: "Recharge wallet",
+    },
+    {
+      complete: automationFlows > 0 || orders > 0,
+      description: "Use automation, catalogs, flows, or order updates later.",
+      blockedReason: "Advanced automation and orders can wait until setup is ready.",
+      href: "/dashboard/automation",
+      id: "advanced",
+      optional: true,
+      title: "Use automation or orders",
+    },
+  ];
+  const firstIncompleteIndex = launchStepInputs.findIndex(
+    (step) => !step.complete && !step.optional,
+  );
+  const launchPath = {
+    completed: launchStepInputs.filter((step) => step.complete).length,
+    currentActionLabel:
+      firstIncompleteIndex === -1 ? "Explore advanced tools" : "Start setup",
+    steps: launchStepInputs.map((step, index) => ({
+      ...step,
+      status: step.complete
+        ? ("complete" as const)
+        : index === firstIncompleteIndex ||
+            (firstIncompleteIndex === -1 && step.optional)
+          ? ("current" as const)
+          : ("locked" as const),
+    })),
+    total: launchStepInputs.length,
+  };
 
   return {
     activities,
     campaignPerformance,
     channelMix,
+    launchPath,
     messageVolume,
     metrics,
+    productionHealth: {
+      blocked: productionHealthItems.filter((item) => item.status === "blocked")
+        .length,
+      items: productionHealthItems,
+      ready: productionHealthItems.filter((item) => item.status === "ready").length,
+      total: productionHealthItems.length,
+    },
     summary: {
       queuedMessages,
       previousWalletNetPaise: transactionNet(previousWalletTransactions),

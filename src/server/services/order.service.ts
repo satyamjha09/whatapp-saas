@@ -32,6 +32,9 @@ const ORDER_INCLUDE = {
       countryCode: true,
       phoneNumber: true,
       email: true,
+      city: true,
+      companyName: true,
+      customAttributes: true,
     },
   },
   items: {

@@ -32,6 +32,13 @@ type AutomationFlowTemplateContext = {
   stepId?: string | null;
 };
 
+type OrderStatusTemplateContext = {
+  currentStatus: string;
+  orderId: string;
+  orderNumber: string;
+  purpose: string;
+};
+
 function renderTemplateBody(body: string, variables: string[]) {
   return body.replace(/{{(\d+)}}/g, (_, index: string) => {
     const value = variables[Number(index) - 1];
@@ -59,6 +66,7 @@ export async function createQueuedTemplateMessage(
   companyId: string,
   input: SendTemplateMessageInput & {
     automationContext?: AutomationFlowTemplateContext;
+    orderStatusContext?: OrderStatusTemplateContext;
   },
 ) {
   await assertSubscriptionCanSend(companyId);
@@ -113,6 +121,16 @@ export async function createQueuedTemplateMessage(
     companyId,
     template,
   });
+  const orderStatusMetadata = input.orderStatusContext
+    ? {
+        currentStatus: input.orderStatusContext.currentStatus,
+        messageType: "ORDER_STATUS_TEMPLATE",
+        orderId: input.orderStatusContext.orderId,
+        orderNumber: input.orderStatusContext.orderNumber,
+        purpose: input.orderStatusContext.purpose,
+        source: "order_status",
+      }
+    : null;
 
   if (flowConfig) {
     const idempotencyKey = `flow-template:${
@@ -406,7 +424,7 @@ export async function createQueuedTemplateMessage(
         direction: "OUTBOUND",
         idempotencyKey: input.idempotencyKey,
         metadata:
-          catalogMetadata || input.automationContext
+          catalogMetadata || input.automationContext || orderStatusMetadata
             ? {
                 ...(input.automationContext
                   ? {
@@ -417,6 +435,7 @@ export async function createQueuedTemplateMessage(
                       source: "automation_runtime",
                     }
                   : {}),
+                ...(orderStatusMetadata ?? {}),
                 ...(catalogMetadata ?? {}),
               }
             : undefined,
@@ -425,8 +444,22 @@ export async function createQueuedTemplateMessage(
             companyId,
             status: "QUEUED",
             raw: {
-              source: input.automationContext ? "automation_runtime" : "api",
-              reason: "Template message queued",
+              ...(input.orderStatusContext
+                ? {
+                    currentStatus: input.orderStatusContext.currentStatus,
+                    orderId: input.orderStatusContext.orderId,
+                    orderNumber: input.orderStatusContext.orderNumber,
+                    purpose: input.orderStatusContext.purpose,
+                  }
+                : {}),
+              source: input.automationContext
+                ? "automation_runtime"
+                : input.orderStatusContext
+                  ? "order_status"
+                  : "api",
+              reason: input.orderStatusContext
+                ? "Order status template message queued"
+                : "Template message queued",
             },
           },
         },

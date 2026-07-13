@@ -11,6 +11,7 @@ import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
 import { createUsageQuotaErrorResponse } from "@/server/utils/api-usage-quota-error";
 
 export async function GET(request: Request) {
+  
   try {
     const context = await getCurrentWorkspaceContext();
 

@@ -7,6 +7,12 @@ import {
   StatusPill,
   statusTone,
 } from "@/app/dashboard/dashboard-ui";
+import {
+  ORDER_STATUS_PURPOSE_LABELS,
+  type OrderStatusTemplatePurpose,
+} from "@/lib/whatsapp-template/order-status-template";
+import { canonicalizeTemplateDraft } from "@/lib/whatsapp-template/template-definition";
+import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import {
   canMoveOrderTo,
@@ -47,6 +53,18 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readOrderStatusPurpose(components: unknown) {
+  if (!isRecord(components) || !isRecord(components.orderStatus)) return "";
+
+  return typeof components.orderStatus.purpose === "string"
+    ? components.orderStatus.purpose.toUpperCase()
+    : "";
+}
+
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
   const context = await getCurrentWorkspaceContext();
 
@@ -71,6 +89,46 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
   const order = serializeOrder(orderRecord);
   const allowedStatuses = canMoveOrderTo(orderRecord);
+  const approvedTemplateRecords = await prisma.template.findMany({
+    orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+    select: {
+      body: true,
+      category: true,
+      components: true,
+      id: true,
+      language: true,
+      metaTemplateId: true,
+      name: true,
+      status: true,
+      variables: true,
+    },
+    where: {
+      category: "UTILITY",
+      companyId: context.membership.companyId,
+      status: "APPROVED",
+    },
+  });
+  const orderStatusTemplates = approvedTemplateRecords
+    .map((template) => {
+      const canonical = canonicalizeTemplateDraft(template);
+
+      if (canonical.templateType !== "ORDER_STATUS") return null;
+
+      const purpose = readOrderStatusPurpose(template.components);
+
+      return {
+        id: template.id,
+        label: `${template.name} - ${template.language}`,
+        purpose,
+        purposeLabel:
+          ORDER_STATUS_PURPOSE_LABELS[purpose as OrderStatusTemplatePurpose] ??
+          labelize(purpose || "ORDER_STATUS"),
+        variableCount: template.variables.length,
+      };
+    })
+    .filter((template): template is NonNullable<typeof template> =>
+      Boolean(template),
+    );
 
   return (
     <div>
@@ -191,14 +249,15 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           <Panel>
             <h2 className="text-lg font-bold text-[#081B3A]">Actions</h2>
             <p className="mt-1 text-sm leading-6 text-[#526173]">
-              Move the order through controlled statuses. WhatsApp sending is
-              intentionally disabled until the next order-status template phase.
+              Move the order through controlled statuses, then send an approved
+              WhatsApp order update using the current order data.
             </p>
             <div className="mt-5">
               <OrderStatusActions
                 allowedStatuses={allowedStatuses}
                 currentStatus={order.currentStatus}
                 orderId={order.id}
+                orderStatusTemplates={orderStatusTemplates}
               />
             </div>
           </Panel>

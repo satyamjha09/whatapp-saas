@@ -35,6 +35,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
       { label: "Canned Message", href: "/dashboard/inbox/quick-replies" },
     ],
   },
+  { label: "Broadcasts", href: "/dashboard/broadcasts" },
   {
     label: "Automation",
     items: [
