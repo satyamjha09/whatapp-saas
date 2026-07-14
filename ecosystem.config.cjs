@@ -68,6 +68,11 @@ module.exports = {
     }),
 
     tsxWorker({
+      name: "metawhat-broadcast-scheduler-worker",
+      script: "src/workers/broadcast-scheduler.worker.ts",
+    }),
+
+    tsxWorker({
       name: "metawhat-campaign-sequence-worker",
       script: "src/workers/campaign-sequence.worker.ts",
     }),

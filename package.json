@@ -8,6 +8,7 @@
     "worker:messages": "tsx src/workers/message.worker.ts",
     "worker:bulk-message": "cross-env WORKER_HEARTBEAT_NAME=bulk-message-worker tsx src/workers/message.worker.ts",
     "worker:campaign-launch": "tsx src/workers/campaign-launch.worker.ts",
+    "worker:broadcast-scheduler": "tsx src/workers/broadcast-scheduler.worker.ts",
     "worker:webhooks": "tsx src/workers/webhook.worker.ts",
     "worker:developer-webhooks": "tsx src/workers/developer-webhook.worker.ts",
     "worker:developer-webhook-outbox": "tsx src/workers/developer-webhook-outbox.worker.ts",

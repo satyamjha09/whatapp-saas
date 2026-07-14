@@ -28,6 +28,7 @@ import {
 } from "@/app/dashboard/dashboard-ui";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
+import { BroadcastDraftActions } from "./_components/broadcast-draft-actions";
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-IN").format(value);
@@ -250,7 +251,7 @@ export default async function BroadcastsPage() {
 
   const companyId = context.membership.companyId;
 
-  const [campaigns, bulkBatches, launchRuns] = await Promise.all([
+  const [campaigns, bulkBatches, launchRuns, broadcastDrafts] = await Promise.all([
     prisma.campaign.findMany({
       where: { companyId },
       orderBy: { createdAt: "desc" },
@@ -317,6 +318,33 @@ export default async function BroadcastsPage() {
         reservedAmountPaise: true,
         queuedMessageCount: true,
         createdAt: true,
+      },
+    }),
+    prisma.broadcastCampaignDraft.findMany({
+      where: {
+        companyId,
+        status: {
+          in: [
+            "DRAFT",
+            "READY_TO_SEND",
+            "SCHEDULED",
+            "PAUSED",
+            "CANCELED",
+            "LAUNCHED",
+          ],
+        },
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 8,
+      select: {
+        id: true,
+        name: true,
+        objective: true,
+        currentStep: true,
+        status: true,
+        updatedAt: true,
       },
     }),
   ]);
@@ -438,6 +466,50 @@ export default async function BroadcastsPage() {
           detail={`${formatNumber(totals.conversions)} conversion event(s)`}
         />
       </section>
+
+      {broadcastDrafts.length > 0 ? (
+        <Panel className="mb-6">
+          <PanelTitle
+            title="Drafts and launch controls"
+            description="Resume drafts, clone campaigns, and control scheduled broadcasts before the scheduler turns them into launch runs."
+          />
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            {broadcastDrafts.map((draft) => (
+              <div
+                className="rounded-2xl border border-[#BFE9D0] bg-[#F7FBFF] p-4 transition hover:border-[#128C7E] hover:bg-[#E7F8EF]/60"
+                key={draft.id}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <Link
+                      className="font-bold text-[#081B3A] hover:text-[#128C7E]"
+                      href={`/dashboard/broadcasts/${draft.id}/edit`}
+                    >
+                      {draft.name}
+                    </Link>
+                    <p className="mt-1 text-xs font-semibold uppercase text-[#128C7E]">
+                      {draft.objective.replaceAll("_", " ")}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <StatusPill tone={statusTone(draft.status)}>
+                      {draft.status.replaceAll("_", " ")}
+                    </StatusPill>
+                    <StatusPill tone="blue">Step {draft.currentStep}</StatusPill>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm text-[#526173]">
+                  Last saved {formatDateTime(draft.updatedAt)}
+                </p>
+                <BroadcastDraftActions
+                  draftId={draft.id}
+                  status={draft.status}
+                />
+              </div>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
 
       <section className="mb-6 grid gap-4 xl:grid-cols-3">
         <Panel>
@@ -845,7 +917,7 @@ export default async function BroadcastsPage() {
               {launchRuns.map((run) => (
                 <Link
                   key={run.id}
-                  href="/dashboard/broadcasts/launch"
+                  href={`/dashboard/broadcasts/${run.campaignId}`}
                   className="block px-5 py-4 transition hover:bg-[#E7F8EF]/55 sm:px-6"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">

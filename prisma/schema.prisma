@@ -1450,6 +1450,7 @@ model Company {
   webhookEvents                     WebhookEvent[]
   resolvedUnmappedWebhookEvents     UnmappedWebhookEvent[]
   campaigns                         Campaign[]
+  broadcastCampaignDrafts           BroadcastCampaignDraft[]
   campaignContacts                  CampaignContact[]
   wallet                            Wallet?
   leadScoringConfig                 LeadScoringConfig?
@@ -4257,6 +4258,28 @@ model Campaign {
   @@index([companyId])
   @@index([templateId])
   @@index([status])
+}
+
+model BroadcastCampaignDraft {
+  id              String @id @default(cuid())
+  companyId       String
+  createdByUserId String?
+
+  name        String
+  objective   String
+  currentStep Int    @default(1)
+  status      String @default("DRAFT")
+  draftData   Json
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([createdByUserId])
+  @@index([status])
+  @@index([updatedAt])
 }
 
 model CampaignLaunchRun {
