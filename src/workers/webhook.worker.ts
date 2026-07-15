@@ -26,6 +26,7 @@ import {
 } from "@/server/services/whatsapp-flow.service";
 import { recordWhatsAppCatalogInteraction } from "@/server/services/whatsapp-catalog-interaction.service";
 import { processChatbotInboundMessage } from "@/server/services/chatbot-runtime.service";
+import { routeConversation } from "@/server/services/inbox-routing.service";
 import { queueAutomationRuntimeJob } from "@/server/services/automation-runtime.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
@@ -660,7 +661,7 @@ const worker = new Worker<ProcessWebhookJobData>(
       }
 
       if (!isFlowResponse) {
-        await processChatbotInboundMessage({
+        const chatbotOutcome = await processChatbotInboundMessage({
           companyId,
           contactId: contact.id,
           inboundMessageId: message.id,
@@ -671,7 +672,28 @@ const worker = new Worker<ProcessWebhookJobData>(
             error: error instanceof Error ? error.message : error,
             messageId: message.id,
           });
+          return { handled: false, handedOff: false };
         });
+
+        if (!chatbotOutcome?.handled) {
+          await routeConversation({
+            companyId,
+            contactId: contact.id,
+            inboundText: body,
+            metadata: {
+              inboundMessageId: message.id,
+              metaMessageId,
+              source: "webhook_worker",
+            },
+          }).catch((error) => {
+            console.error("INBOX_ROUTING_PROCESSING_ERROR:", {
+              companyId,
+              contactId: contact.id,
+              error: error instanceof Error ? error.message : error,
+              messageId: message.id,
+            });
+          });
+        }
 
         await queueAutomationRuntimeJob({
           companyId,

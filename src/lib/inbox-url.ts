@@ -15,6 +15,8 @@ export type InboxUrlState = {
   sort?: InboxSort;
   page?: number;
   sla?: string | null;
+  queueId?: string;
+  assignedUserId?: string;
 };
 
 export function parseInboxPage(value: string | undefined) {
@@ -35,6 +37,8 @@ export function getInboxUrlState(searchParams: {
   sort?: string;
   page?: string;
   sla?: string;
+  queueId?: string;
+  assignedUserId?: string;
 }): Required<InboxUrlState> {
   return {
     filter: parseInboxFilter(searchParams.filter),
@@ -44,6 +48,8 @@ export function getInboxUrlState(searchParams: {
     sort: parseInboxSort(searchParams.sort),
     page: parseInboxPage(searchParams.page),
     sla: searchParams.sla?.trim() ?? "",
+    queueId: searchParams.queueId?.trim() ?? "",
+    assignedUserId: searchParams.assignedUserId?.trim() ?? "",
   };
 }
 
@@ -72,6 +78,14 @@ export function buildInboxQuery(state: InboxUrlState) {
 
   if (state.sla?.trim()) {
     params.set("sla", state.sla.trim());
+  }
+
+  if (state.queueId?.trim()) {
+    params.set("queueId", state.queueId.trim());
+  }
+
+  if (state.assignedUserId?.trim()) {
+    params.set("assignedUserId", state.assignedUserId.trim());
   }
 
   if (state.page && state.page > 1) {

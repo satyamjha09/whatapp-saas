@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { ArrowUp, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -24,14 +24,45 @@ export default function InboxChatComposer({
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const typingTimerRef = useRef<number | undefined>(undefined);
   const windowIsOpen = customerServiceWindowEndsAt
     ? new Date(customerServiceWindowEndsAt) > new Date()
     : false;
+
+  async function setTyping(typing: boolean) {
+    await fetch(`/api/inbox/${contactId}/presence`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ typing }),
+    }).catch(() => undefined);
+  }
+
+  function handleBodyChange(value: string) {
+    setBody(value);
+
+    if (typingTimerRef.current) {
+      window.clearTimeout(typingTimerRef.current);
+    }
+
+    if (value.trim().length === 0) {
+      void setTyping(false);
+      return;
+    }
+
+    void setTyping(true);
+    typingTimerRef.current = window.setTimeout(() => {
+      void setTyping(false);
+    }, 2_500);
+  }
 
   async function sendReply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setIsSending(true);
+    if (typingTimerRef.current) {
+      window.clearTimeout(typingTimerRef.current);
+    }
+    void setTyping(false);
 
     try {
       const response = await fetch(`/api/inbox/${contactId}/reply`, {
@@ -104,7 +135,7 @@ export default function InboxChatComposer({
         </button>
         <input
           value={body}
-          onChange={(event) => setBody(event.target.value)}
+          onChange={(event) => handleBodyChange(event.target.value)}
           placeholder="Type a message... (Ctrl + Enter to send)"
           maxLength={4096}
           className="h-12 min-w-0 flex-1 rounded-md border-0 px-2 text-sm outline-none placeholder:text-[#B6B6B6]"

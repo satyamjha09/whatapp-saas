@@ -31,6 +31,8 @@ import ConversationTagManager from "./conversation-tag-manager";
 import ConversationStatusButton from "./conversation-status-button";
 import InboxReplyForm from "./inbox-reply-form";
 import MarkConversationRead from "./mark-conversation-read";
+import ConversationPresence from "../conversation-presence";
+import InboxPresenceHeartbeat from "../inbox-presence-heartbeat";
 import NoteCard from "./note-card";
 import NoteForm from "./note-form";
 import CompactCustomerJourneyPanel from "@/components/customer-journey/compact-customer-journey-panel";
@@ -365,6 +367,7 @@ export default async function InboxConversationPage({
   return (
     <main className="p-8">
       <InboxAutoRefresh activeContactId={conversation.id} />
+      <InboxPresenceHeartbeat activeContactId={conversation.id} />
       <MarkConversationRead contactId={conversation.id} />
 
       <div className="mx-auto max-w-6xl">
@@ -720,6 +723,11 @@ export default async function InboxConversationPage({
                       ? `Latest ${conversation.messages.length} of ${conversation._count.messages} message(s)`
                       : `${conversation.messages.length} message(s)`}
                   </span>
+
+                  <ConversationPresence
+                    contactId={conversation.id}
+                    currentUserId={context.user.id}
+                  />
 
                   <ConversationPrioritySelect
                     contactId={conversation.id}

@@ -105,12 +105,19 @@ enum PlatformCompanyNoteVisibility {
   FINANCE
 }
 
+enum InboxNoteType {
+  NOTE
+  COMMENT
+  SYSTEM
+}
+
 enum CompanyNotificationType {
   BILLING
   WALLET
   WEBHOOK
   DEVELOPER_API
   CAMPAIGN
+  INBOX
   SYSTEM
 }
 
@@ -450,6 +457,39 @@ enum InboxPriority {
   NORMAL
   HIGH
   URGENT
+}
+
+enum InboxQueueStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum InboxAssignmentMode {
+  MANUAL
+  ROUND_ROBIN
+  LEAST_OPEN
+  HYBRID
+}
+
+enum InboxQueueMemberRole {
+  AGENT
+  SUPERVISOR
+}
+
+enum InboxAgentAvailabilityStatus {
+  AVAILABLE
+  BUSY
+  AWAY
+  OFFLINE
+}
+
+enum InboxAssignmentSource {
+  MANUAL
+  ROUND_ROBIN
+  LOAD_BASED
+  ROUTING_RULE
+  CHATBOT
+  SYSTEM
 }
 
 enum ContactActivityType {
@@ -1085,6 +1125,8 @@ enum RbacPermission {
   INBOX_ASSIGN
   INBOX_CLOSE
   INBOX_BULK_ACTION
+  INBOX_MANAGE_QUEUES
+  INBOX_MANAGE_AGENTS
   CONTACT_VIEW
   CONTACT_CREATE
   CONTACT_UPDATE
@@ -1302,6 +1344,13 @@ model User {
   // src/server/services/tenant-user-relations.service.ts.
   assignedContacts                    Contact[]                          @relation("ContactAssignee")
   inboxNotes                          InboxNote[]                        @relation("InboxNoteAuthor")
+  inboxNoteMentions                   InboxNoteMention[]                 @relation("InboxNoteMentionUser")
+  inboxConversationFollowers          InboxConversationFollower[]        @relation("InboxConversationFollowerUser")
+  inboxQueueMemberships               InboxQueueMember[]                 @relation("InboxQueueMemberUser")
+  inboxAgentProfiles                  InboxAgentProfile[]                @relation("InboxAgentProfileUser")
+  inboxAgentSkills                    InboxAgentSkill[]                  @relation("InboxAgentSkillUser")
+  inboxConversationAssignments        InboxConversationAssignment[]      @relation("InboxConversationAssignedUser")
+  inboxConversationAssignmentActions  InboxConversationAssignment[]      @relation("InboxConversationAssignmentActor")
   contactActivities                   ContactActivity[]
   inboxSavedViews                     InboxSavedView[]
   createdQuickReplies                 QuickReply[]                       @relation("QuickReplyCreator")
@@ -1458,6 +1507,16 @@ model Company {
   invites                           CompanyInvite[]
   auditLogs                         AuditLog[]
   inboxNotes                        InboxNote[]
+  inboxNoteMentions                 InboxNoteMention[]
+  inboxConversationFollowers        InboxConversationFollower[]
+  inboxQueues                       InboxQueue[]
+  inboxQueueMembers                 InboxQueueMember[]
+  inboxAgentProfiles                InboxAgentProfile[]
+  inboxSkills                       InboxSkill[]
+  inboxAgentSkills                  InboxAgentSkill[]
+  inboxQueueRequiredSkills          InboxQueueRequiredSkill[]
+  inboxConversationAssignments      InboxConversationAssignment[]
+  inboxRoutingRules                 InboxRoutingRule[]
   inboxTags                         InboxTag[]
   contactInboxTags                  ContactInboxTag[]
   contactActivities                 ContactActivity[]
@@ -1567,6 +1626,184 @@ model CompanyUser {
   createdAt DateTime @default(now())
 
   @@unique([userId, companyId])
+}
+
+model InboxQueue {
+  id               String              @id @default(cuid())
+  companyId        String
+  name             String
+  slug             String
+  description      String?
+  color            String?
+  status           InboxQueueStatus    @default(ACTIVE)
+  assignmentMode   InboxAssignmentMode @default(MANUAL)
+  fallbackQueueId  String?
+  maxOpenPerAgent  Int?
+  approvalRequired Boolean             @default(false)
+
+  company        Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fallbackQueue  InboxQueue?               @relation("InboxQueueFallback", fields: [fallbackQueueId], references: [id], onDelete: SetNull)
+  fallbackFor    InboxQueue[]              @relation("InboxQueueFallback")
+  members        InboxQueueMember[]
+  requiredSkills InboxQueueRequiredSkill[]
+  contacts       Contact[]
+  assignments    InboxConversationAssignment[]
+  routingRules   InboxRoutingRule[]         @relation("InboxRoutingRuleTargetQueue")
+  fallbackRules  InboxRoutingRule[]         @relation("InboxRoutingRuleFallbackQueue")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, slug])
+  @@index([companyId, status])
+  @@index([fallbackQueueId])
+}
+
+model InboxQueueMember {
+  id              String               @id @default(cuid())
+  companyId       String
+  queueId         String
+  userId          String
+  role            InboxQueueMemberRole @default(AGENT)
+  acceptingNew    Boolean              @default(true)
+  maxOpenOverride Int?
+  sortOrder       Int                  @default(0)
+  joinedAt        DateTime             @default(now())
+
+  company Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  queue   InboxQueue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  user    User       @relation("InboxQueueMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([queueId, userId])
+  @@index([companyId])
+  @@index([userId])
+}
+
+model InboxAgentProfile {
+  id                   String                       @id @default(cuid())
+  companyId            String
+  userId               String
+  availabilityStatus   InboxAgentAvailabilityStatus @default(OFFLINE)
+  acceptingNew         Boolean                      @default(true)
+  maxOpenConversations Int                          @default(25)
+  preferredLanguage    String?
+  timezone             String                       @default("Asia/Kolkata")
+  lastAssignedAt       DateTime?
+  lastSeenAt           DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation("InboxAgentProfileUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, userId])
+  @@index([companyId, availabilityStatus])
+  @@index([userId])
+}
+
+model InboxSkill {
+  id          String  @id @default(cuid())
+  companyId   String
+  name        String
+  slug        String
+  description String?
+
+  company          Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  agentSkills      InboxAgentSkill[]
+  requiredByQueues InboxQueueRequiredSkill[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, slug])
+  @@index([companyId])
+}
+
+model InboxAgentSkill {
+  id        String @id @default(cuid())
+  companyId String
+  userId    String
+  skillId   String
+  level     Int    @default(1)
+
+  company Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User       @relation("InboxAgentSkillUser", fields: [userId], references: [id], onDelete: Cascade)
+  skill   InboxSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+  @@index([companyId])
+  @@index([skillId])
+}
+
+model InboxQueueRequiredSkill {
+  id           String @id @default(cuid())
+  companyId    String
+  queueId      String
+  skillId      String
+  minimumLevel Int    @default(1)
+
+  company Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  queue   InboxQueue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  skill   InboxSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([queueId, skillId])
+  @@index([companyId])
+  @@index([skillId])
+}
+
+model InboxConversationAssignment {
+  id               String                 @id @default(cuid())
+  companyId        String
+  contactId        String
+  queueId          String?
+  assignedToUserId String?
+  previousQueueId  String?
+  previousUserId   String?
+  source           InboxAssignmentSource
+  ruleId           String?
+  actorUserId      String?
+  reason           String?
+  metadata         Json?
+  assignedAt       DateTime               @default(now())
+  unassignedAt     DateTime?
+
+  company        Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact        Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  queue          InboxQueue?        @relation(fields: [queueId], references: [id], onDelete: SetNull)
+  assignedToUser User?             @relation("InboxConversationAssignedUser", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  actorUser      User?             @relation("InboxConversationAssignmentActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  rule           InboxRoutingRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, contactId])
+  @@index([assignedToUserId, assignedAt])
+  @@index([queueId, assignedAt])
+  @@index([ruleId])
+}
+
+model InboxRoutingRule {
+  id               String                @id @default(cuid())
+  companyId        String
+  name             String
+  priority         Int                   @default(100)
+  status           String                @default("ACTIVE")
+  conditions       Json
+  targetQueueId    String
+  assignmentMode   InboxAssignmentMode?
+  requiredSkillIds Json?
+  fallbackQueueId  String?
+
+  company       Company                       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  targetQueue   InboxQueue                    @relation("InboxRoutingRuleTargetQueue", fields: [targetQueueId], references: [id], onDelete: Cascade)
+  fallbackQueue InboxQueue?                   @relation("InboxRoutingRuleFallbackQueue", fields: [fallbackQueueId], references: [id], onDelete: SetNull)
+  assignments   InboxConversationAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, status, priority])
+  @@index([targetQueueId])
+  @@index([fallbackQueueId])
 }
 
 model CompanyNotification {
@@ -1840,8 +2077,8 @@ model Order {
   shippingAmount Decimal @default(0) @db.Decimal(20, 6)
   totalAmount    Decimal @default(0) @db.Decimal(20, 6)
 
-  currentStatus OrderStatus @default(DRAFT)
-  orderDate     DateTime    @default(now())
+  currentStatus OrderStatus     @default(DRAFT)
+  orderDate     DateTime        @default(now())
   cancelledAt   DateTime?
   cancelReason  String?
   notes         String?
@@ -1927,23 +2164,22 @@ model OrderStatusEvent {
   @@index([createdAt])
 }
 
-
 model TallyCustomerMapping {
-  id             String @id @default(cuid())
-  companyId      String
-  tallyCompanyId String
-  tallyLedgerId  String
+  id              String                  @id @default(cuid())
+  companyId       String
+  tallyCompanyId  String
+  tallyLedgerId   String
   tallyLedgerName String
-  contactId      String?
-  matchSource    TallyMappingMatchSource @default(MANUAL_REVIEW)
-  confidence     Int @default(0)
-  lastSyncedAt   DateTime?
+  contactId       String?
+  matchSource     TallyMappingMatchSource @default(MANUAL_REVIEW)
+  confidence      Int                     @default(0)
+  lastSyncedAt    DateTime?
   updatedByUserId String?
-  metadata       Json?
+  metadata        Json?
 
-  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contact       Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  updatedByUser User? @relation("TallyCustomerMappingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  updatedByUser User?    @relation("TallyCustomerMappingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1957,7 +2193,7 @@ model TallyCustomerMapping {
 }
 
 model TallyProductMapping {
-  id                 String @id @default(cuid())
+  id                 String                  @id @default(cuid())
   companyId          String
   tallyCompanyId     String
   tallyStockItemId   String
@@ -1968,9 +2204,9 @@ model TallyProductMapping {
   updatedByUserId    String?
   metadata           Json?
 
-  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   localProduct  WhatsAppCatalogProduct? @relation(fields: [localProductId], references: [id], onDelete: SetNull)
-  updatedByUser User? @relation("TallyProductMappingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  updatedByUser User?                   @relation("TallyProductMappingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1984,22 +2220,22 @@ model TallyProductMapping {
 }
 
 model TallyOrderSyncRun {
-  id             String @id @default(cuid())
-  companyId      String
-  tallyCompanyId String
-  status         TallyOrderSyncRunStatus @default(RUNNING)
-  startedAt      DateTime @default(now())
-  completedAt    DateTime?
-  ordersFound    Int @default(0)
-  createdCount   Int @default(0)
-  updatedCount   Int @default(0)
-  skippedCount   Int @default(0)
-  failedCount    Int @default(0)
-  unmappedCustomerCount Int @default(0)
-  unmappedProductCount  Int @default(0)
-  errorCode      String?
-  errorMessage   String?
-  summary        Json?
+  id                    String                  @id @default(cuid())
+  companyId             String
+  tallyCompanyId        String
+  status                TallyOrderSyncRunStatus @default(RUNNING)
+  startedAt             DateTime                @default(now())
+  completedAt           DateTime?
+  ordersFound           Int                     @default(0)
+  createdCount          Int                     @default(0)
+  updatedCount          Int                     @default(0)
+  skippedCount          Int                     @default(0)
+  failedCount           Int                     @default(0)
+  unmappedCustomerCount Int                     @default(0)
+  unmappedProductCount  Int                     @default(0)
+  errorCode             String?
+  errorMessage          String?
+  summary               Json?
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -2008,6 +2244,7 @@ model TallyOrderSyncRun {
   @@index([status])
   @@index([startedAt])
 }
+
 model WhatsAppFlow {
   id                String  @id @default(cuid())
   companyId         String
@@ -2875,6 +3112,7 @@ model Contact {
   id               String  @id @default(cuid())
   companyId        String
   assignedToUserId String?
+  inboxQueueId     String?
 
   name                   String?
   email                  String?
@@ -2907,6 +3145,9 @@ model Contact {
   inboxLastCustomerMessageAt DateTime?
   inboxSlaBreachedAt         DateTime?
   inboxSlaEscalationCount    Int                     @default(0)
+  inboxAssignedAt            DateTime?
+  inboxAssignmentSource      InboxAssignmentSource?
+  inboxAssignmentVersion     Int                     @default(0)
 
   leadScore          Int            @default(0)
   leadScoreUpdatedAt DateTime?
@@ -2918,6 +3159,8 @@ model Contact {
 
   company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignedTo                 User?                       @relation("ContactAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  inboxQueue                 InboxQueue?                 @relation(fields: [inboxQueueId], references: [id], onDelete: SetNull)
+  inboxAssignments           InboxConversationAssignment[]
   messages                   Message[]
   inboxNotes                 InboxNote[]
   inboxTags                  ContactInboxTag[]
@@ -2946,8 +3189,11 @@ model Contact {
   @@index([companyId, marketingConsentStatus])
   @@index([companyId, utilityConsentStatus])
   @@index([assignedToUserId])
+  @@index([inboxQueueId])
   @@index([companyId, inboxStatus])
   @@index([companyId, inboxPriority])
+  @@index([companyId, inboxQueueId, inboxStatus])
+  @@index([companyId, assignedToUserId, inboxStatus])
   @@index([companyId, snoozedUntil])
   @@index([companyId, inboxSlaDueAt])
   @@index([companyId, inboxStatus, inboxSlaDueAt])
@@ -4261,7 +4507,7 @@ model Campaign {
 }
 
 model BroadcastCampaignDraft {
-  id              String @id @default(cuid())
+  id              String  @id @default(cuid())
   companyId       String
   createdByUserId String?
 
@@ -6864,4 +7110,3 @@ model LeadScoringConfig {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
-import { createAuditLog } from "@/server/services/audit.service";
 import { updateConversationAssignee } from "@/server/services/inbox.service";
 import { updateConversationAssigneeSchema } from "@/server/validators/inbox-assignee.validator";
 
@@ -48,17 +47,6 @@ export async function PATCH(
       validation.data,
       context.user.id,
     );
-
-    await createAuditLog({
-      companyId: context.membership.companyId,
-      actorUserId: context.user.id,
-      action: "inbox.conversation_assignee.updated",
-      entityType: "Contact",
-      entityId: contact.id,
-      metadata: {
-        assignedToUserId: contact.assignedToUserId,
-      },
-    });
 
     return NextResponse.json({
       message: "Conversation assignee updated successfully",

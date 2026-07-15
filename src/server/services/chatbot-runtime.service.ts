@@ -1,10 +1,16 @@
-import { Prisma } from "@/generated/prisma/client";
+import {
+  InboxAssignmentMode,
+  InboxAssignmentSource,
+  Prisma,
+} from "@/generated/prisma/client";
 import { MESSAGE_PRICE_PAISE } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { getMessageQueue } from "@/lib/queue";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
+import { assignConversationToBestAgent } from "@/server/services/inbox-assignment.service";
+import { routeConversation } from "@/server/services/inbox-routing.service";
 import {
   assertUsageQuotaAvailable,
   incrementUsageQuota,
@@ -13,6 +19,14 @@ import type { StartChatbotWhatsAppTestInput } from "@/server/validators/chatbot.
 
 const ACTIVE_SESSION_STATUSES = ["ACTIVE", "WAITING_FOR_REPLY"] as const;
 const MAX_RUNTIME_STEPS = 20;
+
+export type ChatbotInboundOutcome = {
+  handled: boolean;
+  handedOff: boolean;
+  handoffReason?: string;
+  requestedQueueId?: string;
+  sessionId?: string;
+};
 
 type TemplateTriggerContext = {
   language: string | null;
@@ -34,6 +48,25 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function normalizedText(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
+}
+
+function optionalString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : undefined;
+}
+
+function optionalAssignmentMode(value: unknown) {
+  return typeof value === "string" &&
+    Object.values(InboxAssignmentMode).includes(value as InboxAssignmentMode)
+    ? (value as InboxAssignmentMode)
+    : undefined;
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
 }
 
 function normalizePhoneDigits(value: string) {
@@ -1496,6 +1529,16 @@ async function executeSession({
           config.note,
           "Thanks. Our team will contact you shortly.",
         );
+        const handoffReason = textValue(
+          config.handoffReason ?? config.reason,
+          "Chatbot requested human handoff",
+        );
+        const requestedQueueId =
+          optionalString(config.queueId) ??
+          optionalString(config.requestedQueueId) ??
+          optionalString(config.inboxQueueId);
+        const assignmentMode = optionalAssignmentMode(config.assignmentMode);
+        const requiredSkillIds = stringArray(config.requiredSkillIds);
         const outbound = await queueChatbotOutboundMessage({
           body: note,
           chatbotId: session.chatbotId,
@@ -1512,10 +1555,48 @@ async function executeSession({
           nodeId: node.id,
           payload: {
             assignTo: config.assignTo ?? null,
+            assignmentMode: assignmentMode ?? null,
+            handoffReason,
+            requestedQueueId: requestedQueueId ?? null,
+            requiredSkillIds,
           },
           sessionId: session.id,
           versionId: session.versionId,
         });
+
+        if (session.contactId) {
+          if (requestedQueueId) {
+            await assignConversationToBestAgent({
+              assignmentMode,
+              companyId: session.companyId,
+              contactId: session.contactId,
+              metadata: safeJson({
+                chatbotId: session.chatbotId,
+                nodeId: node.id,
+                outboundMessageId: outbound.id,
+                sessionId: session.id,
+              }),
+              queueId: requestedQueueId,
+              reason: handoffReason,
+              requiredSkillIds,
+              source: InboxAssignmentSource.CHATBOT,
+            });
+          } else {
+            await routeConversation({
+              companyId: session.companyId,
+              contactId: session.contactId,
+              handoffReason,
+              metadata: safeJson({
+                chatbotId: session.chatbotId,
+                nodeId: node.id,
+                outboundMessageId: outbound.id,
+                sessionId: session.id,
+              }),
+              source: InboxAssignmentSource.CHATBOT,
+            });
+          }
+        }
+
         await prisma.chatbotSession.update({
           where: {
             id: session.id,
@@ -1847,7 +1928,7 @@ export async function processChatbotInboundMessage({
   companyId: string;
   contactId: string;
   inboundMessageId: string;
-}) {
+}): Promise<ChatbotInboundOutcome> {
   const inboundMessage = await prisma.message.findFirst({
     where: {
       companyId,
@@ -1857,13 +1938,13 @@ export async function processChatbotInboundMessage({
     },
   });
 
-  if (!inboundMessage) return;
+  if (!inboundMessage) return { handled: false, handedOff: false };
 
   const inboundText = getInboundReplyText(inboundMessage);
   const normalized = normalizedText(inboundText);
 
   if (!normalized || ["stop", "start"].includes(normalized)) {
-    return;
+    return { handled: false, handedOff: false };
   }
 
   const templateContext = await getInboundTemplateContext({
@@ -1879,7 +1960,24 @@ export async function processChatbotInboundMessage({
       inboundText,
       sessionId: activeSession.id,
     });
-    return;
+    const latestSession = await prisma.chatbotSession.findUnique({
+      where: {
+        id: activeSession.id,
+      },
+      select: {
+        status: true,
+      },
+    });
+
+    return {
+      handled: true,
+      handedOff: latestSession?.status === "HANDED_OFF",
+      handoffReason:
+        latestSession?.status === "HANDED_OFF"
+          ? "Chatbot requested human handoff"
+          : undefined,
+      sessionId: activeSession.id,
+    };
   }
 
   const trigger = await findMatchingTrigger({
@@ -1889,13 +1987,15 @@ export async function processChatbotInboundMessage({
     templateContext,
   });
 
-  if (!trigger?.chatbot.activeVersion) return;
+  if (!trigger?.chatbot.activeVersion) {
+    return { handled: false, handedOff: false };
+  }
 
   const startNode = trigger.chatbot.activeVersion.nodes.find(
     (node) => node.type === "START",
   );
 
-  if (!startNode) return;
+  if (!startNode) return { handled: false, handedOff: false };
 
   const session = await prisma.chatbotSession.create({
     data: {
@@ -1947,4 +2047,23 @@ export async function processChatbotInboundMessage({
     inboundMessageId,
     sessionId: session.id,
   });
+
+  const latestSession = await prisma.chatbotSession.findUnique({
+    where: {
+      id: session.id,
+    },
+    select: {
+      status: true,
+    },
+  });
+
+  return {
+    handled: true,
+    handedOff: latestSession?.status === "HANDED_OFF",
+    handoffReason:
+      latestSession?.status === "HANDED_OFF"
+        ? "Chatbot requested human handoff"
+        : undefined,
+    sessionId: session.id,
+  };
 }

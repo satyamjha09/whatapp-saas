@@ -15,6 +15,15 @@ export type InboxRealtimeEvent =
       messageId: string;
       status: string;
       createdAt: string;
+    }
+  | {
+      type: "CONVERSATION_ASSIGNED";
+      companyId: string;
+      contactId: string;
+      assignedToUserId: string | null;
+      queueId: string | null;
+      source: string;
+      createdAt: string;
     };
 
 export function getInboxRealtimeChannel(companyId: string) {

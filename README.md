@@ -52,3 +52,8 @@ npx prisma studio --port 5555
 ## Required Env Vars
 
 Copy `.env.example` to `.env` and fill values.
+
+
+
+<!-- hi from codex -->
+

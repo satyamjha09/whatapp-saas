@@ -13,6 +13,7 @@ import type {
 import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
 import { queueLeadScoreRecalculation } from "@/server/services/lead-scoring.service";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
+import { assignConversation } from "@/server/services/inbox-assignment.service";
 import {
   CreateInboxNoteInput,
   UpdateInboxNoteInput,
@@ -33,6 +34,8 @@ type GetInboxContactsInput = {
   page?: number;
   pageSize?: number;
   sla?: string | null;
+  queueId?: string;
+  assignedUserId?: string;
 };
 
 export async function getInboxContactsByCompany(
@@ -47,6 +50,24 @@ export async function getInboxContactsByCompany(
   const search = input.search?.trim();
   const now = new Date();
   const inboxSlaSettings = await getInboxSlaSettingsByCompany(companyId);
+  const currentUserQueueIds =
+    filter === "my-queues" && input.currentUserId
+      ? (
+          await prisma.inboxQueueMember.findMany({
+            where: {
+              companyId,
+              userId: input.currentUserId,
+              acceptingNew: true,
+              queue: {
+                status: "ACTIVE",
+              },
+            },
+            select: {
+              queueId: true,
+            },
+          })
+        ).map((member) => member.queueId)
+      : [];
 
   const where: Prisma.ContactWhereInput = {
     companyId,
@@ -86,6 +107,49 @@ export async function getInboxContactsByCompany(
           assignedToUserId: input.currentUserId,
         }
       : {}),
+    ...(filter === "my-queues"
+      ? {
+          inboxQueueId: {
+            in: currentUserQueueIds.length ? currentUserQueueIds : ["__none__"],
+          },
+          inboxStatus: "OPEN" as const,
+        }
+      : {}),
+    ...(filter === "unassigned-in-queue"
+      ? {
+          inboxQueueId: {
+            not: null,
+          },
+          assignedToUserId: null,
+          inboxStatus: "OPEN" as const,
+        }
+      : {}),
+    ...(filter === "approval-pending"
+      ? {
+          inboxQueue: {
+            approvalRequired: true,
+            status: "ACTIVE" as const,
+          },
+          inboxStatus: "OPEN" as const,
+        }
+      : {}),
+    ...(filter === "sla-due-soon"
+      ? {
+          inboxStatus: "OPEN" as const,
+          inboxSlaDueAt: {
+            gte: now,
+            lte: new Date(now.getTime() + 30 * 60 * 1000),
+          },
+        }
+      : {}),
+    ...(filter === "sla-breached"
+      ? {
+          inboxStatus: "OPEN" as const,
+          inboxSlaBreachedAt: {
+            not: null,
+          },
+        }
+      : {}),
     ...(filter === "unassigned"
       ? {
           assignedToUserId: null,
@@ -104,6 +168,16 @@ export async function getInboxContactsByCompany(
     ...(priority !== "all"
       ? {
           inboxPriority: priority,
+        }
+      : {}),
+    ...(input.queueId
+      ? {
+          inboxQueueId: input.queueId,
+        }
+      : {}),
+    ...(input.assignedUserId
+      ? {
+          assignedToUserId: input.assignedUserId,
         }
       : {}),
     AND: [
@@ -187,6 +261,7 @@ export async function getInboxContactsByCompany(
     where,
     include: {
       assignedTo: true,
+      inboxQueue: true,
       inboxTags: {
         include: {
           tag: true,
@@ -372,6 +447,7 @@ export async function getConversationByContact(
     },
     include: {
       assignedTo: true,
+      inboxQueue: true,
       inboxTags: {
         include: {
           tag: true,
@@ -673,57 +749,14 @@ export async function updateConversationAssignee(
   input: UpdateConversationAssigneeInput,
   actorUserId?: string | null,
 ) {
-  const contact = await prisma.contact.findFirst({
-    where: {
-      id: contactId,
-      companyId,
-    },
-  });
-
-  if (!contact) {
-    throw new Error("Contact not found");
-  }
-
-  if (input.assignedToUserId) {
-    const membership = await prisma.companyUser.findFirst({
-      where: {
-        companyId,
-        userId: input.assignedToUserId,
-      },
-    });
-
-    if (!membership) {
-      throw new Error("Assigned user is not a member of this company");
-    }
-  }
-
-  const updatedContact = await prisma.contact.update({
-    where: {
-      id: contact.id,
-    },
-    data: {
-      assignedToUserId: input.assignedToUserId,
-    },
-    include: {
-      assignedTo: true,
-    },
-  });
-
-  await recordContactActivity({
+  return assignConversation({
+    actorUserId,
+    assignedToUserId: input.assignedToUserId,
     companyId,
     contactId,
-    actorUserId,
-    type: input.assignedToUserId ? "ASSIGNED" : "UNASSIGNED",
-    title: input.assignedToUserId
-      ? "Conversation assigned"
-      : "Conversation unassigned",
-    metadata: {
-      previousAssignedToUserId: contact.assignedToUserId,
-      assignedToUserId: input.assignedToUserId,
-    },
+    reason: input.assignedToUserId ? "Manual assignee update" : "Manual unassign",
+    source: "MANUAL",
   });
-
-  return updatedContact;
 }
 
 type BulkInboxActionResult = {

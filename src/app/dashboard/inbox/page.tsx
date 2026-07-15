@@ -7,6 +7,7 @@ import {
   MessageCircle,
   Plus,
   Search,
+  Settings2,
   Star,
   UserRound,
 } from "lucide-react";
@@ -19,6 +20,8 @@ import {
 import { getInboxUrlState } from "@/lib/inbox-url";
 import InboxAutoRefresh from "./inbox-auto-refresh";
 import InboxChatComposer from "./inbox-chat-composer";
+import ConversationPresence from "./conversation-presence";
+import InboxPresenceHeartbeat from "./inbox-presence-heartbeat";
 
 type InboxPageProps = {
   searchParams: Promise<{
@@ -26,6 +29,8 @@ type InboxPageProps = {
     q?: string;
     filter?: string;
     page?: string;
+    queueId?: string;
+    assignedUserId?: string;
   }>;
 };
 
@@ -261,6 +266,9 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
     page: inboxUrlState.page,
     pageSize: 25,
     sla: inboxUrlState.sla,
+    queueId: inboxUrlState.queueId,
+    assignedUserId: inboxUrlState.assignedUserId,
+    currentUserId: context.user.id,
   });
   const contacts = inboxResult.contacts;
   const selectedContactId = params.contactId ?? contacts[0]?.id ?? "";
@@ -278,6 +286,7 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
   return (
     <div className="h-[calc(100vh-5.5rem)] overflow-hidden rounded-xl bg-white text-black">
       <InboxAutoRefresh />
+      <InboxPresenceHeartbeat activeContactId={selectedContactId || null} />
       <div className="grid h-full grid-cols-[460px_minmax(0,1fr)]">
         <aside className="flex min-h-0 flex-col border-r border-[#E6E6E6] bg-white">
           <div className="shrink-0 p-3">
@@ -316,6 +325,13 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
                 <Plus className="h-4 w-4" />
                 Filter
               </button>
+              <Link
+                href="/dashboard/inbox/settings/queues"
+                className="inline-flex h-8 items-center gap-2 rounded-md border border-[#D6D6D6] px-3 text-sm text-black hover:border-[#128C7E] hover:text-[#128C7E]"
+              >
+                <Settings2 className="h-4 w-4" />
+                Settings
+              </Link>
             </div>
           </div>
 
@@ -355,6 +371,11 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
                           <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
                             Score {contact.leadScore ?? 0}
                           </span>
+                          {contact.inboxQueue ? (
+                            <span className="rounded-full bg-[#E7F8EF] px-1.5 py-0.5 text-[10px] font-semibold text-[#128C7E]">
+                              {contact.inboxQueue.name}
+                            </span>
+                          ) : null}
                         </p>
                         <p className="mt-1 truncate text-sm text-[#777]">
                           {latestMessage?.direction === "OUTBOUND" ? (
@@ -390,7 +411,13 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
                     <h2 className="truncate text-base font-bold">
                       {selectedContact.name ?? `${selectedContact.countryCode}${selectedContact.phoneNumber}`}
                     </h2>
-                    <p className="text-sm text-[#777]">More Details</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <p className="text-sm text-[#777]">More Details</p>
+                      <ConversationPresence
+                        contactId={selectedContact.id}
+                        currentUserId={context.user.id}
+                      />
+                    </div>
                   </div>
                 </div>
 
