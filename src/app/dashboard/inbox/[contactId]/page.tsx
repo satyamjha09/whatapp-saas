@@ -33,9 +33,13 @@ import InboxReplyForm from "./inbox-reply-form";
 import MarkConversationRead from "./mark-conversation-read";
 import ConversationPresence from "../conversation-presence";
 import InboxPresenceHeartbeat from "../inbox-presence-heartbeat";
+import InboxAiPanel from "../inbox-ai-panel";
+import InboxMessageTranslation from "../inbox-message-translation";
 import NoteCard from "./note-card";
 import NoteForm from "./note-form";
 import CompactCustomerJourneyPanel from "@/components/customer-journey/compact-customer-journey-panel";
+import { getLatestInboxConversationSummary } from "@/server/services/inbox-ai-summary.service";
+import { getRecentInboxAiSuggestions } from "@/server/services/inbox-ai-suggestion.service";
 
 const BREAKDOWN_LABELS: Record<string, string> = {
   inbound_messages: "Inbound messages",
@@ -307,6 +311,8 @@ export default async function InboxConversationPage({
     members,
     inboxStats,
     inboxSlaSettings,
+    latestAiSummary,
+    recentAiSuggestions,
   ] = await Promise.all([
     getInboxContactsByCompany(companyId, {
       filter: activeFilter,
@@ -324,6 +330,8 @@ export default async function InboxConversationPage({
     getCompanyMembers(companyId),
     getInboxStatsByCompany(companyId, context.user.id),
     getInboxSlaSettingsByCompany(companyId),
+    getLatestInboxConversationSummary({ companyId, contactId }),
+    getRecentInboxAiSuggestions({ companyId, contactId }),
   ]);
   const contacts = inboxResult.contacts;
   const pagination = inboxResult.pagination;
@@ -772,6 +780,32 @@ export default async function InboxConversationPage({
 
               <CompactCustomerJourneyPanel contactId={conversation.id} />
 
+              <InboxAiPanel
+                contactId={conversation.id}
+                initialSummary={
+                  latestAiSummary
+                    ? {
+                        result: latestAiSummary.result,
+                        status: latestAiSummary.status,
+                        staleAt: latestAiSummary.staleAt?.toISOString() ?? null,
+                        errorMessage: latestAiSummary.errorMessage,
+                        provider: latestAiSummary.provider,
+                        model: latestAiSummary.model,
+                        latencyMs: latestAiSummary.latencyMs,
+                        createdAt: latestAiSummary.createdAt.toISOString(),
+                      }
+                    : null
+                }
+                initialSuggestions={recentAiSuggestions.map((suggestion) => ({
+                  id: suggestion.id,
+                  tone: suggestion.tone,
+                  result: suggestion.result,
+                  status: suggestion.status,
+                  errorMessage: suggestion.errorMessage,
+                  createdAt: suggestion.createdAt.toISOString(),
+                }))}
+              />
+
               {conversation.leadScoreBreakdown && typeof conversation.leadScoreBreakdown === "object" && (
                 <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-center justify-between mb-2">
@@ -906,11 +940,14 @@ export default async function InboxConversationPage({
                         </p>
 
                         {!isOutbound && (
-                          <p className="mt-2 text-xs text-gray-400">
-                            {message.inboxReadAt
-                              ? `Seen internally: ${message.inboxReadAt.toLocaleString()}`
-                              : "Unread internally"}
-                          </p>
+                          <>
+                            <p className="mt-2 text-xs text-gray-400">
+                              {message.inboxReadAt
+                                ? `Seen internally: ${message.inboxReadAt.toLocaleString()}`
+                                : "Unread internally"}
+                            </p>
+                            <InboxMessageTranslation messageId={message.id} />
+                          </>
                         )}
                       </div>
                     </div>
@@ -924,6 +961,7 @@ export default async function InboxConversationPage({
               customerServiceWindowEndsAt={
                 customerServiceWindowEndsAt?.toISOString() ?? null
               }
+              approvalRequired={Boolean(conversation.inboxQueue?.approvalRequired)}
             />
           </section>
         </div>

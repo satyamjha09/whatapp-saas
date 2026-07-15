@@ -10,6 +10,7 @@ let maintenanceQueue: Queue | undefined;
 let leadScoreQueue: Queue | undefined;
 let automationRuntimeQueue: Queue | undefined;
 let automationMonitoringQueue: Queue | undefined;
+let inboxAiQueue: Queue | undefined;
 let contactImportQueue: Queue | undefined;
 
 export function getContactImportQueue() {
@@ -150,6 +151,29 @@ export function getAutomationMonitoringQueue() {
   return automationMonitoringQueue;
 }
 
+export function getInboxAiQueue() {
+  inboxAiQueue ??= new Queue("inbox-ai-queue", {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: {
+        type: "exponential",
+        delay: 20_000,
+      },
+      removeOnComplete: {
+        age: 24 * 60 * 60,
+        count: 500,
+      },
+      removeOnFail: {
+        age: 7 * 24 * 60 * 60,
+        count: 1000,
+      },
+    },
+  });
+
+  return inboxAiQueue;
+}
+
 export type SendMessageJobData = {
   messageId: string;
   companyId: string;
@@ -183,3 +207,26 @@ export type AutomationFlowResponseJobData = {
 export type AutomationRuntimeJobData =
   | AutomationInboundRuntimeJobData
   | AutomationFlowResponseJobData;
+
+export type InboxAiJobData =
+  | {
+      kind: "SUMMARY";
+      companyId: string;
+      contactId: string;
+      userId?: string;
+    }
+  | {
+      kind: "SUGGESTION";
+      companyId: string;
+      contactId: string;
+      userId?: string;
+      tone: string;
+    }
+  | {
+      kind: "TRANSLATION";
+      companyId: string;
+      messageId: string;
+      userId?: string;
+      targetLanguage: string;
+      sourceLanguage?: string;
+    };

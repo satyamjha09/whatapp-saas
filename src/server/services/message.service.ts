@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { assertContactCanReceiveTemplate } from "@/server/services/contact-consent.service";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
+import { clearInboxSlaTimersForAgentReply } from "@/server/services/inbox-sla.service";
 import { assertCompanyMessageQuota } from "@/server/services/message-quota.service";
 import { assertSubscriptionCanSend } from "@/server/services/subscription-expiry.service";
 import {
@@ -588,8 +589,16 @@ export async function createQueuedInboxReply(
   companyId: string,
   contactId: string,
   input: CreateInboxReplyInput,
-  actorUserId?: string | null,
+  options?: {
+    actorUserId?: string | null;
+    approvedByUserId?: string | null;
+    inboxReplyApprovalId?: string | null;
+  } | null,
 ) {
+  const actorUserId = options?.actorUserId ?? null;
+  const approvedByUserId = options?.approvedByUserId ?? null;
+  const inboxReplyApprovalId = options?.inboxReplyApprovalId ?? null;
+
   await assertSubscriptionCanSend(companyId);
   await assertCompanyMessageQuota(companyId);
   await assertUsageQuotaAvailable({
@@ -607,6 +616,10 @@ export async function createQueuedInboxReply(
 
   if (!contact) {
     throw new Error("Contact not found");
+  }
+
+  if (contact.isBlocked || contact.optedOutAt) {
+    throw new Error("Contact has opted out or is blocked");
   }
 
   const customerServiceWindowStartedAt = contact.inboxLastCustomerMessageAt;
@@ -657,6 +670,9 @@ export async function createQueuedInboxReply(
         toPhoneNumber: `${contact.countryCode}${contact.phoneNumber}`,
         body: input.body,
         variables: [],
+        sentByUserId: actorUserId,
+        approvedByUserId,
+        inboxReplyApprovalId,
         status: "QUEUED",
         direction: "OUTBOUND",
         events: {
@@ -666,6 +682,9 @@ export async function createQueuedInboxReply(
             raw: {
               source: "inbox_reply",
               reason: "Customer service window reply queued",
+              actorUserId,
+              approvedByUserId,
+              inboxReplyApprovalId,
             },
           },
         },
@@ -727,6 +746,13 @@ export async function createQueuedInboxReply(
     data: {
       lastRepliedAt: new Date(),
     },
+  });
+
+  await clearInboxSlaTimersForAgentReply({
+    companyId,
+    contactId: contact.id,
+    actorUserId,
+    messageId: message.id,
   });
 
   await recordContactActivity({

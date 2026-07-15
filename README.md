@@ -53,7 +53,7 @@ npx prisma studio --port 5555
 
 Copy `.env.example` to `.env` and fill values.
 
+hi from codex
 
-
-<!-- hi from codex -->
+hello from codex
 

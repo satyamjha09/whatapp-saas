@@ -6,6 +6,10 @@ const tabs = [
   { href: "/dashboard/inbox/settings/routing", label: "Routing" },
   { href: "/dashboard/inbox/settings/agents", label: "Agents" },
   { href: "/dashboard/inbox/settings/skills", label: "Skills" },
+  { href: "/dashboard/inbox/settings/sla", label: "SLA" },
+  { href: "/dashboard/inbox/settings/csat", label: "CSAT" },
+  { href: "/dashboard/inbox/settings/business-hours", label: "Business hours" },
+  { href: "/dashboard/inbox/settings/escalations", label: "Escalations" },
 ];
 
 export default function InboxSettingsLayout({

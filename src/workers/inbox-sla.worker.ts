@@ -21,9 +21,14 @@ async function runSlaBreachCheck() {
       limit: 100,
     });
 
-    if (result.breached > 0) {
+    if (
+      result.dueSoon > 0 ||
+      result.breached > 0 ||
+      result.escalated > 0 ||
+      result.resumedSnoozes > 0
+    ) {
       console.log(
-        `[inbox-sla-worker] Marked ${result.breached} SLA breach(es).`,
+        `[inbox-sla-worker] SLA scan: ${result.dueSoon} due soon, ${result.breached} breached, ${result.escalated} escalated, ${result.resumedSnoozes} snooze(s) resumed.`,
       );
     }
   } catch (error) {

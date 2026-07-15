@@ -13,7 +13,7 @@ import {
 import { recordContactActivity } from "@/server/services/contact-activity.service";
 import { updateBulkMessageRecipientTracking } from "@/server/services/bulk-message-tracking.service";
 import { attributeInboundCampaignReply } from "@/server/services/campaign-reply-attribution.service";
-import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
+import { setInboxSlaTimersForInbound } from "@/server/services/inbox-sla.service";
 import { queueLeadScoreRecalculation } from "@/server/services/lead-scoring.service";
 import { publishInboxRealtimeEvent } from "@/server/realtime/inbox-events";
 import { createUnmappedWebhookEvent } from "@/server/services/webhook.service";
@@ -27,6 +27,11 @@ import {
 import { recordWhatsAppCatalogInteraction } from "@/server/services/whatsapp-catalog-interaction.service";
 import { processChatbotInboundMessage } from "@/server/services/chatbot-runtime.service";
 import { routeConversation } from "@/server/services/inbox-routing.service";
+import { markInboxAiContextStale } from "@/server/services/inbox-ai-context.service";
+import {
+  hasActiveInboxCsatSurvey,
+  recordCsatResponseFromInboundMessage,
+} from "@/server/services/inbox-csat.service";
 import { queueAutomationRuntimeJob } from "@/server/services/automation-runtime.service";
 import type { Prisma } from "@/generated/prisma/client";
 import type { MessageStatus } from "@/generated/prisma/enums";
@@ -484,6 +489,23 @@ const worker = new Worker<ProcessWebhookJobData>(
       let body = getInboundMessageBody(incomingMessage);
       const metadata = getInboundMessageMetadata(incomingMessage);
       const isFlowResponse = isWhatsAppFlowResponseMessage(incomingMessage);
+      const existingContact = await prisma.contact.findUnique({
+        where: {
+          companyId_phoneNumber: {
+            companyId,
+            phoneNumber: phone.phoneNumber,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+      const hasPendingCsat = existingContact
+        ? await hasActiveInboxCsatSurvey({
+            companyId,
+            contactId: existingContact.id,
+          })
+        : false;
 
       const contact = await prisma.contact.upsert({
         where: {
@@ -495,9 +517,13 @@ const worker = new Worker<ProcessWebhookJobData>(
         update: {
           name: contactName,
           countryCode: phone.countryCode,
-          inboxStatus: "OPEN",
-          inboxClosedAt: null,
-          snoozedUntil: null,
+          ...(hasPendingCsat
+            ? {}
+            : {
+                inboxStatus: "OPEN" as const,
+                inboxClosedAt: null,
+                snoozedUntil: null,
+              }),
         },
         create: {
           companyId,
@@ -529,6 +555,14 @@ const worker = new Worker<ProcessWebhookJobData>(
             },
           },
         },
+      });
+
+      await markInboxAiContextStale({
+        companyId,
+        contactId: contact.id,
+        reason: "inbound_message_received",
+      }).catch((error) => {
+        console.error("INBOX_AI_STALE_MARK_ERROR:", error);
       });
 
       if (isFlowResponse) {
@@ -593,6 +627,48 @@ const worker = new Worker<ProcessWebhookJobData>(
         console.error("INBOX_REALTIME_PUBLISH_ERROR:", error);
       });
 
+      const csatOutcome = await recordCsatResponseFromInboundMessage({
+        body,
+        companyId,
+        contactId: contact.id,
+        inboundMessageId: message.id,
+      }).catch((error) => {
+        console.error("INBOX_CSAT_RESPONSE_RECORD_ERROR:", {
+          companyId,
+          contactId: contact.id,
+          error: error instanceof Error ? error.message : error,
+          messageId: message.id,
+        });
+        return { handled: false, reason: "CSAT processing failed" };
+      });
+
+      if (csatOutcome.handled) {
+        await prisma.contact.update({
+          where: {
+            id: contact.id,
+          },
+          data: {
+            lastSeenAt: new Date(),
+          },
+        });
+
+        await recordContactActivity({
+          companyId,
+          contactId: contact.id,
+          actorUserId: null,
+          type: "MESSAGE_INBOUND",
+          title: "Customer submitted support rating",
+          metadata: {
+            messageId: message.id,
+            score: "score" in csatOutcome ? csatOutcome.score : null,
+            source: "inbox_csat",
+            surveyId: "surveyId" in csatOutcome ? csatOutcome.surveyId : null,
+          },
+        });
+
+        continue;
+      }
+
       const now = new Date();
       const consentKeyword = getConsentKeyword(body);
 
@@ -627,14 +703,30 @@ const worker = new Worker<ProcessWebhookJobData>(
             : {}),
           inboxLastCustomerMessageAt: now,
           lastSeenAt: now,
-          inboxSlaDueAt:
-            consentKeyword === "STOP"
-              ? null
-              : calculateInboxSlaDueAt(contact.inboxPriority, now),
-          inboxSlaBreachedAt: null,
-          inboxSlaEscalationCount: 0,
+          ...(consentKeyword === "STOP"
+            ? {
+                inboxSlaDueAt: null,
+                inboxFirstResponseDueAt: null,
+                inboxNextResponseDueAt: null,
+                inboxResolutionDueAt: null,
+                inboxSlaBreachedAt: null,
+                inboxSlaEscalationCount: 0,
+              }
+            : {}),
         },
       });
+
+      if (consentKeyword !== "STOP") {
+        await setInboxSlaTimersForInbound({
+          companyId,
+          contactId: contact.id,
+          from: now,
+          metadata: {
+            messageId: message.id,
+            providerMessageId: metaMessageId,
+          },
+        });
+      }
 
       if (consentKeyword === "STOP") {
         await revokeMarketingConsent({

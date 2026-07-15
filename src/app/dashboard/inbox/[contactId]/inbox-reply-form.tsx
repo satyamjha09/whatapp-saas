@@ -1,12 +1,13 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type InboxReplyFormProps = {
   contactId: string;
   customerServiceWindowEndsAt: string | null;
+  approvalRequired?: boolean;
 };
 
 type InboxReplyResponse = {
@@ -19,6 +20,7 @@ type InboxReplyResponse = {
 export default function InboxReplyForm({
   contactId,
   customerServiceWindowEndsAt,
+  approvalRequired = false,
 }: InboxReplyFormProps) {
   const router = useRouter();
   const [body, setBody] = useState("");
@@ -29,15 +31,15 @@ export default function InboxReplyForm({
     ? new Date(customerServiceWindowEndsAt) > new Date()
     : false;
 
-  async function setTyping(typing: boolean) {
+  const setTyping = useCallback(async (typing: boolean) => {
     await fetch(`/api/inbox/${contactId}/presence`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ typing }),
     }).catch(() => undefined);
-  }
+  }, [contactId]);
 
-  function handleBodyChange(value: string) {
+  const handleBodyChange = useCallback((value: string) => {
     setBody(value);
 
     if (typingTimerRef.current) {
@@ -53,7 +55,23 @@ export default function InboxReplyForm({
     typingTimerRef.current = window.setTimeout(() => {
       void setTyping(false);
     }, 2_500);
-  }
+  }, [setTyping]);
+
+  useEffect(() => {
+    function handleAiInsert(event: Event) {
+      const detail = (event as CustomEvent<{ text?: string }>).detail;
+
+      if (typeof detail?.text === "string" && detail.text.trim()) {
+        handleBodyChange(detail.text);
+      }
+    }
+
+    window.addEventListener("metawhat:insert-inbox-reply", handleAiInsert);
+
+    return () => {
+      window.removeEventListener("metawhat:insert-inbox-reply", handleAiInsert);
+    };
+  }, [handleBodyChange]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -127,12 +145,19 @@ export default function InboxReplyForm({
           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#128C7E] px-4 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,82,204,0.20)] transition hover:bg-[#075E54] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Send className="h-4 w-4" />
-          {isSending ? "Queuing..." : "Send"}
+          {isSending
+            ? approvalRequired
+              ? "Submitting..."
+              : "Queuing..."
+            : approvalRequired
+              ? "Submit for approval"
+              : "Send"}
         </button>
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-3 text-xs text-[#526173]">
         <span>
+          {approvalRequired ? "Approval required. " : ""}
           Reply window ends {new Date(customerServiceWindowEndsAt!).toLocaleString()}
         </span>
         <span>{body.length}/4096</span>

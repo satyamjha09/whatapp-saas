@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { assertTenantEntityAccess } from "@/server/auth/tenant-guard";
 import { createAuditLog } from "@/server/services/audit.service";
-import { createQueuedInboxReply } from "@/server/services/message.service";
+import { markInboxAiContextStale } from "@/server/services/inbox-ai-context.service";
+import { submitInboxReply } from "@/server/services/inbox-reply-submission.service";
 import { UsageQuotaExceededError } from "@/server/services/usage-quota.service";
 import {
   assertSystemWritesAllowed,
@@ -65,28 +66,54 @@ export async function POST(
       return createTenantErrorResponse(error);
     }
 
-    const message = await createQueuedInboxReply(
-      context.membership.companyId,
+    const result = await submitInboxReply({
+      companyId: context.membership.companyId,
       contactId,
-      validation.data,
-      context.user.id,
-    );
+      actorUserId: context.user.id,
+      input: validation.data,
+    });
+
+    if (result.status === "QUEUED") {
+      await markInboxAiContextStale({
+        companyId: context.membership.companyId,
+        contactId,
+        reason: "outbound_reply_created",
+      }).catch((error) => {
+        console.error("INBOX_AI_STALE_MARK_ERROR:", error);
+      });
+    }
 
     await createAuditLog({
       companyId: context.membership.companyId,
       actorUserId: context.user.id,
-      action: "inbox.reply.queued",
-      entityType: "Message",
-      entityId: message.id,
+      action:
+        result.status === "QUEUED"
+          ? "inbox.reply.queued"
+          : "inbox.reply.submitted_for_approval",
+      entityType: result.status === "QUEUED" ? "Message" : "InboxReplyApproval",
+      entityId: result.status === "QUEUED" ? result.message.id : result.approval.id,
       metadata: {
         contactId,
+        approvalRequired: result.approvalRequired,
       },
     });
+
+    if (result.status === "PENDING_APPROVAL") {
+      return NextResponse.json(
+        {
+          message: "Reply submitted for approval",
+          data: result.approval,
+          approvalRequired: true,
+        },
+        { status: 202 },
+      );
+    }
 
     return NextResponse.json(
       {
         message: "Reply queued successfully",
-        data: message,
+        data: result.message,
+        approvalRequired: false,
       },
       { status: 201 },
     );
@@ -119,6 +146,13 @@ export async function POST(
     if (
       error instanceof Error &&
       error.message === "Customer service window has expired"
+    ) {
+      return NextResponse.json({ message: error.message }, { status: 409 });
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "Contact has opted out or is blocked"
     ) {
       return NextResponse.json({ message: error.message }, { status: 409 });
     }

@@ -98,6 +98,21 @@ module.exports = {
     }),
 
     tsxWorker({
+      name: "metawhat-inbox-csat-worker",
+      script: "src/workers/inbox-csat.worker.ts",
+    }),
+
+    tsxWorker({
+      name: "metawhat-inbox-ai-worker",
+      script: "src/workers/inbox-ai.worker.ts",
+    }),
+
+    tsxWorker({
+      name: "metawhat-inbox-analytics-worker",
+      script: "src/workers/inbox-analytics.worker.ts",
+    }),
+
+    tsxWorker({
       name: "metawhat-maintenance-worker",
       script: "src/workers/maintenance.worker.ts",
     }),

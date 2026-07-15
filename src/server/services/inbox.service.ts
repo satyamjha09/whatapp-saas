@@ -10,9 +10,14 @@ import type {
   InboxPriorityFilter,
   InboxSort,
 } from "@/lib/inbox-options";
-import { calculateInboxSlaDueAt } from "@/server/services/inbox-sla.service";
+import {
+  calculateInboxSlaDueAt,
+  markInboxConversationResolved,
+} from "@/server/services/inbox-sla.service";
+import { recordInboxSlaEvent } from "@/server/services/inbox-sla-policy.service";
 import { queueLeadScoreRecalculation } from "@/server/services/lead-scoring.service";
 import { recordContactActivity } from "@/server/services/contact-activity.service";
+import { createInboxCsatSurveyForClosedConversation } from "@/server/services/inbox-csat.service";
 import { assignConversation } from "@/server/services/inbox-assignment.service";
 import {
   CreateInboxNoteInput,
@@ -672,10 +677,47 @@ export async function updateConversationStatus(
       inboxStatus: input.status,
       inboxClosedAt: input.status === "CLOSED" ? new Date() : null,
       inboxSlaDueAt: slaDueAt,
+      inboxFirstResponseDueAt: input.status === "CLOSED" ? null : undefined,
+      inboxNextResponseDueAt: input.status === "CLOSED" ? null : undefined,
+      inboxResolutionDueAt: input.status === "CLOSED" ? null : undefined,
+      inboxResolvedAt: input.status === "CLOSED" ? new Date() : null,
       inboxSlaBreachedAt: null,
       inboxSlaEscalationCount: 0,
     },
   });
+
+  if (input.status === "CLOSED") {
+    await markInboxConversationResolved({
+      companyId,
+      contactId: contact.id,
+      actorUserId,
+    });
+
+    if (contact.inboxStatus !== "CLOSED") {
+      await createInboxCsatSurveyForClosedConversation({
+        closedByUserId: actorUserId,
+        companyId,
+        contactId: contact.id,
+      }).catch((error) => {
+        console.error("INBOX_CSAT_CREATE_ERROR:", {
+          companyId,
+          contactId: contact.id,
+          error: error instanceof Error ? error.message : error,
+        });
+      });
+    }
+  } else if (contact.inboxStatus === "CLOSED") {
+    await recordInboxSlaEvent({
+      companyId,
+      contactId: contact.id,
+      queueId: contact.inboxQueueId,
+      actorUserId: actorUserId ?? null,
+      type: "REOPENED",
+      metadata: {
+        source: "manual_status_change",
+      },
+    });
+  }
 
   await recordContactActivity({
     companyId,
@@ -1116,6 +1158,10 @@ export async function bulkUpdateInboxConversations(
         inboxStatus: "OPEN",
         inboxClosedAt: null,
         snoozedUntil,
+        snoozeReason: input.snoozeReason?.trim() || null,
+        snoozedByUserId: actorUserId ?? null,
+        snoozedAt: now,
+        inboxSlaPausedAt: now,
       },
     });
 
@@ -1127,6 +1173,7 @@ export async function bulkUpdateInboxConversations(
       title: "Conversation snoozed",
       metadataForContact: () => ({
         snoozedUntil,
+        snoozeReason: input.snoozeReason?.trim() || null,
       }),
     });
 
@@ -1148,6 +1195,10 @@ export async function bulkUpdateInboxConversations(
       },
       data: {
         snoozedUntil: null,
+        snoozeReason: null,
+        snoozedByUserId: null,
+        snoozedAt: null,
+        inboxSlaPausedAt: null,
       },
     });
 
@@ -1271,10 +1322,44 @@ export async function updateConversationSnooze(
     where: {
       id: contact.id,
     },
-    data: {
-      snoozedUntil,
+      data: {
+        snoozedUntil,
+        snoozeReason: snoozedUntil ? input.snoozeReason?.trim() || null : null,
+        snoozedByUserId: snoozedUntil ? actorUserId ?? null : null,
+        snoozedAt: snoozedUntil ? new Date() : null,
+        inboxSlaPausedAt: snoozedUntil ? new Date() : null,
+        ...(snoozedUntil
+          ? {}
+          : contact.inboxSlaPausedAt
+            ? {
+                inboxSlaPausedSeconds: {
+                  increment: Math.max(
+                    0,
+                    Math.floor(
+                      (new Date().getTime() -
+                        contact.inboxSlaPausedAt.getTime()) /
+                        1000,
+                    ),
+                  ),
+                },
+              }
+            : {}),
       inboxStatus: snoozedUntil ? "OPEN" : contact.inboxStatus,
       inboxClosedAt: snoozedUntil ? null : contact.inboxClosedAt,
+    },
+  });
+
+  await recordInboxSlaEvent({
+    companyId,
+    contactId,
+    queueId: contact.inboxQueueId,
+    actorUserId: actorUserId ?? null,
+    type: snoozedUntil ? "PAUSED" : "RESUMED",
+    metadata: {
+      source: "manual_snooze",
+      previousSnoozedUntil: contact.snoozedUntil?.toISOString() ?? null,
+      snoozedUntil: updatedContact.snoozedUntil?.toISOString() ?? null,
+      snoozeReason: updatedContact.snoozeReason,
     },
   });
 

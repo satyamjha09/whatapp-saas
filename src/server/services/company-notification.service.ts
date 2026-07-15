@@ -9,6 +9,7 @@ type NotificationType =
   | "WEBHOOK"
   | "DEVELOPER_API"
   | "CAMPAIGN"
+  | "INBOX"
   | "SYSTEM";
 
 type NotificationSeverity = "INFO" | "SUCCESS" | "WARNING" | "ERROR";
@@ -120,6 +121,93 @@ export async function createCompanyNotification({
     });
   } catch (error) {
     console.error("COMPANY_NOTIFICATION_EMAIL_ENQUEUE_ERROR:", error);
+  }
+
+  return notification;
+}
+
+export async function createTargetedCompanyNotification({
+  companyId,
+  userIds,
+  type,
+  severity = "INFO",
+  title,
+  message,
+  actionHref,
+  idempotencyKey,
+  metadata,
+}: {
+  companyId: string;
+  userIds: string[];
+  type: NotificationType;
+  severity?: NotificationSeverity;
+  title: string;
+  message: string;
+  actionHref?: string | null;
+  idempotencyKey?: string | null;
+  metadata?: Prisma.InputJsonValue;
+}) {
+  const notification = idempotencyKey
+    ? await prisma.companyNotification.upsert({
+        where: {
+          companyId_idempotencyKey: { companyId, idempotencyKey },
+        },
+        update: {},
+        create: {
+          companyId,
+          type,
+          severity,
+          title,
+          message,
+          actionHref: actionHref ?? null,
+          idempotencyKey,
+          metadata,
+        },
+      })
+    : await prisma.companyNotification.create({
+        data: {
+          companyId,
+          type,
+          severity,
+          title,
+          message,
+          actionHref: actionHref ?? null,
+          idempotencyKey: null,
+          metadata,
+        },
+      });
+
+  const uniqueUserIds = [...new Set(userIds.filter(Boolean))];
+  const allowedUserIds: string[] = [];
+
+  for (const userId of uniqueUserIds) {
+    const shouldCreate = await shouldCreateRecipientForNotification({
+      companyId,
+      userId,
+      type: notification.type,
+      severity: notification.severity,
+    });
+
+    if (shouldCreate) allowedUserIds.push(userId);
+  }
+
+  if (allowedUserIds.length > 0) {
+    await prisma.companyNotificationRecipient.createMany({
+      data: allowedUserIds.map((userId) => ({
+        notificationId: notification.id,
+        userId,
+      })),
+      skipDuplicates: true,
+    });
+
+    try {
+      await enqueueCompanyNotificationEmails({
+        companyId,
+        notificationId: notification.id,
+      });
+    } catch (error) {
+      console.error("COMPANY_NOTIFICATION_EMAIL_ENQUEUE_ERROR:", error);
+    }
   }
 
   return notification;

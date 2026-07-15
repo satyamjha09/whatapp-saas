@@ -22,6 +22,7 @@ export const bulkInboxActionSchema = z
     assignedToUserId: z.string().nullable().optional(),
     tagId: z.string().optional(),
     snoozedUntil: z.string().datetime().optional(),
+    snoozeReason: z.string().max(240).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.action === "SET_STATUS" && !data.status) {
