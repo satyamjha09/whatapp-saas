@@ -29,7 +29,6 @@ export default function CompactCustomerJourneyPanel({ contactId }: CompactCustom
         setLoading(false);
       }
     }
-
     void fetchEvents();
   }, [contactId]);
 
