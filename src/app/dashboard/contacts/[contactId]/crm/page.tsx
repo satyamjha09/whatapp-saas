@@ -1,15 +1,21 @@
 import {
   Activity,
+  AlertTriangle,
   ArrowLeft,
   BadgeCheck,
+  Building2,
   CalendarClock,
+  CheckCircle2,
   ClipboardList,
   Coins,
   Database,
   FileText,
+  Gauge,
   IndianRupee,
+  Mail,
   MessageSquareText,
   NotebookTabs,
+  Phone,
   ReceiptText,
   Reply,
   ShieldCheck,
@@ -78,6 +84,135 @@ function initials(contact: ContactCrmProfile) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+}
+
+function buildProfileCompletion(contact: ContactCrmProfile) {
+  const fields = [
+    { isComplete: Boolean(contact.name), label: "Name" },
+    { isComplete: Boolean(contact.email), label: "Email" },
+    { isComplete: Boolean(contact.companyName), label: "Company" },
+    { isComplete: Boolean(contact.city), label: "City" },
+    { isComplete: Boolean(contact.externalCustomerId), label: "Customer ID" },
+    {
+      isComplete: contact.marketingConsentStatus === "GRANTED",
+      label: "Marketing consent",
+    },
+    {
+      isComplete: contact.utilityConsentStatus === "GRANTED",
+      label: "Utility consent",
+    },
+    {
+      isComplete: contact.inboxTags.length > 0,
+      label: "Tags",
+    },
+    {
+      isComplete: Boolean(contact.assignedToUserId),
+      label: "Assigned agent",
+    },
+    {
+      isComplete:
+        Boolean(contact.customAttributes) &&
+        typeof contact.customAttributes === "object" &&
+        Object.keys(contact.customAttributes as Record<string, unknown>).length > 0,
+      label: "Custom fields",
+    },
+  ];
+  const completed = fields.filter((field) => field.isComplete).length;
+
+  return {
+    completed,
+    missing: fields.filter((field) => !field.isComplete).map((field) => field.label),
+    percent: Math.round((completed / fields.length) * 100),
+    total: fields.length,
+  };
+}
+
+function buildCustomerHealth(contact: ContactCrmProfile) {
+  let score = 55;
+  const reasons: string[] = [];
+
+  if (contact.marketingConsentStatus === "GRANTED") {
+    score += 10;
+    reasons.push("Marketing consent is available.");
+  }
+  if (contact.utilityConsentStatus === "GRANTED") {
+    score += 8;
+    reasons.push("Utility/service messaging is consent-safe.");
+  }
+  if (contact.customer360.engagement.replies.length > 0 || contact.lastRepliedAt) {
+    score += 10;
+    reasons.push("Customer has replied before.");
+  }
+  if (contact.customer360.orders.openOrderCount > 0) {
+    score += 7;
+    reasons.push("Active order creates a useful follow-up reason.");
+  }
+  if (contact.customer360.crm.openTasks.length > 0) {
+    score -= 8;
+    reasons.push("Open follow-up task needs attention.");
+  }
+  if (contact.customer360.engagement.failedMessages > 0) {
+    score -= 6;
+    reasons.push("Some messages failed recently.");
+  }
+  if (contact.optedOutAt || contact.marketingConsentStatus === "REVOKED") {
+    score -= 22;
+    reasons.push("Marketing opt-out must be respected.");
+  }
+  if (contact.isBlocked) {
+    score -= 30;
+    reasons.push("Contact is blocked.");
+  }
+
+  const boundedScore = Math.max(0, Math.min(100, score));
+
+  return {
+    label:
+      boundedScore >= 80
+        ? "Healthy"
+        : boundedScore >= 60
+          ? "Watch"
+          : boundedScore >= 40
+            ? "Needs attention"
+            : "Restricted",
+    reasons: reasons.slice(0, 4),
+    score: boundedScore,
+  };
+}
+
+function buildCommunicationReadiness(contact: ContactCrmProfile) {
+  return [
+    {
+      isReady: !contact.isBlocked,
+      label: contact.isBlocked ? "Blocked contact" : "Not blocked",
+      tone: contact.isBlocked ? "red" : "green",
+    },
+    {
+      isReady: !contact.optedOutAt,
+      label: contact.optedOutAt ? "Opted out" : "No opt-out recorded",
+      tone: contact.optedOutAt ? "red" : "green",
+    },
+    {
+      isReady: contact.marketingConsentStatus === "GRANTED",
+      label:
+        contact.marketingConsentStatus === "GRANTED"
+          ? "Marketing consent granted"
+          : `Marketing ${pretty(contact.marketingConsentStatus)}`,
+      tone: contact.marketingConsentStatus === "GRANTED" ? "green" : "amber",
+    },
+    {
+      isReady: contact.utilityConsentStatus === "GRANTED",
+      label:
+        contact.utilityConsentStatus === "GRANTED"
+          ? "Utility consent granted"
+          : `Utility ${pretty(contact.utilityConsentStatus)}`,
+      tone: contact.utilityConsentStatus === "GRANTED" ? "green" : "amber",
+    },
+  ] as Array<{
+    isReady: boolean;
+    label: string;
+    tone: "amber" | "green" | "red";
+  }>;
 }
 
 function StatCard({
@@ -193,6 +328,49 @@ function InfoRow({
   );
 }
 
+function ProgressBar({
+  percent,
+  tone = "green",
+}: {
+  percent: number;
+  tone?: "blue" | "green";
+}) {
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-[#DDFBEA]">
+      <div
+        className={
+          tone === "blue"
+            ? "h-full rounded-full bg-[#2563EB]"
+            : "h-full rounded-full bg-[#128C7E]"
+        }
+        style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
+      />
+    </div>
+  );
+}
+
+function MiniInsightCard({
+  children,
+  icon: Icon,
+  label,
+}: {
+  children: ReactNode;
+  icon: LucideIcon;
+  label: string;
+}) {
+  return (
+    <article className="rounded-[20px] border border-[#BFE9D0] bg-white/90 p-5 shadow-[0_18px_45px_rgba(8,27,58,0.06)]">
+      <div className="flex items-center gap-3">
+        <div className="rounded-2xl bg-[#128C7E]/10 p-3 text-[#128C7E]">
+          <Icon className="h-5 w-5" />
+        </div>
+        <h2 className="text-base font-black text-[#081B3A]">{label}</h2>
+      </div>
+      <div className="mt-4">{children}</div>
+    </article>
+  );
+}
+
 function previewText(value: string | null | undefined, fallback = "No text") {
   if (!value) return fallback;
   return value.length > 140 ? `${value.slice(0, 140)}...` : value;
@@ -206,6 +384,9 @@ function CustomerHeader({
   contact: ContactCrmProfile;
 }) {
   const action = contact.customer360.nextRecommendedAction;
+  const profileCompletion = buildProfileCompletion(contact);
+  const health = buildCustomerHealth(contact);
+  const readiness = buildCommunicationReadiness(contact);
 
   return (
     <section className="rounded-[24px] border border-[#BFE9D0] bg-gradient-to-br from-white via-[#F8FFFB] to-[#EAF7FF] p-6 shadow-[0_24px_70px_rgba(8,27,58,0.08)]">
@@ -250,10 +431,88 @@ function CustomerHeader({
               {contact.companyName ?? "No company added"} - Source{" "}
               {pretty(contact.source)}
             </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-[#BFE9D0] bg-white/80 p-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em] text-[#526173]">
+                  <Mail className="h-4 w-4 text-[#128C7E]" />
+                  Email
+                </div>
+                <p className="mt-1 truncate text-sm font-black text-[#081B3A]">
+                  {contact.email ?? "Not added"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[#BFE9D0] bg-white/80 p-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em] text-[#526173]">
+                  <Building2 className="h-4 w-4 text-[#128C7E]" />
+                  Company
+                </div>
+                <p className="mt-1 truncate text-sm font-black text-[#081B3A]">
+                  {contact.companyName ?? "Not added"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[#BFE9D0] bg-white/80 p-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em] text-[#526173]">
+                  <Phone className="h-4 w-4 text-[#128C7E]" />
+                  WhatsApp
+                </div>
+                <p className="mt-1 truncate text-sm font-black text-[#081B3A]">
+                  +{contact.countryCode} {contact.phoneNumber}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="min-w-0 rounded-2xl border border-[#BFE9D0] bg-white/85 p-4 xl:w-[380px]">
+        <div className="grid min-w-0 gap-3 xl:w-[420px]">
+          <div className="rounded-2xl border border-[#BFE9D0] bg-white/85 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-black text-[#081B3A]">
+                  Customer health
+                </p>
+                <p className="mt-1 text-2xl font-black text-[#128C7E]">
+                  {health.score}/100
+                </p>
+              </div>
+              <StatusBadge
+                tone={
+                  health.score >= 80
+                    ? "green"
+                    : health.score >= 60
+                      ? "blue"
+                      : health.score >= 40
+                        ? "amber"
+                        : "red"
+                }
+              >
+                {health.label}
+              </StatusBadge>
+            </div>
+            <div className="mt-3">
+              <ProgressBar percent={health.score} tone="blue" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#BFE9D0] bg-white/85 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-black text-[#081B3A]">
+                  Profile completeness
+                </p>
+                <p className="mt-1 text-sm font-semibold text-[#526173]">
+                  {profileCompletion.completed} of {profileCompletion.total} fields ready
+                </p>
+              </div>
+              <p className="text-2xl font-black text-[#081B3A]">
+                {profileCompletion.percent}%
+              </p>
+            </div>
+            <div className="mt-3">
+              <ProgressBar percent={profileCompletion.percent} />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#BFE9D0] bg-white/85 p-4">
           <div className="flex items-start gap-3">
             <div className="rounded-2xl bg-[#128C7E]/10 p-3 text-[#128C7E]">
               <Sparkles className="h-5 w-5" />
@@ -277,6 +536,7 @@ function CustomerHeader({
               </div>
             </div>
           </div>
+          </div>
         </div>
       </div>
 
@@ -294,6 +554,28 @@ function CustomerHeader({
           Full timeline
         </Link>
         {canManagePrivacy ? <PrivacyRequestButtons contactId={contact.id} /> : null}
+      </div>
+
+      <div className="mt-6 grid gap-3 lg:grid-cols-4">
+        {readiness.map((item) => (
+          <div
+            className="flex items-center gap-3 rounded-2xl border border-[#BFE9D0] bg-white/75 px-4 py-3"
+            key={item.label}
+          >
+            {item.isReady ? (
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-[#128C7E]" />
+            ) : (
+              <AlertTriangle
+                className={`h-5 w-5 shrink-0 ${
+                  item.tone === "red" ? "text-rose-600" : "text-amber-600"
+                }`}
+              />
+            )}
+            <span className="text-sm font-bold text-[#081B3A]">
+              {item.label}
+            </span>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -340,6 +622,8 @@ export default async function ContactCrmPage({ params }: PageProps) {
     contact.customAttributes && typeof contact.customAttributes === "object"
       ? Object.entries(contact.customAttributes as Record<string, unknown>)
       : [];
+  const profileCompletion = buildProfileCompletion(contact);
+  const health = buildCustomerHealth(contact);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#F8FFFB] via-white to-[#DDFBEA] px-5 py-6">
@@ -398,6 +682,115 @@ export default async function ContactCrmPage({ params }: PageProps) {
             label="Customer value"
             value={formatMoney(customer360.money.customerLifetimeValuePaise)}
           />
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[1fr_1fr_1.1fr]">
+          <MiniInsightCard icon={Gauge} label="Customer quality">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-4xl font-black text-[#081B3A]">
+                  {health.score}
+                </p>
+                <p className="text-sm font-semibold text-[#526173]">
+                  {health.label} customer health
+                </p>
+              </div>
+              <StatusBadge
+                tone={
+                  health.score >= 80
+                    ? "green"
+                    : health.score >= 60
+                      ? "blue"
+                      : health.score >= 40
+                        ? "amber"
+                        : "red"
+                }
+              >
+                {customer360.nextRecommendedAction.priority} action
+              </StatusBadge>
+            </div>
+            <div className="mt-4">
+              <ProgressBar percent={health.score} tone="blue" />
+            </div>
+            <div className="mt-4 space-y-2">
+              {(health.reasons.length > 0
+                ? health.reasons
+                : ["No strong risk or opportunity signal yet."]
+              ).map((reason) => (
+                <p
+                  className="flex gap-2 text-sm leading-6 text-[#526173]"
+                  key={reason}
+                >
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#128C7E]" />
+                  {reason}
+                </p>
+              ))}
+            </div>
+          </MiniInsightCard>
+
+          <MiniInsightCard icon={BadgeCheck} label="Profile gaps">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-4xl font-black text-[#081B3A]">
+                  {profileCompletion.percent}%
+                </p>
+                <p className="text-sm font-semibold text-[#526173]">
+                  {profileCompletion.completed} of {profileCompletion.total} profile signals complete
+                </p>
+              </div>
+              <StatusBadge
+                tone={profileCompletion.percent >= 80 ? "green" : "amber"}
+              >
+                {profileCompletion.missing.length} missing
+              </StatusBadge>
+            </div>
+            <div className="mt-4">
+              <ProgressBar percent={profileCompletion.percent} />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {profileCompletion.missing.length > 0 ? (
+                profileCompletion.missing.slice(0, 5).map((field) => (
+                  <StatusBadge key={field} tone="slate">
+                    {field}
+                  </StatusBadge>
+                ))
+              ) : (
+                <StatusBadge tone="green">Ready for CRM workflows</StatusBadge>
+              )}
+            </div>
+          </MiniInsightCard>
+
+          <MiniInsightCard icon={Sparkles} label="Best next actions">
+            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+              <Link
+                className="rounded-2xl border border-[#BFE9D0] bg-[#F8FFFB] px-4 py-3 text-sm font-black text-[#081B3A] transition hover:-translate-y-0.5 hover:bg-white"
+                href={`/dashboard/messages/send?contactId=${contact.id}`}
+              >
+                Send approved template
+                <span className="mt-1 block text-xs font-semibold text-[#526173]">
+                  Use consent-safe WhatsApp outreach.
+                </span>
+              </Link>
+              <Link
+                className="rounded-2xl border border-[#BFE9D0] bg-[#F8FFFB] px-4 py-3 text-sm font-black text-[#081B3A] transition hover:-translate-y-0.5 hover:bg-white"
+                href={`/dashboard/orders/new?contactId=${contact.id}`}
+              >
+                Create order
+                <span className="mt-1 block text-xs font-semibold text-[#526173]">
+                  Attach revenue context to this customer.
+                </span>
+              </Link>
+              <Link
+                className="rounded-2xl border border-[#BFE9D0] bg-[#F8FFFB] px-4 py-3 text-sm font-black text-[#081B3A] transition hover:-translate-y-0.5 hover:bg-white"
+                href={`/dashboard/inbox/${contact.id}`}
+              >
+                Continue conversation
+                <span className="mt-1 block text-xs font-semibold text-[#526173]">
+                  Reply with full customer history.
+                </span>
+              </Link>
+            </div>
+          </MiniInsightCard>
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[minmax(320px,0.85fr)_minmax(0,1.15fr)]">

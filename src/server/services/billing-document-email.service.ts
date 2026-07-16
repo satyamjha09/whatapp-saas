@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/server/services/audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 import { generateInvoicePdf, generateCreditNotePdf } from "@/server/services/billing-document-pdf.service";
+import { resolveEmailBrandingForCompany } from "@/server/services/partner-email-branding.service";
 
 export class BillingDocumentEmailError extends Error {
   constructor(message: string) {
@@ -69,12 +70,16 @@ function transporter() {
 }
 
 async function sendMail({
+  from,
+  replyTo,
   to,
   subject,
   html,
   text,
   attachments,
 }: {
+  from?: string;
+  replyTo?: string;
   to: string;
   subject: string;
   html: string;
@@ -88,8 +93,8 @@ async function sendMail({
   const client = transporter();
 
   return client.sendMail({
-    from: fromAddress(),
-    replyTo: replyToAddress(),
+    from: from ?? fromAddress(),
+    replyTo: replyTo ?? replyToAddress(),
     to,
     subject,
     html,
@@ -106,11 +111,15 @@ function invoiceEmailHtml({
   invoiceNumber,
   amount,
   invoiceUrl,
+  brandName,
+  primaryColor,
   companyName,
 }: {
   invoiceNumber: string;
   amount: string;
   invoiceUrl: string;
+  brandName: string;
+  primaryColor: string;
   companyName: string;
 }) {
   return `
@@ -120,12 +129,12 @@ function invoiceEmailHtml({
       <p>Your invoice <strong>${invoiceNumber}</strong> has been generated.</p>
       <p><strong>Total:</strong> ${amount}</p>
       <p>
-        <a href="${invoiceUrl}" style="background:#111827;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;">
+        <a href="${invoiceUrl}" style="background:${primaryColor};color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;">
           View Invoice
         </a>
       </p>
       <p style="font-size:12px;color:#6b7280;">
-        This is an automated billing email from metawhat.
+        This is an automated billing email from ${brandName}.
       </p>
     </div>
   `;
@@ -135,11 +144,15 @@ function creditNoteEmailHtml({
   creditNoteNumber,
   amount,
   refundsUrl,
+  brandName,
+  primaryColor,
   companyName,
 }: {
   creditNoteNumber: string;
   amount: string;
   refundsUrl: string;
+  brandName: string;
+  primaryColor: string;
   companyName: string;
 }) {
   return `
@@ -149,15 +162,19 @@ function creditNoteEmailHtml({
       <p>Your credit note <strong>${creditNoteNumber}</strong> has been generated.</p>
       <p><strong>Credit amount:</strong> ${amount}</p>
       <p>
-        <a href="${refundsUrl}" style="background:#111827;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;">
+        <a href="${refundsUrl}" style="background:${primaryColor};color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;">
           View Refunds
         </a>
       </p>
       <p style="font-size:12px;color:#6b7280;">
-        This is an automated billing email from metawhat.
+        This is an automated billing email from ${brandName}.
       </p>
     </div>
   `;
+}
+
+function brandNameFromSeller(sellerName?: string | null) {
+  return sellerName?.trim() || "metawhat";
 }
 
 export async function sendBillingInvoiceEmail({
@@ -209,7 +226,11 @@ export async function sendBillingInvoiceEmail({
     }
   }
 
-  const subject = `Invoice ${invoice.invoiceNumber} from metawhat`;
+  const emailIdentity = await resolveEmailBrandingForCompany(companyId);
+  const brandName =
+    emailIdentity.brandSnapshot.appName || brandNameFromSeller(invoice.sellerName);
+  const primaryColor = emailIdentity.brandSnapshot.primaryColor || "#128C7E";
+  const subject = `Invoice ${invoice.invoiceNumber} from ${brandName}`;
   const invoiceUrl = `${appUrl()}/dashboard/billing/invoices/${invoice.id}`;
   const amount = money(invoice.totalPaise, invoice.currency);
 
@@ -225,6 +246,10 @@ export async function sendBillingInvoiceEmail({
       recipientEmail,
       recipientName: invoice.billingName,
       subject,
+      fromName: emailIdentity.fromName,
+      fromEmail: emailIdentity.fromEmail,
+      replyToEmail: emailIdentity.replyTo ?? null,
+      brandSnapshot: safeJson(emailIdentity.brandSnapshot),
       idempotencyKey,
       metadata: safeJson({
         invoiceNumber: invoice.invoiceNumber,
@@ -237,6 +262,10 @@ export async function sendBillingInvoiceEmail({
         increment: 1,
       },
       failureReason: null,
+      fromName: emailIdentity.fromName,
+      fromEmail: emailIdentity.fromEmail,
+      replyToEmail: emailIdentity.replyTo ?? null,
+      brandSnapshot: safeJson(emailIdentity.brandSnapshot),
     },
   });
 
@@ -257,12 +286,16 @@ export async function sendBillingInvoiceEmail({
 
   try {
     await sendMail({
+      from: emailIdentity.from,
+      replyTo: emailIdentity.replyTo,
       to: recipientEmail,
       subject,
       html: invoiceEmailHtml({
         invoiceNumber: invoice.invoiceNumber,
         amount,
         invoiceUrl,
+        brandName,
+        primaryColor,
         companyName: invoice.billingName ?? invoice.company.name,
       }),
       text: `Invoice ${invoice.invoiceNumber} is ready. Total: ${amount}. View: ${invoiceUrl}`,
@@ -374,7 +407,12 @@ export async function sendCreditNoteEmail({
     }
   }
 
-  const subject = `Credit Note ${creditNote.creditNoteNumber} from metawhat`;
+  const emailIdentity = await resolveEmailBrandingForCompany(companyId);
+  const brandName =
+    emailIdentity.brandSnapshot.appName ||
+    brandNameFromSeller(creditNote.invoice?.sellerName);
+  const primaryColor = emailIdentity.brandSnapshot.primaryColor || "#128C7E";
+  const subject = `Credit Note ${creditNote.creditNoteNumber} from ${brandName}`;
   const refundsUrl = `${appUrl()}/dashboard/billing/refunds`;
   const amount = money(creditNote.totalPaise, creditNote.currency);
 
@@ -393,6 +431,10 @@ export async function sendCreditNoteEmail({
       recipientName:
         creditNote.invoice?.billingName ?? creditNote.company.billingProfile?.legalName,
       subject,
+      fromName: emailIdentity.fromName,
+      fromEmail: emailIdentity.fromEmail,
+      replyToEmail: emailIdentity.replyTo ?? null,
+      brandSnapshot: safeJson(emailIdentity.brandSnapshot),
       idempotencyKey,
       metadata: safeJson({
         creditNoteNumber: creditNote.creditNoteNumber,
@@ -405,6 +447,10 @@ export async function sendCreditNoteEmail({
         increment: 1,
       },
       failureReason: null,
+      fromName: emailIdentity.fromName,
+      fromEmail: emailIdentity.fromEmail,
+      replyToEmail: emailIdentity.replyTo ?? null,
+      brandSnapshot: safeJson(emailIdentity.brandSnapshot),
     },
   });
 
@@ -425,12 +471,16 @@ export async function sendCreditNoteEmail({
 
   try {
     await sendMail({
+      from: emailIdentity.from,
+      replyTo: emailIdentity.replyTo,
       to: recipientEmail,
       subject,
       html: creditNoteEmailHtml({
         creditNoteNumber: creditNote.creditNoteNumber,
         amount,
         refundsUrl,
+        brandName,
+        primaryColor,
         companyName:
           creditNote.invoice?.billingName ??
           creditNote.company.billingProfile?.legalName ??

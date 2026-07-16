@@ -4,6 +4,10 @@ import { createAuditLog } from "@/server/services/audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 import { getInvoiceBillingSnapshot } from "@/server/services/company-billing-profile.service";
 import { autoSendInvoiceEmail } from "@/server/services/billing-document-email.service";
+import {
+  brandSnapshotForBilling,
+  resolveBrandContext,
+} from "@/server/services/partner-branding.service";
 
 function isEnabled() {
   return process.env.BILLING_INVOICES_ENABLED !== "false";
@@ -82,6 +86,16 @@ export async function createPaidPlanUpgradeInvoice({
   const billingSnapshot = await getInvoiceBillingSnapshot({
     companyId,
   });
+  const brand = await resolveBrandContext(companyId);
+  const brandSnapshot = brandSnapshotForBilling(brand);
+  const sellerName =
+    brand.source === "partner"
+      ? brand.companyName
+      : process.env.BILLING_SELLER_NAME || brand.companyName || "metawhat";
+  const sellerEmail =
+    brand.source === "partner"
+      ? brand.supportEmail || process.env.BILLING_SELLER_EMAIL || null
+      : process.env.BILLING_SELLER_EMAIL || brand.supportEmail || null;
 
   const basisPoints = taxBasisPoints();
   const subtotalPaise = amountPaise;
@@ -106,8 +120,8 @@ export async function createPaidPlanUpgradeInvoice({
       billingAddress: billingSnapshot.billingAddress || null,
       billingTaxId: billingSnapshot.billingTaxId,
 
-      sellerName: process.env.BILLING_SELLER_NAME || "metawhat",
-      sellerEmail: process.env.BILLING_SELLER_EMAIL || null,
+      sellerName,
+      sellerEmail,
       sellerAddress: process.env.BILLING_SELLER_ADDRESS || null,
       sellerTaxId: process.env.BILLING_SELLER_TAX_ID || null,
 
@@ -125,6 +139,7 @@ export async function createPaidPlanUpgradeInvoice({
         toPlan,
         billingTaxIdLabel: billingSnapshot.billingTaxIdLabel,
         invoiceNotes: billingSnapshot.invoiceNotes,
+        brandSnapshot,
       }),
 
       lines: {

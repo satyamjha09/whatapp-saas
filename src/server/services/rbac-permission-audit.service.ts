@@ -57,6 +57,8 @@ function hasGuard(content: string) {
     content.includes("requireAdmin({ request") ||
     content.includes("requireMember") ||
     content.includes("requirePlatformAdmin") ||
+    content.includes("requirePlatformPermission") ||
+    content.includes("requirePlatformSuperAdmin") ||
     content.includes("getCurrentWorkspaceContext") ||
     content.includes("authenticatePublicApiRequest") ||
     content.includes("verifyMetaWebhookSignature") ||

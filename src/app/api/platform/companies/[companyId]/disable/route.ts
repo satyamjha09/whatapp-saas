@@ -5,7 +5,7 @@ import {
   PlatformCompanyControlError,
 } from "@/server/services/platform-company-control.service";
 import { createTenantErrorResponse } from "@/server/tenant/tenant-api-error";
-import { requirePlatformAdmin } from "@/server/tenant/tenant-context";
+import { requirePlatformSuperAdmin } from "@/server/tenant/tenant-context";
 
 const schema = z.object({
   reason: z.string().min(1).max(1000),
@@ -19,7 +19,7 @@ type RouteContext = {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    const platform = await requirePlatformAdmin();
+    const platform = await requirePlatformSuperAdmin();
     const { companyId } = await context.params;
     const body = schema.parse(await request.json());
     const company = await disablePlatformCompany({

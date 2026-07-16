@@ -7,6 +7,7 @@ import {
 } from "@/server/cache-tags";
 import { getBillingPlanConfig } from "@/server/config/billing-plans";
 import { createAuditLog } from "@/server/services/audit.service";
+import { createPlatformAuditLog } from "@/server/services/platform-audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 
 export class CompanyPlanAssignmentError extends Error {
@@ -86,7 +87,8 @@ function billingPlanFromPlanCode(planCode: string): BillingPlan {
     normalized === "FREE" ||
     normalized === "STARTER" ||
     normalized === "GROWTH" ||
-    normalized === "BUSINESS"
+    normalized === "BUSINESS" ||
+    normalized === "ENTERPRISE"
   ) {
     return normalized;
   }
@@ -194,6 +196,19 @@ async function createPlanAuditLog({
     entityType: "CompanyPlanAssignment",
     entityId: assignmentId,
     metadata: safeJson({
+      title,
+      description,
+      metadata,
+    }),
+  }).catch(() => undefined);
+
+  await createPlatformAuditLog({
+    actorUserId: actorUserId ?? null,
+    action: `company_plan.${type.toLowerCase()}`,
+    entityType: "CompanyPlanAssignment",
+    entityId: assignmentId,
+    metadata: safeJson({
+      companyId,
       title,
       description,
       metadata,
@@ -474,7 +489,9 @@ export async function platformAssignCompanyPlan({
   actorUserId,
   companyId,
   days,
+  metadata,
   planCode,
+  source,
   status,
 }: {
   companyId: string;
@@ -482,6 +499,8 @@ export async function platformAssignCompanyPlan({
   planCode: string;
   status: "TRIAL" | "ACTIVE";
   days: number;
+  source?: "PLATFORM_ADMIN" | "PARTNER";
+  metadata?: unknown;
 }) {
   if (!enabled()) {
     throw new CompanyPlanAssignmentError("Company plan assignment is disabled.");
@@ -498,6 +517,9 @@ export async function platformAssignCompanyPlan({
   const periodEndsAt = addDays(days);
   const now = new Date();
   const normalizedPlanCode = planCode.trim();
+  const assignmentSource = source ?? "PLATFORM_ADMIN";
+  const actorLabel =
+    assignmentSource === "PARTNER" ? "partner pricing" : "platform admin";
   const assignment = await prisma.$transaction(async (tx) => {
     await tx.companyPlanAssignment.updateMany({
       where: {
@@ -515,7 +537,7 @@ export async function platformAssignCompanyPlan({
         planCode: normalizedPlanCode,
         planName: planNameFromCode(normalizedPlanCode),
         status,
-        source: "PLATFORM_ADMIN",
+        source: assignmentSource,
         isCurrent: true,
         startsAt: now,
         trialEndsAt: status === "TRIAL" ? periodEndsAt : null,
@@ -524,6 +546,8 @@ export async function platformAssignCompanyPlan({
         assignedByUserId: actorUserId,
         metadata: safeJson({
           days,
+          source: assignmentSource,
+          metadata,
         }),
       },
     });
@@ -534,12 +558,14 @@ export async function platformAssignCompanyPlan({
       assignmentId: created.id,
       actorUserId,
       type: status === "ACTIVE" ? "ACTIVATED" : "CREATED",
-      title: `${created.planName} assigned by platform admin`,
+      title: `${created.planName} assigned by ${actorLabel}`,
       metadata: {
         planCode: normalizedPlanCode,
         status,
         days,
         periodEndsAt,
+        source: assignmentSource,
+        metadata,
       },
     });
 
@@ -551,12 +577,14 @@ export async function platformAssignCompanyPlan({
     assignmentId: assignment.id,
     actorUserId,
     type: status === "ACTIVE" ? "ACTIVATED" : "CREATED",
-    title: `${assignment.planName} assigned by platform admin`,
+    title: `${assignment.planName} assigned by ${actorLabel}`,
     metadata: {
       planCode: normalizedPlanCode,
       status,
       days,
       periodEndsAt,
+      source: assignmentSource,
+      metadata,
     },
   });
 

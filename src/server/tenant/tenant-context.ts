@@ -1,8 +1,20 @@
 import { auth } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getPlatformAdminEmails, isPlatformAdminEnabled } from "@/server/auth/platform-admin";
 import { getUserByClerkId } from "@/server/services/auth.service";
 import { assertCompanyHasActivePlan } from "@/server/services/company-plan-assignment.service";
+import {
+  getActivePartnerClientAccessSession,
+  PARTNER_ACCESS_SESSION_COOKIE,
+} from "@/server/services/partner-client-access.service";
+import { createPlatformAuditLog } from "@/server/services/platform-audit.service";
+import {
+  getPlatformPermissionsForRole,
+  isPlatformBootstrapEnabled,
+  roleHasPlatformPermission,
+  type PlatformPermission,
+} from "@/server/tenant/platform-permissions";
 import {
   canAccessPlatform,
   isCompanyAdmin,
@@ -38,7 +50,7 @@ export async function getCurrentAppUser() {
 }
 
 function isConfiguredPlatformAdminEmail(email: string) {
-  if (!isPlatformAdminEnabled()) return false;
+  if (!isPlatformAdminEnabled() || !isPlatformBootstrapEnabled()) return false;
 
   return getPlatformAdminEmails().includes(email.toLowerCase());
 }
@@ -55,9 +67,12 @@ export async function requirePlatformUser() {
   }
 
   const effectiveRole = hasConfiguredEmailAccess ? "SUPER_ADMIN" : user.platformRole;
+  const permissions = getPlatformPermissionsForRole(effectiveRole);
 
   return {
     user,
+    platformRole: effectiveRole,
+    permissions,
     isPlatformAdmin: isPlatformAdmin(effectiveRole),
     isPlatformSuperAdmin: isPlatformSuperAdmin(effectiveRole),
   };
@@ -73,13 +88,64 @@ export async function requirePlatformAdmin() {
   return context;
 }
 
+export async function requirePlatformPermission(permission: PlatformPermission) {
+  const context = await requirePlatformUser();
+
+  if (!roleHasPlatformPermission(context.platformRole, permission)) {
+    await createPlatformAuditLog({
+      actorUserId: context.user.id,
+      actorEmail: context.user.email,
+      action: "platform.permission.denied",
+      entityType: "PlatformPermission",
+      entityId: permission,
+      metadata: {
+        role: context.platformRole,
+        permission,
+      },
+    }).catch(() => undefined);
+
+    throw new TenantAccessError("Platform permission required.", 403);
+  }
+
+  return context;
+}
+
+export async function requirePlatformSuperAdmin() {
+  const context = await requirePlatformUser();
+
+  if (!context.isPlatformSuperAdmin) {
+    await createPlatformAuditLog({
+      actorUserId: context.user.id,
+      actorEmail: context.user.email,
+      action: "platform.super_admin.denied",
+      entityType: "PlatformRole",
+      entityId: "SUPER_ADMIN",
+      metadata: {
+        role: context.platformRole,
+      },
+    }).catch(() => undefined);
+
+    throw new TenantAccessError("Platform super admin access required.", 403);
+  }
+
+  return context;
+}
+
 export async function requireCompanyContext(companyId?: string | null) {
   const user = await getCurrentAppUser();
+  const workspacePreference = !companyId
+    ? await prisma.userWorkspacePreference.findUnique({
+        where: {
+          userId: user.id,
+        },
+      })
+    : null;
+  const targetCompanyId = companyId ?? workspacePreference?.activeCompanyId ?? null;
 
   const membership = await prisma.companyUser.findFirst({
     where: {
       userId: user.id,
-      ...(companyId ? { companyId } : {}),
+      ...(targetCompanyId ? { companyId: targetCompanyId } : {}),
     },
     include: {
       company: true,
@@ -89,20 +155,46 @@ export async function requireCompanyContext(companyId?: string | null) {
     },
   });
 
-  if (!membership) {
+  let resolvedMembership = membership;
+  let partnerAccessSession:
+    | Awaited<ReturnType<typeof getActivePartnerClientAccessSession>>
+    | null = null;
+
+  if (!resolvedMembership) {
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get(PARTNER_ACCESS_SESSION_COOKIE)?.value;
+    partnerAccessSession = await getActivePartnerClientAccessSession({
+      userId: user.id,
+      sessionId,
+      clientCompanyId: targetCompanyId,
+    });
+
+    if (partnerAccessSession) {
+      resolvedMembership = {
+        id: `partner-access:${partnerAccessSession.id}`,
+        userId: user.id,
+        companyId: partnerAccessSession.clientCompanyId,
+        role: "MEMBER" as const,
+        createdAt: partnerAccessSession.startedAt,
+        company: partnerAccessSession.clientCompany,
+      };
+    }
+  }
+
+  if (!resolvedMembership) {
     throw new TenantAccessError("Company workspace access required.", 403);
   }
 
   if (
-    membership.company.status !== "ACTIVE" &&
-    membership.company.status !== "PENDING_ONBOARDING"
+    resolvedMembership.company.status !== "ACTIVE" &&
+    resolvedMembership.company.status !== "PENDING_ONBOARDING"
   ) {
     throw new TenantAccessError("This company workspace is not active.", 403);
   }
 
-  if (membership.company.status === "ACTIVE") {
+  if (resolvedMembership.company.status === "ACTIVE") {
     try {
-      await assertCompanyHasActivePlan(membership.company.id);
+      await assertCompanyHasActivePlan(resolvedMembership.company.id);
     } catch (error) {
       if (error instanceof Error) {
         throw new TenantAccessError(error.message, 402);
@@ -114,11 +206,12 @@ export async function requireCompanyContext(companyId?: string | null) {
 
   return {
     user,
-    membership,
-    company: membership.company,
-    companyId: membership.companyId,
-    isCompanyAdmin: isCompanyAdmin(membership.role),
-    isCompanyOwner: isCompanyOwner(membership.role),
+    membership: resolvedMembership,
+    company: resolvedMembership.company,
+    companyId: resolvedMembership.companyId,
+    partnerAccessSession,
+    isCompanyAdmin: !partnerAccessSession && isCompanyAdmin(resolvedMembership.role),
+    isCompanyOwner: !partnerAccessSession && isCompanyOwner(resolvedMembership.role),
   };
 }
 
@@ -167,7 +260,14 @@ export async function assertCompanyDataAccess({
   });
 
   if (!membership) {
-    throw new TenantAccessError("You do not have access to this company.", 403);
+    const partnerAccessSession = await getActivePartnerClientAccessSession({
+      userId,
+      clientCompanyId: companyId,
+    });
+
+    if (!partnerAccessSession) {
+      throw new TenantAccessError("You do not have access to this company.", 403);
+    }
   }
 
   return true;

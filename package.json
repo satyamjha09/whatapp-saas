@@ -23,6 +23,12 @@
     "worker:automation-runtime": "tsx src/workers/automation-runtime.worker.ts",
     "worker:automation-monitoring": "tsx src/workers/automation-monitoring.worker.ts",
     "worker:contact-import": "tsx src/workers/contact-import.worker.ts",
+    "worker:partner-client-provisioning": "tsx scripts/process-partner-client-provisioning.ts",
+    "worker:partner-usage": "tsx scripts/process-partner-usage.ts",
+    "test:partner-client-access": "tsx scripts/test-partner-client-access.ts",
+    "test:partner-pricing": "tsx scripts/test-partner-pricing.ts",
+    "test:partner-billing": "tsx scripts/test-partner-billing.ts",
+    "test:partner-usage": "tsx scripts/test-partner-usage.ts",
     "typecheck": "tsc --noEmit",
     "prisma:check": "prisma validate",
     "check": "prisma validate && tsc --noEmit && npm run lint",
@@ -98,3 +104,5 @@
     "typescript": "^5"
   }
 }
+
+

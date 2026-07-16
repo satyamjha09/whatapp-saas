@@ -154,6 +154,7 @@ export const dashboardNavigation: DashboardNavGroup[] = [
         href: "/dashboard/integrations/google-sheets",
       },
       { label: "Developer", href: "/dashboard/developer" },
+      { label: "Partner API", href: "/dashboard/developer/partner-api" },
       { label: "Clone Items", href: "/dashboard/tools/clone-items" },
       {
         label: "WhatsApp Chat Link",
@@ -180,6 +181,10 @@ export const dashboardNavigation: DashboardNavGroup[] = [
       { label: "Profile", href: "/dashboard/settings/profile" },
       { label: "Onboarding", href: "/dashboard/onboarding" },
       { label: "Company", href: "/dashboard/settings/company" },
+      { label: "Partner Branding", href: "/dashboard/settings/branding" },
+      { label: "Custom Domains", href: "/dashboard/settings/domains" },
+      { label: "Email Branding", href: "/dashboard/settings/email-branding" },
+      { label: "Partner Support", href: "/dashboard/settings/support" },
       { label: "Team", href: "/dashboard/settings/team" },
       { label: "Roles & Permissions", href: "/dashboard/team/roles" },
       { label: "API Keys", href: "/dashboard/developer/api-keys" },

@@ -4,7 +4,7 @@ import {
   PlatformCompanyControlError,
 } from "@/server/services/platform-company-control.service";
 import { createTenantErrorResponse } from "@/server/tenant/tenant-api-error";
-import { requirePlatformAdmin } from "@/server/tenant/tenant-context";
+import { requirePlatformPermission } from "@/server/tenant/tenant-context";
 
 type RouteContext = {
   params: Promise<{
@@ -14,7 +14,7 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const platform = await requirePlatformAdmin();
+    const platform = await requirePlatformPermission("PLATFORM_COMPANY_VIEW");
     const { companyId } = await context.params;
     const company = await getPlatformCompanyDetail({
       companyId,

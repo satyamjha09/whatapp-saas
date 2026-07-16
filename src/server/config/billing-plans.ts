@@ -114,6 +114,36 @@ export const BILLING_PLANS: BillingPlanConfig[] = [
     ],
     features: ["Large campaigns", "Priority-ready inbox", "Advanced billing controls"],
   },
+  {
+    id: "ENTERPRISE",
+    name: "Enterprise",
+    description: "For partners, white-label operations, and high-volume teams.",
+    monthlyPricePaise: 0,
+    monthlyMessageLimit: 100_000,
+    maxBulkRecipients: 50_000,
+    maxTeamMembers: 100,
+    teamMemberLimit: 100,
+    templateLimit: 1_000,
+    campaignLimit: 5_000,
+    developerApiAccess: true,
+    developerWebhookAccess: true,
+    developerApiDailyLimit: 100_000,
+    developerLogRetentionDays: 365,
+    enabledFeatures: [
+      "SINGLE_MESSAGES",
+      "BULK_CAMPAIGNS",
+      "CONTACT_GROUPS",
+      "DEVELOPER_API",
+      "DEVELOPER_WEBHOOKS",
+      "ADVANCED_REPORTS",
+    ],
+    features: [
+      "Partner portal ready",
+      "White-label and custom domains",
+      "Advanced security and priority support",
+      "Custom message and team limits",
+    ],
+  },
 ];
 
 export const billingPlans = Object.fromEntries(

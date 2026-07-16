@@ -6,7 +6,7 @@ import {
   platformAssignCompanyPlan,
 } from "@/server/services/company-plan-assignment.service";
 import { createTenantErrorResponse } from "@/server/tenant/tenant-api-error";
-import { requirePlatformAdmin } from "@/server/tenant/tenant-context";
+import { requirePlatformPermission } from "@/server/tenant/tenant-context";
 
 const assignPlanSchema = z.object({
   planCode: z.string().min(1).max(100),
@@ -22,7 +22,7 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    await requirePlatformAdmin();
+    await requirePlatformPermission("PLATFORM_COMPANY_VIEW");
     const { companyId } = await context.params;
     const summary = await getCompanyPlanAccessSummary(companyId);
 
@@ -37,7 +37,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    const platform = await requirePlatformAdmin();
+    const platform = await requirePlatformPermission("PLATFORM_PLAN_MANAGE");
     const { companyId } = await context.params;
     const body = assignPlanSchema.parse(await request.json());
     const assignment = await platformAssignCompanyPlan({

@@ -26,7 +26,6 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -34,8 +33,10 @@ import {
   dashboardNavigation,
   type DashboardNavItem,
 } from "@/lib/dashboard-navigation";
+import type { BrandContext } from "@/server/branding/brand-context";
 
 type DashboardShellProps = {
+  brand: BrandContext;
   children: React.ReactNode;
   companyName: string;
   notificationBadge: React.ReactNode;
@@ -221,6 +222,7 @@ function SidebarContent({
   companyName,
   userRole,
   activeHref,
+  brand,
   groupOpenOverrides,
   onToggleCollapse,
   onToggleGroup,
@@ -231,6 +233,7 @@ function SidebarContent({
   companyName: string;
   userRole: string;
   activeHref?: string;
+  brand: BrandContext;
   groupOpenOverrides: Record<string, boolean | undefined>;
   onToggleCollapse?: () => void;
   onToggleGroup: (label: string) => void;
@@ -253,22 +256,20 @@ function SidebarContent({
             "flex min-w-0 items-center gap-3",
             collapsed ? "justify-center" : "",
           ].join(" ")}
-          title={collapsed ? "metawhat dashboard" : undefined}
+          title={collapsed ? `${brand.appName} dashboard` : undefined}
         >
           <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-white shadow-[0_12px_26px_rgba(18,140,126,0.18)] ring-1 ring-[#BFE9D0]">
-            <Image
-              src="/brand/metawhat-mark.png"
-              alt="metawhat logo"
-              width={34}
-              height={34}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={brand.markUrl}
+              alt={`${brand.appName} logo`}
               className="h-8 w-8 object-contain"
-              priority
             />
           </div>
           {!collapsed && (
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#081B3A]">
-                metawhat
+                {brand.appName}
               </p>
               <p className="truncate text-xs text-[#526173]">{companyName}</p>
             </div>
@@ -365,6 +366,7 @@ function SidebarContent({
 }
 
 export function DashboardShell({
+  brand,
   children,
   companyName,
   notificationBadge,
@@ -413,7 +415,13 @@ export function DashboardShell({
   }
 
   return (
-    <div className="min-h-screen bg-[#E7F8EF] text-[#102040]">
+    <div
+      className="min-h-screen bg-[#E7F8EF] text-[#102040]"
+      style={{
+        backgroundColor: brand.backgroundColor,
+        color: brand.textColor,
+      }}
+    >
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(135deg,#E7F8EF,#FFFFFF_48%,rgba(191,233,208,0.62))]" />
 
       <aside
@@ -425,6 +433,7 @@ export function DashboardShell({
         <SidebarContent
           collapsed={collapsed}
           companyName={companyName}
+          brand={brand}
           userRole={userRole}
           activeHref={activeHref}
           groupOpenOverrides={groupOpenOverrides}
@@ -455,6 +464,7 @@ export function DashboardShell({
               mobile
               collapsed={false}
               companyName={companyName}
+              brand={brand}
               userRole={userRole}
               activeHref={activeHref}
               groupOpenOverrides={groupOpenOverrides}
@@ -512,7 +522,10 @@ export function DashboardShell({
               className="flex items-center gap-3 rounded-full border border-[#BFE9D0] bg-white py-1 pl-1 pr-3 shadow-[0_8px_20px_rgba(8,27,58,0.04)] transition hover:border-[#128C7E]/35 hover:bg-[#E7F8EF] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#128C7E]/15"
               title="Open profile settings"
             >
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-[#25D366] text-sm font-bold text-white">
+              <span
+                className="grid h-9 w-9 place-items-center rounded-full text-sm font-bold text-white"
+                style={{ backgroundColor: brand.secondaryColor }}
+              >
                 {userInitial(userName)}
               </span>
               <span className="hidden text-left sm:block">

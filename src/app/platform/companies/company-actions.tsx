@@ -9,9 +9,13 @@ function actionLabel(action: string) {
 }
 
 export function PlatformCompanyActions({
+  canDisable,
+  canManage,
   companyId,
   status,
 }: {
+  canDisable: boolean;
+  canManage: boolean;
   companyId: string;
   status: string;
 }) {
@@ -56,7 +60,7 @@ export function PlatformCompanyActions({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
-        {status !== "ACTIVE" ? (
+        {canManage && status !== "ACTIVE" ? (
           <button
             type="button"
             onClick={() =>
@@ -71,7 +75,7 @@ export function PlatformCompanyActions({
           </button>
         ) : null}
 
-        {status !== "SUSPENDED" && status !== "DISABLED" ? (
+        {canManage && status !== "SUSPENDED" && status !== "DISABLED" ? (
           <button
             type="button"
             onClick={() => runAction("suspend")}
@@ -82,7 +86,7 @@ export function PlatformCompanyActions({
           </button>
         ) : null}
 
-        {status !== "DISABLED" ? (
+        {canDisable && status !== "DISABLED" ? (
           <button
             type="button"
             onClick={() => runAction("disable")}
@@ -93,6 +97,10 @@ export function PlatformCompanyActions({
           </button>
         ) : null}
       </div>
+
+      {!canManage && !canDisable ? (
+        <p className="text-xs text-gray-500">Read-only access</p>
+      ) : null}
 
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
     </div>

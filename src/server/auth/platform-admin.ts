@@ -1,6 +1,10 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { recordSecurityEvent } from "@/server/services/security-event.service";
+import {
+  isPlatformBootstrapEnabled,
+  roleHasAnyPlatformPermission,
+} from "@/server/tenant/platform-permissions";
 import { getRequestIp } from "@/server/utils/request-ip";
 
 export class PlatformAuthorizationError extends Error {
@@ -75,9 +79,16 @@ export async function requirePlatformAdmin({
     throw new PlatformAuthorizationError("Platform admin console is disabled", 403);
   }
 
+  const hasDatabaseAccess =
+    context.user?.platformAccessEnabled &&
+    roleHasAnyPlatformPermission(context.user.platformRole, [
+      "PLATFORM_OVERVIEW_VIEW",
+    ]);
   const allowedEmails = getPlatformAdminEmails();
+  const hasBootstrapAccess =
+    isPlatformBootstrapEnabled() && allowedEmails.includes(context.email);
 
-  if (!allowedEmails.includes(context.email)) {
+  if (!hasDatabaseAccess && !hasBootstrapAccess) {
     if (request) {
       await recordSecurityEvent({
         type: "AUTH_FAILURE",
@@ -91,6 +102,8 @@ export async function requirePlatformAdmin({
         metadata: {
           email: context.email,
           allowedEmailCount: allowedEmails.length,
+          bootstrapEnabled: isPlatformBootstrapEnabled(),
+          hasDatabaseAccess: Boolean(hasDatabaseAccess),
         },
       }).catch(() => undefined);
     }

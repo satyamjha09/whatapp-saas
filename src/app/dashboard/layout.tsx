@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { DashboardShell } from "@/app/dashboard/dashboard-shell";
 import MaintenanceModeBanner from "@/app/dashboard/maintenance-mode-banner";
 import NotificationBadge from "@/app/dashboard/notification-badge";
+import { PartnerAccessBanner } from "@/app/dashboard/partner-access-banner";
+import { resolveBrandContext } from "@/server/services/partner-branding.service";
 import { getCurrentWorkspaceContext } from "@/server/auth/current-user";
 import { assertCompanyHasActivePlan } from "@/server/services/company-plan-assignment.service";
 import { getCompanyOnboardingState } from "@/server/services/company-onboarding-state.service";
@@ -60,8 +62,11 @@ export default async function DashboardLayout({
     }
   }
 
+  const brand = await resolveBrandContext(context.membership.companyId);
+
   return (
     <DashboardShell
+      brand={brand}
       companyName={context.membership.company.name}
       userName={context.user.name ?? context.user.email}
       userRole={context.membership.role}
@@ -73,6 +78,13 @@ export default async function DashboardLayout({
       }
     >
       <MaintenanceModeBanner />
+      {context.partnerAccessSession ? (
+        <PartnerAccessBanner
+          clientCompanyName={context.partnerAccessSession.clientCompany.name}
+          expiresAt={context.partnerAccessSession.expiresAt.toISOString()}
+          partnerCompanyName={context.partnerAccessSession.partnerCompany.name}
+        />
+      ) : null}
       {children}
     </DashboardShell>
   );

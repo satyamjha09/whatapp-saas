@@ -21,11 +21,15 @@ function getSmtpConfig() {
 }
 
 export async function sendTransactionalEmail({
+  from,
+  replyTo,
   to,
   subject,
   text,
   html,
 }: {
+  from?: string;
+  replyTo?: string;
   to: string;
   subject: string;
   text: string;
@@ -44,7 +48,8 @@ export async function sendTransactionalEmail({
   });
 
   return transporter.sendMail({
-    from: config.from,
+    from: from ?? config.from,
+    replyTo,
     to,
     subject,
     text,

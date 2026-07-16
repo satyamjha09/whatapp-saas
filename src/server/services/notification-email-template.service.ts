@@ -23,12 +23,18 @@ export function buildNotificationEmailContent({
   severity,
   type,
   actionHref,
+  brandName = "metawhat",
+  primaryColor,
+  footerText,
 }: {
   title: string;
   message: string;
   severity: string;
   type: string;
   actionHref?: string | null;
+  brandName?: string;
+  primaryColor?: string | null;
+  footerText?: string | null;
 }) {
   const absoluteActionUrl = toAbsoluteAppUrl(actionHref);
 
@@ -36,7 +42,9 @@ export function buildNotificationEmailContent({
   const safeMessage = escapeHtml(message);
   const safeSeverity = escapeHtml(severity);
   const safeType = escapeHtml(type);
-  const color = severityColor(severity);
+  const safeBrandName = escapeHtml(brandName);
+  const safeFooterText = footerText ? escapeHtml(footerText) : null;
+  const color = primaryColor || severityColor(severity);
 
   const text = [
     title,
@@ -48,7 +56,7 @@ export function buildNotificationEmailContent({
     "",
     absoluteActionUrl ? `Open: ${absoluteActionUrl}` : "",
     "",
-    "metawhat",
+    brandName,
   ]
     .filter(Boolean)
     .join("\n");
@@ -59,7 +67,7 @@ export function buildNotificationEmailContent({
   <body style="margin:0;background:#f3f4f6;padding:24px;font-family:Arial,sans-serif;color:#111827;">
     <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
       <div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;background:#111827;color:#ffffff;">
-        <div style="font-size:18px;font-weight:700;">metawhat</div>
+        <div style="font-size:18px;font-weight:700;">${safeBrandName}</div>
         <div style="margin-top:4px;font-size:13px;color:#d1d5db;">Workspace alert</div>
       </div>
 
@@ -87,7 +95,7 @@ export function buildNotificationEmailContent({
                 <a href="${escapeHtml(
                   absoluteActionUrl,
                 )}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;border-radius:10px;padding:12px 18px;font-size:14px;font-weight:700;">
-                  Open in metawhat
+                  Open in ${safeBrandName}
                 </a>
               </div>
             `
@@ -96,7 +104,10 @@ export function buildNotificationEmailContent({
       </div>
 
       <div style="padding:16px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;color:#6b7280;font-size:12px;line-height:1.5;">
-        You received this email because notification email alerts are enabled for your workspace preferences.
+        ${
+          safeFooterText ??
+          "You received this email because notification email alerts are enabled for your workspace preferences."
+        }
       </div>
     </div>
   </body>

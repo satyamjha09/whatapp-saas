@@ -54,55 +54,67 @@ export default function ContactCrmProfileForm({
     }
   }
 
+  const fieldClass =
+    "mt-2 w-full rounded-2xl border border-[#BFE9D0] bg-white px-4 py-3 text-sm font-semibold text-[#081B3A] outline-none transition placeholder:text-[#94A3B8] focus:border-[#128C7E] focus:ring-4 focus:ring-[#128C7E]/10";
+  const labelClass =
+    "text-xs font-black uppercase tracking-[0.12em] text-[#526173]";
+
   return (
-    <form action={save} className="space-y-4">
+    <form action={save} className="space-y-5">
       <div>
-        <label className="text-sm font-medium text-gray-700">Name</label>
+        <label className={labelClass}>Name</label>
         <input
           name="name"
           defaultValue={contact.name ?? ""}
-          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+          className={fieldClass}
+          placeholder="Customer display name"
         />
       </div>
 
       <div>
-        <label className="text-sm font-medium text-gray-700">Email</label>
+        <label className={labelClass}>Email</label>
         <input
           name="email"
           type="email"
           defaultValue={contact.email ?? ""}
-          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+          className={fieldClass}
+          placeholder="customer@example.com"
         />
       </div>
 
       <div>
-        <label className="text-sm font-medium text-gray-700">Company</label>
+        <label className={labelClass}>Company</label>
         <input
           name="companyName"
           defaultValue={contact.companyName ?? ""}
-          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+          className={fieldClass}
+          placeholder="Business or organization"
         />
       </div>
 
       <div>
-        <label className="text-sm font-medium text-gray-700">
+        <label className={labelClass}>
           External Customer ID
         </label>
         <input
           name="externalCustomerId"
           defaultValue={contact.externalCustomerId ?? ""}
-          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+          className={fieldClass}
+          placeholder="Tally, ERP, or CRM reference"
         />
+        <p className="mt-2 text-xs font-semibold leading-5 text-[#526173]">
+          Optional. Use this to match Tally ledgers, imported customers, or external CRM records.
+        </p>
       </div>
 
       <div>
-        <label className="text-sm font-medium text-gray-700">
+        <label className={labelClass}>
           Lifecycle Stage
         </label>
         <select
           name="lifecycleStage"
           defaultValue={contact.lifecycleStage}
-          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+          className={fieldClass}
         >
           <option value="LEAD">Lead</option>
           <option value="CUSTOMER">Customer</option>
@@ -114,12 +126,16 @@ export default function ContactCrmProfileForm({
 
       <button
         disabled={isSaving}
-        className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        className="inline-flex items-center justify-center rounded-2xl bg-[#128C7E] px-5 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(18,140,126,0.22)] transition hover:-translate-y-0.5 hover:bg-[#0F766E] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSaving ? "Saving..." : "Save Profile"}
       </button>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

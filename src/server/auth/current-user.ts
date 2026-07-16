@@ -1,7 +1,12 @@
 import { currentUser } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { getUserByClerkId } from "@/server/services/auth.service";
+import {
+  getActivePartnerClientAccessSession,
+  PARTNER_ACCESS_SESSION_COOKIE,
+} from "@/server/services/partner-client-access.service";
 
 export const getCurrentDatabaseUser = cache(async function getCurrentDatabaseUser() {
   const clerkUser = await currentUser();
@@ -38,18 +43,46 @@ export const getCurrentWorkspaceContext = cache(async function getCurrentWorkspa
       })
     : null;
 
-  const fallbackMembership = await prisma.companyUser.findFirst({
-    where: {
+  let membership = preferredMembership;
+  let partnerAccessSession:
+    | Awaited<ReturnType<typeof getActivePartnerClientAccessSession>>
+    | null = null;
+
+  if (!preferredMembership && preference?.activeCompanyId) {
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get(PARTNER_ACCESS_SESSION_COOKIE)?.value;
+    partnerAccessSession = await getActivePartnerClientAccessSession({
       userId: user.id,
-    },
-    include: {
-      company: true,
-    },
-  });
-  const membership = preferredMembership ?? fallbackMembership;
+      sessionId,
+      clientCompanyId: preference?.activeCompanyId,
+    });
+
+    if (partnerAccessSession) {
+      membership = {
+        id: `partner-access:${partnerAccessSession.id}`,
+        userId: user.id,
+        companyId: partnerAccessSession.clientCompanyId,
+        role: "MEMBER" as const,
+        createdAt: partnerAccessSession.startedAt,
+        company: partnerAccessSession.clientCompany,
+      };
+    }
+  }
+
+  if (!membership) {
+    membership = await prisma.companyUser.findFirst({
+      where: {
+        userId: user.id,
+      },
+      include: {
+        company: true,
+      },
+    });
+  }
 
   return {
     user,
     membership,
+    partnerAccessSession,
   };
 });

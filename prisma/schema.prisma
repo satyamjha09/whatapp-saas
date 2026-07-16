@@ -25,6 +25,7 @@ enum BillingPlan {
   STARTER
   GROWTH
   BUSINESS
+  ENTERPRISE
 }
 
 enum SubscriptionStatus {
@@ -59,6 +60,268 @@ enum CompanyStatus {
 enum CompanyBillingOwnerType {
   SELF
   PARENT_PARTNER
+}
+
+enum PartnerClientRelationshipStatus {
+  PROVISIONING
+  INVITED
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum PartnerClientProvisioningJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum PartnerClientProvisioningEventType {
+  CREATED
+  PROCESSING_STARTED
+  CLIENT_COMPANY_CREATED
+  RELATIONSHIP_CREATED
+  PLAN_ASSIGNED
+  OWNER_INVITED
+  COMPLETED
+  FAILED
+  RETRY_SCHEDULED
+  RETRY_REQUESTED
+  CANCELED
+}
+
+enum PartnerClientAccessPermission {
+  CLIENT_VIEW
+  CLIENT_SUPPORT
+  CLIENT_BILLING_VIEW
+  CLIENT_BILLING_MANAGE
+  CLIENT_TEAM_MANAGE
+  CLIENT_WHATSAPP_MANAGE
+  CLIENT_CAMPAIGN_MANAGE
+  CLIENT_SETTINGS_MANAGE
+}
+
+enum PartnerPriceBookEventType {
+  CREATED
+  UPDATED
+  ACTIVATED
+  DEACTIVATED
+  ITEM_UPSERTED
+  ITEM_DEACTIVATED
+}
+
+enum PartnerClientSubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  SUSPENDED
+  EXPIRED
+}
+
+enum PartnerClientSubscriptionEventType {
+  CREATED
+  PLAN_CHANGED
+  PRICE_CHANGED
+  STATUS_CHANGED
+  CANCELED
+  RENEWED
+  SNAPSHOT_RECORDED
+}
+
+enum PartnerBillingInvoiceDirection {
+  METAWHAT_TO_PARTNER
+  PARTNER_TO_CLIENT
+}
+
+enum PartnerBillingPaymentStatus {
+  NOT_REQUIRED
+  AWAITING_PAYMENT
+  PAID
+  OVERDUE
+  FAILED
+  CANCELED
+}
+
+enum PartnerBillingInvoiceEventType {
+  GENERATED
+  ISSUED
+  PAYMENT_LINK_RECORDED
+  PAYMENT_MARKED_PAID
+  PAYMENT_MARKED_FAILED
+  MARKED_OVERDUE
+  VOIDED
+  FAILED
+  BILLING_OWNER_CHANGED
+}
+
+enum PartnerCommissionAccrualType {
+  COMMISSION
+  REVERSAL
+  ADJUSTMENT
+}
+
+enum PartnerCommissionAccrualStatus {
+  PENDING_HOLD
+  AVAILABLE
+  INCLUDED_IN_PAYOUT
+  PAID
+  REVERSED
+  VOIDED
+}
+
+enum PartnerPayoutStatus {
+  REQUESTED
+  APPROVED
+  PROCESSING
+  PAID
+  FAILED
+  CANCELED
+}
+
+enum PartnerPayoutEventType {
+  REQUESTED
+  APPROVED
+  REJECTED
+  PROCESSING_STARTED
+  MARKED_PAID
+  MARKED_FAILED
+  CANCELED
+  RECONCILED
+}
+
+enum PartnerUsageLimitAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum PartnerBrandingStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  DISABLED
+}
+
+enum PartnerCustomDomainStatus {
+  REQUESTED
+  PENDING_DNS
+  DNS_VERIFIED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  DISABLED
+}
+
+enum PartnerCustomDomainSslStatus {
+  UNKNOWN
+  PENDING
+  ISSUED
+  FAILED
+}
+
+enum PartnerCustomDomainHealthStatus {
+  UNKNOWN
+  HEALTHY
+  UNHEALTHY
+}
+
+enum PartnerEmailBrandingStatus {
+  DRAFT
+  PENDING_DNS
+  VERIFIED
+  FAILED
+  DISABLED
+}
+
+enum PartnerSupportTicketStatus {
+  OPEN
+  PENDING_PARTNER
+  PENDING_METAWHAT
+  RESOLVED
+  CLOSED
+}
+
+enum PartnerSupportTicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum PartnerSupportTicketCategory {
+  GENERAL
+  BILLING
+  TECHNICAL
+  WHATSAPP
+  API
+  CLIENT_ACCESS
+  FEATURE_REQUEST
+}
+
+enum PartnerSupportCommentVisibility {
+  PARTNER
+  INTERNAL
+}
+
+enum PartnerSupportTicketEventType {
+  CREATED
+  COMMENT_ADDED
+  ASSIGNED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  ESCALATED
+  RESOLVED
+  CLOSED
+  CSAT_RECORDED
+}
+
+enum PlatformApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELED
+  EXPIRED
+}
+
+enum PlatformApprovalRequestType {
+  PARTNER_PAYOUT
+  PARTNER_DOMAIN
+  PARTNER_OFFBOARDING
+  PARTNER_CLIENT_TRANSFER
+  PLATFORM_SETTING
+  HIGH_RISK_ACTION
+}
+
+enum PartnerOffboardingStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+  FAILED
+}
+
+enum PartnerClientTransferStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  CANCELED
+  FAILED
+}
+
+enum PartnerDomainOwnershipChallengeStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  EXPIRED
 }
 
 enum CompanyPlanAssignmentStatus {
@@ -1377,83 +1640,109 @@ model User {
   platformRole          PlatformRole @default(NONE)
   platformAccessEnabled Boolean      @default(false)
 
-  companies                           CompanyUser[]
+  companies                            CompanyUser[]
   // Tenant-scoped records below must not be loaded via User include/select.
   // Query them with both companyId and userId, preferably through
   // src/server/services/tenant-user-relations.service.ts.
-  assignedContacts                    Contact[]                          @relation("ContactAssignee")
-  inboxNotes                          InboxNote[]                        @relation("InboxNoteAuthor")
-  inboxNoteMentions                   InboxNoteMention[]                 @relation("InboxNoteMentionUser")
-  inboxConversationFollowers          InboxConversationFollower[]        @relation("InboxConversationFollowerUser")
-  inboxQueueMemberships               InboxQueueMember[]                 @relation("InboxQueueMemberUser")
-  inboxAgentProfiles                  InboxAgentProfile[]                @relation("InboxAgentProfileUser")
-  inboxAgentMetricDaily               InboxAgentMetricDaily[]            @relation("InboxAgentMetricDailyUser")
-  assignedInboxCsatSurveys            InboxCsatSurvey[]                  @relation("InboxCsatAssignedAgent")
-  closedInboxCsatSurveys              InboxCsatSurvey[]                  @relation("InboxCsatClosedBy")
-  inboxAgentSkills                    InboxAgentSkill[]                  @relation("InboxAgentSkillUser")
-  inboxConversationAssignments        InboxConversationAssignment[]      @relation("InboxConversationAssignedUser")
-  inboxConversationAssignmentActions  InboxConversationAssignment[]      @relation("InboxConversationAssignmentActor")
-  requestedInboxReplyApprovals        InboxReplyApproval[]               @relation("InboxReplyApprovalRequester")
-  reviewedInboxReplyApprovals         InboxReplyApproval[]               @relation("InboxReplyApprovalReviewer")
-  sentInboxMessages                   Message[]                          @relation("MessageSentByUser")
-  approvedInboxMessages               Message[]                          @relation("MessageApprovedByUser")
-  snoozedContacts                     Contact[]                          @relation("ContactSnoozedByUser")
-  inboxSlaEvents                      InboxSlaEvent[]                    @relation("InboxSlaEventActor")
-  contactActivities                   ContactActivity[]
-  inboxSavedViews                     InboxSavedView[]
-  createdQuickReplies                 QuickReply[]                       @relation("QuickReplyCreator")
-  sentCompanyInvites                  CompanyInvite[]                    @relation("SentCompanyInvites")
-  acceptedCompanyInvites              CompanyInvite[]                    @relation("AcceptedCompanyInvites")
-  auditLogs                           AuditLog[]
-  createdApiKeys                      ApiKey[]
-  createdBulkMessageBatches           BulkMessageBatch[]
-  createdContactSegments              ContactSegment[]
-  generatedContactSegmentPreviews     ContactSegmentPreview[]
-  createdTemplateVariableMappings     TemplateVariableMapping[]
-  createdCampaignLaunchRuns           CampaignLaunchRun[]
-  generatedCampaignFailureInsightRuns CampaignFailureInsightRun[]
-  fixedCampaignFailureInsights        CampaignFailureInsight[]           @relation("FixedCampaignFailureInsights")
-  ignoredCampaignFailureInsights      CampaignFailureInsight[]           @relation("IgnoredCampaignFailureInsights")
-  retriedCampaignFailureInsights      CampaignFailureInsight[]           @relation("RetriedCampaignFailureInsights")
-  updatedCampaignThroughputPolicies   CampaignThroughputPolicy[]
-  generatedCampaignCompletionReports  CampaignCompletionReport[]
-  generatedCampaignReportExports      CampaignReportExport[]
-  createdCampaignConversionEvents     CampaignConversionEvent[]
-  assignedCampaignFollowUpTasks       CampaignFollowUpTask[]             @relation("AssignedCampaignFollowUpTasks")
-  completedCampaignFollowUpTasks      CampaignFollowUpTask[]             @relation("CompletedCampaignFollowUpTasks")
-  ignoredCampaignFollowUpTasks        CampaignFollowUpTask[]             @relation("IgnoredCampaignFollowUpTasks")
-  companyNotificationRecipients       CompanyNotificationRecipient[]
-  companyNotificationPreferences      CompanyNotificationPreference[]
-  companyNotificationEmailDeliveries  CompanyNotificationEmailDelivery[]
-  privacyRequests                     PrivacyRequest[]
-  contactConsentEvents                ContactConsentEvent[]
-  complianceEvidenceExports           ComplianceEvidenceExport[]
-  trustDocumentAcceptances            TrustDocumentAcceptance[]
-  accessRoleAssignments               CompanyAccessRoleAssignment[]
-  createdEntitlementOverrides         CompanyEntitlementOverride[]
-  entitlementCheckLogs                FeatureEntitlementCheckLog[]
-  requestedPlanCheckouts              PlanCheckout[]
-  companyPlanChanges                  CompanyPlanChange[]
-  billingInvoices                     BillingInvoice[]
-  requestedScheduledPlanChanges       ScheduledPlanChange[]
-  manualReviewedPlanCheckouts         PlanCheckout[]                     @relation("ManualReviewedPlanCheckouts")
-  requestedBillingRefunds             BillingRefund[]
-  updatedBillingProfiles              CompanyBillingProfile[]            @relation("BillingProfileUpdatedBy")
-  billingProfileUpdateEvents          BillingProfileUpdateEvent[]
-  contactImportJobs                   ContactImportJob[]
-  workspacePreference                 UserWorkspacePreference?
-  platformCompanyActionLogs           PlatformCompanyActionLog[]
-  platformCompanyNotes                PlatformCompanyNote[]
-  assignedCompanyPlans                CompanyPlanAssignment[]            @relation("AssignedCompanyPlans")
-  companyPlanAssignmentEvents         CompanyPlanAssignmentEvent[]       @relation("CompanyPlanAssignmentEventActor")
-  whatsAppEmbeddedSignupEvents        WhatsAppEmbeddedSignupEvent[]
-  createdChatbots                     Chatbot[]                          @relation("ChatbotCreator")
-  updatedChatbots                     Chatbot[]                          @relation("ChatbotUpdater")
-  createdChatbotVersions              ChatbotVersion[]                   @relation("ChatbotVersionCreator")
-  uploadedTemplateMediaAssets         TemplateMediaAsset[]               @relation("TemplateMediaAssetUploader")
-  changedOrderStatusEvents            OrderStatusEvent[]                 @relation("OrderStatusChangedBy")
-  tallyCustomerMappings               TallyCustomerMapping[]             @relation("TallyCustomerMappingUpdatedBy")
-  tallyProductMappings                TallyProductMapping[]              @relation("TallyProductMappingUpdatedBy")
+  assignedContacts                     Contact[]                          @relation("ContactAssignee")
+  inboxNotes                           InboxNote[]                        @relation("InboxNoteAuthor")
+  inboxNoteMentions                    InboxNoteMention[]                 @relation("InboxNoteMentionUser")
+  inboxConversationFollowers           InboxConversationFollower[]        @relation("InboxConversationFollowerUser")
+  inboxQueueMemberships                InboxQueueMember[]                 @relation("InboxQueueMemberUser")
+  inboxAgentProfiles                   InboxAgentProfile[]                @relation("InboxAgentProfileUser")
+  inboxAgentMetricDaily                InboxAgentMetricDaily[]            @relation("InboxAgentMetricDailyUser")
+  assignedInboxCsatSurveys             InboxCsatSurvey[]                  @relation("InboxCsatAssignedAgent")
+  closedInboxCsatSurveys               InboxCsatSurvey[]                  @relation("InboxCsatClosedBy")
+  inboxAgentSkills                     InboxAgentSkill[]                  @relation("InboxAgentSkillUser")
+  inboxConversationAssignments         InboxConversationAssignment[]      @relation("InboxConversationAssignedUser")
+  inboxConversationAssignmentActions   InboxConversationAssignment[]      @relation("InboxConversationAssignmentActor")
+  requestedInboxReplyApprovals         InboxReplyApproval[]               @relation("InboxReplyApprovalRequester")
+  reviewedInboxReplyApprovals          InboxReplyApproval[]               @relation("InboxReplyApprovalReviewer")
+  sentInboxMessages                    Message[]                          @relation("MessageSentByUser")
+  approvedInboxMessages                Message[]                          @relation("MessageApprovedByUser")
+  snoozedContacts                      Contact[]                          @relation("ContactSnoozedByUser")
+  inboxSlaEvents                       InboxSlaEvent[]                    @relation("InboxSlaEventActor")
+  contactActivities                    ContactActivity[]
+  inboxSavedViews                      InboxSavedView[]
+  createdQuickReplies                  QuickReply[]                       @relation("QuickReplyCreator")
+  sentCompanyInvites                   CompanyInvite[]                    @relation("SentCompanyInvites")
+  acceptedCompanyInvites               CompanyInvite[]                    @relation("AcceptedCompanyInvites")
+  auditLogs                            AuditLog[]
+  createdApiKeys                       ApiKey[]
+  createdBulkMessageBatches            BulkMessageBatch[]
+  createdContactSegments               ContactSegment[]
+  generatedContactSegmentPreviews      ContactSegmentPreview[]
+  createdTemplateVariableMappings      TemplateVariableMapping[]
+  createdCampaignLaunchRuns            CampaignLaunchRun[]
+  generatedCampaignFailureInsightRuns  CampaignFailureInsightRun[]
+  fixedCampaignFailureInsights         CampaignFailureInsight[]           @relation("FixedCampaignFailureInsights")
+  ignoredCampaignFailureInsights       CampaignFailureInsight[]           @relation("IgnoredCampaignFailureInsights")
+  retriedCampaignFailureInsights       CampaignFailureInsight[]           @relation("RetriedCampaignFailureInsights")
+  updatedCampaignThroughputPolicies    CampaignThroughputPolicy[]
+  generatedCampaignCompletionReports   CampaignCompletionReport[]
+  generatedCampaignReportExports       CampaignReportExport[]
+  createdCampaignConversionEvents      CampaignConversionEvent[]
+  assignedCampaignFollowUpTasks        CampaignFollowUpTask[]             @relation("AssignedCampaignFollowUpTasks")
+  completedCampaignFollowUpTasks       CampaignFollowUpTask[]             @relation("CompletedCampaignFollowUpTasks")
+  ignoredCampaignFollowUpTasks         CampaignFollowUpTask[]             @relation("IgnoredCampaignFollowUpTasks")
+  companyNotificationRecipients        CompanyNotificationRecipient[]
+  companyNotificationPreferences       CompanyNotificationPreference[]
+  companyNotificationEmailDeliveries   CompanyNotificationEmailDelivery[]
+  privacyRequests                      PrivacyRequest[]
+  contactConsentEvents                 ContactConsentEvent[]
+  complianceEvidenceExports            ComplianceEvidenceExport[]
+  trustDocumentAcceptances             TrustDocumentAcceptance[]
+  accessRoleAssignments                CompanyAccessRoleAssignment[]
+  createdEntitlementOverrides          CompanyEntitlementOverride[]
+  entitlementCheckLogs                 FeatureEntitlementCheckLog[]
+  requestedPlanCheckouts               PlanCheckout[]
+  companyPlanChanges                   CompanyPlanChange[]
+  billingInvoices                      BillingInvoice[]
+  requestedScheduledPlanChanges        ScheduledPlanChange[]
+  manualReviewedPlanCheckouts          PlanCheckout[]                     @relation("ManualReviewedPlanCheckouts")
+  requestedBillingRefunds              BillingRefund[]
+  updatedBillingProfiles               CompanyBillingProfile[]            @relation("BillingProfileUpdatedBy")
+  billingProfileUpdateEvents           BillingProfileUpdateEvent[]
+  contactImportJobs                    ContactImportJob[]
+  workspacePreference                  UserWorkspacePreference?
+  platformCompanyActionLogs            PlatformCompanyActionLog[]
+  platformCompanyNotes                 PlatformCompanyNote[]
+  assignedCompanyPlans                 CompanyPlanAssignment[]            @relation("AssignedCompanyPlans")
+  companyPlanAssignmentEvents          CompanyPlanAssignmentEvent[]       @relation("CompanyPlanAssignmentEventActor")
+  whatsAppEmbeddedSignupEvents         WhatsAppEmbeddedSignupEvent[]
+  createdChatbots                      Chatbot[]                          @relation("ChatbotCreator")
+  updatedChatbots                      Chatbot[]                          @relation("ChatbotUpdater")
+  createdChatbotVersions               ChatbotVersion[]                   @relation("ChatbotVersionCreator")
+  uploadedTemplateMediaAssets          TemplateMediaAsset[]               @relation("TemplateMediaAssetUploader")
+  changedOrderStatusEvents             OrderStatusEvent[]                 @relation("OrderStatusChangedBy")
+  tallyCustomerMappings                TallyCustomerMapping[]             @relation("TallyCustomerMappingUpdatedBy")
+  tallyProductMappings                 TallyProductMapping[]              @relation("TallyProductMappingUpdatedBy")
+  createdPartnerClientRelationships    PartnerClientRelationship[]        @relation("PartnerClientRelationshipCreatedBy")
+  createdPartnerClientProvisioningJobs PartnerClientProvisioningJob[]     @relation("PartnerClientProvisioningJobCreatedBy")
+  partnerClientAccessGrants            PartnerClientAccessGrant[]         @relation("PartnerClientAccessGrantUser")
+  grantedPartnerClientAccessGrants     PartnerClientAccessGrant[]         @relation("PartnerClientAccessGrantGrantedBy")
+  partnerClientAccessSessions          PartnerClientAccessSession[]       @relation("PartnerClientAccessSessionUser")
+  partnerPriceBookEvents               PartnerPriceBookEvent[]            @relation("PartnerPriceBookEventActor")
+  partnerClientSubscriptionEvents      PartnerClientSubscriptionEvent[]   @relation("PartnerClientSubscriptionEventActor")
+  partnerBillingInvoiceEvents          PartnerBillingInvoiceEvent[]       @relation("PartnerBillingInvoiceEventActor")
+  approvedPartnerPayouts               PartnerPayout[]                    @relation("PartnerPayoutApprovedBy")
+  processedPartnerPayouts              PartnerPayout[]                    @relation("PartnerPayoutProcessedBy")
+  partnerPayoutEvents                  PartnerPayoutEvent[]               @relation("PartnerPayoutEventActor")
+  approvedPartnerBrandings             PartnerBranding[]                  @relation("PartnerBrandingApprovedBy")
+  approvedPartnerCustomDomains         PartnerCustomDomain[]              @relation("PartnerCustomDomainApprovedBy")
+  openedPartnerSupportTickets          PartnerSupportTicket[]             @relation("PartnerSupportTicketOpenedBy")
+  assignedPartnerSupportTickets        PartnerSupportTicket[]             @relation("PartnerSupportTicketAssignedPlatformUser")
+  partnerSupportTicketComments         PartnerSupportTicketComment[]      @relation("PartnerSupportTicketCommentAuthor")
+  partnerSupportTicketEvents           PartnerSupportTicketEvent[]        @relation("PartnerSupportTicketEventActor")
+  requestedPlatformApprovals           PlatformApprovalRequest[]          @relation("PlatformApprovalRequestedBy")
+  approvedPlatformApprovals            PlatformApprovalRequest[]          @relation("PlatformApprovalApprovedBy")
+  rejectedPlatformApprovals            PlatformApprovalRequest[]          @relation("PlatformApprovalRejectedBy")
+  createdPartnerOffboardingRuns        PartnerOffboardingRun[]            @relation("PartnerOffboardingCreatedBy")
+  approvedPartnerOffboardingRuns       PartnerOffboardingRun[]            @relation("PartnerOffboardingApprovedBy")
+  completedPartnerOffboardingRuns      PartnerOffboardingRun[]            @relation("PartnerOffboardingCompletedBy")
+  requestedPartnerClientTransfers      PartnerClientTransferRequest[]     @relation("PartnerClientTransferRequestedBy")
+  approvedPartnerClientTransfers       PartnerClientTransferRequest[]     @relation("PartnerClientTransferApprovedBy")
+  completedPartnerClientTransfers      PartnerClientTransferRequest[]     @relation("PartnerClientTransferCompletedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1466,9 +1755,49 @@ model Company {
   type   CompanyType   @default(DIRECT_COMPANY)
   status CompanyStatus @default(PENDING_ONBOARDING)
 
-  parentCompanyId String?
-  parentCompany   Company?  @relation("PartnerChildCompanies", fields: [parentCompanyId], references: [id], onDelete: SetNull)
-  childCompanies  Company[] @relation("PartnerChildCompanies")
+  parentCompanyId                          String?
+  parentCompany                            Company?                          @relation("PartnerChildCompanies", fields: [parentCompanyId], references: [id], onDelete: SetNull)
+  childCompanies                           Company[]                         @relation("PartnerChildCompanies")
+  partnerClientRelationshipsAsPartner      PartnerClientRelationship[]       @relation("PartnerClientRelationshipsAsPartner")
+  partnerClientRelationshipAsClient        PartnerClientRelationship?        @relation("PartnerClientRelationshipAsClient")
+  partnerClientProvisioningJobsAsPartner   PartnerClientProvisioningJob[]    @relation("PartnerClientProvisioningJobPartner")
+  partnerClientProvisioningJobsAsClient    PartnerClientProvisioningJob[]    @relation("PartnerClientProvisioningJobClient")
+  partnerClientAccessGrantsAsPartner       PartnerClientAccessGrant[]        @relation("PartnerClientAccessGrantPartner")
+  partnerClientAccessGrantsAsClient        PartnerClientAccessGrant[]        @relation("PartnerClientAccessGrantClient")
+  partnerClientAccessSessionsAsPartner     PartnerClientAccessSession[]      @relation("PartnerClientAccessSessionPartner")
+  partnerClientAccessSessionsAsClient      PartnerClientAccessSession[]      @relation("PartnerClientAccessSessionClient")
+  partnerPriceBooks                        PartnerPriceBook[]                @relation("PartnerPriceBookCompany")
+  partnerPriceBookEvents                   PartnerPriceBookEvent[]           @relation("PartnerPriceBookEventPartner")
+  partnerClientSubscriptionsAsPartner      PartnerClientSubscription[]       @relation("PartnerClientSubscriptionPartner")
+  partnerClientSubscriptionsAsClient       PartnerClientSubscription[]       @relation("PartnerClientSubscriptionClient")
+  partnerClientSubscriptionEventsAsPartner PartnerClientSubscriptionEvent[]  @relation("PartnerClientSubscriptionEventPartner")
+  partnerClientSubscriptionEventsAsClient  PartnerClientSubscriptionEvent[]  @relation("PartnerClientSubscriptionEventClient")
+  partnerBillingInvoicesAsPartner          PartnerBillingInvoice[]           @relation("PartnerBillingInvoicePartner")
+  partnerBillingInvoicesAsClient           PartnerBillingInvoice[]           @relation("PartnerBillingInvoiceClient")
+  partnerBillingInvoiceEventsAsPartner     PartnerBillingInvoiceEvent[]      @relation("PartnerBillingInvoiceEventPartner")
+  partnerBillingInvoiceEventsAsClient      PartnerBillingInvoiceEvent[]      @relation("PartnerBillingInvoiceEventClient")
+  partnerCommissionRules                   PartnerCommissionRule[]           @relation("PartnerCommissionRulePartner")
+  partnerCommissionAccrualsAsPartner       PartnerCommissionAccrual[]        @relation("PartnerCommissionAccrualPartner")
+  partnerCommissionAccrualsAsClient        PartnerCommissionAccrual[]        @relation("PartnerCommissionAccrualClient")
+  partnerPayouts                           PartnerPayout[]                   @relation("PartnerPayoutPartner")
+  partnerPayoutEvents                      PartnerPayoutEvent[]              @relation("PartnerPayoutEventPartner")
+  partnerUsageDailyAsPartner               PartnerClientUsageDaily[]         @relation("PartnerClientUsageDailyPartner")
+  partnerUsageDailyAsClient                PartnerClientUsageDaily[]         @relation("PartnerClientUsageDailyClient")
+  partnerUsageLimitAlertsAsPartner         PartnerUsageLimitAlert[]          @relation("PartnerUsageLimitAlertPartner")
+  partnerUsageLimitAlertsAsClient          PartnerUsageLimitAlert[]          @relation("PartnerUsageLimitAlertClient")
+  partnerBranding                          PartnerBranding?                  @relation("PartnerBrandingCompany")
+  partnerCustomDomains                     PartnerCustomDomain[]             @relation("PartnerCustomDomainCompany")
+  partnerEmailBranding                     PartnerEmailBranding?             @relation("PartnerEmailBrandingCompany")
+  partnerSupportTicketsAsPartner           PartnerSupportTicket[]            @relation("PartnerSupportTicketPartnerCompany")
+  partnerSupportTicketsAsClient            PartnerSupportTicket[]            @relation("PartnerSupportTicketClientCompany")
+  partnerSupportTicketEventsAsPartner      PartnerSupportTicketEvent[]       @relation("PartnerSupportTicketEventPartner")
+  partnerSupportTicketEventsAsClient       PartnerSupportTicketEvent[]       @relation("PartnerSupportTicketEventClient")
+  platformApprovalRequests                 PlatformApprovalRequest[]         @relation("PlatformApprovalCompany")
+  partnerOffboardingRuns                   PartnerOffboardingRun[]           @relation("PartnerOffboardingPartner")
+  outgoingPartnerClientTransfers           PartnerClientTransferRequest[]    @relation("PartnerClientTransferFromPartner")
+  incomingPartnerClientTransfers           PartnerClientTransferRequest[]    @relation("PartnerClientTransferToPartner")
+  partnerClientTransfersAsClient           PartnerClientTransferRequest[]    @relation("PartnerClientTransferClient")
+  partnerDomainOwnershipChallenges         PartnerDomainOwnershipChallenge[] @relation("PartnerDomainOwnershipChallengePartner")
 
   billingOwnerType CompanyBillingOwnerType @default(SELF)
 
@@ -2181,6 +2510,10 @@ model CompanyNotificationEmailDelivery {
   toEmail        String
   subject        String
   actionUrl      String?
+  fromName       String?
+  fromEmail      String?
+  replyToEmail   String?
+  brandSnapshot  Json?
   status         CompanyNotificationEmailDeliveryStatus @default(PENDING)
   attempts       Int                                    @default(0)
   lastError      String?
@@ -4458,11 +4791,12 @@ model BillingInvoice {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  lines           BillingInvoiceLine[]
-  refunds         BillingRefund[]
-  creditNotes     BillingCreditNote[]
-  emailDeliveries BillingDocumentEmailDelivery[]
-  pdfRenders      BillingDocumentPdfRender[]
+  lines                 BillingInvoiceLine[]
+  refunds               BillingRefund[]
+  creditNotes           BillingCreditNote[]
+  emailDeliveries       BillingDocumentEmailDelivery[]
+  pdfRenders            BillingDocumentPdfRender[]
+  partnerBillingInvoice PartnerBillingInvoice?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6057,12 +6391,1023 @@ model CompanyInvite {
 
   acceptedAt DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+  partnerClientRelationships PartnerClientRelationship[]
 
   @@index([companyId])
   @@index([email])
   @@index([status])
+}
+
+model PartnerClientRelationship {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+  clientCompanyId  String @unique
+
+  status PartnerClientRelationshipStatus @default(PROVISIONING)
+
+  clientOwnerInviteId String?
+  createdByUserId     String?
+
+  externalClientReference String?
+  displayName             String?
+  activatedAt             DateTime?
+  archivedAt              DateTime?
+  metadata                Json?
+
+  partnerCompany    Company        @relation("PartnerClientRelationshipsAsPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany     Company        @relation("PartnerClientRelationshipAsClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+  clientOwnerInvite CompanyInvite? @relation(fields: [clientOwnerInviteId], references: [id], onDelete: SetNull)
+  createdByUser     User?          @relation("PartnerClientRelationshipCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  provisioningJobs PartnerClientProvisioningJob[]
+  accessGrants     PartnerClientAccessGrant[]
+  accessSessions   PartnerClientAccessSession[]
+  subscriptions    PartnerClientSubscription[]
+  transferRequests PartnerClientTransferRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([partnerCompanyId, clientCompanyId])
+  @@index([partnerCompanyId, status])
+  @@index([clientOwnerInviteId])
+  @@index([createdByUserId])
+}
+
+model PartnerClientAccessGrant {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+  clientCompanyId  String
+  relationshipId   String?
+  userId           String
+  grantedByUserId  String?
+
+  permissions PartnerClientAccessPermission[]
+  active      Boolean                         @default(true)
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  metadata    Json?
+
+  partnerCompany Company                      @relation("PartnerClientAccessGrantPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany  Company                      @relation("PartnerClientAccessGrantClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+  relationship   PartnerClientRelationship?   @relation(fields: [relationshipId], references: [id], onDelete: SetNull)
+  user           User                         @relation("PartnerClientAccessGrantUser", fields: [userId], references: [id], onDelete: Cascade)
+  grantedByUser  User?                        @relation("PartnerClientAccessGrantGrantedBy", fields: [grantedByUserId], references: [id], onDelete: SetNull)
+  sessions       PartnerClientAccessSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientCompanyId, userId])
+  @@index([partnerCompanyId, active])
+  @@index([clientCompanyId, active])
+  @@index([relationshipId])
+  @@index([userId, active])
+  @@index([expiresAt])
+}
+
+model PartnerClientAccessSession {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+  clientCompanyId  String
+  relationshipId   String?
+  grantId          String?
+  userId           String
+
+  permissions PartnerClientAccessPermission[]
+  reason      String?
+  ipAddress   String?
+  userAgent   String?
+  startedAt   DateTime                        @default(now())
+  expiresAt   DateTime
+  endedAt     DateTime?
+  metadata    Json?
+
+  partnerCompany Company                    @relation("PartnerClientAccessSessionPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany  Company                    @relation("PartnerClientAccessSessionClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+  relationship   PartnerClientRelationship? @relation(fields: [relationshipId], references: [id], onDelete: SetNull)
+  grant          PartnerClientAccessGrant?  @relation(fields: [grantId], references: [id], onDelete: SetNull)
+  user           User                       @relation("PartnerClientAccessSessionUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerCompanyId])
+  @@index([clientCompanyId])
+  @@index([relationshipId])
+  @@index([grantId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([endedAt])
+}
+
+model PartnerBranding {
+  id String @id @default(cuid())
+
+  partnerCompanyId String @unique
+
+  appName     String
+  companyName String?
+
+  logoUrl     String?
+  logoDarkUrl String?
+  markUrl     String?
+  faviconUrl  String?
+
+  primaryColor    String?
+  secondaryColor  String?
+  accentColor     String?
+  backgroundColor String?
+  textColor       String?
+
+  supportName  String?
+  supportEmail String?
+  supportPhone String?
+
+  loginHeading     String?
+  loginDescription String?
+
+  hideMetaWhatBranding Boolean               @default(false)
+  status               PartnerBrandingStatus @default(DRAFT)
+  rejectionReason      String?
+
+  approvedAt       DateTime?
+  approvedByUserId String?
+  submittedAt      DateTime?
+  disabledAt       DateTime?
+
+  metadata Json?
+
+  partnerCompany Company @relation("PartnerBrandingCompany", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  approvedBy     User?   @relation("PartnerBrandingApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerCompanyId, status])
+  @@index([approvedByUserId])
+  @@index([status])
+}
+
+model PartnerCustomDomain {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+
+  domain         String
+  normalizedHost String @unique
+
+  verificationToken    String
+  verificationTxtName  String
+  verificationTxtValue String
+
+  status          PartnerCustomDomainStatus       @default(REQUESTED)
+  sslStatus       PartnerCustomDomainSslStatus    @default(UNKNOWN)
+  healthStatus    PartnerCustomDomainHealthStatus @default(UNKNOWN)
+  rejectionReason String?
+
+  dnsVerifiedAt      DateTime?
+  submittedAt        DateTime?
+  approvedAt         DateTime?
+  approvedByUserId   String?
+  disabledAt         DateTime?
+  lastDnsCheckAt     DateTime?
+  lastSslCheckAt     DateTime?
+  lastHostResolvedAt DateTime?
+  lastHealthCheckAt  DateTime?
+  lastError          String?
+
+  metadata Json?
+
+  partnerCompany      Company                           @relation("PartnerCustomDomainCompany", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  approvedBy          User?                             @relation("PartnerCustomDomainApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  ownershipChallenges PartnerDomainOwnershipChallenge[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerCompanyId, status])
+  @@index([approvedByUserId])
+  @@index([status])
+  @@index([healthStatus])
+  @@index([sslStatus])
+}
+
+model PartnerEmailBranding {
+  id String @id @default(cuid())
+
+  partnerCompanyId String @unique
+
+  fromName    String?
+  fromAddress String?
+  replyTo     String?
+
+  sendingDomain    String?
+  providerDomainId String?
+
+  status PartnerEmailBrandingStatus @default(DRAFT)
+
+  spfVerified   Boolean @default(false)
+  dkimVerified  Boolean @default(false)
+  dmarcVerified Boolean @default(false)
+
+  spfHost    String?
+  spfValue   String?
+  dkimHost   String?
+  dkimValue  String?
+  dmarcHost  String?
+  dmarcValue String?
+
+  verifiedAt    DateTime?
+  lastCheckedAt DateTime?
+  failureReason String?
+
+  footerText String?
+  logoUrl    String?
+
+  metadata Json?
+
+  partnerCompany Company @relation("PartnerEmailBrandingCompany", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerCompanyId, status])
+  @@index([status])
+  @@index([sendingDomain])
+}
+
+model PartnerSupportTicket {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+  clientCompanyId  String?
+  openedByUserId   String
+
+  subject     String
+  description String
+  category    PartnerSupportTicketCategory @default(GENERAL)
+  priority    PartnerSupportTicketPriority @default(NORMAL)
+  status      PartnerSupportTicketStatus   @default(OPEN)
+
+  assignedPlatformUserId String?
+
+  firstResponseDueAt DateTime?
+  resolutionDueAt    DateTime?
+  firstRespondedAt   DateTime?
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+  escalatedAt        DateTime?
+
+  csatScore   Int?
+  csatComment String?
+  metadata    Json?
+
+  partnerCompany       Company                       @relation("PartnerSupportTicketPartnerCompany", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany        Company?                      @relation("PartnerSupportTicketClientCompany", fields: [clientCompanyId], references: [id], onDelete: SetNull)
+  openedBy             User                          @relation("PartnerSupportTicketOpenedBy", fields: [openedByUserId], references: [id], onDelete: Restrict)
+  assignedPlatformUser User?                         @relation("PartnerSupportTicketAssignedPlatformUser", fields: [assignedPlatformUserId], references: [id], onDelete: SetNull)
+  comments             PartnerSupportTicketComment[]
+  events               PartnerSupportTicketEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerCompanyId, status])
+  @@index([partnerCompanyId, priority])
+  @@index([clientCompanyId])
+  @@index([openedByUserId])
+  @@index([assignedPlatformUserId])
+  @@index([firstResponseDueAt])
+  @@index([resolutionDueAt])
+  @@index([createdAt])
+}
+
+model PartnerSupportTicketComment {
+  id String @id @default(cuid())
+
+  ticketId     String
+  authorUserId String?
+
+  body       String
+  visibility PartnerSupportCommentVisibility @default(PARTNER)
+  metadata   Json?
+
+  ticket PartnerSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User?                @relation("PartnerSupportTicketCommentAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ticketId])
+  @@index([authorUserId])
+  @@index([visibility])
+  @@index([createdAt])
+}
+
+model PartnerSupportTicketEvent {
+  id String @id @default(cuid())
+
+  ticketId         String
+  partnerCompanyId String
+  clientCompanyId  String?
+  actorUserId      String?
+
+  type PartnerSupportTicketEventType
+
+  previousValues Json?
+  newValues      Json?
+  message        String?
+  metadata       Json?
+
+  ticket         PartnerSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  partnerCompany Company              @relation("PartnerSupportTicketEventPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany  Company?             @relation("PartnerSupportTicketEventClient", fields: [clientCompanyId], references: [id], onDelete: SetNull)
+  actorUser      User?                @relation("PartnerSupportTicketEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([partnerCompanyId])
+  @@index([clientCompanyId])
+  @@index([actorUserId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model PlatformApprovalRequest {
+  id String @id @default(cuid())
+
+  type   PlatformApprovalRequestType
+  status PlatformApprovalRequestStatus @default(PENDING)
+
+  companyId String?
+
+  entityType String
+  entityId   String
+  action     String
+  reason     String
+  riskLevel  Int    @default(1)
+
+  requestedByUserId String?
+  approvedByUserId  String?
+  rejectedByUserId  String?
+
+  requestedAt DateTime  @default(now())
+  decidedAt   DateTime?
+  expiresAt   DateTime?
+
+  decisionReason String?
+  metadata       Json?
+
+  company                       Company?                       @relation("PlatformApprovalCompany", fields: [companyId], references: [id], onDelete: SetNull)
+  requestedBy                   User?                          @relation("PlatformApprovalRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  approvedBy                    User?                          @relation("PlatformApprovalApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  rejectedBy                    User?                          @relation("PlatformApprovalRejectedBy", fields: [rejectedByUserId], references: [id], onDelete: SetNull)
+  partnerOffboardingRuns        PartnerOffboardingRun[]        @relation("PartnerOffboardingApprovalRequest")
+  partnerClientTransferRequests PartnerClientTransferRequest[] @relation("PartnerClientTransferApprovalRequest")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type, status])
+  @@index([companyId])
+  @@index([entityType, entityId])
+  @@index([requestedByUserId])
+  @@index([approvedByUserId])
+  @@index([expiresAt])
+  @@index([createdAt])
+}
+
+model PartnerOffboardingRun {
+  id String @id @default(cuid())
+
+  partnerCompanyId  String
+  createdByUserId   String?
+  approvedByUserId  String?
+  completedByUserId String?
+  approvalRequestId String?
+
+  status PartnerOffboardingStatus @default(DRAFT)
+
+  reason          String
+  clientPolicy    String  @default("KEEP_WITH_METAWHAT")
+  transferTargets Json?
+  checklist       Json?
+  failureReason   String?
+  metadata        Json?
+
+  requestedAt DateTime  @default(now())
+  approvedAt  DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  canceledAt  DateTime?
+
+  partnerCompany  Company                  @relation("PartnerOffboardingPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  createdBy       User?                    @relation("PartnerOffboardingCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  approvedBy      User?                    @relation("PartnerOffboardingApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  completedBy     User?                    @relation("PartnerOffboardingCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  approvalRequest PlatformApprovalRequest? @relation("PartnerOffboardingApprovalRequest", fields: [approvalRequestId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerCompanyId, status])
+  @@index([createdByUserId])
+  @@index([approvedByUserId])
+  @@index([approvalRequestId])
+  @@index([createdAt])
+}
+
+model PartnerClientTransferRequest {
+  id String @id @default(cuid())
+
+  fromPartnerCompanyId String
+  toPartnerCompanyId   String?
+  clientCompanyId      String
+  relationshipId       String?
+  requestedByUserId    String?
+  approvedByUserId     String?
+  completedByUserId    String?
+  approvalRequestId    String?
+
+  status PartnerClientTransferStatus @default(DRAFT)
+
+  reason        String
+  transferMode  String  @default("MOVE_TO_METAWHAT")
+  failureReason String?
+  metadata      Json?
+
+  requestedAt DateTime  @default(now())
+  approvedAt  DateTime?
+  completedAt DateTime?
+  canceledAt  DateTime?
+
+  fromPartnerCompany Company                    @relation("PartnerClientTransferFromPartner", fields: [fromPartnerCompanyId], references: [id], onDelete: Cascade)
+  toPartnerCompany   Company?                   @relation("PartnerClientTransferToPartner", fields: [toPartnerCompanyId], references: [id], onDelete: SetNull)
+  clientCompany      Company                    @relation("PartnerClientTransferClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+  relationship       PartnerClientRelationship? @relation(fields: [relationshipId], references: [id], onDelete: SetNull)
+  requestedBy        User?                      @relation("PartnerClientTransferRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  approvedBy         User?                      @relation("PartnerClientTransferApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  completedBy        User?                      @relation("PartnerClientTransferCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  approvalRequest    PlatformApprovalRequest?   @relation("PartnerClientTransferApprovalRequest", fields: [approvalRequestId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fromPartnerCompanyId, status])
+  @@index([toPartnerCompanyId, status])
+  @@index([clientCompanyId, status])
+  @@index([relationshipId])
+  @@index([approvalRequestId])
+  @@index([createdAt])
+}
+
+model PartnerDomainOwnershipChallenge {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+  domainId         String?
+
+  normalizedHost String
+  token          String
+  txtName        String
+  txtValue       String
+  status         PartnerDomainOwnershipChallengeStatus @default(PENDING)
+
+  verifiedAt    DateTime?
+  failedAt      DateTime?
+  expiresAt     DateTime
+  lastCheckedAt DateTime?
+  failureReason String?
+  metadata      Json?
+
+  partnerCompany Company              @relation("PartnerDomainOwnershipChallengePartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  domain         PartnerCustomDomain? @relation(fields: [domainId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([normalizedHost, token])
+  @@index([partnerCompanyId, status])
+  @@index([domainId])
+  @@index([normalizedHost, status])
+  @@index([expiresAt])
+}
+
+model PartnerPriceBook {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+
+  name     String
+  currency String  @default("INR")
+  active   Boolean @default(true)
+
+  partnerCompany Company                 @relation("PartnerPriceBookCompany", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  items          PartnerPriceBookItem[]
+  events         PartnerPriceBookEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([partnerCompanyId, name])
+  @@index([partnerCompanyId, active])
+}
+
+model PartnerPriceBookItem {
+  id String @id @default(cuid())
+
+  priceBookId String
+
+  platformPlanCode BillingPlan
+
+  wholesaleMonthlyPaise Int
+  minimumRetailPaise    Int
+  suggestedRetailPaise  Int?
+  includedMessages      Int?
+  extraMessagePaise     Int?
+  active                Boolean @default(true)
+
+  priceBook     PartnerPriceBook            @relation(fields: [priceBookId], references: [id], onDelete: Cascade)
+  subscriptions PartnerClientSubscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([priceBookId, platformPlanCode])
+  @@index([priceBookId, active])
+  @@index([platformPlanCode])
+}
+
+model PartnerPriceBookEvent {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+  priceBookId      String
+  actorUserId      String?
+
+  type PartnerPriceBookEventType
+
+  message  String?
+  metadata Json?
+
+  partnerCompany Company          @relation("PartnerPriceBookEventPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  priceBook      PartnerPriceBook @relation(fields: [priceBookId], references: [id], onDelete: Cascade)
+  actorUser      User?            @relation("PartnerPriceBookEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([partnerCompanyId])
+  @@index([priceBookId])
+  @@index([actorUserId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model PartnerClientSubscription {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+  clientCompanyId  String
+  relationshipId   String?
+  priceBookItemId  String?
+
+  platformPlanCode BillingPlan
+  billingOwnerType CompanyBillingOwnerType @default(PARENT_PARTNER)
+
+  wholesaleAmountPaise Int
+  retailAmountPaise    Int
+  currency             String @default("INR")
+
+  status PartnerClientSubscriptionStatus @default(ACTIVE)
+
+  startsAt           DateTime @default(now())
+  currentPeriodStart DateTime @default(now())
+  currentPeriodEnd   DateTime
+
+  priceSnapshot Json
+  metadata      Json?
+
+  canceledAt       DateTime?
+  cancellationNote String?
+
+  partnerCompany     Company                          @relation("PartnerClientSubscriptionPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany      Company                          @relation("PartnerClientSubscriptionClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+  relationship       PartnerClientRelationship?       @relation(fields: [relationshipId], references: [id], onDelete: SetNull)
+  priceBookItem      PartnerPriceBookItem?            @relation(fields: [priceBookItemId], references: [id], onDelete: SetNull)
+  events             PartnerClientSubscriptionEvent[]
+  billingInvoices    PartnerBillingInvoice[]
+  commissionAccruals PartnerCommissionAccrual[]
+  usageDaily         PartnerClientUsageDaily[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerCompanyId])
+  @@index([clientCompanyId])
+  @@index([relationshipId])
+  @@index([priceBookItemId])
+  @@index([platformPlanCode])
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+model PartnerClientSubscriptionEvent {
+  id String @id @default(cuid())
+
+  subscriptionId   String
+  partnerCompanyId String
+  clientCompanyId  String
+  actorUserId      String?
+
+  type PartnerClientSubscriptionEventType
+
+  previousValues Json?
+  newValues      Json?
+  message        String?
+  metadata       Json?
+
+  subscription   PartnerClientSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  partnerCompany Company                   @relation("PartnerClientSubscriptionEventPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany  Company                   @relation("PartnerClientSubscriptionEventClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+  actorUser      User?                     @relation("PartnerClientSubscriptionEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([subscriptionId])
+  @@index([partnerCompanyId])
+  @@index([clientCompanyId])
+  @@index([actorUserId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model PartnerBillingInvoice {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+  clientCompanyId  String?
+  subscriptionId   String?
+  billingInvoiceId String  @unique
+
+  direction        PartnerBillingInvoiceDirection
+  billingOwnerType CompanyBillingOwnerType
+
+  status        BillingInvoiceStatus        @default(DRAFT)
+  paymentStatus PartnerBillingPaymentStatus @default(AWAITING_PAYMENT)
+
+  periodStart DateTime
+  periodEnd   DateTime
+  dueAt       DateTime?
+  overdueAt   DateTime?
+  paidAt      DateTime?
+  voidedAt    DateTime?
+
+  currency       String @default("INR")
+  subtotalPaise  Int    @default(0)
+  taxPaise       Int    @default(0)
+  totalPaise     Int    @default(0)
+  taxBasisPoints Int    @default(0)
+
+  paymentProvider  String?
+  paymentReference String?
+  paymentUrl       String?
+
+  metadata Json?
+
+  partnerCompany     Company                      @relation("PartnerBillingInvoicePartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany      Company?                     @relation("PartnerBillingInvoiceClient", fields: [clientCompanyId], references: [id], onDelete: SetNull)
+  subscription       PartnerClientSubscription?   @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  billingInvoice     BillingInvoice               @relation(fields: [billingInvoiceId], references: [id], onDelete: Cascade)
+  events             PartnerBillingInvoiceEvent[]
+  commissionAccruals PartnerCommissionAccrual[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([direction, subscriptionId, periodStart, periodEnd])
+  @@index([partnerCompanyId])
+  @@index([clientCompanyId])
+  @@index([subscriptionId])
+  @@index([direction])
+  @@index([billingOwnerType])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([dueAt])
+  @@index([overdueAt])
+  @@index([createdAt])
+}
+
+model PartnerBillingInvoiceEvent {
+  id String @id @default(cuid())
+
+  partnerBillingInvoiceId String
+  partnerCompanyId        String
+  clientCompanyId         String?
+  actorUserId             String?
+
+  type PartnerBillingInvoiceEventType
+
+  previousValues Json?
+  newValues      Json?
+  message        String?
+  metadata       Json?
+
+  partnerBillingInvoice PartnerBillingInvoice @relation(fields: [partnerBillingInvoiceId], references: [id], onDelete: Cascade)
+  partnerCompany        Company               @relation("PartnerBillingInvoiceEventPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany         Company?              @relation("PartnerBillingInvoiceEventClient", fields: [clientCompanyId], references: [id], onDelete: SetNull)
+  actorUser             User?                 @relation("PartnerBillingInvoiceEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([partnerBillingInvoiceId])
+  @@index([partnerCompanyId])
+  @@index([clientCompanyId])
+  @@index([actorUserId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model PartnerCommissionRule {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+
+  planCode BillingPlan?
+
+  percentageBps    Int?
+  fixedAmountPaise Int?
+  holdDays         Int  @default(14)
+
+  active   Boolean   @default(true)
+  startsAt DateTime  @default(now())
+  endsAt   DateTime?
+
+  metadata Json?
+
+  partnerCompany Company @relation("PartnerCommissionRulePartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerCompanyId, active])
+  @@index([planCode])
+  @@index([startsAt])
+  @@index([endsAt])
+}
+
+model PartnerCommissionAccrual {
+  id String @id @default(cuid())
+
+  partnerCompanyId        String
+  clientCompanyId         String?
+  subscriptionId          String?
+  partnerBillingInvoiceId String?
+  payoutId                String?
+
+  type   PartnerCommissionAccrualType   @default(COMMISSION)
+  status PartnerCommissionAccrualStatus @default(PENDING_HOLD)
+
+  grossAmountPaise      Int
+  commissionAmountPaise Int
+  currency              String @default("INR")
+
+  holdDays    Int       @default(14)
+  availableAt DateTime
+  paidAt      DateTime?
+  voidedAt    DateTime?
+
+  reversalOfAccrualId String?
+
+  idempotencyKey String @unique
+  source         String @default("partner_commission")
+  metadata       Json?
+
+  partnerCompany        Company                    @relation("PartnerCommissionAccrualPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany         Company?                   @relation("PartnerCommissionAccrualClient", fields: [clientCompanyId], references: [id], onDelete: SetNull)
+  subscription          PartnerClientSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  partnerBillingInvoice PartnerBillingInvoice?     @relation(fields: [partnerBillingInvoiceId], references: [id], onDelete: SetNull)
+  payout                PartnerPayout?             @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+  reversalOfAccrual     PartnerCommissionAccrual?  @relation("PartnerCommissionReversals", fields: [reversalOfAccrualId], references: [id], onDelete: SetNull)
+  reversalAccruals      PartnerCommissionAccrual[] @relation("PartnerCommissionReversals")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerCompanyId, status])
+  @@index([clientCompanyId])
+  @@index([subscriptionId])
+  @@index([partnerBillingInvoiceId])
+  @@index([payoutId])
+  @@index([type])
+  @@index([availableAt])
+  @@index([createdAt])
+}
+
+model PartnerPayout {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+
+  status PartnerPayoutStatus @default(REQUESTED)
+
+  amountPaise Int
+  currency    String @default("INR")
+
+  requestedAt DateTime  @default(now())
+  approvedAt  DateTime?
+  paidAt      DateTime?
+  failedAt    DateTime?
+  canceledAt  DateTime?
+
+  approvedByUserId  String?
+  processedByUserId String?
+
+  bankReference String?
+  failureReason String?
+  notes         String?
+  metadata      Json?
+
+  partnerCompany Company                    @relation("PartnerPayoutPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  approvedBy     User?                      @relation("PartnerPayoutApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  processedBy    User?                      @relation("PartnerPayoutProcessedBy", fields: [processedByUserId], references: [id], onDelete: SetNull)
+  accruals       PartnerCommissionAccrual[]
+  events         PartnerPayoutEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerCompanyId, status])
+  @@index([approvedByUserId])
+  @@index([processedByUserId])
+  @@index([requestedAt])
+  @@index([paidAt])
+}
+
+model PartnerPayoutEvent {
+  id String @id @default(cuid())
+
+  payoutId         String
+  partnerCompanyId String
+  actorUserId      String?
+
+  type PartnerPayoutEventType
+
+  previousValues Json?
+  newValues      Json?
+  message        String?
+  metadata       Json?
+
+  payout         PartnerPayout @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+  partnerCompany Company       @relation("PartnerPayoutEventPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  actorUser      User?         @relation("PartnerPayoutEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([payoutId])
+  @@index([partnerCompanyId])
+  @@index([actorUserId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model PartnerClientUsageDaily {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+  clientCompanyId  String
+  subscriptionId   String?
+
+  date     DateTime
+  currency String   @default("INR")
+
+  outboundMessages Int @default(0)
+  inboundMessages  Int @default(0)
+  campaignMessages Int @default(0)
+  apiRequests      Int @default(0)
+  activeContacts   Int @default(0)
+  teamMembers      Int @default(0)
+
+  walletDebitPaise  Int @default(0)
+  retailChargePaise Int @default(0)
+  platformCostPaise Int @default(0)
+  grossMarginPaise  Int @default(0)
+  marginBasisPoints Int @default(0)
+  limitAlertCount   Int @default(0)
+
+  metadata Json?
+
+  partnerCompany Company                    @relation("PartnerClientUsageDailyPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany  Company                    @relation("PartnerClientUsageDailyClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+  subscription   PartnerClientSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  alerts         PartnerUsageLimitAlert[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([partnerCompanyId, clientCompanyId, date])
+  @@index([partnerCompanyId, date])
+  @@index([clientCompanyId, date])
+  @@index([subscriptionId])
+  @@index([date])
+  @@index([grossMarginPaise])
+}
+
+model PartnerUsageLimitAlert {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+  clientCompanyId  String
+  usageDailyId     String?
+
+  metric       String
+  threshold    Int
+  currentValue Int
+  status       PartnerUsageLimitAlertStatus @default(OPEN)
+  message      String?
+
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+  metadata       Json?
+
+  partnerCompany Company                  @relation("PartnerUsageLimitAlertPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany  Company                  @relation("PartnerUsageLimitAlertClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+  usageDaily     PartnerClientUsageDaily? @relation(fields: [usageDailyId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([usageDailyId, metric])
+  @@index([partnerCompanyId, status])
+  @@index([clientCompanyId, status])
+  @@index([metric])
+  @@index([createdAt])
+}
+
+model PartnerClientProvisioningJob {
+  id String @id @default(cuid())
+
+  partnerCompanyId String
+  clientCompanyId  String?
+  relationshipId   String?
+  createdByUserId  String?
+
+  idempotencyKey String                             @unique
+  status         PartnerClientProvisioningJobStatus @default(PENDING)
+  attemptCount   Int                                @default(0)
+  maxAttempts    Int                                @default(3)
+
+  requestedCompanyName    String
+  requestedOwnerEmail     String
+  requestedOwnerName      String?
+  requestedPlan           BillingPlan @default(FREE)
+  requestedPlanDays       Int         @default(14)
+  externalClientReference String?
+
+  lastError   String?
+  nextRetryAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  metadata    Json?
+
+  partnerCompany Company                          @relation("PartnerClientProvisioningJobPartner", fields: [partnerCompanyId], references: [id], onDelete: Cascade)
+  clientCompany  Company?                         @relation("PartnerClientProvisioningJobClient", fields: [clientCompanyId], references: [id], onDelete: SetNull)
+  relationship   PartnerClientRelationship?       @relation(fields: [relationshipId], references: [id], onDelete: SetNull)
+  createdByUser  User?                            @relation("PartnerClientProvisioningJobCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  events         PartnerClientProvisioningEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerCompanyId, status])
+  @@index([clientCompanyId])
+  @@index([relationshipId])
+  @@index([createdByUserId])
+  @@index([nextRetryAt])
+}
+
+model PartnerClientProvisioningEvent {
+  id String @id @default(cuid())
+
+  jobId String
+  type  PartnerClientProvisioningEventType
+
+  message  String?
+  metadata Json?
+
+  job PartnerClientProvisioningJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model AuditLog {
@@ -7306,7 +8651,11 @@ model BillingDocumentEmailDelivery {
   recipientEmail String
   recipientName  String?
 
-  subject String
+  subject       String
+  fromName      String?
+  fromEmail     String?
+  replyToEmail  String?
+  brandSnapshot Json?
 
   sentAt   DateTime?
   failedAt DateTime?

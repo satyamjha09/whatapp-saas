@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { assignDefaultTrialPlan } from "@/server/services/company-plan-assignment.service";
 import { createAuditLog } from "@/server/services/audit.service";
+import { createPlatformAuditLog } from "@/server/services/platform-audit.service";
 import { redactSensitiveData } from "@/server/utils/safe-logger";
 
 export class PlatformCompanyControlError extends Error {
@@ -59,6 +60,18 @@ async function logPlatformCompanyAction({
 
   await createAuditLog({
     companyId,
+    actorUserId,
+    action: `platform.company.${type.toLowerCase()}`,
+    entityType: "Company",
+    entityId: companyId,
+    metadata: safeJson({
+      title,
+      description,
+      metadata,
+    }),
+  }).catch(() => undefined);
+
+  await createPlatformAuditLog({
     actorUserId,
     action: `platform.company.${type.toLowerCase()}`,
     entityType: "Company",

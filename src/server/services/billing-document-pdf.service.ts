@@ -381,7 +381,7 @@ export async function generateCreditNotePdf({
       margin: 50,
       info: {
         Title: `Credit Note ${creditNote.creditNoteNumber}`,
-        Author: "metawhat",
+        Author: creditNote.invoice?.sellerName ?? "metawhat",
       },
     });
 

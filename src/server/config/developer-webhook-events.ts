@@ -9,7 +9,20 @@ export type DeveloperWebhookEvent =
   | "campaign.created"
   | "campaign.completed"
   | "wallet.credit_added"
-  | "wallet.credit_deducted";
+  | "wallet.credit_deducted"
+  | "partner.client.provisioning_started"
+  | "partner.client.provisioned"
+  | "partner.client.provisioning_failed"
+  | "partner.client.suspended"
+  | "partner.client.reactivated"
+  | "partner.subscription.activated"
+  | "partner.subscription.expiring"
+  | "partner.usage.limit_reached"
+  | "partner.invoice.created"
+  | "partner.invoice.paid"
+  | "partner.commission.created"
+  | "partner.commission.available"
+  | "partner.payout.paid";
 
 export const DEVELOPER_WEBHOOK_EVENTS: {
   id: DeveloperWebhookEvent;
@@ -70,6 +83,71 @@ export const DEVELOPER_WEBHOOK_EVENTS: {
     id: "wallet.credit_deducted",
     label: "Wallet Credit Deducted",
     description: "Triggered when credits are deducted for sends.",
+  },
+  {
+    id: "partner.client.provisioning_started",
+    label: "Partner Client Provisioning Started",
+    description: "Triggered when a partner client workspace provisioning job starts.",
+  },
+  {
+    id: "partner.client.provisioned",
+    label: "Partner Client Provisioned",
+    description: "Triggered when a partner client workspace is ready.",
+  },
+  {
+    id: "partner.client.provisioning_failed",
+    label: "Partner Client Provisioning Failed",
+    description: "Triggered when client provisioning cannot complete.",
+  },
+  {
+    id: "partner.client.suspended",
+    label: "Partner Client Suspended",
+    description: "Triggered when a partner-owned client is suspended.",
+  },
+  {
+    id: "partner.client.reactivated",
+    label: "Partner Client Reactivated",
+    description: "Triggered when a suspended partner-owned client is reactivated.",
+  },
+  {
+    id: "partner.subscription.activated",
+    label: "Partner Subscription Activated",
+    description: "Triggered when a partner client subscription becomes active.",
+  },
+  {
+    id: "partner.subscription.expiring",
+    label: "Partner Subscription Expiring",
+    description: "Triggered when a partner client subscription is near expiry.",
+  },
+  {
+    id: "partner.usage.limit_reached",
+    label: "Partner Usage Limit Reached",
+    description: "Triggered when a partner client reaches a usage limit.",
+  },
+  {
+    id: "partner.invoice.created",
+    label: "Partner Invoice Created",
+    description: "Triggered when a partner invoice is created.",
+  },
+  {
+    id: "partner.invoice.paid",
+    label: "Partner Invoice Paid",
+    description: "Triggered when a partner invoice is paid.",
+  },
+  {
+    id: "partner.commission.created",
+    label: "Partner Commission Created",
+    description: "Triggered when a partner commission accrual is created.",
+  },
+  {
+    id: "partner.commission.available",
+    label: "Partner Commission Available",
+    description: "Triggered when a partner commission becomes payable.",
+  },
+  {
+    id: "partner.payout.paid",
+    label: "Partner Payout Paid",
+    description: "Triggered when a partner payout is marked paid.",
   },
 ];
 

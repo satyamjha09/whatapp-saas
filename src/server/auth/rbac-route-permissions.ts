@@ -21,6 +21,11 @@ export const RBAC_ROUTE_PERMISSION_RULES: RbacRoutePermissionRule[] = [
   { id: "billing-refunds", method: "*", pattern: /^\/api\/billing\/refunds(?:\/reconcile)?$/, permission: "BILLING_MANAGE", description: "Manage billing refunds" },
   { id: "billing-subscription", method: "POST", pattern: /^\/api\/billing\/subscription\/(?:cancel|change-plan|check-expiry|free|resume|cashfree\/(?:create-order|verify))$/, permission: "BILLING_MANAGE", description: "Manage subscription lifecycle" },
   { id: "billing-usage-quota-alerts", method: "POST", pattern: /^\/api\/billing\/usage-quota-alerts(?:\/scan|\/[^/]+\/(?:acknowledge|resolve))$/, permission: "BILLING_MANAGE", description: "Manage usage quota alerts" },
+  { id: "platform-partner-billing-view", method: "GET", pattern: /^\/api\/platform\/partner-billing\/invoices$/, permission: "BILLING_VIEW", description: "View platform partner billing invoices" },
+  { id: "platform-partner-billing-manage", method: "POST", pattern: /^\/api\/platform\/partner-billing\/(?:invoices(?:\/mark-overdue|\/[^/]+\/payment)?|subscriptions\/[^/]+\/billing-owner)$/, permission: "BILLING_MANAGE", description: "Manage platform partner billing invoices and billing owners" },
+  { id: "platform-partner-commissions", method: "*", pattern: /^\/api\/platform\/partner-commissions$/, permission: "BILLING_MANAGE", description: "Manage platform partner commission rules and accruals" },
+  { id: "platform-partner-payouts", method: "*", pattern: /^\/api\/platform\/partner-payouts(?:\/[^/]+\/(?:approve|payment))?$/, permission: "BILLING_MANAGE", description: "Manage platform partner payout requests and reconciliation" },
+  { id: "platform-partner-usage", method: "*", pattern: /^\/api\/platform\/partner-usage$/, permission: "BILLING_VIEW", description: "View and aggregate partner client usage reports" },
   { id: "campaign-create", method: "POST", pattern: /^\/api\/campaigns$/, permission: "CAMPAIGN_CREATE", description: "Create campaign" },
   { id: "campaign-view", method: "GET", pattern: /^\/api\/campaigns$/, permission: "CAMPAIGN_VIEW", description: "View campaigns" },
   { id: "campaign-preflight", method: "POST", pattern: /^\/api\/campaigns\/preflight$/, permission: "CAMPAIGN_CREATE", description: "Validate campaign launch readiness" },
@@ -147,3 +152,4 @@ export function getRequiredPermissionForRoute({
       rule.pattern.test(pathname),
   );
 }
+

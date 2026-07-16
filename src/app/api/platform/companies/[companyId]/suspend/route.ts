@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requirePlatformAdmin } from "@/server/tenant/tenant-context";
+import { requirePlatformPermission } from "@/server/tenant/tenant-context";
 import { createTenantErrorResponse } from "@/server/tenant/tenant-api-error";
 import {
   PlatformCompanyControlError,
@@ -19,7 +19,7 @@ type RouteContext = {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    const platform = await requirePlatformAdmin();
+    const platform = await requirePlatformPermission("PLATFORM_COMPANY_MANAGE");
     const { companyId } = await context.params;
     const body = suspendSchema.parse(await request.json());
 

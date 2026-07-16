@@ -4,7 +4,7 @@ import {
   CompanyPlanAssignmentError,
 } from "@/server/services/company-plan-assignment.service";
 import { createTenantErrorResponse } from "@/server/tenant/tenant-api-error";
-import { requirePlatformAdmin } from "@/server/tenant/tenant-context";
+import { requirePlatformPermission } from "@/server/tenant/tenant-context";
 
 type RouteContext = {
   params: Promise<{
@@ -14,7 +14,7 @@ type RouteContext = {
 
 export async function POST(_request: Request, context: RouteContext) {
   try {
-    const platform = await requirePlatformAdmin();
+    const platform = await requirePlatformPermission("PLATFORM_PLAN_MANAGE");
     const { companyId } = await context.params;
     const assignment = await cancelCompanyPlan({
       companyId,

@@ -6,7 +6,8 @@ import {
 } from "@/app/platform/companies/company-actions";
 import { getCompanyPlanAccessSummary } from "@/server/services/company-plan-assignment.service";
 import { getPlatformCompanyDetail } from "@/server/services/platform-company-control.service";
-import { requirePlatformAdmin } from "@/server/tenant/tenant-context";
+import { requirePlatformPermission } from "@/server/tenant/tenant-context";
+import { roleHasPlatformPermission } from "@/server/tenant/platform-permissions";
 
 function statusClass(status: string) {
   if (status === "ACTIVE") return "bg-green-50 text-green-700";
@@ -24,13 +25,21 @@ export default async function PlatformCompanyDetailPage({
     companyId: string;
   }>;
 }) {
-  const platform = await requirePlatformAdmin();
+  const platform = await requirePlatformPermission("PLATFORM_COMPANY_VIEW");
   const { companyId } = await params;
   const company = await getPlatformCompanyDetail({
     companyId,
     actorUserId: platform.user.id,
   });
   const planSummary = await getCompanyPlanAccessSummary(company.id);
+  const canManageCompanies = roleHasPlatformPermission(
+    platform.platformRole,
+    "PLATFORM_COMPANY_MANAGE",
+  );
+  const canManagePlans = roleHasPlatformPermission(
+    platform.platformRole,
+    "PLATFORM_PLAN_MANAGE",
+  );
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
@@ -61,7 +70,12 @@ export default async function PlatformCompanyDetailPage({
           </div>
         </div>
 
-        <PlatformCompanyActions companyId={company.id} status={company.status} />
+        <PlatformCompanyActions
+          canDisable={platform.isPlatformSuperAdmin}
+          canManage={canManageCompanies}
+          companyId={company.id}
+          status={company.status}
+        />
       </div>
 
       <section className="mt-6 grid gap-4 md:grid-cols-4">
@@ -133,7 +147,19 @@ export default async function PlatformCompanyDetailPage({
           )}
         </section>
 
-        <PlatformCompanyPlanActions companyId={company.id} />
+        {canManagePlans ? (
+          <PlatformCompanyPlanActions companyId={company.id} />
+        ) : (
+          <section className="rounded-2xl border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Platform Plan Control
+            </h2>
+            <p className="mt-3 text-sm text-gray-500">
+              Your platform role can view this company, but cannot assign or
+              modify plans.
+            </p>
+          </section>
+        )}
       </section>
 
       <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
@@ -228,7 +254,18 @@ export default async function PlatformCompanyDetailPage({
       </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <PlatformCompanyNoteForm companyId={company.id} />
+        {canManageCompanies ? (
+          <PlatformCompanyNoteForm companyId={company.id} />
+        ) : (
+          <section className="rounded-2xl border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Platform Notes
+            </h2>
+            <p className="mt-3 text-sm text-gray-500">
+              Notes are read-only for this platform role.
+            </p>
+          </section>
+        )}
 
         <section className="rounded-2xl border bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900">

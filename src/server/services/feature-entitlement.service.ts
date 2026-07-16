@@ -75,6 +75,9 @@ export const PLAN_ENTITLEMENT_MATRIX: Record<BillingPlan, PlanConfig> = {
   BUSINESS: Object.fromEntries(
     ALL_ENTITLEMENT_FEATURES.map((featureKey) => [featureKey, { enabled: true }]),
   ) as PlanConfig,
+  ENTERPRISE: Object.fromEntries(
+    ALL_ENTITLEMENT_FEATURES.map((featureKey) => [featureKey, { enabled: true }]),
+  ) as PlanConfig,
 };
 
 const MONTHLY_MESSAGE_LIMIT_BY_PLAN: Record<BillingPlan, number> = {
@@ -82,6 +85,7 @@ const MONTHLY_MESSAGE_LIMIT_BY_PLAN: Record<BillingPlan, number> = {
   STARTER: intEnv("FEATURE_ENTITLEMENTS_STARTER_MONTHLY_MESSAGES", 1_000),
   GROWTH: intEnv("FEATURE_ENTITLEMENTS_GROWTH_MONTHLY_MESSAGES", 10_000),
   BUSINESS: intEnv("FEATURE_ENTITLEMENTS_BUSINESS_MONTHLY_MESSAGES", 50_000),
+  ENTERPRISE: intEnv("FEATURE_ENTITLEMENTS_ENTERPRISE_MONTHLY_MESSAGES", 100_000),
 };
 
 export async function seedPlanEntitlements() {

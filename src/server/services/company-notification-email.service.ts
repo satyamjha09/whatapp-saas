@@ -2,10 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { getNotificationEmailQueue } from "@/server/queues/notification-email.queue";
 import { shouldSendEmailForNotification } from "@/server/services/company-notification-preference.service";
 import { buildNotificationEmailContent } from "@/server/services/notification-email-template.service";
+import { resolveEmailBrandingForCompany } from "@/server/services/partner-email-branding.service";
 import { toAbsoluteAppUrl } from "@/server/utils/app-url";
 
-function buildNotificationSubject(title: string) {
-  return `[metawhat] ${title}`;
+function buildNotificationSubject(title: string, brandName = "metawhat") {
+  return `[${brandName}] ${title}`;
 }
 
 export async function enqueueCompanyNotificationEmails({
@@ -44,6 +45,8 @@ export async function enqueueCompanyNotificationEmails({
       },
     },
   });
+  const emailIdentity = await resolveEmailBrandingForCompany(companyId);
+  const brandName = emailIdentity.brandSnapshot.appName || "metawhat";
 
   let queuedCount = 0;
 
@@ -76,8 +79,12 @@ export async function enqueueCompanyNotificationEmails({
         notificationId: notification.id,
         userId: member.userId,
         toEmail: member.user.email,
-        subject: buildNotificationSubject(notification.title),
+        subject: buildNotificationSubject(notification.title, brandName),
         actionUrl: toAbsoluteAppUrl(notification.actionHref),
+        fromName: emailIdentity.fromName,
+        fromEmail: emailIdentity.fromEmail,
+        replyToEmail: emailIdentity.replyTo ?? null,
+        brandSnapshot: emailIdentity.brandSnapshot,
       },
     });
 
@@ -183,9 +190,35 @@ export async function processCompanyNotificationEmailDelivery(
       severity: delivery.notification.severity,
       type: delivery.notification.type,
       actionHref: delivery.notification.actionHref,
+      brandName:
+        typeof delivery.brandSnapshot === "object" &&
+        delivery.brandSnapshot &&
+        "appName" in delivery.brandSnapshot &&
+        typeof delivery.brandSnapshot.appName === "string"
+          ? delivery.brandSnapshot.appName
+          : "metawhat",
+      primaryColor:
+        typeof delivery.brandSnapshot === "object" &&
+        delivery.brandSnapshot &&
+        "primaryColor" in delivery.brandSnapshot &&
+        typeof delivery.brandSnapshot.primaryColor === "string"
+          ? delivery.brandSnapshot.primaryColor
+          : null,
+      footerText:
+        typeof delivery.brandSnapshot === "object" &&
+        delivery.brandSnapshot &&
+        "footerText" in delivery.brandSnapshot &&
+        typeof delivery.brandSnapshot.footerText === "string"
+          ? delivery.brandSnapshot.footerText
+          : null,
     });
 
     await sendTransactionalEmail({
+      from:
+        delivery.fromEmail && delivery.fromName
+          ? `${delivery.fromName} <${delivery.fromEmail}>`
+          : undefined,
+      replyTo: delivery.replyToEmail ?? undefined,
       to: delivery.toEmail,
       subject: delivery.subject,
       text: emailContent.text,

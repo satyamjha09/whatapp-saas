@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { PlatformCompanyActions } from "@/app/platform/companies/company-actions";
 import { getPlatformCompaniesDashboard } from "@/server/services/platform-company-control.service";
-import { requirePlatformAdmin } from "@/server/tenant/tenant-context";
+import { requirePlatformPermission } from "@/server/tenant/tenant-context";
+import { roleHasPlatformPermission } from "@/server/tenant/platform-permissions";
 
 function statusClass(status: string) {
   if (status === "ACTIVE") return "bg-green-50 text-green-700";
@@ -13,10 +14,15 @@ function statusClass(status: string) {
 }
 
 export default async function PlatformCompaniesPage() {
-  await requirePlatformAdmin();
+  const platform = await requirePlatformPermission("PLATFORM_COMPANY_VIEW");
 
   const dashboard = await getPlatformCompaniesDashboard();
   const { companies } = dashboard;
+  const canManageCompanies = roleHasPlatformPermission(
+    platform.platformRole,
+    "PLATFORM_COMPANY_MANAGE",
+  );
+  const canDisableCompanies = platform.isPlatformSuperAdmin;
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
@@ -150,6 +156,8 @@ export default async function PlatformCompaniesPage() {
                       <PlatformCompanyActions
                         companyId={company.id}
                         status={company.status}
+                        canDisable={canDisableCompanies}
+                        canManage={canManageCompanies}
                       />
                     </td>
                   </tr>
