@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "PartnerUsageLimitAlertStatus" AS ENUM ('OPEN', 'ACKNOWLEDGED', 'RESOLVED');
 
 -- CreateTable
