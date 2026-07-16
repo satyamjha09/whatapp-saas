@@ -170,6 +170,12 @@ export default async function PlatformSecurityPage() {
           </p>
           <div className="mt-5 flex flex-col gap-2">
             <Link
+              href="/platform/security/enterprise-hardening"
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-center text-sm font-bold text-white"
+            >
+              Open hardening console
+            </Link>
+            <Link
               href="/platform/audit"
               className="rounded-xl bg-slate-950 px-4 py-2 text-center text-sm font-bold text-white"
             >
