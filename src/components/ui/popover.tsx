@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export function DropdownMenu({
+export function Popover({
   children,
   className,
 }: {
@@ -11,7 +11,7 @@ export function DropdownMenu({
   return <details className={cn("relative", className)}>{children}</details>;
 }
 
-export function DropdownMenuTrigger({
+export function PopoverTrigger({
   children,
   className,
 }: {
@@ -25,36 +25,24 @@ export function DropdownMenuTrigger({
   );
 }
 
-export function DropdownMenuContent({
+export function PopoverContent({
+  align = "end",
   children,
   className,
 }: {
+  align?: "start" | "end";
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <div
       className={cn(
-        "absolute right-0 z-40 mt-2 min-w-48 rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-popup",
+        "absolute z-40 mt-2 min-w-64 rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-popup",
+        align === "end" ? "right-0" : "left-0",
         className,
       )}
     >
       {children}
     </div>
-  );
-}
-
-export function DropdownMenuItem({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn(
-        "cursor-pointer rounded-lg px-3 py-2 text-sm font-medium text-foreground transition hover:bg-secondary hover:text-primary",
-        className,
-      )}
-      {...props}
-    />
   );
 }

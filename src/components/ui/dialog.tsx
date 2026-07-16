@@ -17,7 +17,7 @@ export function Dialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[#081B3A]/45 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/45 p-4 backdrop-blur-sm">
       <button
         type="button"
         aria-label="Close dialog"
@@ -26,7 +26,7 @@ export function Dialog({
       />
       <section
         className={cn(
-          "relative z-10 w-full max-w-lg rounded-2xl border border-[#BFE9D0] bg-white p-6 shadow-2xl",
+          "relative z-10 w-full max-w-lg rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-popup",
           className,
         )}
       >

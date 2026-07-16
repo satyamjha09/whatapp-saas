@@ -19,7 +19,7 @@ export function Sheet({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#081B3A]/45 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 bg-foreground/45 backdrop-blur-sm">
       <button
         type="button"
         aria-label="Close panel"
@@ -28,7 +28,7 @@ export function Sheet({
       />
       <aside
         className={cn(
-          "absolute top-0 h-full w-[min(92vw,420px)] border-[#BFE9D0] bg-white p-5 shadow-2xl",
+          "absolute top-0 h-full w-[min(92vw,420px)] border-border bg-card p-5 text-card-foreground shadow-popup",
           side === "right" ? "right-0 border-l" : "left-0 border-r",
           className,
         )}

@@ -15,7 +15,7 @@ export function TabsList({
   return (
     <div
       className={cn(
-        "inline-flex rounded-xl border border-[#BFE9D0] bg-white p-1",
+        "inline-flex rounded-xl border border-border bg-card p-1",
         className,
       )}
       {...props}
@@ -34,8 +34,8 @@ export function TabsTrigger({
       className={cn(
         "rounded-lg px-3 py-2 text-sm font-semibold transition",
         active
-          ? "bg-[#128C7E] text-white shadow-sm"
-          : "text-[#526173] hover:bg-[#E7F8EF] hover:text-[#128C7E]",
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "text-muted-foreground hover:bg-secondary hover:text-primary",
         className,
       )}
       {...props}

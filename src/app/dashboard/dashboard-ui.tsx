@@ -78,12 +78,12 @@ export function StatusPill({
   tone?: "zinc" | "green" | "blue" | "amber" | "red" | "violet";
 }) {
   const tones = {
-    amber: "bg-amber-50 text-amber-800 ring-amber-200",
-    blue: "bg-blue-50 text-blue-700 ring-blue-100",
-    green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    red: "bg-rose-100 text-rose-700 ring-rose-200",
-    violet: "bg-[#075E54]/10 text-[#075E54] ring-[#075E54]/20",
-    zinc: "bg-slate-100 text-[#526173] ring-slate-200",
+    amber: "bg-warning/15 text-warning-foreground ring-warning/25",
+    blue: "bg-info/10 text-info ring-info/20",
+    green: "bg-success/10 text-success ring-success/20",
+    red: "bg-destructive/10 text-destructive ring-destructive/20",
+    violet: "bg-secondary text-secondary-foreground ring-border",
+    zinc: "bg-muted text-muted-foreground ring-border",
   };
 
   return (
@@ -103,11 +103,11 @@ export function actionButtonClass(variant: "primary" | "secondary" = "primary") 
 }
 
 export const fieldClass =
-  "w-full rounded-xl border border-[#BFE9D0] bg-white px-4 py-3 text-sm text-[#102040] outline-none transition placeholder:text-[#526173]/60 focus:border-[#128C7E]/40 focus:ring-4 focus:ring-[#128C7E]/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-[#526173]";
+  "w-full rounded-xl border border-input bg-card px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring/40 focus:ring-4 focus:ring-ring/10 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground";
 
-export const labelClass = "mb-2 block text-sm font-semibold text-[#102040]";
+export const labelClass = "mb-2 block text-sm font-semibold text-foreground";
 
-export const helperTextClass = "mt-2 text-xs leading-5 text-[#526173]";
+export const helperTextClass = "mt-2 text-xs leading-5 text-muted-foreground";
 
 export function statusTone(
   status: string,
